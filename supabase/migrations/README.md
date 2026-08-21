@@ -10,6 +10,8 @@ ordre sur un projet neuf pour reconstruire la base complète.
 | `..._003_fix_horodatage_bascule.sql` | Correction `now()` → `clock_timestamp()` |
 | `..._004_admin_createur_evenement.sql` | Le créateur d'un événement devient admin |
 | `..._005_referentiels.sql` | equipes, lieux, types_mission, materiel, contacts |
+| `..._006_signalements_sos.sql` | Jeton public d'événement, table `signalements`, RLS |
+| `..._007_rpc_signalement_public.sql` | `creer_signalement()` et `suivre_signalement()`, droits `anon` |
 
 ## Ce qui n'est PAS ici
 
@@ -21,6 +23,17 @@ Les référentiels d'un événement (lieux, équipes, matériel…) se
 chargent exclusivement par formulaire ou par import CSV depuis l'app.
 Jamais par édition d'un fichier source — c'est ce mode de travail qui a
 provoqué la perte de données de BFMF 2026.
+
+## Dépendance d'environnement, hors migrations
+
+Le projet a été créé avec l'option **« Enable automatic RLS »** cochée.
+Elle installe une fonction `rls_auto_enable` et un event trigger qui
+activent RLS sur toute nouvelle table du schéma public.
+
+Ce filet n'est pas dans les migrations — il vient de Supabase, pas de
+nous. Sur un projet neuf reconstruit depuis ce repo, **cocher la même
+option à la création**, sinon une table ajoutée sans `enable row level
+security` serait exposée en clair.
 
 ## Test d'isolation
 

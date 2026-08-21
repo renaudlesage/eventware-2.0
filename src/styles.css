@@ -253,3 +253,88 @@ input[type="file"] {
   padding: 6px;
   font-size: 13px;
 }
+
+/* --- Modules --- */
+
+.modules { margin-bottom: 20px; }
+
+button.module {
+  background: transparent;
+  color: var(--sourdine);
+  border: 1px solid var(--trait);
+  font-size: 13px;
+  padding: 6px 12px;
+}
+
+button.module.actif {
+  background: var(--actif);
+  border-color: var(--actif);
+  color: #fff;
+}
+
+/* --- PC-Ops --- */
+
+.pcops { margin-bottom: 24px; }
+
+.jeton.alerte-jeton {
+  color: var(--alerte);
+  margin-left: 10px;
+}
+
+.carte-conteneur {
+  height: 300px;
+  border: 1px solid var(--trait);
+  margin-bottom: 12px;
+}
+
+.carte-conteneur .leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: var(--surface);
+}
+
+.lien-externe {
+  align-self: center;
+  font-size: 13px;
+  color: var(--actif);
+}
+
+/* --- Écran participant --- */
+
+.participant .bandeau h1 { font-size: 20px; }
+
+.participant .session.hors-ligne {
+  color: var(--alerte);
+  font-weight: 600;
+}
+
+.participant input,
+.participant select,
+.participant button {
+  font-size: 16px;   /* évite le zoom automatique sur iOS */
+  padding: 12px;
+}
+
+.participant button { width: 100%; }
+
+.etat-sos {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.carte.sos-en_attente { border-left: 3px solid var(--alerte); }
+.carte.sos-recu       { border-left: 3px solid var(--actif); }
+.carte.sos-echec      { border-left: 3px solid var(--sourdine); }
+
+.geo {
+  font-size: 12px;
+  color: var(--sourdine);
+  background: var(--surface);
+  border: 1px solid var(--trait);
+  padding: 10px;
+  margin-bottom: 14px;
+  line-height: 1.6;
+}
+
+.aide.alerte { color: var(--alerte); }

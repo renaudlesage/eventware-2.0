@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import ImportCsv from './ImportCsv'
+import PcOps from './PcOps'
+import Participant from './Participant'
 import { RESSOURCES } from './colonnesImport'
 
 const PHASES = ['preparation', 'montage', 'exploitation', 'demontage', 'cloture']
@@ -15,6 +17,11 @@ export default function App() {
   const [session, setSession] = useState(null)
   const [chargement, setChargement] = useState(true)
 
+  // Chemin public : ?sos=<jeton_public>.
+  // Aucune authentification, aucun accès aux tables — la page ne sait
+  // appeler que les deux fonctions RPC publiques.
+  const jetonSos = new URLSearchParams(window.location.search).get('sos')
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
@@ -23,6 +30,8 @@ export default function App() {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => sub.subscription.unsubscribe()
   }, [])
+
+  if (jetonSos) return <Participant jeton={jetonSos} />
 
   if (chargement) return <div className="enveloppe">Chargement…</div>
 
@@ -132,7 +141,7 @@ function Espace({ session }) {
   async function charger() {
     const { data, error } = await supabase
       .from('evenements')
-      .select('id, nom, slug, geometrie, phase, membres_evenement(role, user_id)')
+      .select('id, nom, slug, geometrie, phase, jeton_public, point_0_lat, point_0_lon, modules, membres_evenement(role, user_id)')
       .order('nom')
 
     if (error) return setMessage({ type: 'erreur', texte: error.message })
@@ -184,6 +193,8 @@ function Espace({ session }) {
                 )}
                 {selection === e.id && (
                   <div className="detail">
+                    <Modules evenement={e} onFait={charger} setMessage={setMessage} />
+                    {e.modules?.sos_participants && <PcOps evenement={e} />}
                     <Compteurs evenementId={e.id} cle={compteur} />
                     <ImportCsv
                       evenementId={e.id}
@@ -212,6 +223,57 @@ function Espace({ session }) {
         <div className="identifiant">{session.user.id}</div>
       </section>
     </>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Modules activés                                                     */
+/* ------------------------------------------------------------------ */
+
+const MODULES = [
+  ['securite', 'Sécurité'],
+  ['logistique', 'Logistique'],
+  ['rh', 'Bénévoles'],
+  ['sos_participants', 'SOS participants'],
+  ['plan_implantation', 'Plan d\'implantation'],
+  ['analyse', 'Analyse / REX']
+]
+
+function Modules({ evenement, onFait, setMessage }) {
+  const [occupe, setOccupe] = useState(false)
+
+  async function basculer(clef) {
+    setOccupe(true)
+    const modules = { ...evenement.modules, [clef]: !evenement.modules?.[clef] }
+    const { error } = await supabase
+      .from('evenements')
+      .update({ modules })
+      .eq('id', evenement.id)
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else onFait()
+    setOccupe(false)
+  }
+
+  return (
+    <div className="modules">
+      <h2>Modules</h2>
+      <div className="ligne-boutons">
+        {MODULES.map(([k, libelle]) => (
+          <button
+            key={k}
+            disabled={occupe}
+            className={evenement.modules?.[k] ? 'module actif' : 'module'}
+            onClick={() => basculer(k)}
+          >
+            {libelle}
+          </button>
+        ))}
+      </div>
+      <p className="aide">
+        Un module désactivé masque ses écrans et ses pavés. Le SOS participants ne reçoit
+        rien tant qu'il est éteint, même si le lien circule.
+      </p>
+    </div>
   )
 }
 
