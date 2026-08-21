@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import ImportCsv from './ImportCsv'
+import { RESSOURCES } from './colonnesImport'
 
 const PHASES = ['preparation', 'montage', 'exploitation', 'demontage', 'cloture']
 const GEOMETRIES = [
@@ -125,6 +127,7 @@ function Espace({ session }) {
   const [evenements, setEvenements] = useState([])
   const [message, setMessage] = useState(null)
   const [selection, setSelection] = useState(null)
+  const [compteur, setCompteur] = useState(0)
 
   async function charger() {
     const { data, error } = await supabase
@@ -174,20 +177,24 @@ function Espace({ session }) {
                       className="discret"
                       onClick={() => setSelection(selection === e.id ? null : e.id)}
                     >
-                      {selection === e.id ? 'Fermer' : 'Ajouter un membre'}
+                      {selection === e.id ? 'Fermer' : 'Ouvrir'}
                     </button>
                     <BasculePhase evenement={e} onFait={charger} setMessage={setMessage} />
                   </div>
                 )}
                 {selection === e.id && (
-                  <AjoutMembre
-                    evenementId={e.id}
-                    onFait={() => {
-                      setSelection(null)
-                      charger()
-                    }}
-                    setMessage={setMessage}
-                  />
+                  <div className="detail">
+                    <Compteurs evenementId={e.id} cle={compteur} />
+                    <ImportCsv
+                      evenementId={e.id}
+                      onFait={() => setCompteur((c) => c + 1)}
+                    />
+                    <AjoutMembre
+                      evenementId={e.id}
+                      onFait={charger}
+                      setMessage={setMessage}
+                    />
+                  </div>
                 )}
               </div>
             )
@@ -205,6 +212,46 @@ function Espace({ session }) {
         <div className="identifiant">{session.user.id}</div>
       </section>
     </>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Compteurs de référentiel                                            */
+/* ------------------------------------------------------------------ */
+
+function Compteurs({ evenementId, cle }) {
+  const [comptes, setComptes] = useState(null)
+
+  useEffect(() => {
+    let vivant = true
+    async function charger() {
+      const entrees = await Promise.all(
+        Object.entries(RESSOURCES).map(async ([k, r]) => {
+          const { count } = await supabase
+            .from(r.table)
+            .select('id', { count: 'exact', head: true })
+            .eq('evenement_id', evenementId)
+          return [r.libelle, count ?? 0]
+        })
+      )
+      if (vivant) setComptes(entrees)
+    }
+    charger()
+    return () => {
+      vivant = false
+    }
+  }, [evenementId, cle])
+
+  if (!comptes) return null
+
+  return (
+    <div className="compteurs">
+      {comptes.map(([libelle, n]) => (
+        <span key={libelle}>
+          {libelle} <strong>{n}</strong>
+        </span>
+      ))}
+    </div>
   )
 }
 

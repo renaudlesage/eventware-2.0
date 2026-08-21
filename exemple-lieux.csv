@@ -1,0 +1,8 @@
+code;nom;type;latitude;longitude;pk_km;description
+PT0;Point 0;pc_ops;50.38212;5.61679;0;Poste de commandement operationnel
+ET1;Etape 1 - Ravitaillement;etape;50.3855;5.6210;2.40;Table de ravitaillement
+ET2;Etape 2 - Croisement;etape;50.3901;5.6288;4.15;
+SEC1;Poste de secours principal;poste_secours;50.38230;5.61710;0.05;Croix-Rouge
+XX1;Ligne fautive - type inconnu;chateau;50.39;5.63;6.00;Doit etre rejetee
+ET1;Doublon interne;etape;50.3855;5.6210;2.40;Doit etre rejetee
+;Sans code;etape;50.40;5.64;7.00;Doit etre rejetee

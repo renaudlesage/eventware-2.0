@@ -171,3 +171,85 @@ button.discret {
   border: 1px dashed var(--trait);
   padding: 8px 10px;
 }
+
+/* --- Panneau de détail et import --- */
+
+.detail {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--trait);
+}
+
+.compteurs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--sourdine);
+  margin-bottom: 18px;
+}
+
+.compteurs strong {
+  font-family: var(--mono);
+  color: var(--encre);
+}
+
+.import { margin-bottom: 20px; }
+
+.aide {
+  font-size: 12px;
+  color: var(--sourdine);
+  margin: -6px 0 12px;
+  line-height: 1.5;
+}
+
+.mono { font-family: var(--mono); }
+
+button.lien {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--actif);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.resume {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+
+.jeton.nouveau  { color: var(--actif); }
+.jeton.existant { color: var(--sourdine); }
+.jeton.rejete   { color: var(--alerte); }
+
+.apercu {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.apercu th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--sourdine);
+  border-bottom: 1px solid var(--encre);
+  padding: 4px 6px;
+}
+
+.apercu td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--trait);
+}
+
+.apercu tr.rejete td { color: var(--alerte); }
+.apercu tr.existant td { color: var(--sourdine); }
+
+input[type="file"] {
+  padding: 6px;
+  font-size: 13px;
+}

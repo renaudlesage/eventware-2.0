@@ -63,3 +63,28 @@ Si l'étape 3 échoue, tout le reste est sans objet.
 Les deux utilisateurs factices créés en SQL (`test-a@eventware.local`,
 `test-b@eventware.local`) ont un mot de passe invalide et ne peuvent pas se connecter.
 À supprimer avec les trois événements de test une fois le protocole passé.
+
+---
+
+## Import CSV — protocole de test
+
+Un fichier `exemple-lieux.csv` est fourni à la racine. Il contient
+volontairement trois lignes fautives, pour vérifier que le module les
+rejette au lieu de les avaler.
+
+| # | Action | Résultat attendu |
+|---|---|---|
+| 1 | Ouvrir un événement (bouton « Ouvrir ») | Compteurs de référentiel à 0 |
+| 2 | Choisir « Lieux », charger `exemple-lieux.csv` | 4 nouveaux, 3 rejetés |
+| 3 | Lire les motifs de rejet | type hors liste · code en double · code manquant |
+| 4 | Mode « Simulation », appliquer | Rien n'est écrit, compteurs inchangés |
+| 5 | Mode « Ajouter seulement », appliquer | 4 lieux créés |
+| 6 | Recharger le même fichier | 4 **déjà présents**, 3 rejetés — plus aucun nouveau |
+| 7 | Mode « Ajouter seulement », appliquer | 0 créé, 4 ignorés : **rien n'est écrasé** |
+| 8 | Modifier une description dans le CSV, recharger, mode « Mettre à jour » | 4 mises à jour, description modifiée |
+
+L'étape 7 est le cœur du test : c'est le scénario exact de la perte de
+données de 2026, et il doit désormais être sans effet.
+
+Chaque opération, simulation comprise, laisse une ligne dans
+`journal_imports` avec le détail des rejets.
