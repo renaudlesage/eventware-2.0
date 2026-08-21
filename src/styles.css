@@ -1,0 +1,173 @@
+:root {
+  --encre: #16191c;
+  --papier: #f7f6f3;
+  --trait: #cfcbc2;
+  --sourdine: #6b6862;
+  --actif: #1d5c4f;
+  --alerte: #a3341f;
+  --surface: #ffffff;
+
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  --texte: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--papier);
+  color: var(--encre);
+  font-family: var(--texte);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.enveloppe {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+}
+
+/* --- En-tête --- */
+
+.bandeau {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--encre);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.bandeau h1 {
+  font-size: 17px;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.bandeau .session {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--sourdine);
+}
+
+/* --- Blocs --- */
+
+section { margin-bottom: 32px; }
+
+h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--sourdine);
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+
+.carte {
+  background: var(--surface);
+  border: 1px solid var(--trait);
+  padding: 14px 16px;
+  margin-bottom: 8px;
+}
+
+.carte .titre {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.meta {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--sourdine);
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* --- Étiquettes de rôle et de phase --- */
+
+.jeton {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border: 1px solid currentColor;
+}
+
+.jeton.admin { color: var(--alerte); }
+.jeton.phase { color: var(--actif); }
+
+/* --- Formulaires --- */
+
+label {
+  display: block;
+  font-size: 12px;
+  color: var(--sourdine);
+  margin-bottom: 4px;
+}
+
+input, select {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--trait);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 15px;
+  color: inherit;
+  margin-bottom: 12px;
+}
+
+input:focus, select:focus {
+  outline: 2px solid var(--actif);
+  outline-offset: -1px;
+}
+
+button {
+  padding: 9px 16px;
+  border: 1px solid var(--encre);
+  background: var(--encre);
+  color: var(--papier);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+button:disabled { opacity: 0.45; cursor: default; }
+
+button.discret {
+  background: transparent;
+  color: var(--encre);
+}
+
+.ligne-boutons { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* --- Messages --- */
+
+.message {
+  padding: 10px 12px;
+  border-left: 3px solid var(--actif);
+  background: var(--surface);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.message.erreur { border-left-color: var(--alerte); }
+
+.vide {
+  color: var(--sourdine);
+  font-size: 14px;
+  padding: 14px 0;
+}
+
+.identifiant {
+  font-family: var(--mono);
+  font-size: 12px;
+  word-break: break-all;
+  background: var(--surface);
+  border: 1px dashed var(--trait);
+  padding: 8px 10px;
+}
