@@ -406,3 +406,86 @@ button.module.actif {
 }
 
 .liste-pave .mono { font-size: 11px; color: var(--sourdine); }
+
+/* --- Module sécurité --- */
+
+.securite {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--trait);
+}
+
+.onglets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.saisie-rapide {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.saisie-rapide input {
+  flex: 1 1 220px;
+  margin-bottom: 0;
+}
+
+.formulaire {
+  border: 1px solid var(--trait);
+  background: var(--surface);
+  padding: 14px;
+  margin: 12px 0;
+}
+
+/* Chronologie */
+
+.chrono {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  border-left: 2px solid var(--trait);
+}
+
+.chrono li {
+  display: flex;
+  gap: 10px;
+  padding: 5px 0 5px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  border-bottom: 1px solid var(--papier);
+}
+
+.chrono .heure {
+  color: var(--sourdine);
+  font-size: 11px;
+  padding-top: 2px;
+  flex: 0 0 38px;
+}
+
+.chrono .corps { flex: 1; }
+
+/* Une saisie humaine ressort ; l'automatique s'efface */
+.chrono li.src-systeme .corps { color: var(--sourdine); }
+.chrono li.imp-majeur { border-left: 2px solid var(--alerte); margin-left: -2px; }
+.chrono li.imp-majeur .corps { color: var(--encre); font-weight: 500; }
+
+.chrono .tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--sourdine);
+  margin-left: 8px;
+}
+
+/* Priorités */
+
+.jeton.prio-P1 { color: var(--alerte); font-weight: 600; }
+.jeton.prio-P2 { color: #c07000; }
+.jeton.prio-P3,
+.jeton.prio-P4 { color: var(--sourdine); }
+
+.carte.urgent { border-left: 3px solid var(--alerte); }

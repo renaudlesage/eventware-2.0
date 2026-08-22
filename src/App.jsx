@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import ImportCsv from './ImportCsv'
 import PcOps from './PcOps'
 import Dashboard from './Dashboard'
+import Securite from './Securite'
 import Participant from './Participant'
 import { RESSOURCES } from './colonnesImport'
 
@@ -183,6 +184,9 @@ function Espace({ session }) {
                 </div>
                 {moi && (
                   <Dashboard evenement={e} membre={moi} onFait={charger} />
+                )}
+                {moi && e.modules?.securite && (
+                  <Securite evenement={e} membre={moi} />
                 )}
                 {moi?.role === 'admin' && (
                   <div className="ligne-boutons" style={{ marginTop: 10 }}>
