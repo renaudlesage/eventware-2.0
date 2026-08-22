@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+
+# Le .env de ce projet ne contient qu'une clé publiable, faite pour être
+# exposée côté client — il est volontairement versionné ici pour que le
+# harnais démarre sans configuration.
+# Sur le repo produit, décommenter la ligne suivante AVANT la première
+# clé service_role : c'est le réflexe qu'il faut avoir pris d'avance.
+# .env

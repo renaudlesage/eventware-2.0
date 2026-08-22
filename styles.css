@@ -1,0 +1,559 @@
+:root {
+  --encre: #16191c;
+  --papier: #f7f6f3;
+  --trait: #cfcbc2;
+  --sourdine: #6b6862;
+  --actif: #1d5c4f;
+  --alerte: #a3341f;
+  --surface: #ffffff;
+
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  --texte: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--papier);
+  color: var(--encre);
+  font-family: var(--texte);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.enveloppe {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+}
+
+/* --- En-tête --- */
+
+.bandeau {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--encre);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.bandeau h1 {
+  font-size: 17px;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.bandeau .session {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--sourdine);
+}
+
+/* --- Blocs --- */
+
+section { margin-bottom: 32px; }
+
+h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--sourdine);
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+
+.carte {
+  background: var(--surface);
+  border: 1px solid var(--trait);
+  padding: 14px 16px;
+  margin-bottom: 8px;
+}
+
+.carte .titre {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.meta {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--sourdine);
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* --- Étiquettes de rôle et de phase --- */
+
+.jeton {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border: 1px solid currentColor;
+}
+
+.jeton.admin { color: var(--alerte); }
+.jeton.phase { color: var(--actif); }
+
+/* --- Formulaires --- */
+
+label {
+  display: block;
+  font-size: 12px;
+  color: var(--sourdine);
+  margin-bottom: 4px;
+}
+
+input, select {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--trait);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 15px;
+  color: inherit;
+  margin-bottom: 12px;
+}
+
+input:focus, select:focus {
+  outline: 2px solid var(--actif);
+  outline-offset: -1px;
+}
+
+button {
+  padding: 9px 16px;
+  border: 1px solid var(--encre);
+  background: var(--encre);
+  color: var(--papier);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+button:disabled { opacity: 0.45; cursor: default; }
+
+button.discret {
+  background: transparent;
+  color: var(--encre);
+}
+
+.ligne-boutons { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* --- Messages --- */
+
+.message {
+  padding: 10px 12px;
+  border-left: 3px solid var(--actif);
+  background: var(--surface);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.message.erreur { border-left-color: var(--alerte); }
+
+.vide {
+  color: var(--sourdine);
+  font-size: 14px;
+  padding: 14px 0;
+}
+
+.identifiant {
+  font-family: var(--mono);
+  font-size: 12px;
+  word-break: break-all;
+  background: var(--surface);
+  border: 1px dashed var(--trait);
+  padding: 8px 10px;
+}
+
+/* --- Panneau de détail et import --- */
+
+.detail {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--trait);
+}
+
+.compteurs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--sourdine);
+  margin-bottom: 18px;
+}
+
+.compteurs strong {
+  font-family: var(--mono);
+  color: var(--encre);
+}
+
+.import { margin-bottom: 20px; }
+
+.aide {
+  font-size: 12px;
+  color: var(--sourdine);
+  margin: -6px 0 12px;
+  line-height: 1.5;
+}
+
+.mono { font-family: var(--mono); }
+
+button.lien {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--actif);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.resume {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+
+.jeton.nouveau  { color: var(--actif); }
+.jeton.existant { color: var(--sourdine); }
+.jeton.rejete   { color: var(--alerte); }
+
+.apercu {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.apercu th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--sourdine);
+  border-bottom: 1px solid var(--encre);
+  padding: 4px 6px;
+}
+
+.apercu td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--trait);
+}
+
+.apercu tr.rejete td { color: var(--alerte); }
+.apercu tr.existant td { color: var(--sourdine); }
+
+input[type="file"] {
+  padding: 6px;
+  font-size: 13px;
+}
+
+/* --- Modules --- */
+
+.modules { margin-bottom: 20px; }
+
+button.module {
+  background: transparent;
+  color: var(--sourdine);
+  border: 1px solid var(--trait);
+  font-size: 13px;
+  padding: 6px 12px;
+}
+
+button.module.actif {
+  background: var(--actif);
+  border-color: var(--actif);
+  color: #fff;
+}
+
+/* --- PC-Ops --- */
+
+.pcops { margin-bottom: 24px; }
+
+.jeton.alerte-jeton {
+  color: var(--alerte);
+  margin-left: 10px;
+}
+
+.carte-conteneur {
+  height: 300px;
+  border: 1px solid var(--trait);
+  margin-bottom: 12px;
+}
+
+.carte-conteneur .leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: var(--surface);
+}
+
+.lien-externe {
+  align-self: center;
+  font-size: 13px;
+  color: var(--actif);
+}
+
+/* --- Écran participant --- */
+
+.participant .bandeau h1 { font-size: 20px; }
+
+.participant .session.hors-ligne {
+  color: var(--alerte);
+  font-weight: 600;
+}
+
+.participant input,
+.participant select,
+.participant button {
+  font-size: 16px;   /* évite le zoom automatique sur iOS */
+  padding: 12px;
+}
+
+.participant button { width: 100%; }
+
+.etat-sos {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.carte.sos-en_attente { border-left: 3px solid var(--alerte); }
+.carte.sos-recu       { border-left: 3px solid var(--actif); }
+.carte.sos-echec      { border-left: 3px solid var(--sourdine); }
+
+.geo {
+  font-size: 12px;
+  color: var(--sourdine);
+  background: var(--surface);
+  border: 1px solid var(--trait);
+  padding: 10px;
+  margin-bottom: 14px;
+  line-height: 1.6;
+}
+
+.aide.alerte { color: var(--alerte); }
+
+/* --- Dashboard individuel --- */
+
+.dashboard {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--trait);
+}
+
+.entete-dashboard {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.entete-dashboard h2 { margin-bottom: 10px; }
+
+.reglage-paves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.reglage-paves .aide { flex-basis: 100%; margin: 4px 0 0; }
+
+.grille-paves {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+}
+
+.pave {
+  background: var(--surface);
+  border: 1px solid var(--trait);
+  padding: 12px 14px;
+}
+
+.pave-titre {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--sourdine);
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.pave .grand {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+
+.pave .vide { padding: 0; font-size: 13px; }
+
+.alerte-texte { color: var(--alerte); }
+
+.liste-pave {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.liste-pave .mono { font-size: 11px; color: var(--sourdine); }
+
+/* --- Module sécurité --- */
+
+.securite {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--trait);
+}
+
+.onglets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.saisie-rapide {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.saisie-rapide input {
+  flex: 1 1 220px;
+  margin-bottom: 0;
+}
+
+.formulaire {
+  border: 1px solid var(--trait);
+  background: var(--surface);
+  padding: 14px;
+  margin: 12px 0;
+}
+
+/* Chronologie */
+
+.chrono {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  border-left: 2px solid var(--trait);
+}
+
+.chrono li {
+  display: flex;
+  gap: 10px;
+  padding: 5px 0 5px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  border-bottom: 1px solid var(--papier);
+}
+
+.chrono .heure {
+  color: var(--sourdine);
+  font-size: 11px;
+  padding-top: 2px;
+  flex: 0 0 38px;
+}
+
+.chrono .corps { flex: 1; }
+
+/* Une saisie humaine ressort ; l'automatique s'efface */
+.chrono li.src-systeme .corps { color: var(--sourdine); }
+.chrono li.imp-majeur { border-left: 2px solid var(--alerte); margin-left: -2px; }
+.chrono li.imp-majeur .corps { color: var(--encre); font-weight: 500; }
+
+.chrono .tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--sourdine);
+  margin-left: 8px;
+}
+
+/* Priorités */
+
+.jeton.prio-P1 { color: var(--alerte); font-weight: 600; }
+.jeton.prio-P2 { color: #c07000; }
+.jeton.prio-P3,
+.jeton.prio-P4 { color: var(--sourdine); }
+
+.carte.urgent { border-left: 3px solid var(--alerte); }
+
+/* --- Jauge : cibles tactiles larges, utilisables debout et gantées --- */
+
+.grille-comptage {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.grille-comptage button {
+  padding: 16px 4px;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Parcours --- */
+
+.bloc-alerte {
+  border: 1px solid var(--alerte);
+  border-left-width: 3px;
+  background: var(--surface);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.ligne-retard {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--papier);
+}
+
+.ligne-retard:last-of-type { border-bottom: none; }
+
+.ligne-retard .meta { margin-top: 3px; }
+
+.ligne-retard a.lien-externe {
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+/* Bouton de terrain : atteignable au pouce, une main sur le guidon */
+.bouton-terrain {
+  width: 100%;
+  padding: 20px;
+  font-size: 17px;
+  margin-top: 6px;
+}
+
+/* --- Profil altimétrique --- */
+
+.profil {
+  border: 1px solid var(--trait);
+  background: var(--surface);
+  padding: 12px 8px 4px;
+  margin-bottom: 14px;
+}
+
+.svg-profil {
+  width: 100%;
+  height: 130px;
+  display: block;
+}
+
+.svg-profil .axe {
+  font-family: var(--mono);
+  font-size: 10px;
+  fill: var(--sourdine);
+}
