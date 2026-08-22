@@ -4,6 +4,7 @@ import ImportCsv from './ImportCsv'
 import PcOps from './PcOps'
 import Dashboard from './Dashboard'
 import Securite from './Securite'
+import Logistique from './Logistique'
 import Participant from './Participant'
 import { RESSOURCES } from './colonnesImport'
 
@@ -187,6 +188,9 @@ function Espace({ session }) {
                 )}
                 {moi && e.modules?.securite && (
                   <Securite evenement={e} membre={moi} />
+                )}
+                {moi && e.modules?.logistique && (
+                  <Logistique evenement={e} membre={moi} />
                 )}
                 {moi?.role === 'admin' && (
                   <div className="ligne-boutons" style={{ marginTop: 10 }}>
