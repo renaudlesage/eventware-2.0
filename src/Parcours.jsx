@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import Trace from './Trace'
 
 const STATUTS = [
   ['inscrit', 'Inscrit'],
@@ -30,6 +31,12 @@ export default function Parcours({ evenement, membre }) {
         >
           Pointage terrain
         </button>
+        <button
+          className={`module ${vue === 'trace' ? 'actif' : ''}`}
+          onClick={() => setVue('trace')}
+        >
+          Trace
+        </button>
       </div>
 
       {message && (
@@ -38,11 +45,11 @@ export default function Parcours({ evenement, membre }) {
         </div>
       )}
 
-      {vue === 'qg' ? (
-        <SuiviQg evenement={evenement} setMessage={setMessage} />
-      ) : (
+      {vue === 'qg' && <SuiviQg evenement={evenement} setMessage={setMessage} />}
+      {vue === 'terrain' && (
         <Pointage evenement={evenement} membre={membre} setMessage={setMessage} />
       )}
+      {vue === 'trace' && <Trace evenement={evenement} setMessage={setMessage} />}
     </div>
   )
 }

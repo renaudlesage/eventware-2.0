@@ -536,3 +536,24 @@ button.module.actif {
   font-size: 17px;
   margin-top: 6px;
 }
+
+/* --- Profil altimétrique --- */
+
+.profil {
+  border: 1px solid var(--trait);
+  background: var(--surface);
+  padding: 12px 8px 4px;
+  margin-bottom: 14px;
+}
+
+.svg-profil {
+  width: 100%;
+  height: 130px;
+  display: block;
+}
+
+.svg-profil .axe {
+  font-family: var(--mono);
+  font-size: 10px;
+  fill: var(--sourdine);
+}
