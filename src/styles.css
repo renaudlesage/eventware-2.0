@@ -504,3 +504,35 @@ button.module.actif {
   font-size: 16px;
   font-variant-numeric: tabular-nums;
 }
+
+/* --- Parcours --- */
+
+.bloc-alerte {
+  border: 1px solid var(--alerte);
+  border-left-width: 3px;
+  background: var(--surface);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.ligne-retard {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--papier);
+}
+
+.ligne-retard:last-of-type { border-bottom: none; }
+
+.ligne-retard .meta { margin-top: 3px; }
+
+.ligne-retard a.lien-externe {
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+/* Bouton de terrain : atteignable au pouce, une main sur le guidon */
+.bouton-terrain {
+  width: 100%;
+  padding: 20px;
+  font-size: 17px;
+  margin-top: 6px;
+}

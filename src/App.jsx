@@ -5,6 +5,7 @@ import PcOps from './PcOps'
 import Dashboard from './Dashboard'
 import Securite from './Securite'
 import Logistique from './Logistique'
+import Parcours from './Parcours'
 import Participant from './Participant'
 import { RESSOURCES } from './colonnesImport'
 
@@ -192,6 +193,9 @@ function Espace({ session }) {
                 {moi && e.modules?.logistique && (
                   <Logistique evenement={e} membre={moi} />
                 )}
+                {moi && e.modules?.parcours && (
+                  <Parcours evenement={e} membre={moi} />
+                )}
                 {moi?.role === 'admin' && (
                   <div className="ligne-boutons" style={{ marginTop: 10 }}>
                     <button
@@ -247,6 +251,7 @@ const MODULES = [
   ['logistique', 'Logistique'],
   ['rh', 'Bénévoles'],
   ['sos_participants', 'SOS participants'],
+  ['parcours', 'Parcours'],
   ['plan_implantation', 'Plan d\'implantation'],
   ['analyse', 'Analyse / REX']
 ]
