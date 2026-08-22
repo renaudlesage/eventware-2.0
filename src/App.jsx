@@ -7,6 +7,7 @@ import Securite from './Securite'
 import Logistique from './Logistique'
 import Parcours from './Parcours'
 import Rh from './Rh'
+import Analyse from './Analyse'
 import Participant from './Participant'
 import { RESSOURCES } from './colonnesImport'
 
@@ -198,6 +199,9 @@ function Espace({ session }) {
                   <Parcours evenement={e} membre={moi} />
                 )}
                 {moi && e.modules?.rh && <Rh evenement={e} membre={moi} />}
+                {moi && e.modules?.analyse && (
+                  <Analyse evenement={e} membre={moi} />
+                )}
                 {moi?.role === 'admin' && (
                   <div className="ligne-boutons" style={{ marginTop: 10 }}>
                     <button

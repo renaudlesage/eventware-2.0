@@ -557,3 +557,53 @@ button.module.actif {
   font-size: 10px;
   fill: var(--sourdine);
 }
+
+/* --- Analyse / REX --- */
+
+.detail-metrique {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--sourdine);
+  padding: 3px 0;
+  border-bottom: 1px solid var(--papier);
+}
+
+.detail-metrique strong {
+  font-family: var(--mono);
+  color: var(--encre);
+}
+
+.detail-metrique.alerte-texte strong { color: var(--alerte); }
+
+.repartition { margin-top: 10px; }
+
+.barre-ligne {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  margin-bottom: 3px;
+}
+
+.barre-lib {
+  flex: 0 0 72px;
+  color: var(--sourdine);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barre {
+  flex: 1;
+  height: 7px;
+  background: var(--papier);
+  display: block;
+}
+
+.barre > span {
+  display: block;
+  height: 100%;
+  background: var(--actif);
+}
