@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
-import { lireFile, ajouter, majSignalement, nouvelleCle, ETATS } from './fileSos'
+import { lireFile, ajouter, majSignalement, retirer, nouvelleCle, ETATS } from './fileSos'
 
 const TYPES = [
   ['malaise', 'Malaise'],
@@ -11,10 +11,20 @@ const TYPES = [
   ['autre', 'Autre']
 ]
 
-const MESSAGES_REFUS = {
-  P0002: "Ce lien ne correspond à aucun événement.",
-  P0003: "Le signalement n'est pas activé pour cet événement.",
-  P0004: "L'événement n'est pas en cours."
+/**
+ * Un refus définitif ne sera jamais accepté : inutile de réessayer.
+ * Un refus temporaire peut devenir valable — module qu'on active, phase
+ * qui bascule. Le signalement reste alors en file et repart tout seul.
+ *
+ * Confondre les deux fige un signalement en échec pour toujours.
+ */
+const REFUS_DEFINITIF = {
+  P0002: "Ce lien ne correspond à aucun événement. Vérifie le QR code."
+}
+
+const REFUS_TEMPORAIRE = {
+  P0003: "Les signalements ne sont pas encore ouverts sur cet événement.",
+  P0004: "L'événement n'a pas encore commencé."
 }
 
 export default function Participant({ jeton }) {
@@ -85,11 +95,20 @@ export default function Participant({ jeton }) {
 
     if (error) {
       const code = error.code
-      // Refus explicite du serveur : inutile de réessayer
-      if (MESSAGES_REFUS[code]) {
-        setFile(majSignalement(s.cle_client, { etat: 'echec', motif: MESSAGES_REFUS[code] }))
+
+      if (REFUS_DEFINITIF[code]) {
+        setFile(majSignalement(s.cle_client, { etat: 'echec', motif: REFUS_DEFINITIF[code] }))
+        return false
       }
-      // Sinon : panne réseau probable, on laisse en file
+
+      if (REFUS_TEMPORAIRE[code]) {
+        // Reste en file : la condition peut changer d'une minute à l'autre
+        setFile(majSignalement(s.cle_client, { etat: 'en_attente', motif: REFUS_TEMPORAIRE[code] }))
+        return false
+      }
+
+      // Panne réseau probable : on laisse en file, sans motif
+      setFile(majSignalement(s.cle_client, { etat: 'en_attente', motif: null }))
       return false
     }
 
@@ -166,12 +185,18 @@ export default function Participant({ jeton }) {
               </div>
               {s.etat === 'en_attente' && (
                 <p className="aide">
-                  Ton téléphone n'a pas de réseau. Le signalement partira tout seul dès que
-                  la connexion revient — garde cette page ouverte.
+                  {s.motif
+                    ? `${s.motif} Le signalement partira automatiquement dès que ce sera possible.`
+                    : "Ton téléphone n'a pas de réseau. Le signalement partira tout seul dès que la connexion revient — garde cette page ouverte."}
                 </p>
               )}
               {s.etat === 'echec' && <p className="aide alerte">{s.motif}</p>}
               {s.description && <p className="aide">{s.description}</p>}
+              {s.etat !== 'recu' && (
+                <button className="lien" onClick={() => setFile(retirer(s.cle_client))}>
+                  Retirer de la liste
+                </button>
+              )}
             </div>
           ))}
         </section>

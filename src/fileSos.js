@@ -43,6 +43,12 @@ export function majSignalement(cleClient, champs) {
   return file
 }
 
+export function retirer(cleClient) {
+  const file = lireFile().filter((s) => s.cle_client !== cleClient)
+  ecrireFile(file)
+  return file
+}
+
 export function nouvelleCle() {
   if (crypto?.randomUUID) return crypto.randomUUID()
   // Repli pour les contextes non sécurisés (http://)

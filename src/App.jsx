@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import ImportCsv from './ImportCsv'
 import PcOps from './PcOps'
+import Dashboard from './Dashboard'
 import Participant from './Participant'
 import { RESSOURCES } from './colonnesImport'
 
@@ -141,7 +142,7 @@ function Espace({ session }) {
   async function charger() {
     const { data, error } = await supabase
       .from('evenements')
-      .select('id, nom, slug, geometrie, phase, jeton_public, point_0_lat, point_0_lon, modules, membres_evenement(role, user_id)')
+      .select('id, nom, slug, geometrie, phase, jeton_public, point_0_lat, point_0_lon, modules, membres_evenement(id, role, user_id, nom_affiche, perimetre, paves)')
       .order('nom')
 
     if (error) return setMessage({ type: 'erreur', texte: error.message })
@@ -180,6 +181,9 @@ function Espace({ session }) {
                   {moi && <span className={`jeton ${moi.role}`}>{moi.role}</span>}
                   <span>{e.membres_evenement.length} membre(s)</span>
                 </div>
+                {moi && (
+                  <Dashboard evenement={e} membre={moi} onFait={charger} />
+                )}
                 {moi?.role === 'admin' && (
                   <div className="ligne-boutons" style={{ marginTop: 10 }}>
                     <button

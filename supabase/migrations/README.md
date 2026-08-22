@@ -12,6 +12,7 @@ ordre sur un projet neuf pour reconstruire la base complète.
 | `..._005_referentiels.sql` | equipes, lieux, types_mission, materiel, contacts |
 | `..._006_signalements_sos.sql` | Jeton public d'événement, table `signalements`, RLS |
 | `..._007_rpc_signalement_public.sql` | `creer_signalement()` et `suivre_signalement()`, droits `anon` |
+| `..._008_paves_dashboard.sql` | Colonne `paves` : composition du dashboard individuel |
 
 ## Ce qui n'est PAS ici
 
