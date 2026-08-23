@@ -153,17 +153,24 @@ body {
   padding: 0 16px 64px;
 }
 
-.barre {
+/* Bloc de tête : barre + cadrans collés ensemble.
+   Deux éléments collants distincts se recouvraient au défilement. */
+.tete {
   position: sticky;
   top: 0;
   z-index: 30;
+  background: var(--fond);
+  border-bottom: 2px solid var(--trait-fort);
+  padding-bottom: 10px;
+  margin-bottom: 18px;
+}
+
+.barre {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  padding: 10px 0;
-  background: var(--fond);
-  border-bottom: 2px solid var(--trait-fort);
+  padding: 10px 0 12px;
 }
 
 .pousse { flex: 1; }
@@ -198,11 +205,10 @@ body {
 
 .etat {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
   gap: 1px;
   background: var(--trait);
   border: 1px solid var(--trait);
-  margin: 14px 0 18px;
 }
 
 .cadran {
@@ -234,12 +240,17 @@ body {
   color: var(--sourdine);
 }
 
-.cadran.chaud { background: var(--etat-chaud); }
-.cadran.chaud .cadran-valeur,
-.cadran.chaud .cadran-libelle { color: #fff; }
+/* Un cadran chaud se signale par sa valeur et une barre, pas par un
+   aplat plein : quand trois cadrans sur quatre sont pleins, plus rien
+   ne ressort et l'œil cesse de les lire. */
+.cadran.chaud { box-shadow: inset 3px 0 0 var(--etat-chaud); }
+.cadran.chaud .cadran-valeur { color: var(--etat-chaud); }
+.cadran.chaud .cadran-libelle { color: var(--encre); }
 
 .cadran:not(.reseau):hover { background: var(--surface-2); }
-.cadran.chaud:hover { background: var(--etat-chaud); }
+
+.cadran.reseau.chaud { box-shadow: inset 3px 0 0 var(--etat-veille); }
+.cadran.reseau.chaud .cadran-valeur { color: var(--etat-veille); }
 
 /* ---------------- Navigation par plaques ---------------- */
 
@@ -276,7 +287,7 @@ body {
 
 @media (min-width: 940px) {
   .corps { display: grid; grid-template-columns: 176px 1fr; gap: 26px; align-items: start; }
-  .plaques { flex-direction: column; position: sticky; top: 62px; }
+  .plaques { flex-direction: column; position: sticky; top: 148px; }
   .plaque-nav { text-align: left; }
 }
 

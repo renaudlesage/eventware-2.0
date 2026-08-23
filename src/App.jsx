@@ -36,18 +36,33 @@ const MODULES = [
   ['analyse', 'Analyse / REX']
 ]
 
-/* Navigation : chaque entrée dit à quel module elle appartient et qui y accède. */
+/*
+ * Navigation.
+ *
+ * `roles` liste qui VOIT l'écran. C'est une couche d'affichage, pas de
+ * sécurité : les données restent protégées par RLS quoi qu'il arrive.
+ * Mais un écran qu'on n'a pas à utiliser ne doit pas encombrer la
+ * navigation — un bénévole qui découvre l'app le samedi matin doit
+ * trouver ses trois écrans, pas onze.
+ */
+const TOUS = ['admin', 'coordinateur', 'chef_equipe', 'benevole', 'observateur']
+const ENCADREMENT = ['admin', 'coordinateur', 'chef_equipe']
+const DIRECTION = ['admin', 'coordinateur']
+
 const ECRANS = [
-  { clef: 'accueil', libelle: 'Poste', module: null, roles: null },
-  { clef: 'terrain', libelle: 'Mon terrain', module: null, roles: null },
-  { clef: 'memento', libelle: 'Mémento', module: null, roles: null },
-  { clef: 'securite', libelle: 'Sécurité', module: 'securite', roles: null },
-  { clef: 'sos', libelle: 'Signalements', module: 'sos_participants', roles: null },
-  { clef: 'logistique', libelle: 'Logistique', module: 'logistique', roles: null },
-  { clef: 'parcours', libelle: 'Parcours', module: 'parcours', roles: null },
-  { clef: 'rh', libelle: 'Bénévoles', module: 'rh', roles: null },
-  { clef: 'plan', libelle: 'Implantation', module: 'plan_implantation', roles: null },
-  { clef: 'analyse', libelle: 'Analyse', module: 'analyse', roles: null },
+  { clef: 'accueil', libelle: 'Poste', module: null, roles: TOUS },
+  { clef: 'terrain', libelle: 'Mon terrain', module: null,
+    roles: ['admin', 'coordinateur', 'chef_equipe', 'benevole'] },
+  { clef: 'memento', libelle: 'Mémento', module: null, roles: TOUS },
+  { clef: 'securite', libelle: 'Sécurité', module: 'securite', roles: ENCADREMENT },
+  { clef: 'sos', libelle: 'Signalements', module: 'sos_participants', roles: ENCADREMENT },
+  { clef: 'logistique', libelle: 'Logistique', module: 'logistique',
+    roles: ['admin', 'coordinateur', 'chef_equipe', 'benevole'] },
+  { clef: 'parcours', libelle: 'Parcours', module: 'parcours',
+    roles: ['admin', 'coordinateur', 'chef_equipe', 'benevole'] },
+  { clef: 'rh', libelle: 'Bénévoles', module: 'rh', roles: ENCADREMENT },
+  { clef: 'plan', libelle: 'Implantation', module: 'plan_implantation', roles: TOUS },
+  { clef: 'analyse', libelle: 'Analyse', module: 'analyse', roles: DIRECTION },
   { clef: 'reglages', libelle: 'Réglages', module: null, roles: ['admin'] }
 ]
 
@@ -202,7 +217,7 @@ function Poste({ session, theme, setTheme }) {
 
   const visibles = ECRANS.filter((e) => {
     if (e.module && !courant?.modules?.[e.module]) return false
-    if (e.roles && !e.roles.includes(moi?.role)) return false
+    if (!moi || !e.roles.includes(moi.role)) return false
     return true
   })
 
@@ -214,6 +229,7 @@ function Poste({ session, theme, setTheme }) {
 
   return (
     <div className="poste">
+      <div className="tete">
       <header className="barre">
         <div className="marque compacte">
           <span className="marque-nom">Eventware</span>
@@ -246,9 +262,12 @@ function Poste({ session, theme, setTheme }) {
         </button>
       </header>
 
-      <Bandeau evenements={evenements} membre={session.user} />
+      {courant && moi && (
+        <BandeauEtat evenement={courant} membre={moi} onAller={setEcran} />
+      )}
+      </div>
 
-      {courant && moi && <BandeauEtat evenement={courant} onAller={setEcran} />}
+      <Bandeau evenements={evenements} membre={session.user} />
 
       {message && (
         <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
@@ -294,7 +313,7 @@ function Poste({ session, theme, setTheme }) {
 /* Bandeau d'état — ce qu'on regarde toutes les trente secondes        */
 /* ================================================================== */
 
-function BandeauEtat({ evenement, onAller }) {
+function BandeauEtat({ evenement, membre, onAller }) {
   const [c, setC] = useState({})
   const [enLigne, setEnLigne] = useState(navigator.onLine)
 
@@ -357,12 +376,15 @@ function BandeauEtat({ evenement, onAller }) {
     }
   }, [evenement.id, JSON.stringify(evenement.modules)])
 
+  // Un cadran ne s'affiche que si la personne peut agir dessus.
+  const encadrement = ['admin', 'coordinateur', 'chef_equipe'].includes(membre?.role)
+
   const cases = [
-    { clef: 'p1', libelle: 'P1 ouvertes', valeur: c.p1, vers: 'securite' },
-    { clef: 'sos', libelle: 'Signalements', valeur: c.sos, vers: 'sos' },
-    { clef: 'retards', libelle: 'Sans nouvelles', valeur: c.retards, vers: 'parcours' },
-    { clef: 'manque', libelle: 'Postes à couvrir', valeur: c.manque, vers: 'rh' }
-  ].filter((x) => x.valeur !== undefined)
+    { clef: 'p1', libelle: 'P1 ouvertes', valeur: c.p1, vers: encadrement ? 'securite' : 'terrain', pour: true },
+    { clef: 'sos', libelle: 'Signalements', valeur: c.sos, vers: 'sos', pour: encadrement },
+    { clef: 'retards', libelle: 'Sans nouvelles', valeur: c.retards, vers: 'parcours', pour: encadrement },
+    { clef: 'manque', libelle: 'Postes à couvrir', valeur: c.manque, vers: 'rh', pour: encadrement }
+  ].filter((x) => x.valeur !== undefined && x.pour)
 
   return (
     <div className="etat">
