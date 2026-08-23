@@ -14,6 +14,7 @@ import PlanImplantation from './PlanImplantation'
 import PcOps from './PcOps'
 import QrCodes from './QrCodes'
 import ImportCsv from './ImportCsv'
+import ImportKml from './ImportKml'
 import Bandeau, { GestionAlertes } from './Bandeau'
 import Roles from './Roles'
 import Situation from './Situation'
@@ -569,6 +570,8 @@ function Reglages({ evenement, session, onRecharger, setMessage }) {
         <Compteurs evenementId={evenement.id} cle={compteur} />
         <ImportCsv evenementId={evenement.id} onFait={() => setCompteur((c) => c + 1)} />
       </section>
+
+      <ImportKml evenement={evenement} setMessage={setMessage} />
 
       <section className="bloc">
         <h2>Membres</h2>
