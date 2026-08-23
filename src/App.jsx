@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import Participant from './Participant'
+import Autorite from './Autorite'
 import Dashboard from './Dashboard'
 import Terrain from './Terrain'
 import Memento from './Memento'
@@ -14,7 +15,11 @@ import PcOps from './PcOps'
 import QrCodes from './QrCodes'
 import ImportCsv from './ImportCsv'
 import Bandeau, { GestionAlertes } from './Bandeau'
+import Roles from './Roles'
+import Situation from './Situation'
+import AccesAutorite from './AccesAutorite'
 import { RESSOURCES } from './colonnesImport'
+import { useCapacites } from './capacites'
 
 const PHASES = ['preparation', 'montage', 'exploitation', 'demontage', 'cloture']
 
@@ -23,8 +28,6 @@ const GEOMETRIES = [
   ['parcours', 'Parcours'],
   ['hybride', 'Hybride']
 ]
-
-const ROLES = ['coordinateur', 'chef_equipe', 'benevole', 'observateur']
 
 const MODULES = [
   ['securite', 'Sécurité'],
@@ -45,25 +48,27 @@ const MODULES = [
  * navigation — un bénévole qui découvre l'app le samedi matin doit
  * trouver ses trois écrans, pas onze.
  */
-const TOUS = ['admin', 'coordinateur', 'chef_equipe', 'benevole', 'observateur']
-const ENCADREMENT = ['admin', 'coordinateur', 'chef_equipe']
-const DIRECTION = ['admin', 'coordinateur']
-
+/*
+ * Chaque écran déclare la CAPACITÉ qui l'ouvre, pas une liste de rôles.
+ * Un rôle inventé par un client obtient ainsi ses écrans sans qu'une
+ * ligne de code soit écrite — c'était l'objet de la migration 025.
+ *
+ * `besoin: null` = ouvert à tout membre.
+ */
 const ECRANS = [
-  { clef: 'accueil', libelle: 'Poste', module: null, roles: TOUS },
-  { clef: 'terrain', libelle: 'Mon terrain', module: null,
-    roles: ['admin', 'coordinateur', 'chef_equipe', 'benevole'] },
-  { clef: 'memento', libelle: 'Mémento', module: null, roles: TOUS },
-  { clef: 'securite', libelle: 'Sécurité', module: 'securite', roles: ENCADREMENT },
-  { clef: 'sos', libelle: 'Signalements', module: 'sos_participants', roles: ENCADREMENT },
-  { clef: 'logistique', libelle: 'Logistique', module: 'logistique',
-    roles: ['admin', 'coordinateur', 'chef_equipe', 'benevole'] },
-  { clef: 'parcours', libelle: 'Parcours', module: 'parcours',
-    roles: ['admin', 'coordinateur', 'chef_equipe', 'benevole'] },
-  { clef: 'rh', libelle: 'Bénévoles', module: 'rh', roles: ENCADREMENT },
-  { clef: 'plan', libelle: 'Implantation', module: 'plan_implantation', roles: TOUS },
-  { clef: 'analyse', libelle: 'Analyse', module: 'analyse', roles: DIRECTION },
-  { clef: 'reglages', libelle: 'Réglages', module: null, roles: ['admin'] }
+  { clef: 'situation',  libelle: 'Situation',    module: null,                besoin: ['missions', 'lire'] },
+  { clef: 'accueil',    libelle: 'Mon poste',    module: null,                besoin: null },
+  { clef: 'terrain',    libelle: 'Mon terrain',  module: null,                besoin: ['missions', 'modifier'] },
+  { clef: 'memento',    libelle: 'Mémento',      module: null,                besoin: null },
+  { clef: 'securite',   libelle: 'Sécurité',     module: 'securite',          besoin: ['missions', 'creer'] },
+  { clef: 'sos',        libelle: 'Signalements', module: 'sos_participants',  besoin: ['sos', 'modifier'] },
+  { clef: 'logistique', libelle: 'Logistique',   module: 'logistique',        besoin: ['logistique', 'lire'] },
+  { clef: 'parcours',   libelle: 'Parcours',     module: 'parcours',          besoin: ['parcours', 'lire'] },
+  { clef: 'rh',         libelle: 'Bénévoles',    module: 'rh',                besoin: ['rh', 'lire'] },
+  { clef: 'plan',       libelle: 'Implantation', module: 'plan_implantation', besoin: ['plan_implantation', 'lire'] },
+  { clef: 'analyse',    libelle: 'Analyse',      module: 'analyse',           besoin: ['analyse', 'lire'] },
+  { clef: 'roles',      libelle: 'Rôles',        module: null,                besoin: 'tout_pouvoir' },
+  { clef: 'reglages',   libelle: 'Réglages',     module: null,                besoin: 'tout_pouvoir' }
 ]
 
 export default function App() {
@@ -76,6 +81,7 @@ export default function App() {
   const parametres = new URLSearchParams(window.location.search)
   const jetonSos = parametres.get('sos')
   const codeLieu = parametres.get('lieu')
+  const jetonAutorite = parametres.get('autorite')
 
   useEffect(() => {
     const racine = document.documentElement
@@ -94,6 +100,7 @@ export default function App() {
   }, [])
 
   if (jetonSos) return <Participant jeton={jetonSos} codeLieu={codeLieu} />
+  if (jetonAutorite) return <Autorite jeton={jetonAutorite} />
   if (chargement) return <div className="attente">Chargement…</div>
   if (!session) return <Connexion theme={theme} setTheme={setTheme} />
 
@@ -188,7 +195,7 @@ function Poste({ session, theme, setTheme }) {
   const [courantId, setCourantId] = useState(
     () => localStorage.getItem('eventware.evenement') ?? null
   )
-  const [ecran, setEcran] = useState('accueil')
+  const [ecran, setEcran] = useState('situation')
   const [message, setMessage] = useState(null)
   const [chargement, setChargement] = useState(true)
 
@@ -215,15 +222,23 @@ function Poste({ session, theme, setTheme }) {
   const courant = evenements.find((e) => e.id === courantId) ?? evenements[0] ?? null
   const moi = courant?.membres_evenement.find((m) => m.user_id === session.user.id)
 
+  const { peut, toutPouvoir, pret } = useCapacites(courant?.id, courant?.phase)
+
   const visibles = ECRANS.filter((e) => {
     if (e.module && !courant?.modules?.[e.module]) return false
-    if (!moi || !e.roles.includes(moi.role)) return false
-    return true
+    if (!moi) return false
+    if (e.besoin === 'tout_pouvoir') return toutPouvoir
+    if (e.besoin === null) return true
+    return toutPouvoir || peut(e.besoin[0], e.besoin[1])
   })
 
   useEffect(() => {
-    if (courant && !visibles.some((e) => e.clef === ecran)) setEcran('accueil')
-  }, [courantId, JSON.stringify(courant?.modules)])
+    if (!pret || !courant) return
+    // L'écran d'ouverture est la situation pour qui y a droit, son poste sinon.
+    if (!visibles.some((e) => e.clef === ecran)) {
+      setEcran(visibles.some((e) => e.clef === 'situation') ? 'situation' : 'accueil')
+    }
+  }, [courantId, pret, JSON.stringify(courant?.modules)])
 
   if (chargement) return <div className="attente">Chargement…</div>
 
@@ -266,8 +281,8 @@ function Poste({ session, theme, setTheme }) {
         </button>
       </header>
 
-      {courant && moi && (
-        <BandeauEtat evenement={courant} membre={moi} onAller={setEcran} />
+      {courant && moi && pret && (
+        <BandeauEtat evenement={courant} peut={peut} toutPouvoir={toutPouvoir} onAller={setEcran} />
       )}
       </div>
 
@@ -303,6 +318,9 @@ function Poste({ session, theme, setTheme }) {
               evenement={courant}
               membre={moi}
               session={session}
+              peut={peut}
+              toutPouvoir={toutPouvoir}
+              onAller={setEcran}
               onRecharger={charger}
               setMessage={setMessage}
             />
@@ -317,7 +335,7 @@ function Poste({ session, theme, setTheme }) {
 /* Bandeau d'état — ce qu'on regarde toutes les trente secondes        */
 /* ================================================================== */
 
-function BandeauEtat({ evenement, membre, onAller }) {
+function BandeauEtat({ evenement, peut, toutPouvoir, onAller }) {
   const [c, setC] = useState({})
   const [enLigne, setEnLigne] = useState(navigator.onLine)
 
@@ -381,7 +399,7 @@ function BandeauEtat({ evenement, membre, onAller }) {
   }, [evenement.id, JSON.stringify(evenement.modules)])
 
   // Un cadran ne s'affiche que si la personne peut agir dessus.
-  const encadrement = ['admin', 'coordinateur', 'chef_equipe'].includes(membre?.role)
+  const encadrement = toutPouvoir || peut('missions', 'creer')
 
   const cases = [
     { clef: 'p1', libelle: 'P1 ouvertes', valeur: c.p1, vers: encadrement ? 'securite' : 'terrain', pour: true },
@@ -414,13 +432,15 @@ function BandeauEtat({ evenement, membre, onAller }) {
 /* Aiguillage                                                          */
 /* ================================================================== */
 
-function Ecran({ clef, evenement, membre, session, onRecharger, setMessage }) {
+function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, onAller, onRecharger, setMessage }) {
   switch (clef) {
+    case 'situation':
+      return <Situation evenement={evenement} onAller={onAller} />
     case 'accueil':
       return (
         <>
           <Dashboard evenement={evenement} membre={membre} onFait={onRecharger} />
-          {['admin', 'coordinateur'].includes(membre.role) && (
+          {(toutPouvoir || peut('alertes', 'creer')) && (
             <GestionAlertes evenement={evenement} setMessage={setMessage} />
           )}
           {/* Sortie de secours : accessible à tous les rôles, sur le premier
@@ -457,6 +477,8 @@ function Ecran({ clef, evenement, membre, session, onRecharger, setMessage }) {
       return <PlanImplantation evenement={evenement} membre={membre} />
     case 'analyse':
       return <Analyse evenement={evenement} membre={membre} />
+    case 'roles':
+      return <Roles evenement={evenement} setMessage={setMessage} />
     case 'reglages':
       return (
         <Reglages
@@ -565,6 +587,8 @@ function Reglages({ evenement, session, onRecharger, setMessage }) {
         <CreationEvenement onFait={onRecharger} setMessage={setMessage} />
       </section>
 
+      <AccesAutorite evenement={evenement} setMessage={setMessage} />
+
       <section className="bloc">
         <h2>Session</h2>
         <p className="aide">Connecté en tant que {session.user.email}.</p>
@@ -611,15 +635,33 @@ function Compteurs({ evenementId, cle }) {
 function AjoutMembre({ evenementId, onFait, setMessage }) {
   const [userId, setUserId] = useState('')
   const [nomAffiche, setNomAffiche] = useState('')
-  const [role, setRole] = useState('benevole')
+  const [roleId, setRoleId] = useState('')
+  const [roles, setRoles] = useState([])
   const [occupe, setOccupe] = useState(false)
+
+  useEffect(() => {
+    supabase
+      .from('roles')
+      .select('id, code, libelle')
+      .eq('evenement_id', evenementId)
+      .is('deleted_at', null)
+      .order('ordre')
+      .then(({ data }) => {
+        setRoles(data ?? [])
+        setRoleId((r) => r || data?.find((x) => x.code === 'benevole')?.id || '')
+      })
+  }, [evenementId])
 
   async function ajouter() {
     setOccupe(true)
+    const choisi = roles.find((r) => r.id === roleId)
     const { error } = await supabase.from('membres_evenement').insert({
       evenement_id: evenementId,
       user_id: userId.trim(),
-      role,
+      role_id: roleId || null,
+      // colonne héritée, conservée le temps de la transition
+      role: ['admin','coordinateur','chef_equipe','benevole','observateur']
+        .includes(choisi?.code) ? choisi.code : 'benevole',
       nom_affiche: nomAffiche || null
     })
     if (error) setMessage({ type: 'erreur', texte: error.message })
@@ -645,15 +687,17 @@ function AjoutMembre({ evenementId, onFait, setMessage }) {
         style={{ flex: '0 1 170px' }}
       />
       <select
-        value={role}
-        onChange={(e) => setRole(e.target.value)}
+        value={roleId}
+        onChange={(e) => setRoleId(e.target.value)}
         style={{ width: 'auto', marginBottom: 0 }}
       >
-        {ROLES.map((r) => (
-          <option key={r}>{r}</option>
+        {roles.map((r) => (
+          <option key={r.id} value={r.id}>
+            {r.libelle}
+          </option>
         ))}
       </select>
-      <button disabled={occupe || !userId.trim()} onClick={ajouter}>
+      <button disabled={occupe || !userId.trim() || !roleId} onClick={ajouter}>
         Ajouter
       </button>
     </div>

@@ -829,3 +829,113 @@ dl.fiche dd { margin: 1px 0 0; }
   padding-top: 16px;
   border-top: 1px solid var(--trait);
 }
+
+/* --- Grille des capacités --- */
+
+.grille-capacites {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.grille-capacites th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--sourdine);
+  padding: 5px 6px;
+  font-size: 11px;
+}
+
+.grille-capacites thead th {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--trait-fort);
+  text-align: center;
+}
+
+.grille-capacites tbody th { white-space: nowrap; }
+.grille-capacites td { padding: 2px; text-align: center; border-bottom: 1px solid var(--trait); }
+
+.case {
+  all: unset;
+  cursor: pointer;
+  display: block;
+  width: 100%;
+  min-width: 34px;
+  height: 26px;
+  line-height: 26px;
+  text-align: center;
+  border: 1px solid var(--trait);
+  font-family: var(--mono);
+  color: var(--sourdine);
+}
+
+.case:hover { border-color: var(--trait-fort); }
+.case.active { background: var(--etat-ok); border-color: var(--etat-ok); color: #fff; font-weight: 700; }
+.case.partielle { background: var(--surface-2); color: var(--etat-veille); border-color: var(--etat-veille); }
+
+/* --- Situation générale --- */
+
+.situation { margin-bottom: 20px; }
+
+.situation .grille-paves { margin-bottom: 20px; }
+
+button.grand-lien {
+  all: unset;
+  cursor: pointer;
+  display: block;
+}
+
+button.grand-lien .grand { text-decoration: underline; text-decoration-color: var(--trait); }
+button.grand-lien:hover .grand { text-decoration-color: currentColor; }
+
+.situation .grand {
+  font-family: var(--mono);
+  font-size: 27px;
+  font-weight: 700;
+  line-height: 1.05;
+  display: block;
+  margin-bottom: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Page autorité --- */
+
+.autorite {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 20px 16px 60px;
+}
+
+.autorite .bandeau {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--trait-fort);
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.autorite h1 { font-size: 21px; margin: 0; }
+.autorite .acces-role { margin: 4px 0 0; }
+
+.etat-droite {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.autorite .grand {
+  font-family: var(--mono);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.05;
+  margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.carte.revoque { opacity: 0.55; }
