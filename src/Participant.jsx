@@ -27,7 +27,7 @@ const REFUS_TEMPORAIRE = {
   P0004: "L'événement n'a pas encore commencé."
 }
 
-export default function Participant({ jeton }) {
+export default function Participant({ jeton, codeLieu }) {
   const [file, setFile] = useState(lireFile())
   const [type, setType] = useState('malaise')
   const [description, setDescription] = useState('')
@@ -90,7 +90,8 @@ export default function Participant({ jeton }) {
       p_latitude: s.latitude ?? null,
       p_longitude: s.longitude ?? null,
       p_precision_m: s.precision_m ?? null,
-      p_emis_le: s.emis_le
+      p_emis_le: s.emis_le,
+      p_code_lieu: codeLieu ?? null
     })
 
     if (error) {
@@ -165,7 +166,7 @@ export default function Participant({ jeton }) {
   return (
     <div className="enveloppe participant">
       <div className="bandeau">
-        <h1>Signaler un problème</h1>
+        <h1>Signaler un problème{codeLieu ? ` — ${codeLieu}` : ''}</h1>
         <span className={`session ${enLigne ? '' : 'hors-ligne'}`}>
           {enLigne ? 'en ligne' : 'hors réseau'}
         </span>

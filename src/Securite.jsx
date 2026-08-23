@@ -495,26 +495,64 @@ function Recherches({ evenement, setMessage }) {
 function Fiches({ evenement }) {
   const [fiches, setFiches] = useState(null)
   const [ouverte, setOuverte] = useState(null)
+  const [occupe, setOccupe] = useState(false)
+  const [note, setNote] = useState(null)
 
-  useEffect(() => {
-    supabase
+  async function charger() {
+    const { data } = await supabase
       .from('fiches_reflexe')
       .select('*')
       .eq('evenement_id', evenement.id)
       .order('ordre')
-      .then(({ data }) => setFiches(data ?? []))
+    setFiches(data ?? [])
+  }
+
+  useEffect(() => {
+    charger()
   }, [evenement.id])
 
+  async function installerPack() {
+    setOccupe(true)
+    const { data, error } = await supabase.rpc('installer_fiches_standard', {
+      p_evenement: evenement.id
+    })
+    setNote(
+      error
+        ? error.message
+        : `${data} fiche(s) installée(s). Adapte-les à ton site : une fiche générique ne vaut que comme point de départ.`
+    )
+    setOccupe(false)
+    charger()
+  }
+
   if (fiches === null) return <p className="vide">…</p>
+
+  const entete = (
+    <>
+      {note && <div className="message">{note}</div>}
+      <div className="ligne-boutons" style={{ marginBottom: 12 }}>
+        <button className="discret" disabled={occupe} onClick={installerPack}>
+          Installer le pack standard (8 fiches)
+        </button>
+      </div>
+    </>
+  )
+
   if (!fiches.length)
     return (
-      <p className="vide">
-        Aucune fiche réflexe. À importer depuis le référentiel — les conduites à tenir
-        doivent être disponibles avant l'événement, pas pendant.
-      </p>
+      <>
+        {entete}
+        <p className="vide">
+          Aucune fiche réflexe. Les conduites à tenir doivent être disponibles avant
+          l'événement, pas pendant.
+        </p>
+      </>
     )
 
-  return fiches.map((fi) => (
+  return (
+    <>
+      {entete}
+      {fiches.map((fi) => (
     <div className="carte" key={fi.id}>
       <div
         className="titre"
@@ -549,5 +587,7 @@ function Fiches({ evenement }) {
         </div>
       )}
     </div>
-  ))
+      ))}
+    </>
+  )
 }

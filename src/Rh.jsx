@@ -314,18 +314,35 @@ function MesCreneaux({ evenement, membre, setMessage }) {
 
 function Equipe({ evenement, setMessage }) {
   const [membres, setMembres] = useState([])
+  const [equipes, setEquipes] = useState([])
+
+  async function charger() {
+    const [m, e] = await Promise.all([
+      supabase
+        .from('membres_evenement')
+        .select('*')
+        .eq('evenement_id', evenement.id)
+        .order('role'),
+      supabase.from('equipes').select('id, code, nom').eq('evenement_id', evenement.id)
+    ])
+    if (m.error) setMessage({ type: 'erreur', texte: m.error.message })
+    else setMembres(m.data ?? [])
+    setEquipes(e.data ?? [])
+  }
 
   useEffect(() => {
-    supabase
-      .from('membres_evenement')
-      .select('*, equipes:id(nom)')
-      .eq('evenement_id', evenement.id)
-      .order('role')
-      .then(({ data, error }) => {
-        if (error) setMessage({ type: 'erreur', texte: error.message })
-        else setMembres(data ?? [])
-      })
+    charger()
   }, [evenement.id])
+
+  async function rattacher(id, equipeId) {
+    const { error, count } = await supabase
+      .from('membres_evenement')
+      .update({ equipe_id: equipeId || null }, { count: 'exact' })
+      .eq('id', id)
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else if (count === 0) setMessage({ type: 'erreur', texte: 'Modification refusée.' })
+    else charger()
+  }
 
   if (!membres.length) return <p className="vide">Aucun membre.</p>
 
@@ -348,8 +365,26 @@ function Equipe({ evenement, setMessage }) {
             {m.telephone && <span className="mono">{m.telephone}</span>}
             {!m.actif && <span className="alerte-texte">inactif</span>}
           </div>
+          <div className="ligne-boutons" style={{ marginTop: 10 }}>
+            <select
+              value={m.equipe_id ?? ''}
+              onChange={(e) => rattacher(m.id, e.target.value)}
+              style={{ width: 'auto', marginBottom: 0 }}
+            >
+              <option value="">— sans équipe —</option>
+              {equipes.map((eq) => (
+                <option key={eq.id} value={eq.id}>
+                  {eq.code} · {eq.nom}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       ))}
+      <p className="aide">
+        L'équipe de rattachement détermine les missions qui apparaissent dans « Mon terrain ».
+        Sans équipe, la personne ne voit que ce qui lui est nommément attribué.
+      </p>
     </>
   )
 }

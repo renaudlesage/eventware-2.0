@@ -8,6 +8,11 @@ import Logistique from './Logistique'
 import Parcours from './Parcours'
 import Rh from './Rh'
 import Analyse from './Analyse'
+import PlanImplantation from './PlanImplantation'
+import Terrain from './Terrain'
+import QrCodes from './QrCodes'
+import Memento from './Memento'
+import Bandeau, { GestionAlertes } from './Bandeau'
 import Participant from './Participant'
 import { RESSOURCES } from './colonnesImport'
 
@@ -26,7 +31,9 @@ export default function App() {
   // Chemin public : ?sos=<jeton_public>.
   // Aucune authentification, aucun accès aux tables — la page ne sait
   // appeler que les deux fonctions RPC publiques.
-  const jetonSos = new URLSearchParams(window.location.search).get('sos')
+  const parametres = new URLSearchParams(window.location.search)
+  const jetonSos = parametres.get('sos')
+  const codeLieu = parametres.get('lieu')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -37,7 +44,7 @@ export default function App() {
     return () => sub.subscription.unsubscribe()
   }, [])
 
-  if (jetonSos) return <Participant jeton={jetonSos} />
+  if (jetonSos) return <Participant jeton={jetonSos} codeLieu={codeLieu} />
 
   if (chargement) return <div className="enveloppe">Chargement…</div>
 
@@ -160,6 +167,8 @@ function Espace({ session }) {
 
   return (
     <>
+      <Bandeau evenements={evenements} membre={session.user} />
+
       {message && (
         <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
           {message.texte}
@@ -189,6 +198,11 @@ function Espace({ session }) {
                 {moi && (
                   <Dashboard evenement={e} membre={moi} onFait={charger} />
                 )}
+                {moi && <Terrain evenement={e} membre={moi} />}
+                {moi && <Memento evenement={e} />}
+                {moi && ['admin', 'coordinateur'].includes(moi.role) && (
+                  <GestionAlertes evenement={e} setMessage={setMessage} />
+                )}
                 {moi && e.modules?.securite && (
                   <Securite evenement={e} membre={moi} />
                 )}
@@ -199,6 +213,9 @@ function Espace({ session }) {
                   <Parcours evenement={e} membre={moi} />
                 )}
                 {moi && e.modules?.rh && <Rh evenement={e} membre={moi} />}
+                {moi && e.modules?.plan_implantation && (
+                  <PlanImplantation evenement={e} membre={moi} />
+                )}
                 {moi && e.modules?.analyse && (
                   <Analyse evenement={e} membre={moi} />
                 )}
@@ -217,6 +234,7 @@ function Espace({ session }) {
                   <div className="detail">
                     <Modules evenement={e} onFait={charger} setMessage={setMessage} />
                     {e.modules?.sos_participants && <PcOps evenement={e} />}
+                    {e.modules?.sos_participants && <QrCodes evenement={e} />}
                     <Compteurs evenementId={e.id} cle={compteur} />
                     <ImportCsv
                       evenementId={e.id}
