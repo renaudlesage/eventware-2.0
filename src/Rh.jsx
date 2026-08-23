@@ -20,7 +20,7 @@ export default function Rh({ evenement, membre }) {
   const [message, setMessage] = useState(null)
 
   return (
-    <div className="securite">
+    <div className="bloc securite">
       <h2>Bénévoles</h2>
 
       <div className="onglets">

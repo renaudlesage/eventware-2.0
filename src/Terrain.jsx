@@ -51,7 +51,7 @@ export default function Terrain({ evenement, membre }) {
   const p1 = lignes.filter((l) => l.priorite === 'P1').length
 
   return (
-    <div className="securite">
+    <div className="bloc securite">
       <h2>Mon terrain</h2>
 
       {message && (

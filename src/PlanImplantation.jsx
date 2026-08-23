@@ -94,7 +94,7 @@ export default function PlanImplantation({ evenement, membre }) {
   const localises = elements.filter((e) => (e.geometrie ?? []).length > 0)
 
   return (
-    <div className="securite">
+    <div className="bloc securite">
       <h2>Plan d'implantation</h2>
 
       <div className="onglets">
