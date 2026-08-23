@@ -423,6 +423,15 @@ function Ecran({ clef, evenement, membre, session, onRecharger, setMessage }) {
           {['admin', 'coordinateur'].includes(membre.role) && (
             <GestionAlertes evenement={evenement} setMessage={setMessage} />
           )}
+          {/* Sortie de secours : accessible à tous les rôles, sur le premier
+              écran, sans dépendre de la mise en page de la barre. */}
+          <section className="bloc session-bloc">
+            <h2>Session</h2>
+            <p className="aide">Connecté en tant que {session.user.email}.</p>
+            <button className="discret" onClick={() => supabase.auth.signOut()}>
+              Se déconnecter
+            </button>
+          </section>
         </>
       )
     case 'terrain':

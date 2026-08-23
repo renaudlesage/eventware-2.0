@@ -823,3 +823,9 @@ dl.fiche dd { margin: 1px 0 0; }
   display: inline-block;
   margin-top: 4px;
 }
+
+.session-bloc {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--trait);
+}
