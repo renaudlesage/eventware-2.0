@@ -175,6 +175,26 @@ body {
 
 .pousse { flex: 1; }
 
+.compte {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--sourdine);
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Actions de barre : petites mais bordées, jamais du texte nu */
+button.sortie {
+  padding: 5px 11px;
+  font-size: 12px;
+}
+
+@media (max-width: 560px) {
+  .compte { display: none; }
+}
+
 .selecteur-evenement {
   width: auto;
   margin: 0;

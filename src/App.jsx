@@ -256,9 +256,13 @@ function Poste({ session, theme, setTheme }) {
         {moi && <span className="plaque role">{moi.role}</span>}
 
         <span className="pousse" />
+
+        <span className="compte" title={session.user.email}>
+          {session.user.email}
+        </span>
         <BasculeTheme theme={theme} setTheme={setTheme} compact />
-        <button className="lien" onClick={() => supabase.auth.signOut()}>
-          Quitter
+        <button className="discret sortie" onClick={() => supabase.auth.signOut()}>
+          Déconnexion
         </button>
       </header>
 
@@ -551,6 +555,14 @@ function Reglages({ evenement, session, onRecharger, setMessage }) {
         <h2>Nouvel événement</h2>
         <CreationEvenement onFait={onRecharger} setMessage={setMessage} />
       </section>
+
+      <section className="bloc">
+        <h2>Session</h2>
+        <p className="aide">Connecté en tant que {session.user.email}.</p>
+        <button className="discret" onClick={() => supabase.auth.signOut()}>
+          Se déconnecter
+        </button>
+      </section>
     </>
   )
 }
@@ -732,7 +744,7 @@ function BasculeTheme({ theme, setTheme, compact }) {
   const libelle = { auto: 'Auto', clair: 'Jour', sombre: 'Nuit' }
   return (
     <button
-      className={compact ? 'lien' : 'discret'}
+      className={compact ? 'discret sortie' : 'discret'}
       onClick={() => setTheme(suivant[theme])}
       title="Le QG tourne la nuit, le terrain en plein soleil"
     >
