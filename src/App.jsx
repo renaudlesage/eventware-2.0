@@ -63,7 +63,7 @@ const ECRANS = [
   { clef: 'terrain',    libelle: 'Mon terrain',  module: null,                besoin: ['missions', 'modifier'] },
   { clef: 'memento',    libelle: 'Mémento',      module: null,                besoin: null },
   { clef: 'securite',   libelle: 'Sécurité',     module: 'securite',          besoin: ['missions', 'creer'] },
-  { clef: 'sos',        libelle: 'Signalements', module: 'sos_participants',  besoin: ['sos', 'modifier'] },
+  { clef: 'sos',        libelle: 'Signalements', module: 'sos_participants',  besoin: ['missions', 'creer'] },
   { clef: 'logistique', libelle: 'Logistique',   module: 'logistique',        besoin: ['logistique', 'lire'] },
   { clef: 'parcours',   libelle: 'Parcours',     module: 'parcours',          besoin: ['parcours', 'lire'] },
   { clef: 'rh',         libelle: 'Bénévoles',    module: 'rh',                besoin: ['rh', 'lire'] },
@@ -306,7 +306,32 @@ function Poste({ session, theme, setTheme }) {
       {!courant ? (
         <PremierEvenement session={session} onFait={charger} setMessage={setMessage} />
       ) : !moi ? (
-        <p className="vide">Tu n'es pas membre de cet événement.</p>
+        <div className="corps">
+          <main className="travail">
+            <section className="bloc">
+              <h2>{courant.nom}</h2>
+              {exploitant ? (
+                <>
+                  <p className="aide">
+                    Tu vois cet événement en tant qu'exploitant de la plateforme, mais tu
+                    n'en fais pas partie. Pour intervenir, rattache-toi au dispositif —
+                    l'opération est inscrite dans la main courante du client.
+                  </p>
+                  <RejoindreEvenement
+                    evenement={courant}
+                    onFait={charger}
+                    setMessage={setMessage}
+                  />
+                </>
+              ) : (
+                <p className="aide">
+                  Tu n'es pas membre de cet événement. Demande à son coordinateur de
+                  t'ajouter, en lui transmettant ton identifiant.
+                </p>
+              )}
+            </section>
+          </main>
+        </div>
       ) : (
         <div className="corps">
           <nav className="plaques" aria-label="Modules">
@@ -449,7 +474,7 @@ function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, exploitant
     case 'accueil':
       return (
         <>
-          <Dashboard evenement={evenement} membre={membre} onFait={onRecharger} />
+          <Dashboard evenement={evenement} membre={membre} peut={peut} onFait={onRecharger} />
           {(toutPouvoir || peut('alertes', 'creer')) && (
             <GestionAlertes evenement={evenement} setMessage={setMessage} />
           )}
@@ -482,7 +507,7 @@ function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, exploitant
     case 'parcours':
       return <Parcours evenement={evenement} membre={membre} />
     case 'rh':
-      return <Rh evenement={evenement} membre={membre} />
+      return <Rh evenement={evenement} membre={membre} peut={peut} />
     case 'plan':
       return <PlanImplantation evenement={evenement} membre={membre} />
     case 'analyse':
@@ -864,6 +889,38 @@ function PremierEvenement({ session, onFait, setMessage }) {
 }
 
 /* ================================================================== */
+
+function RejoindreEvenement({ evenement, onFait, setMessage }) {
+  const [role, setRole] = useState('coordinateur')
+  const [occupe, setOccupe] = useState(false)
+
+  async function rejoindre() {
+    setOccupe(true)
+    const { error } = await supabase.rpc('rejoindre_evenement', {
+      p_evenement: evenement.id,
+      p_role_code: role
+    })
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else onFait()
+    setOccupe(false)
+  }
+
+  return (
+    <div className="saisie-rapide">
+      <select
+        value={role}
+        onChange={(e) => setRole(e.target.value)}
+        style={{ width: 'auto', marginBottom: 0 }}
+      >
+        <option value="observateur">en observateur (lecture seule)</option>
+        <option value="coordinateur">en coordinateur (tous droits)</option>
+      </select>
+      <button disabled={occupe} onClick={rejoindre}>
+        Rejoindre le dispositif
+      </button>
+    </div>
+  )
+}
 
 function BasculeTheme({ theme, setTheme, compact }) {
   const suivant = { auto: 'clair', clair: 'sombre', sombre: 'auto' }

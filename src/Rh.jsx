@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 
+/*
+ * `besoin` : capacité d'encadrement requise.
+ * Un bénévole ne voit que ses propres créneaux — la couverture globale,
+ * la liste de l'équipe et les jalons ne le concernent pas.
+ */
 const ONGLETS = [
-  ['couverture', 'Couverture'],
-  ['mes_creneaux', 'Mes créneaux'],
-  ['equipe', 'Bénévoles'],
-  ['jalons', 'Jalons']
+  ['couverture', 'Couverture', true],
+  ['mes_creneaux', 'Mes créneaux', false],
+  ['equipe', 'Bénévoles', true],
+  ['jalons', 'Jalons', true]
 ]
 
 const heure = (d) =>
@@ -15,25 +20,33 @@ const heure = (d) =>
     minute: '2-digit'
   })
 
-export default function Rh({ evenement, membre }) {
-  const [onglet, setOnglet] = useState('couverture')
+export default function Rh({ evenement, membre, peut }) {
+  const encadrement = peut ? peut('rh', 'creer') : true
+  const visibles = ONGLETS.filter(([, , besoin]) => !besoin || encadrement)
+  const [onglet, setOnglet] = useState(encadrement ? 'couverture' : 'mes_creneaux')
   const [message, setMessage] = useState(null)
+
+  useEffect(() => {
+    if (!visibles.some(([k]) => k === onglet)) setOnglet('mes_creneaux')
+  }, [encadrement])
 
   return (
     <div className="bloc securite">
       <h2>Bénévoles</h2>
 
-      <div className="onglets">
-        {ONGLETS.map(([k, l]) => (
-          <button
-            key={k}
-            className={`module ${onglet === k ? 'actif' : ''}`}
-            onClick={() => setOnglet(k)}
-          >
-            {l}
-          </button>
-        ))}
-      </div>
+      {visibles.length > 1 && (
+        <div className="onglets">
+          {visibles.map(([k, l]) => (
+            <button
+              key={k}
+              className={`module ${onglet === k ? 'actif' : ''}`}
+              onClick={() => setOnglet(k)}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+      )}
 
       {message && (
         <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
