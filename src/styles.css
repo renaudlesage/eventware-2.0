@@ -939,3 +939,12 @@ button.grand-lien:hover .grand { text-decoration-color: currentColor; }
 }
 
 .carte.revoque { opacity: 0.55; }
+
+/* --- Console plateforme --- */
+
+.plateforme { margin-bottom: 24px; }
+
+.jeton.statut-essai     { color: var(--etat-info); }
+.jeton.statut-active    { color: var(--etat-ok); }
+.jeton.statut-suspendue { color: var(--etat-chaud); }
+.jeton.statut-close     { color: var(--sourdine); }

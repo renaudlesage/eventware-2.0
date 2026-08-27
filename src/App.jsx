@@ -19,6 +19,7 @@ import Bandeau, { GestionAlertes } from './Bandeau'
 import Roles from './Roles'
 import Situation from './Situation'
 import AccesAutorite from './AccesAutorite'
+import Plateforme from './Plateforme'
 import { RESSOURCES } from './colonnesImport'
 import { useCapacites } from './capacites'
 
@@ -68,8 +69,9 @@ const ECRANS = [
   { clef: 'rh',         libelle: 'Bénévoles',    module: 'rh',                besoin: ['rh', 'lire'] },
   { clef: 'plan',       libelle: 'Implantation', module: 'plan_implantation', besoin: ['plan_implantation', 'lire'] },
   { clef: 'analyse',    libelle: 'Analyse',      module: 'analyse',           besoin: ['analyse', 'lire'] },
-  { clef: 'roles',      libelle: 'Rôles',        module: null,                besoin: 'tout_pouvoir' },
-  { clef: 'reglages',   libelle: 'Réglages',     module: null,                besoin: 'tout_pouvoir' }
+  { clef: 'reglages',   libelle: 'Réglages',     module: null,                besoin: 'tout_pouvoir' },
+  // Console de l'éditeur : hors événement, réservée à l'exploitant.
+  { clef: 'plateforme', libelle: 'Plateforme',   module: null,                besoin: 'exploitant' }
 ]
 
 export default function App() {
@@ -199,6 +201,11 @@ function Poste({ session, theme, setTheme }) {
   const [ecran, setEcran] = useState('situation')
   const [message, setMessage] = useState(null)
   const [chargement, setChargement] = useState(true)
+  const [exploitant, setExploitant] = useState(false)
+
+  useEffect(() => {
+    supabase.rpc('est_exploitant').then(({ data }) => setExploitant(data === true))
+  }, [session.user.id])
 
   async function charger() {
     const { data, error } = await supabase
@@ -228,6 +235,7 @@ function Poste({ session, theme, setTheme }) {
   const visibles = ECRANS.filter((e) => {
     if (e.module && !courant?.modules?.[e.module]) return false
     if (!moi) return false
+    if (e.besoin === 'exploitant') return exploitant
     if (e.besoin === 'tout_pouvoir') return toutPouvoir
     if (e.besoin === null) return true
     return toutPouvoir || peut(e.besoin[0], e.besoin[1])
@@ -239,7 +247,7 @@ function Poste({ session, theme, setTheme }) {
     if (!visibles.some((e) => e.clef === ecran)) {
       setEcran(visibles.some((e) => e.clef === 'situation') ? 'situation' : 'accueil')
     }
-  }, [courantId, pret, JSON.stringify(courant?.modules)])
+  }, [courantId, pret, exploitant, JSON.stringify(courant?.modules)])
 
   if (chargement) return <div className="attente">Chargement…</div>
 
@@ -315,6 +323,7 @@ function Poste({ session, theme, setTheme }) {
 
           <main className="travail">
             <Ecran
+              exploitant={exploitant}
               clef={ecran}
               evenement={courant}
               membre={moi}
@@ -433,7 +442,7 @@ function BandeauEtat({ evenement, peut, toutPouvoir, onAller }) {
 /* Aiguillage                                                          */
 /* ================================================================== */
 
-function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, onAller, onRecharger, setMessage }) {
+function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, exploitant, onAller, onRecharger, setMessage }) {
   switch (clef) {
     case 'situation':
       return <Situation evenement={evenement} onAller={onAller} />
@@ -444,11 +453,16 @@ function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, onAller, o
           {(toutPouvoir || peut('alertes', 'creer')) && (
             <GestionAlertes evenement={evenement} setMessage={setMessage} />
           )}
-          {/* Sortie de secours : accessible à tous les rôles, sur le premier
-              écran, sans dépendre de la mise en page de la barre. */}
+          {/* Sortie de secours : accessible à TOUS les rôles, y compris ceux
+              qui n'ont pas accès aux Réglages, et sans dépendre de la mise en
+              page de la barre du haut. */}
           <section className="bloc session-bloc">
-            <h2>Session</h2>
+            <h2>Mon compte</h2>
             <p className="aide">Connecté en tant que {session.user.email}.</p>
+            <div className="identite">
+              <span className="etiquette">Mon identifiant</span>
+              <code>{session.user.id}</code>
+            </div>
             <button className="discret" onClick={() => supabase.auth.signOut()}>
               Se déconnecter
             </button>
@@ -462,12 +476,7 @@ function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, onAller, o
     case 'securite':
       return <Securite evenement={evenement} membre={membre} />
     case 'sos':
-      return (
-        <>
-          <PcOps evenement={evenement} />
-          <QrCodes evenement={evenement} />
-        </>
-      )
+      return <PcOps evenement={evenement} />
     case 'logistique':
       return <Logistique evenement={evenement} membre={membre} />
     case 'parcours':
@@ -478,13 +487,14 @@ function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, onAller, o
       return <PlanImplantation evenement={evenement} membre={membre} />
     case 'analyse':
       return <Analyse evenement={evenement} membre={membre} />
-    case 'roles':
-      return <Roles evenement={evenement} setMessage={setMessage} />
+    case 'plateforme':
+      return <Plateforme session={session} setMessage={setMessage} />
     case 'reglages':
       return (
         <Reglages
           evenement={evenement}
           session={session}
+          exploitant={exploitant}
           onRecharger={onRecharger}
           setMessage={setMessage}
         />
@@ -498,7 +508,26 @@ function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, onAller, o
 /* Réglages                                                            */
 /* ================================================================== */
 
-function Reglages({ evenement, session, onRecharger, setMessage }) {
+/*
+ * Réglages de l'événement.
+ *
+ * Regroupés par ce qu'on vient y faire, et non par ordre d'apparition
+ * dans le développement : sept sections empilées obligeaient à parcourir
+ * tout l'écran pour trouver une case.
+ *
+ * « Rôles » a rejoint « Équipe » : composer un rôle et l'attribuer sont
+ * la même tâche, séparée en deux écrans elle devenait pénible.
+ */
+const PANNEAUX = [
+  ['dispositif', 'Dispositif'],
+  ['equipe', 'Équipe'],
+  ['donnees', 'Données'],
+  ['partage', 'Partage'],
+  ['compte', 'Mon compte']
+]
+
+function Reglages({ evenement, session, exploitant, onRecharger, setMessage }) {
+  const [panneau, setPanneau] = useState('dispositif')
   const [occupe, setOccupe] = useState(false)
   const [compteur, setCompteur] = useState(0)
 
@@ -526,79 +555,120 @@ function Reglages({ evenement, session, onRecharger, setMessage }) {
 
   return (
     <>
-      <section className="bloc">
-        <h2>Phase</h2>
-        <div className="plaques">
-          {PHASES.map((p) => (
-            <button
-              key={p}
-              className={`plaque-nav ${evenement.phase === p ? 'actif' : ''}`}
-              onClick={() => changerPhase(p)}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
-        <p className="aide">
-          La phase ouvre et ferme des droits d'écriture. Elle est réversible : on repasse en
-          montage le vendredi soir sans que ce soit un incident.
-        </p>
-      </section>
+      <div className="onglets">
+        {PANNEAUX.map(([k, l]) => (
+          <button
+            key={k}
+            className={`module ${panneau === k ? 'actif' : ''}`}
+            onClick={() => setPanneau(k)}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
 
-      <section className="bloc">
-        <h2>Modules</h2>
-        <div className="plaques">
-          {MODULES.map(([k, libelle]) => (
-            <button
-              key={k}
-              disabled={occupe}
-              className={`plaque-nav ${evenement.modules?.[k] ? 'actif' : ''}`}
-              onClick={() => basculerModule(k)}
-            >
-              {libelle}
-            </button>
-          ))}
-        </div>
-        <p className="aide">
-          Un module éteint disparaît de la navigation et cesse de recevoir des données. Le
-          SOS n'enregistre rien tant qu'il est éteint, même si le lien circule.
-        </p>
-      </section>
+      {panneau === 'dispositif' && (
+        <>
+          <section className="bloc">
+            <h2>Phase</h2>
+            <div className="plaques">
+              {PHASES.map((p) => (
+                <button
+                  key={p}
+                  className={`plaque-nav ${evenement.phase === p ? 'actif' : ''}`}
+                  onClick={() => changerPhase(p)}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+            <p className="aide">
+              La phase ouvre et ferme des droits d'écriture. Elle est réversible : on
+              repasse en montage le vendredi soir sans que ce soit un incident.
+            </p>
+          </section>
 
-      <section className="bloc">
-        <h2>Référentiels</h2>
-        <Compteurs evenementId={evenement.id} cle={compteur} />
-        <ImportCsv evenementId={evenement.id} onFait={() => setCompteur((c) => c + 1)} />
-      </section>
+          <section className="bloc">
+            <h2>Modules</h2>
+            <div className="plaques">
+              {MODULES.map(([k, libelle]) => (
+                <button
+                  key={k}
+                  disabled={occupe || !exploitant}
+                  className={`plaque-nav ${evenement.modules?.[k] ? 'actif' : ''}`}
+                  onClick={() => basculerModule(k)}
+                  title={!exploitant ? 'Relève de la souscription' : undefined}
+                >
+                  {libelle}
+                </button>
+              ))}
+            </div>
+            <p className="aide">
+              {exploitant
+                ? "Un module éteint disparaît de la navigation et cesse de recevoir des données. Le SOS n'enregistre rien tant qu'il est éteint, même si le lien circule."
+                : "Les modules relèvent de la souscription : leur activation se règle avec l'éditeur, pas depuis l'événement."}
+            </p>
+          </section>
+        </>
+      )}
 
-      <ImportKml evenement={evenement} setMessage={setMessage} />
+      {panneau === 'equipe' && (
+        <>
+          <section className="bloc">
+            <h2>Ajouter un membre</h2>
+            <AjoutMembre
+              evenementId={evenement.id}
+              onFait={onRecharger}
+              setMessage={setMessage}
+            />
+            <p className="aide">
+              L'identifiant se trouve sur l'écran « Mon compte » de la personne, qu'elle
+              t'envoie après avoir créé son compte.
+            </p>
+          </section>
 
-      <section className="bloc">
-        <h2>Membres</h2>
-        <AjoutMembre evenementId={evenement.id} onFait={onRecharger} setMessage={setMessage} />
-        <div className="identite">
-          <span className="etiquette">Mon identifiant</span>
-          <code>{session.user.id}</code>
-          <p className="aide">
-            À transmettre à un autre administrateur pour être ajouté à son événement.
-          </p>
-        </div>
-      </section>
+          <Roles evenement={evenement} setMessage={setMessage} />
+        </>
+      )}
 
-      <section className="bloc">
-        <h2>Nouvel événement</h2>
-        <CreationEvenement onFait={onRecharger} setMessage={setMessage} />
-      </section>
+      {panneau === 'donnees' && (
+        <>
+          <section className="bloc">
+            <h2>Référentiels</h2>
+            <Compteurs evenementId={evenement.id} cle={compteur} />
+            <ImportCsv
+              evenementId={evenement.id}
+              onFait={() => setCompteur((c) => c + 1)}
+            />
+          </section>
 
-      <AccesAutorite evenement={evenement} setMessage={setMessage} />
+          <ImportKml evenement={evenement} setMessage={setMessage} />
+        </>
+      )}
 
-      <section className="bloc">
-        <h2>Session</h2>
-        <p className="aide">Connecté en tant que {session.user.email}.</p>
-        <button className="discret" onClick={() => supabase.auth.signOut()}>
-          Se déconnecter
-        </button>
-      </section>
+      {panneau === 'partage' && (
+        <>
+          <AccesAutorite evenement={evenement} setMessage={setMessage} />
+          {evenement.modules?.sos_participants && <QrCodes evenement={evenement} />}
+        </>
+      )}
+
+      {panneau === 'compte' && (
+        <section className="bloc">
+          <h2>Mon compte</h2>
+          <p className="aide">Connecté en tant que {session.user.email}.</p>
+          <div className="identite">
+            <span className="etiquette">Mon identifiant</span>
+            <code>{session.user.id}</code>
+            <p className="aide">
+              À transmettre à l'administrateur d'un autre événement pour y être ajouté.
+            </p>
+          </div>
+          <button className="discret" onClick={() => supabase.auth.signOut()}>
+            Se déconnecter
+          </button>
+        </section>
+      )}
     </>
   )
 }
