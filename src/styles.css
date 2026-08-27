@@ -118,6 +118,11 @@ body {
 
 .marque.compacte .marque-nom { font-size: 14px; }
 
+/* Sur petit écran, la marque cède la place aux contrôles utiles */
+@media (max-width: 700px) {
+  .marque.compacte { display: none; }
+}
+
 /* ---------------- Accès ---------------- */
 
 .acces {
@@ -153,15 +158,17 @@ body {
   padding: 0 16px 64px;
 }
 
-/* Bloc de tête : barre + cadrans collés ensemble.
-   Deux éléments collants distincts se recouvraient au défilement. */
+/* Bloc de tête.
+   Il a été collant, et se recouvrait lui-même au défilement — trois
+   tentatives de correction n'y ont rien fait. Il est repassé en flux
+   normal : un élément qui ne flotte pas ne peut pas en masquer un autre.
+   Ce qui doit rester sous les yeux est la navigation, traitée plus bas. */
 .tete {
-  position: sticky;
-  top: 0;
-  z-index: 30;
+  position: relative;
+  z-index: 1;
   background: var(--fond);
   border-bottom: 2px solid var(--trait-fort);
-  padding-bottom: 10px;
+  padding-bottom: 12px;
   margin-bottom: 18px;
 }
 
@@ -170,7 +177,8 @@ body {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  padding: 10px 0 12px;
+  padding: 12px 0 14px;
+  min-height: 44px;
 }
 
 .pousse { flex: 1; }
@@ -249,7 +257,15 @@ button.sortie {
   justify-content: center;
 }
 
-.cadran.reseau { cursor: default; }
+.cadran.reseau {
+  cursor: default;
+  /* État, pas mesure : il n'a pas besoin d'autant de place */
+  min-width: 92px;
+}
+
+@media (min-width: 700px) {
+  .etat { grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); }
+}
 
 .cadran-valeur {
   font-family: var(--mono);
@@ -313,7 +329,7 @@ button.sortie {
 
 @media (min-width: 940px) {
   .corps { display: grid; grid-template-columns: 176px 1fr; gap: 26px; align-items: start; }
-  .plaques { flex-direction: column; position: sticky; top: 148px; }
+  .plaques { flex-direction: column; position: sticky; top: 16px; }
   .plaque-nav { text-align: left; }
 }
 
