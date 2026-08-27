@@ -33,7 +33,7 @@ const ONGLETS = [
   ['comptes', 'Comptes plateforme']
 ]
 
-export default function Plateforme({ session, setMessage }) {
+export default function Plateforme({ session, setMessage, onOuvrir }) {
   const [onglet, setOnglet] = useState('organisations')
 
   return (
@@ -61,7 +61,9 @@ export default function Plateforme({ session, setMessage }) {
       </div>
 
       {onglet === 'organisations' && <Organisations setMessage={setMessage} />}
-      {onglet === 'evenements' && <Evenements setMessage={setMessage} />}
+      {onglet === 'evenements' && (
+        <Evenements setMessage={setMessage} onOuvrir={onOuvrir} />
+      )}
       {onglet === 'comptes' && <Comptes setMessage={setMessage} />}
     </div>
   )
@@ -233,7 +235,7 @@ function Organisations({ setMessage }) {
 /* Événements — vue éditeur                                            */
 /* ================================================================== */
 
-function Evenements({ setMessage }) {
+function Evenements({ setMessage, onOuvrir }) {
   const [evenements, setEvenements] = useState([])
   const [orgs, setOrgs] = useState([])
   const [f, setF] = useState({ nom: '', organisation_id: '', geometrie: 'site_ferme' })
@@ -323,8 +325,15 @@ function Evenements({ setMessage }) {
               {MODULES.filter(([k]) => e.modules?.[k]).length} module(s) actif(s)
             </span>
           </div>
+          <div className="ligne-boutons" style={{ marginTop: 10 }}>
+            <button onClick={() => onOuvrir?.(e.id)}>Ouvrir cet événement</button>
+          </div>
         </div>
       ))}
+      <p className="aide">
+        « Ouvrir » bascule ton espace de travail sur cet événement. Si tu n'en es pas
+        membre, l'écran te proposera de rejoindre le dispositif.
+      </p>
     </>
   )
 }

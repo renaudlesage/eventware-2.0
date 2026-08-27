@@ -356,6 +356,10 @@ function Poste({ session, theme, setTheme }) {
               peut={peut}
               toutPouvoir={toutPouvoir}
               onAller={setEcran}
+              onOuvrirEvenement={(id) => {
+                setCourantId(id)
+                setEcran('situation')
+              }}
               onRecharger={charger}
               setMessage={setMessage}
             />
@@ -467,7 +471,7 @@ function BandeauEtat({ evenement, peut, toutPouvoir, onAller }) {
 /* Aiguillage                                                          */
 /* ================================================================== */
 
-function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, exploitant, onAller, onRecharger, setMessage }) {
+function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, exploitant, onAller, onOuvrirEvenement, onRecharger, setMessage }) {
   switch (clef) {
     case 'situation':
       return <Situation evenement={evenement} onAller={onAller} />
@@ -513,7 +517,13 @@ function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, exploitant
     case 'analyse':
       return <Analyse evenement={evenement} membre={membre} />
     case 'plateforme':
-      return <Plateforme session={session} setMessage={setMessage} />
+      return (
+        <Plateforme
+          session={session}
+          setMessage={setMessage}
+          onOuvrir={onOuvrirEvenement}
+        />
+      )
     case 'reglages':
       return (
         <Reglages

@@ -200,6 +200,12 @@ button.sortie {
   margin: 0;
   max-width: 240px;
   font-weight: 600;
+  /* Cible confortable : c'est le contrôle le plus utilisé de la barre */
+  padding: 7px 10px;
+}
+
+@media (max-width: 560px) {
+  .selecteur-evenement { max-width: 150px; }
 }
 
 /* Plaques : étiquettes d'état, inspirées des plaques de signalisation */
