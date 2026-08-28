@@ -180,54 +180,110 @@ function Organisations({ setMessage }) {
                 className="discret"
                 onClick={() => setOuvert(ouvert === o.id ? null : o.id)}
               >
-                {ouvert === o.id ? 'Fermer' : 'Licence'}
+                {ouvert === o.id ? 'Fermer' : 'Modifier'}
               </button>
             </div>
 
-            {ouvert === o.id && (
-              <div className="formulaire">
-                <div className="plaques">
-                  {MODULES.map(([k, libelle]) => (
-                    <button
-                      key={k}
-                      className={`plaque-nav ${o.modules_autorises?.[k] ? 'actif' : ''}`}
-                      onClick={() =>
-                        maj(o.id, {
-                          modules_autorises: {
-                            ...o.modules_autorises,
-                            [k]: !o.modules_autorises?.[k]
-                          }
-                        })
-                      }
-                    >
-                      {libelle}
-                    </button>
-                  ))}
-                </div>
-                <p className="aide">
-                  Retirer un module le désactive aussitôt sur les événements en cours du
-                  client, avec une trace dans leur main courante. Les événements clos ne
-                  sont pas touchés — on ne réécrit pas l'historique pour une raison
-                  commerciale.
-                </p>
-                <div className="saisie-rapide">
-                  <input
-                    type="date"
-                    defaultValue={o.echeance ?? ''}
-                    onBlur={(e) => maj(o.id, { echeance: e.target.value || null })}
-                  />
-                  <input
-                    defaultValue={o.notes ?? ''}
-                    placeholder="Notes commerciales"
-                    onBlur={(e) => maj(o.id, { notes: e.target.value || null })}
-                  />
-                </div>
-              </div>
-            )}
+            {ouvert === o.id && <FicheClient organisation={o} onMaj={maj} />}
           </div>
         )
       })}
     </>
+  )
+}
+
+/*
+ * Fiche client : identité, licence, contrat.
+ *
+ * Les champs texte sont validés explicitement plutôt qu'enregistrés à la
+ * perte de focus : un enregistrement invisible laisse toujours un doute
+ * sur ce qui a été retenu.
+ */
+function FicheClient({ organisation, onMaj }) {
+  const [f, setF] = useState({
+    nom: organisation.nom ?? '',
+    contact_nom: organisation.contact_nom ?? '',
+    contact_email: organisation.contact_email ?? '',
+    contact_tel: organisation.contact_tel ?? '',
+    souscrit_le: organisation.souscrit_le ?? '',
+    echeance: organisation.echeance ?? '',
+    quota_evenements: organisation.quota_evenements ?? '',
+    notes: organisation.notes ?? ''
+  })
+  const [enregistre, setEnregistre] = useState(false)
+
+  function enregistrer() {
+    onMaj(organisation.id, {
+      ...f,
+      souscrit_le: f.souscrit_le || null,
+      echeance: f.echeance || null,
+      quota_evenements: f.quota_evenements === '' ? null : Number(f.quota_evenements),
+      contact_nom: f.contact_nom || null,
+      contact_email: f.contact_email || null,
+      contact_tel: f.contact_tel || null,
+      notes: f.notes || null
+    })
+    setEnregistre(true)
+    setTimeout(() => setEnregistre(false), 2500)
+  }
+
+  const champ = (clef, libelle, type = 'text') => (
+    <div key={clef}>
+      <label htmlFor={organisation.id + clef}>{libelle}</label>
+      <input
+        id={organisation.id + clef}
+        type={type}
+        value={f[clef]}
+        onChange={(e) => setF({ ...f, [clef]: e.target.value })}
+      />
+    </div>
+  )
+
+  return (
+    <div className="formulaire">
+      <div className="pave-titre">Identité</div>
+      {champ('nom', 'Nom du client')}
+      {champ('contact_nom', 'Contact')}
+      {champ('contact_email', 'E-mail', 'email')}
+      {champ('contact_tel', 'Téléphone', 'tel')}
+
+      <div className="pave-titre" style={{ marginTop: 14 }}>Contrat</div>
+      {champ('souscrit_le', 'Souscrit le', 'date')}
+      {champ('echeance', 'Échéance', 'date')}
+      {champ('quota_evenements', "Quota d'événements", 'number')}
+      {champ('notes', 'Notes commerciales')}
+
+      <div className="pave-titre" style={{ marginTop: 14 }}>Modules souscrits</div>
+      <div className="plaques">
+        {MODULES.map(([k, libelle]) => (
+          <button
+            key={k}
+            className={`plaque-nav ${organisation.modules_autorises?.[k] ? 'actif' : ''}`}
+            onClick={() =>
+              onMaj(organisation.id, {
+                modules_autorises: {
+                  ...organisation.modules_autorises,
+                  [k]: !organisation.modules_autorises?.[k]
+                }
+              })
+            }
+          >
+            {libelle}
+          </button>
+        ))}
+      </div>
+      <p className="aide">
+        Les modules s'appliquent immédiatement, sans passer par le bouton d'enregistrement.
+        Retirer un module le désactive aussitôt sur les événements en cours du client, avec
+        une trace dans leur main courante. Les événements clos ne sont pas touchés — on ne
+        réécrit pas l'historique pour une raison commerciale.
+      </p>
+
+      <div className="ligne-boutons">
+        <button onClick={enregistrer}>Enregistrer la fiche</button>
+        {enregistre && <span className="temoin">enregistré</span>}
+      </div>
+    </div>
   )
 }
 

@@ -158,62 +158,70 @@ body {
   padding: 0 16px 64px;
 }
 
-/* Bloc de tête.
-   Il a été collant, et se recouvrait lui-même au défilement — trois
-   tentatives de correction n'y ont rien fait. Il est repassé en flux
-   normal : un élément qui ne flotte pas ne peut pas en masquer un autre.
-   Ce qui doit rester sous les yeux est la navigation, traitée plus bas. */
+/* Bloc de tête — mobile d'abord.
+   Deux rangées explicites plutôt qu'un flex-wrap qui se replie au hasard :
+   c'est ce repli qui produisait le chevauchement.
+   Pas de collage sous 940 px : sur mobile, le gain est nul et les barres
+   de navigateur qui apparaissent et disparaissent le rendent instable. */
 .tete {
-  position: relative;
-  z-index: 1;
   background: var(--fond);
   border-bottom: 2px solid var(--trait-fort);
-  padding-bottom: 12px;
+  padding-bottom: 10px;
   margin-bottom: 18px;
 }
 
-.barre {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 12px 0 14px;
-  min-height: 44px;
+@media (min-width: 940px) {
+  .tete { position: sticky; top: 0; z-index: 30; }
 }
 
-.pousse { flex: 1; }
+.barre-haut,
+.barre-bas {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.barre-haut { padding: 10px 0 6px; }
+.barre-bas  { padding: 0 0 10px; }
+
+.pousse { flex: 1; min-width: 0; }
+
+.selecteur-evenement {
+  width: auto;
+  margin: 0;
+  min-width: 0;
+  max-width: 100%;
+  font-weight: 600;
+  padding: 7px 10px;
+  text-overflow: ellipsis;
+}
 
 .compte {
   font-family: var(--mono);
   font-size: 11px;
   color: var(--sourdine);
-  max-width: 170px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
-/* Actions de barre : petites mais bordées, jamais du texte nu */
-button.sortie {
-  padding: 5px 11px;
-  font-size: 12px;
+button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
+
+/* Témoin de réseau */
+.temoin {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sourdine);
+  white-space: nowrap;
 }
 
-@media (max-width: 560px) {
-  .compte { display: none; }
-}
-
-.selecteur-evenement {
-  width: auto;
-  margin: 0;
-  max-width: 240px;
-  font-weight: 600;
-  /* Cible confortable : c'est le contrôle le plus utilisé de la barre */
-  padding: 7px 10px;
-}
-
-@media (max-width: 560px) {
-  .selecteur-evenement { max-width: 150px; }
+.temoin.coupe {
+  color: var(--etat-chaud);
+  font-weight: 700;
 }
 
 /* Plaques : étiquettes d'état, inspirées des plaques de signalisation */
@@ -237,39 +245,36 @@ button.sortie {
 
 /* ---------------- Bandeau d'état ---------------- */
 
+/* Quatre cadrans, donc 2×2 sur mobile et 4 colonnes au-delà :
+   jamais de case vide en fin de grille. */
 .etat {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 1px;
   background: var(--trait);
   border: 1px solid var(--trait);
+}
+
+@media (min-width: 620px) {
+  .etat { grid-template-columns: repeat(4, 1fr); }
 }
 
 .cadran {
   all: unset;
   cursor: pointer;
   background: var(--surface);
-  padding: 12px 10px;
+  padding: 11px 12px;
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  min-height: 66px;
+  gap: 2px;
+  min-height: 60px;
   justify-content: center;
-}
-
-.cadran.reseau {
-  cursor: default;
-  /* État, pas mesure : il n'a pas besoin d'autant de place */
-  min-width: 92px;
-}
-
-@media (min-width: 700px) {
-  .etat { grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); }
+  box-sizing: border-box;
 }
 
 .cadran-valeur {
   font-family: var(--mono);
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -278,8 +283,9 @@ button.sortie {
 .cadran-libelle {
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.08em;
   color: var(--sourdine);
+  line-height: 1.25;
 }
 
 /* Un cadran chaud se signale par sa valeur et une barre, pas par un
@@ -289,10 +295,7 @@ button.sortie {
 .cadran.chaud .cadran-valeur { color: var(--etat-chaud); }
 .cadran.chaud .cadran-libelle { color: var(--encre); }
 
-.cadran:not(.reseau):hover { background: var(--surface-2); }
-
-.cadran.reseau.chaud { box-shadow: inset 3px 0 0 var(--etat-veille); }
-.cadran.reseau.chaud .cadran-valeur { color: var(--etat-veille); }
+.cadran:hover { background: var(--surface-2); }
 
 /* ---------------- Navigation par plaques ---------------- */
 

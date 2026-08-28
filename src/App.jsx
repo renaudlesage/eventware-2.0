@@ -254,41 +254,41 @@ function Poste({ session, theme, setTheme }) {
   return (
     <div className="poste">
       <div className="tete">
-      <header className="barre">
-        <div className="marque compacte">
-          <span className="marque-nom">Eventware</span>
+        <div className="barre-haut">
+          {evenements.length > 0 && (
+            <select
+              className="selecteur-evenement"
+              value={courant?.id ?? ''}
+              onChange={(e) => {
+                setCourantId(e.target.value)
+                setEcran('accueil')
+              }}
+            >
+              {evenements.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.nom}
+                </option>
+              ))}
+            </select>
+          )}
+          <span className="pousse" />
+          <Reseau />
+          <BasculeTheme theme={theme} setTheme={setTheme} compact />
+          <button className="discret sortie" onClick={() => supabase.auth.signOut()}>
+            Quitter
+          </button>
         </div>
 
-        {evenements.length > 0 && (
-          <select
-            className="selecteur-evenement"
-            value={courant?.id ?? ''}
-            onChange={(e) => {
-              setCourantId(e.target.value)
-              setEcran('accueil')
-            }}
-          >
-            {evenements.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.nom}
-              </option>
-            ))}
-          </select>
-        )}
-
-        {courant && <span className={`plaque phase-${courant.phase}`}>{courant.phase}</span>}
-        {moi && <span className="plaque role">{moi.role}</span>}
-
-        <span className="pousse" />
-
-        <span className="compte" title={session.user.email}>
-          {session.user.email}
-        </span>
-        <BasculeTheme theme={theme} setTheme={setTheme} compact />
-        <button className="discret sortie" onClick={() => supabase.auth.signOut()}>
-          Déconnexion
-        </button>
-      </header>
+        <div className="barre-bas">
+          {courant && (
+            <span className={`plaque phase-${courant.phase}`}>{courant.phase}</span>
+          )}
+          {moi && <span className="plaque role">{moi.role}</span>}
+          <span className="pousse" />
+          <span className="compte" title={session.user.email}>
+            {session.user.email}
+          </span>
+        </div>
 
       {courant && moi && pret && (
         <BandeauEtat evenement={courant} peut={peut} toutPouvoir={toutPouvoir} onAller={setEcran} />
@@ -374,9 +374,31 @@ function Poste({ session, theme, setTheme }) {
 /* Bandeau d'état — ce qu'on regarde toutes les trente secondes        */
 /* ================================================================== */
 
+/* Témoin de réseau : sa place est dans la barre, pas parmi les
+   compteurs — ce n'est pas une charge de travail, c'est un état. */
+function Reseau() {
+  const [enLigne, setEnLigne] = useState(navigator.onLine)
+
+  useEffect(() => {
+    const on = () => setEnLigne(true)
+    const off = () => setEnLigne(false)
+    window.addEventListener('online', on)
+    window.addEventListener('offline', off)
+    return () => {
+      window.removeEventListener('online', on)
+      window.removeEventListener('offline', off)
+    }
+  }, [])
+
+  return (
+    <span className={`temoin ${enLigne ? '' : 'coupe'}`}>
+      {enLigne ? 'en ligne' : 'hors réseau'}
+    </span>
+  )
+}
+
 function BandeauEtat({ evenement, peut, toutPouvoir, onAller }) {
   const [c, setC] = useState({})
-  const [enLigne, setEnLigne] = useState(navigator.onLine)
 
   async function compter() {
     const m = evenement.modules ?? {}
@@ -426,15 +448,7 @@ function BandeauEtat({ evenement, peut, toutPouvoir, onAller }) {
   useEffect(() => {
     compter()
     const t = setInterval(compter, 25000)
-    const on = () => setEnLigne(true)
-    const off = () => setEnLigne(false)
-    window.addEventListener('online', on)
-    window.addEventListener('offline', off)
-    return () => {
-      clearInterval(t)
-      window.removeEventListener('online', on)
-      window.removeEventListener('offline', off)
-    }
+    return () => clearInterval(t)
   }, [evenement.id, JSON.stringify(evenement.modules)])
 
   // Un cadran ne s'affiche que si la personne peut agir dessus.
@@ -459,10 +473,6 @@ function BandeauEtat({ evenement, peut, toutPouvoir, onAller }) {
           <span className="cadran-libelle">{x.libelle}</span>
         </button>
       ))}
-      <div className={`cadran reseau ${enLigne ? '' : 'chaud'}`}>
-        <span className="cadran-valeur">{enLigne ? '—' : '!'}</span>
-        <span className="cadran-libelle">{enLigne ? 'en ligne' : 'hors réseau'}</span>
-      </div>
     </div>
   )
 }
