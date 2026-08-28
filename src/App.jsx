@@ -459,11 +459,15 @@ function BandeauEtat({ evenement, peut, toutPouvoir, onAller }) {
   const encadrement = toutPouvoir || peut('missions', 'creer')
 
   const cases = [
-    { clef: 'p1', libelle: 'P1 ouvertes', valeur: c.p1, vers: encadrement ? 'securite' : 'terrain', pour: true },
+    { clef: 'p1', libelle: 'P1 ouvertes', valeur: c.p1, vers: 'securite', pour: encadrement },
     { clef: 'sos', libelle: 'Signalements', valeur: c.sos, vers: 'sos', pour: encadrement },
     { clef: 'retards', libelle: 'Sans nouvelles', valeur: c.retards, vers: 'parcours', pour: encadrement },
     { clef: 'manque', libelle: 'Postes à couvrir', valeur: c.manque, vers: 'rh', pour: encadrement }
   ].filter((x) => x.valeur !== undefined && x.pour)
+
+  // Un cadran isolé n'est pas un tableau de bord : sans vue d'ensemble à
+  // surveiller, le bandeau ne fait qu'occuper le haut de l'écran.
+  if (cases.length < 2) return null
 
   return (
     <div className="etat">
