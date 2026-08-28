@@ -1192,3 +1192,12 @@ button.grand-lien:hover .grand { text-decoration-color: currentColor; }
 
 /* Laisser respirer le bas de page sous les boutons flottants */
 .poste { padding-bottom: 110px; }
+
+/* Rang dans une liste ordonnée éditable */
+.rang {
+  flex: 0 0 20px;
+  align-self: center;
+  font-size: 11px;
+  color: var(--sourdine);
+  text-align: right;
+}
