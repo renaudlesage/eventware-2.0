@@ -29,6 +29,21 @@
   --etat-info:   #23557f;   /* information, préparation */
   --etat-froid:  #5d6874;   /* clos, inactif, sans suite */
 
+  /* Teintes de domaine — repérage et navigation uniquement.
+     Aucune ne doit colorer une valeur : un chiffre coloré signifie
+     toujours un état, jamais une appartenance. */
+  --dom-indigo:   #4c5bb8;
+  --dom-violet:   #7a4fb0;
+  --dom-sarcelle: #17796f;
+  --dom-grenat:   #a8324a;
+  --dom-orange:   #c25a12;
+  --dom-bronze:   #8a6212;
+  --dom-mousse:   #3f7a2e;
+  --dom-azur:     #1f6ba8;
+  --dom-prune:    #8c3f7a;
+  --dom-ardoise:  #4a6572;
+  --dom-gris:     #5d6874;
+
   --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
   --texte: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
@@ -52,6 +67,18 @@
     --etat-info:   #4a8ec2;
     --etat-froid:  #8d99a6;
     --ombre: none;
+
+    --dom-indigo:   #8b97e8;
+    --dom-violet:   #b085e0;
+    --dom-sarcelle: #4bb8ab;
+    --dom-grenat:   #e0798c;
+    --dom-orange:   #ef9450;
+    --dom-bronze:   #cfa242;
+    --dom-mousse:   #7fbd6a;
+    --dom-azur:     #5ea8e0;
+    --dom-prune:    #d07cba;
+    --dom-ardoise:  #8fa8b8;
+    --dom-gris:     #8d99a6;
   }
 }
 
@@ -70,6 +97,18 @@
   --etat-info:   #4a8ec2;
   --etat-froid:  #8d99a6;
   --ombre: none;
+
+    --dom-indigo:   #8b97e8;
+    --dom-violet:   #b085e0;
+    --dom-sarcelle: #4bb8ab;
+    --dom-grenat:   #e0798c;
+    --dom-orange:   #ef9450;
+    --dom-bronze:   #cfa242;
+    --dom-mousse:   #7fbd6a;
+    --dom-azur:     #5ea8e0;
+    --dom-prune:    #d07cba;
+    --dom-ardoise:  #8fa8b8;
+    --dom-gris:     #8d99a6;
 }
 
 * { box-sizing: border-box; }
@@ -311,24 +350,45 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
 .plaque-nav {
   all: unset;
   cursor: pointer;
-  padding: 7px 13px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 13px;
   font-size: 13px;
   border: 1px solid var(--trait);
+  border-left: 3px solid var(--teinte, var(--trait));
   background: var(--surface);
-  color: var(--sourdine);
+  color: var(--encre);
   white-space: nowrap;
+  border-radius: 2px;
 }
 
-.plaque-nav:hover { color: var(--encre); border-color: var(--trait-fort); }
+.plaque-nav svg { color: var(--teinte, var(--sourdine)); flex: 0 0 auto; }
+
+.plaque-nav:hover { border-color: var(--trait-fort); border-left-color: var(--teinte); }
 
 .plaque-nav.actif {
-  background: var(--encre);
-  border-color: var(--encre);
-  color: var(--fond);
+  background: var(--teinte, var(--encre));
+  border-color: var(--teinte, var(--encre));
+  color: #fff;
   font-weight: 600;
 }
 
+.plaque-nav.actif svg { color: #fff; }
+
 .plaque-nav:disabled { opacity: 0.4; cursor: default; }
+
+.dom-indigo   { --teinte: var(--dom-indigo); }
+.dom-violet   { --teinte: var(--dom-violet); }
+.dom-sarcelle { --teinte: var(--dom-sarcelle); }
+.dom-grenat   { --teinte: var(--dom-grenat); }
+.dom-orange   { --teinte: var(--dom-orange); }
+.dom-bronze   { --teinte: var(--dom-bronze); }
+.dom-mousse   { --teinte: var(--dom-mousse); }
+.dom-azur     { --teinte: var(--dom-azur); }
+.dom-prune    { --teinte: var(--dom-prune); }
+.dom-ardoise  { --teinte: var(--dom-ardoise); }
+.dom-gris     { --teinte: var(--dom-gris); }
 
 @media (min-width: 940px) {
   .corps { display: grid; grid-template-columns: 176px 1fr; gap: 26px; align-items: start; }
@@ -349,6 +409,19 @@ h2 {
   color: var(--sourdine);
   margin: 0 0 12px;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+h2 svg { color: var(--teinte, var(--sourdine)); }
+
+h2::before {
+  content: "";
+  width: 14px;
+  height: 2px;
+  background: var(--teinte, var(--trait));
+  flex: 0 0 auto;
 }
 
 .carte {
@@ -495,8 +568,8 @@ button.module {
 }
 
 button.module.actif {
-  background: var(--etat-info);
-  border-color: var(--etat-info);
+  background: var(--teinte, var(--etat-info));
+  border-color: var(--teinte, var(--etat-info));
   color: #fff;
 }
 
@@ -980,4 +1053,60 @@ button.grand-lien:hover .grand { text-decoration-color: currentColor; }
   margin-top: 22px;
   padding-top: 16px;
   border-top: 1px solid var(--trait);
+}
+
+/* --- Cartes teintées par domaine ------------------------------------
+   Le filet de gauche rappelle le module ; le rouge et l'ambre restent
+   réservés aux états, et l'emportent toujours sur la teinte. */
+
+.dom-indigo .carte, .dom-violet .carte, .dom-sarcelle .carte,
+.dom-grenat .carte, .dom-orange .carte, .dom-bronze .carte,
+.dom-mousse .carte, .dom-azur .carte, .dom-prune .carte,
+.dom-ardoise .carte, .dom-gris .carte {
+  border-left: 3px solid color-mix(in srgb, var(--teinte) 35%, transparent);
+}
+
+.carte.urgent { border-left: 3px solid var(--etat-chaud) !important; }
+.carte.a-moi  { border-left: 3px solid var(--etat-ok) !important; }
+
+/* Pavés : bandeau de titre coloré */
+.pave-titre {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.pave-titre::before {
+  content: "";
+  width: 10px;
+  height: 2px;
+  background: var(--teinte, var(--trait));
+  flex: 0 0 auto;
+}
+
+/* Chronologie : le filet prend la teinte du module */
+.chrono { border-left-color: color-mix(in srgb, var(--teinte, var(--trait)) 45%, var(--trait)); }
+
+/* Boutons principaux : teinte du module plutôt que noir uniforme */
+.dom-indigo button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case),
+.dom-violet button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case),
+.dom-sarcelle button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case),
+.dom-grenat button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case),
+.dom-orange button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case),
+.dom-bronze button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case),
+.dom-mousse button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case),
+.dom-azur button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case),
+.dom-prune button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case),
+.dom-ardoise button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case) {
+  background: var(--teinte);
+  border-color: var(--teinte);
+  color: #fff;
+}
+
+/* Repères de statut : pastille colorée plutôt que texte nu */
+.jeton {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 2px;
 }

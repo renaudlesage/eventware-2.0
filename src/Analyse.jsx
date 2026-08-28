@@ -20,7 +20,7 @@ export default function Analyse({ evenement, membre }) {
   const [message, setMessage] = useState(null)
 
   return (
-    <div className="bloc securite">
+    <div className="bloc securite dom-ardoise">
       <h2>Analyse / REX</h2>
 
       <div className="onglets">

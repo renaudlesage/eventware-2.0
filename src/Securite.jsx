@@ -13,7 +13,7 @@ export default function Securite({ evenement, membre }) {
   const [message, setMessage] = useState(null)
 
   return (
-    <div className="bloc securite">
+    <div className="bloc securite dom-grenat">
       <h2>Sécurité</h2>
 
       <div className="onglets">

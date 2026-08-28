@@ -37,7 +37,7 @@ export default function Plateforme({ session, setMessage, onOuvrir }) {
   const [onglet, setOnglet] = useState('organisations')
 
   return (
-    <div className="plateforme">
+    <div className="plateforme dom-gris">
       <div className="entete-dashboard">
         <h2>Console plateforme</h2>
         <span className="compte">{session.user.email}</span>

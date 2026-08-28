@@ -105,7 +105,7 @@ export default function PcOps({ evenement }) {
   const lienParticipant = `${window.location.origin}${window.location.pathname}?sos=${evenement.jeton_public}`
 
   return (
-    <div className="pcops">
+    <div className="pcops dom-orange">
       <h2>
         Signalements participants
         {ouverts > 0 && <span className="jeton alerte-jeton">{ouverts} ouvert(s)</span>}

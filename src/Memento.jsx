@@ -59,7 +59,7 @@ export default function Memento({ evenement }) {
 
   if (!donnees) {
     return (
-      <div className="memento">
+      <div className="memento dom-sarcelle">
         <h2>Mémento d'urgence</h2>
         <p className="vide">
           {enLigne
@@ -73,7 +73,7 @@ export default function Memento({ evenement }) {
   const age = ageCache(donnees)
 
   return (
-    <div className="memento">
+    <div className="memento dom-sarcelle">
       <div className="entete-dashboard">
         <h2>Mémento d'urgence</h2>
         <span className={`session ${!enLigne ? 'hors-ligne' : ''}`}>

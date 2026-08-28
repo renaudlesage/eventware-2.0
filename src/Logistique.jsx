@@ -13,7 +13,7 @@ export default function Logistique({ evenement, membre }) {
   const [message, setMessage] = useState(null)
 
   return (
-    <div className="bloc securite">
+    <div className="bloc securite dom-bronze">
       <h2>Logistique</h2>
 
       <div className="onglets">

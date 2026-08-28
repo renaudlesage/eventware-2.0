@@ -39,7 +39,7 @@ export default function Situation({ evenement, onAller }) {
   const m = s.evenement?.modules ?? {}
 
   return (
-    <div className="situation">
+    <div className="situation dom-indigo">
       <div className="entete-dashboard">
         <h2>Situation</h2>
         <span className="compte">

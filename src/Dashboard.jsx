@@ -30,7 +30,7 @@ export default function Dashboard({ evenement, membre, peut, onFait }) {
   }
 
   return (
-    <div className="dashboard">
+    <div className="dashboard dom-violet">
       <div className="entete-dashboard">
         <h2>Mon tableau de bord</h2>
         <button className="lien" onClick={() => setReglage(!reglage)}>

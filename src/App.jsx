@@ -22,6 +22,7 @@ import AccesAutorite from './AccesAutorite'
 import Plateforme from './Plateforme'
 import { RESSOURCES } from './colonnesImport'
 import { useCapacites } from './capacites'
+import { Icone, DOMAINES } from './icones'
 
 const PHASES = ['preparation', 'montage', 'exploitation', 'demontage', 'cloture']
 
@@ -342,10 +343,13 @@ function Poste({ session, theme, setTheme }) {
             {visibles.map((e) => (
               <button
                 key={e.clef}
-                className={`plaque-nav ${ecran === e.clef ? 'actif' : ''}`}
+                className={`plaque-nav dom-${DOMAINES[e.clef]?.teinte ?? 'gris'} ${
+                  ecran === e.clef ? 'actif' : ''
+                }`}
                 onClick={() => setEcran(e.clef)}
               >
-                {e.libelle}
+                <Icone domaine={e.clef} />
+                <span>{e.libelle}</span>
               </button>
             ))}
           </nav>

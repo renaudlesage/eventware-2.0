@@ -31,7 +31,7 @@ export default function Rh({ evenement, membre, peut }) {
   }, [encadrement])
 
   return (
-    <div className="bloc securite">
+    <div className="bloc securite dom-azur">
       <h2>Bénévoles</h2>
 
       {visibles.length > 1 && (

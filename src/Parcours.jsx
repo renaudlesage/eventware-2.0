@@ -15,7 +15,7 @@ export default function Parcours({ evenement, membre }) {
   const [message, setMessage] = useState(null)
 
   return (
-    <div className="bloc securite">
+    <div className="bloc securite dom-mousse">
       <h2>Parcours</h2>
 
       <div className="onglets">
