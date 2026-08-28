@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient'
 
 const ONGLETS = [
   ['journal', 'Main courante'],
-  ['missions', 'Missions'],
+  ['missions', 'Demandes'],
   ['recherches', 'Recherches'],
   ['fiches', 'Fiches réflexe']
 ]
@@ -36,7 +36,13 @@ export default function Securite({ evenement, membre }) {
 
       {onglet === 'journal' && <Journal evenement={evenement} setMessage={setMessage} />}
       {onglet === 'missions' && (
-        <Missions evenement={evenement} membre={membre} setMessage={setMessage} />
+        <Missions
+          evenement={evenement}
+          membre={membre}
+          setMessage={setMessage}
+          module="securite"
+          libelle="Demandes sécurité"
+        />
       )}
       {onglet === 'recherches' && (
         <Recherches evenement={evenement} setMessage={setMessage} />
@@ -172,13 +178,12 @@ const STATUTS_MISSION = [
 
 const PRIORITES = ['P1', 'P2', 'P3', 'P4']
 
-function Missions({ evenement, membre, setMessage }) {
+export function Missions({ evenement, membre, setMessage, module = 'securite', libelle = 'Demandes sécurité' }) {
   const [missions, setMissions] = useState([])
   const [equipes, setEquipes] = useState([])
   const [masquerClos, setMasquerClos] = useState(true)
   const [titre, setTitre] = useState('')
   const [priorite, setPriorite] = useState('P3')
-  const [module, setModule] = useState('securite')
   const [occupe, setOccupe] = useState(false)
 
   async function charger() {
@@ -187,6 +192,7 @@ function Missions({ evenement, membre, setMessage }) {
         .from('missions')
         .select('*')
         .eq('evenement_id', evenement.id)
+        .eq('module', module)
         .order('created_at', { ascending: false }),
       supabase.from('equipes').select('id, code, nom').eq('evenement_id', evenement.id)
     ])
@@ -199,7 +205,7 @@ function Missions({ evenement, membre, setMessage }) {
     charger()
     const t = setInterval(charger, 20000)
     return () => clearInterval(t)
-  }, [evenement.id])
+  }, [evenement.id, module])
 
   async function creer() {
     setOccupe(true)
@@ -240,6 +246,7 @@ function Missions({ evenement, membre, setMessage }) {
   return (
     <>
       <div className="compteurs">
+        <span>{libelle}</span>
         <span>
           Ouvertes <strong>{ouvertes.length}</strong>
         </span>
@@ -256,7 +263,7 @@ function Missions({ evenement, membre, setMessage }) {
           value={titre}
           onChange={(e) => setTitre(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && titre.trim() && creer()}
-          placeholder="Nouvelle mission…"
+          placeholder={`Nouvelle demande — ${libelle.toLowerCase()}`}
         />
         <select
           value={priorite}
@@ -265,15 +272,6 @@ function Missions({ evenement, membre, setMessage }) {
         >
           {PRIORITES.map((p) => (
             <option key={p}>{p}</option>
-          ))}
-        </select>
-        <select
-          value={module}
-          onChange={(e) => setModule(e.target.value)}
-          style={{ width: 'auto', marginBottom: 0 }}
-        >
-          {['securite', 'logistique', 'sanitaire', 'parcours', 'montage'].map((m) => (
-            <option key={m}>{m}</option>
           ))}
         </select>
         <button disabled={occupe || !titre.trim()} onClick={creer}>
@@ -298,7 +296,6 @@ function Missions({ evenement, membre, setMessage }) {
             </div>
             {m.description && <p style={{ margin: '4px 0' }}>{m.description}</p>}
             <div className="meta">
-              <span>{m.module}</span>
               {m.signalement_id && <span>issue d'un signalement</span>}
               {m.delai_reel_min != null && <span>{m.delai_reel_min} min</span>}
               {m.latitude && (

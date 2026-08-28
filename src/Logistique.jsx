@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { Missions } from './Securite'
 
 const ONGLETS = [
+  ['interventions', 'Demandes'],
   ['stocks', 'Stocks'],
   ['attributions', 'Clés & radios'],
   ['jauge', 'Jauge'],
@@ -9,7 +11,7 @@ const ONGLETS = [
 ]
 
 export default function Logistique({ evenement, membre }) {
-  const [onglet, setOnglet] = useState('stocks')
+  const [onglet, setOnglet] = useState('interventions')
   const [message, setMessage] = useState(null)
 
   return (
@@ -34,6 +36,15 @@ export default function Logistique({ evenement, membre }) {
         </div>
       )}
 
+      {onglet === 'interventions' && (
+        <Missions
+          evenement={evenement}
+          membre={membre}
+          setMessage={setMessage}
+          module="logistique"
+          libelle="Demandes logistiques"
+        />
+      )}
       {onglet === 'stocks' && (
         <Stocks evenement={evenement} membre={membre} setMessage={setMessage} />
       )}

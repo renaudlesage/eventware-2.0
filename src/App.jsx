@@ -20,6 +20,7 @@ import Roles from './Roles'
 import Situation from './Situation'
 import AccesAutorite from './AccesAutorite'
 import Plateforme from './Plateforme'
+import BoutonsFlottants from './BoutonsFlottants'
 import { RESSOURCES } from './colonnesImport'
 import { useCapacites } from './capacites'
 import { Icone, DOMAINES } from './icones'
@@ -373,6 +374,15 @@ function Poste({ session, theme, setTheme }) {
             />
           </main>
         </div>
+      )}
+
+      {courant && moi && pret && (
+        <BoutonsFlottants
+          evenement={courant}
+          membre={moi}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+        />
       )}
     </div>
   )

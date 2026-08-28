@@ -1110,3 +1110,85 @@ button.grand-lien:hover .grand { text-decoration-color: currentColor; }
   gap: 5px;
   border-radius: 2px;
 }
+
+/* --- Boutons SOS et REX, présents partout ---------------------------
+   Fixés en bas à droite, au pouce. Au moment où l'on constate quelque
+   chose, on est sur l'écran où l'on travaillait — pas sur celui où il
+   faudrait le déclarer. */
+
+.flottants {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.flottant {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 18px;
+  border: none;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #fff;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+}
+
+.flottant.sos { background: var(--etat-chaud); }
+.flottant.rex { background: var(--dom-ardoise); padding: 10px 15px; font-size: 13px; }
+
+.flottant:active { transform: translateY(1px); }
+
+@media (max-width: 560px) {
+  .flottant.rex span { display: none; }
+  .flottant.rex { padding: 12px; }
+}
+
+/* Tiroir de saisie */
+
+.voile {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+@media (min-width: 620px) {
+  .voile { align-items: center; }
+}
+
+.tiroir {
+  background: var(--fond);
+  border: 1px solid var(--trait-fort);
+  width: 100%;
+  max-width: 520px;
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 16px 18px 22px;
+}
+
+.tiroir-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--trait-fort);
+}
+
+.tiroir-tete button.lien { display: flex; align-items: center; }
+
+/* Laisser respirer le bas de page sous les boutons flottants */
+.poste { padding-bottom: 110px; }
