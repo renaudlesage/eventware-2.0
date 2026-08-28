@@ -9,7 +9,7 @@ import Securite from './Securite'
 import Logistique from './Logistique'
 import Parcours from './Parcours'
 import Rh from './Rh'
-import Analyse from './Analyse'
+import Analyse, { Constats } from './Analyse'
 import PlanImplantation from './PlanImplantation'
 import PcOps from './PcOps'
 import QrCodes from './QrCodes'
@@ -58,9 +58,13 @@ const MODULES = [
  * `besoin: null` = ouvert à tout membre.
  */
 const ECRANS = [
-  { clef: 'situation',  libelle: 'Situation',    module: null,                besoin: ['missions', 'lire'] },
+  // « Situation » est la vue d'ensemble du PC : elle suppose de pouvoir
+  // agir sur l'ensemble, pas seulement de lire.
+  { clef: 'situation',  libelle: 'Situation',    module: null,                besoin: ['missions', 'creer'] },
+  // « Mon poste » réunit les pavés personnels et les missions : un
+  // bénévole n'a pas à naviguer entre deux écrans qui le concernent tous
+  // les deux.
   { clef: 'accueil',    libelle: 'Mon poste',    module: null,                besoin: null },
-  { clef: 'terrain',    libelle: 'Mon terrain',  module: null,                besoin: ['missions', 'modifier'] },
   { clef: 'memento',    libelle: 'Mémento',      module: null,                besoin: null },
   { clef: 'securite',   libelle: 'Sécurité',     module: 'securite',          besoin: ['missions', 'creer'] },
   { clef: 'sos',        libelle: 'Signalements', module: 'sos_participants',  besoin: ['missions', 'creer'] },
@@ -68,7 +72,7 @@ const ECRANS = [
   { clef: 'parcours',   libelle: 'Parcours',     module: 'parcours',          besoin: ['parcours', 'lire'] },
   { clef: 'rh',         libelle: 'Bénévoles',    module: 'rh',                besoin: ['rh', 'lire'] },
   { clef: 'plan',       libelle: 'Implantation', module: 'plan_implantation', besoin: ['plan_implantation', 'lire'] },
-  { clef: 'analyse',    libelle: 'Analyse',      module: 'analyse',           besoin: ['analyse', 'lire'] },
+  { clef: 'analyse',    libelle: 'Analyse',      module: 'analyse',           besoin: ['analyse', 'modifier'] },
   { clef: 'reglages',   libelle: 'Réglages',     module: null,                besoin: 'tout_pouvoir' },
   // Console de l'éditeur : hors événement, réservée à l'exploitant.
   { clef: 'plateforme', libelle: 'Plateforme',   module: null,                besoin: 'exploitant' }
@@ -489,6 +493,29 @@ function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, exploitant
       return (
         <>
           <Dashboard evenement={evenement} membre={membre} peut={peut} onFait={onRecharger} />
+
+          <Terrain evenement={evenement} membre={membre} />
+
+          {/* Le REX à chaud reste ouvert à tous, y compris à qui n'a pas
+              accès à l'écran Analyse : celui qui constate le problème est
+              rarement celui qui exploitera les chiffres. */}
+          {evenement.modules?.analyse && (toutPouvoir || peut('analyse', 'creer')) && (
+            <section className="bloc rex-chaud">
+              <h2>Signaler un constat</h2>
+              <p className="aide">
+                Quelque chose qui coince, qui a bien marché, ou qui mériterait de changer
+                l'an prochain. À noter maintenant : un constat écrit sur le moment vaut dix
+                reconstitués de mémoire trois semaines plus tard.
+              </p>
+              <Constats
+                evenement={evenement}
+                membre={membre}
+                setMessage={setMessage}
+                compact
+              />
+            </section>
+          )}
+
           {(toutPouvoir || peut('alertes', 'creer')) && (
             <GestionAlertes evenement={evenement} setMessage={setMessage} />
           )}
@@ -508,8 +535,6 @@ function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, exploitant
           </section>
         </>
       )
-    case 'terrain':
-      return <Terrain evenement={evenement} membre={membre} />
     case 'memento':
       return <Memento evenement={evenement} />
     case 'securite':

@@ -233,7 +233,7 @@ function exporter(evenement, s) {
 /* Constats                                                            */
 /* ================================================================== */
 
-function Constats({ evenement, membre, setMessage }) {
+export function Constats({ evenement, membre, setMessage, compact }) {
   const [lignes, setLignes] = useState([])
   const [f, setF] = useState({
     nature: 'dysfonctionnement',
@@ -328,7 +328,7 @@ function Constats({ evenement, membre, setMessage }) {
         </p>
       </div>
 
-      {lignes.length === 0 ? (
+      {compact ? null : lignes.length === 0 ? (
         <p className="vide">Aucun constat.</p>
       ) : (
         lignes.map((r) => (

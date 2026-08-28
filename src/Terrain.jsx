@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 
 /**
- * Vue terrain.
+ * Mes missions.
  *
  * Remplace quatre écrans de la v18 — équipe volante, chauffeur,
  * balade accompagnateur, tâches sanitaires — qui posaient tous la même
@@ -52,7 +52,7 @@ export default function Terrain({ evenement, membre }) {
 
   return (
     <div className="bloc securite">
-      <h2>Mon terrain</h2>
+      <h2>Mes missions</h2>
 
       {message && (
         <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>

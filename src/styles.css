@@ -973,3 +973,11 @@ button.grand-lien:hover .grand { text-decoration-color: currentColor; }
 .jeton.statut-active    { color: var(--etat-ok); }
 .jeton.statut-suspendue { color: var(--etat-chaud); }
 .jeton.statut-close     { color: var(--sourdine); }
+
+/* --- REX à chaud, sur l'écran de chacun --- */
+
+.rex-chaud {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--trait);
+}
