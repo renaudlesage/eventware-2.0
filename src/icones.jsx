@@ -8,7 +8,7 @@ import {
   Route,
   Users,
   MapPinned,
-  ChartNoAxesColumn,
+  TrendingUp,
   SlidersHorizontal,
   Building2,
   ClipboardList,
@@ -48,7 +48,7 @@ export const DOMAINES = {
   parcours:   { icone: Route,                teinte: 'mousse' },
   rh:         { icone: Users,                teinte: 'azur' },
   plan:       { icone: MapPinned,            teinte: 'prune' },
-  analyse:    { icone: ChartNoAxesColumn,    teinte: 'ardoise' },
+  analyse:    { icone: TrendingUp,           teinte: 'ardoise' },
   reglages:   { icone: SlidersHorizontal,    teinte: 'gris' },
   plateforme: { icone: Building2,            teinte: 'gris' }
 }

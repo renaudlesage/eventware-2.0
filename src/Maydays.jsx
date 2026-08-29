@@ -131,7 +131,7 @@ export default function Maydays({ evenement, compact, setMessage }) {
                   <button
                     className="discret"
                     onClick={() => {
-                      const r = prompt('Comment cela s\\'est-il terminé ?')
+                      const r = prompt("Comment cela s'est-il terminé ?")
                       if (r !== null) changer(m, 'clos', r || 'Clôturé')
                     }}
                   >
