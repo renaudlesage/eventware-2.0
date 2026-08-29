@@ -1365,3 +1365,112 @@ button.grand-lien:hover .grand { text-decoration-color: currentColor; }
 .mayday-bloc { --teinte: var(--etat-chaud); }
 
 .cadran.chaud[data-clef="mayday"] { background: var(--etat-chaud); }
+
+/* ====================================================================
+   Situation — densité de poste de commandement
+   --------------------------------------------------------------------
+   Repris de la logique du dashboard v18 : tailles de 9 à 12 px, un seul
+   niveau de gros chiffre, panneaux à hauteur fixe avec défilement
+   interne. L'écran du QG doit tout montrer d'un coup ; une page qui
+   s'allonge oblige à faire défiler pendant qu'on répond à la radio.
+   ==================================================================== */
+
+.tuiles {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  background: var(--trait);
+  border: 1px solid var(--trait);
+  margin-bottom: 14px;
+}
+
+@media (min-width: 560px) { .tuiles { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 900px) { .tuiles { grid-template-columns: repeat(6, 1fr); } }
+
+.tuile {
+  all: unset;
+  background: var(--surface);
+  padding: 9px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+button.tuile { cursor: pointer; }
+button.tuile:hover { background: var(--surface-2); }
+
+.tuile-libelle {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--sourdine);
+}
+
+.tuile-valeur {
+  font-family: var(--mono);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.tuile-detail {
+  font-size: 9.5px;
+  color: var(--sourdine);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tuile.chaude { box-shadow: inset 3px 0 0 var(--etat-chaud); }
+
+/* --- Panneaux --- */
+
+.panneaux {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 900px) {
+  .panneaux { grid-template-columns: repeat(2, 1fr); }
+  .panneau.large { grid-column: 1 / -1; }
+}
+
+.panneau {
+  background: var(--surface);
+  border: 1px solid var(--trait);
+  padding: 11px 13px;
+  display: flex;
+  flex-direction: column;
+  max-height: 340px;
+  min-height: 0;
+}
+
+.panneau h2 { margin-bottom: 8px; flex: 0 0 auto; }
+
+.panneau-corps {
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+  padding-right: 3px;
+}
+
+/* Cartes internes : plus serrées que dans le reste de l'application */
+.panneau .carte {
+  padding: 7px 9px;
+  margin-bottom: 5px;
+  font-size: 12px;
+  box-shadow: none;
+}
+
+.panneau .carte .titre { font-size: 12px; margin-bottom: 1px; }
+.panneau .meta { font-size: 10.5px; gap: 9px; }
+.panneau .chrono li { font-size: 11.5px; padding: 3px 0 3px 10px; }
+.panneau .chrono .heure { font-size: 10px; flex-basis: 34px; }
+
+/* La météo garde ses pavés, mais réduits */
+.meteo .grand { font-size: 21px; }
+.meteo .pave { padding: 9px 11px; }

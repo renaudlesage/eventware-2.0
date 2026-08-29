@@ -95,71 +95,72 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
         }}
       />
 
-      {/* --- 2. Les compteurs de charge --- */}
+      {/* --- 2. Les compteurs de charge ---
+           Tuiles compactes : le dashboard v18 tenait en 9 à 12 px et
+           n'avait qu'un seul gros chiffre. La densité permet de tout
+           voir d'un coup, ce qui est le propre d'un écran de QG. */}
 
-      <div className="grille-paves">
+      <div className="tuiles">
         {m.sos_participants && (
-          <Pave titre="Signalements">
-            <Grand
-              v={s.signalements?.ouverts}
-              alerte={s.signalements?.non_pris_en_charge > 0}
-              onClick={() => onAller?.('sos')}
-            />
-            <Ligne l="jamais pris en charge" v={s.signalements?.non_pris_en_charge}
-                   alerte={s.signalements?.non_pris_en_charge > 0} />
-            <Ligne l="reçus depuis le début" v={s.signalements?.total} />
-          </Pave>
+          <Tuile
+            libelle="Signalements"
+            v={s.signalements?.ouverts}
+            alerte={s.signalements?.non_pris_en_charge > 0}
+            detail={`${s.signalements?.non_pris_en_charge ?? 0} non pris en charge`}
+            onClick={() => onAller?.('sos')}
+          />
         )}
-
-        <Pave titre="Missions">
-          <Grand v={s.missions?.ouvertes} alerte={s.missions?.p1 > 0}
-                 onClick={() => onAller?.('securite')} />
-          <Ligne l="en P1" v={s.missions?.p1} alerte={s.missions?.p1 > 0} />
-          <Ligne l="sans affectation" v={s.missions?.non_attribuees}
-                 alerte={s.missions?.non_attribuees > 0} />
-          <Ligne l="résolues" v={s.missions?.resolues} />
-        </Pave>
-
+        <Tuile
+          libelle="Missions"
+          v={s.missions?.ouvertes}
+          alerte={s.missions?.p1 > 0}
+          detail={`${s.missions?.p1 ?? 0} en P1 · ${s.missions?.non_attribuees ?? 0} sans affectation`}
+          onClick={() => onAller?.('securite')}
+        />
         {m.parcours && (
-          <Pave titre="Sur le parcours">
-            <Grand v={s.parcours?.personnes_sur_parcours}
-                   alerte={s.parcours?.sans_nouvelles > 0}
-                   onClick={() => onAller?.('parcours')} />
-            <Ligne l="groupes en route" v={s.parcours?.en_route} />
-            <Ligne l="sans nouvelles" v={s.parcours?.sans_nouvelles}
-                   alerte={s.parcours?.sans_nouvelles > 0} />
-            <Ligne l="abandons" v={s.parcours?.abandons} />
-          </Pave>
+          <Tuile
+            libelle="Sur le parcours"
+            v={s.parcours?.personnes_sur_parcours}
+            alerte={s.parcours?.sans_nouvelles > 0}
+            detail={`${s.parcours?.en_route ?? 0} groupe(s) · ${s.parcours?.sans_nouvelles ?? 0} sans nouvelles`}
+            onClick={() => onAller?.('parcours')}
+          />
         )}
-
         {m.logistique && (
-          <Pave titre="Logistique">
-            <Grand v={s.logistique?.jauge} />
-            <Ligne l="présents estimés" v={null} />
-            <Ligne l="transports ouverts" v={s.logistique?.transports_ouverts} />
-            <Ligne l="biens non rendus" v={s.logistique?.biens_non_rendus}
-                   alerte={s.logistique?.biens_non_rendus > 0} />
-            <Ligne l="articles sous seuil" v={(s.logistique?.sous_seuil ?? []).length}
-                   alerte={(s.logistique?.sous_seuil ?? []).length > 0} />
-          </Pave>
+          <Tuile
+            libelle="Jauge"
+            v={s.logistique?.jauge}
+            detail={`${s.logistique?.transports_ouverts ?? 0} transport(s)`}
+          />
         )}
-
+        {m.logistique && (
+          <Tuile
+            libelle="Sous seuil"
+            v={(s.logistique?.sous_seuil ?? []).length}
+            alerte={(s.logistique?.sous_seuil ?? []).length > 0}
+            detail={`${s.logistique?.biens_non_rendus ?? 0} bien(s) non rendu(s)`}
+            onClick={() => onAller?.('logistique')}
+          />
+        )}
         {m.rh && (
-          <Pave titre="Couverture">
-            <Grand v={s.rh?.postes_a_couvrir} alerte={s.rh?.postes_a_couvrir > 0}
-                   onClick={() => onAller?.('rh')} />
-            <Ligne l="postes à couvrir" v={null} />
-            <Ligne l="créneaux découverts" v={s.rh?.creneaux_decouverts}
-                   alerte={s.rh?.creneaux_decouverts > 0} />
-          </Pave>
+          <Tuile
+            libelle="À couvrir"
+            v={s.rh?.postes_a_couvrir}
+            alerte={s.rh?.postes_a_couvrir > 0}
+            detail={`${s.rh?.creneaux_decouverts ?? 0} créneau(x)`}
+            onClick={() => onAller?.('rh')}
+          />
         )}
       </div>
 
-      {/* --- 3. Les détails actionnables --- */}
+      {/* --- 3. Panneaux : hauteur fixe et défilement interne, pour que
+             la page ne s'allonge pas et que tout reste visible. --- */}
 
+      <div className="panneaux">
       {(s.logistique?.sous_seuil ?? []).length > 0 && (
-        <section className="bloc">
+        <section className="panneau">
           <h2>Sous le seuil</h2>
+          <div className="panneau-corps">
           {s.logistique.sous_seuil.map((a, i) => (
             <div className="carte urgent" key={i}>
               <div className="titre">{a.nom}</div>
@@ -171,12 +172,14 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
               </div>
             </div>
           ))}
+          </div>
         </section>
       )}
 
       {(s.signalements?.derniers ?? []).length > 0 && (
-        <section className="bloc">
+        <section className="panneau">
           <h2>Signalements en cours</h2>
+          <div className="panneau-corps">
           {s.signalements.derniers.map((x, i) => (
             <div className={`carte ${x.statut === 'recu' ? 'urgent' : ''}`} key={i}>
               <div className="titre">
@@ -199,12 +202,14 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
               </div>
             </div>
           ))}
+          </div>
         </section>
       )}
 
       {(s.jalons ?? []).length > 0 && (
-        <section className="bloc">
+        <section className="panneau">
           <h2>Prochaines échéances</h2>
+          <div className="panneau-corps">
           {s.jalons.map((j, i) => {
             const depasse = new Date(j.echeance) < new Date()
             return (
@@ -227,13 +232,15 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
               </div>
             )
           })}
+          </div>
         </section>
       )}
 
       {/* --- 4. Le fil --- */}
 
-      <section className="bloc">
+      <section className="panneau large">
         <h2>Derniers événements</h2>
+        <div className="panneau-corps">
         <ul className="chrono">
           {(s.journal ?? []).map((l, i) => (
             <li key={i} className={`imp-${l.importance} src-${l.source}`}>
@@ -250,12 +257,31 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
             </li>
           ))}
         </ul>
+        </div>
       </section>
+      </div>
     </div>
   )
 }
 
 /* ------------------------------------------------------------------ */
+
+function Tuile({ libelle, v, detail, alerte, onClick }) {
+  const contenu = (
+    <>
+      <span className="tuile-libelle">{libelle}</span>
+      <span className={`tuile-valeur ${alerte ? 'alerte-texte' : ''}`}>{v ?? '—'}</span>
+      {detail && <span className="tuile-detail">{detail}</span>}
+    </>
+  )
+  return onClick ? (
+    <button className={`tuile ${alerte ? 'chaude' : ''}`} onClick={onClick}>
+      {contenu}
+    </button>
+  ) : (
+    <div className={`tuile ${alerte ? 'chaude' : ''}`}>{contenu}</div>
+  )
+}
 
 function Pave({ titre, children }) {
   return (
