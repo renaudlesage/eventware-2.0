@@ -20,6 +20,7 @@ import Roles from './Roles'
 import Situation from './Situation'
 import AccesAutorite from './AccesAutorite'
 import Plateforme from './Plateforme'
+import Planning from './Planning'
 import BoutonsFlottants from './BoutonsFlottants'
 import { RESSOURCES } from './colonnesImport'
 import { useCapacites } from './capacites'
@@ -68,6 +69,7 @@ const ECRANS = [
   // les deux.
   { clef: 'accueil',    libelle: 'Mon poste',    module: null,                besoin: null },
   { clef: 'memento',    libelle: 'Mémento',      module: null,                besoin: null },
+  { clef: 'planning',   libelle: 'Planning',     module: null,                besoin: null },
   { clef: 'securite',   libelle: 'Sécurité',     module: 'securite',          besoin: ['missions', 'creer'] },
   { clef: 'sos',        libelle: 'Signalements', module: 'sos_participants',  besoin: ['missions', 'creer'] },
   { clef: 'logistique', libelle: 'Logistique',   module: 'logistique',        besoin: ['logistique', 'lire'] },
@@ -569,6 +571,8 @@ function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, exploitant
       )
     case 'memento':
       return <Memento evenement={evenement} />
+    case 'planning':
+      return <Planning evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} />
     case 'securite':
       return <Securite evenement={evenement} membre={membre} session={session} />
     case 'sos':

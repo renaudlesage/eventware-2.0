@@ -1,5 +1,6 @@
 import {
   LayoutDashboard,
+  CalendarClock as CalendarPlanning,
   UserCircle,
   BookOpenCheck,
   ShieldAlert,
@@ -40,6 +41,7 @@ import {
 
 export const DOMAINES = {
   situation:  { icone: LayoutDashboard,      teinte: 'indigo' },
+  planning:   { icone: CalendarPlanning,      teinte: 'azur' },
   accueil:    { icone: UserCircle,           teinte: 'violet' },
   memento:    { icone: BookOpenCheck,        teinte: 'sarcelle' },
   securite:   { icone: ShieldAlert,          teinte: 'grenat' },
