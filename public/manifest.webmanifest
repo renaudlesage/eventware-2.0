@@ -1,0 +1,21 @@
+{
+  "name": "Eventware — coordination d'événement",
+  "short_name": "Eventware",
+  "description": "Poste de coordination : situation, missions, signalements, mémento d'urgence.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0d1116",
+  "theme_color": "#0d1116",
+  "lang": "fr-BE",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icone.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

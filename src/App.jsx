@@ -506,7 +506,14 @@ function BandeauEtat({ evenement, peut, toutPouvoir, onAller }) {
 function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, exploitant, onAller, onOuvrirEvenement, onRecharger, setMessage }) {
   switch (clef) {
     case 'situation':
-      return <Situation evenement={evenement} onAller={onAller} />
+      return (
+        <Situation
+          evenement={evenement}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+          onAller={onAller}
+        />
+      )
     case 'accueil':
       return (
         <>
@@ -556,7 +563,7 @@ function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, exploitant
     case 'memento':
       return <Memento evenement={evenement} />
     case 'securite':
-      return <Securite evenement={evenement} membre={membre} />
+      return <Securite evenement={evenement} membre={membre} session={session} />
     case 'sos':
       return <PcOps evenement={evenement} />
     case 'logistique':

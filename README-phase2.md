@@ -91,3 +91,45 @@ lieux, contacts, matériel sous seuil, équipes.
 Missions et planning arrivent en phase 3 — les mettre au catalogue
 maintenant produirait des pavés vides, ce qui fait perdre confiance dans
 l'outil plus sûrement qu'une fonction manquante.
+
+---
+
+## Application installable (PWA)
+
+L'application peut être installée sur l'écran d'accueil et **se charge sans réseau**.
+Avant, le mémento était en cache mais l'application ne démarrait pas hors ligne : le cache
+ne servait donc qu'à qui avait gardé son onglet ouvert.
+
+### Installer
+
+- **Android / Chrome** : menu ⋮ → « Installer l'application » ou « Ajouter à l'écran
+  d'accueil »
+- **iPhone / Safari** : bouton Partager → « Sur l'écran d'accueil ». C'est le seul chemin :
+  Safari n'affiche aucune invite automatique.
+- **Ordinateur / Chrome, Edge** : icône d'installation dans la barre d'adresse
+
+Une fois installée, elle s'ouvre en plein écran, sans barre de navigateur.
+
+### Ce qui fonctionne hors réseau
+
+- Le démarrage de l'application
+- Le mémento d'urgence — fiches réflexe, coupures, contacts
+- La saisie d'un signalement SOS, mise en file et envoyée au retour du réseau
+
+### Ce qui ne fonctionne pas hors réseau
+
+Tout le reste : situation, missions, main courante, cartes. **Aucune donnée Supabase n'est
+mise en cache**, et c'est délibéré — une situation périmée servie comme courante serait
+plus dangereuse qu'un écran vide.
+
+### Ce qui n'est pas fait
+
+Les **notifications push** en arrière-plan. Elles demandent un service d'envoi côté serveur
+et, sur iPhone, ne fonctionnent que si l'application a été ajoutée à l'écran d'accueil. La
+file d'attente des signalements ne se vide donc toujours que lorsque la page est ouverte.
+
+### Après une mise à jour
+
+Le service worker sert la version en cache avant de la rafraîchir. Après un déploiement,
+il faut parfois **fermer complètement l'application et la rouvrir** pour voir les
+changements. En cas de doute : Réglages du navigateur → vider les données du site.

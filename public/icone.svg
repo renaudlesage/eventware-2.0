@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Eventware">
+  <rect width="512" height="512" fill="#0d1116"/>
+  <!-- Quatre cadrans, comme le bandeau d'état -->
+  <rect x="96"  y="128" width="150" height="110" fill="#161c23" stroke="#2b343e" stroke-width="4"/>
+  <rect x="266" y="128" width="150" height="110" fill="#161c23" stroke="#2b343e" stroke-width="4"/>
+  <rect x="96"  y="258" width="150" height="110" fill="#161c23" stroke="#2b343e" stroke-width="4"/>
+  <rect x="266" y="258" width="150" height="110" fill="#161c23" stroke="#2b343e" stroke-width="4"/>
+  <!-- Un cadran chaud : le filet rouge du bandeau -->
+  <rect x="96" y="128" width="7" height="110" fill="#e2543a"/>
+  <text x="120" y="205" font-family="ui-monospace, monospace" font-size="58" font-weight="700" fill="#e2543a">2</text>
+  <text x="290" y="205" font-family="ui-monospace, monospace" font-size="58" font-weight="700" fill="#e6eaee">10</text>
+  <text x="120" y="335" font-family="ui-monospace, monospace" font-size="58" font-weight="700" fill="#e6eaee">1</text>
+  <text x="290" y="335" font-family="ui-monospace, monospace" font-size="58" font-weight="700" fill="#e6eaee">0</text>
+</svg>

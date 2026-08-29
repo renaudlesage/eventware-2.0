@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import Meteo from './Meteo'
 
 /**
  * Tableau de bord général — la vue QG.
@@ -12,7 +13,7 @@ import { supabase } from './supabaseClient'
  * Ordre de lecture délibéré : ce qui exige une décision d'abord,
  * ce qui informe ensuite, ce qui rassure en dernier.
  */
-export default function Situation({ evenement, onAller }) {
+export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
   const [s, setS] = useState(null)
   const [erreur, setErreur] = useState(null)
   const [maj, setMaj] = useState(null)
@@ -77,6 +78,19 @@ export default function Situation({ evenement, onAller }) {
           ))}
         </div>
       )}
+
+      <Meteo
+        evenement={evenement}
+        peut={peut}
+        toutPouvoir={toutPouvoir}
+        onAlerte={async (a) => {
+          const { error } = await supabase
+            .from('alertes')
+            .insert({ evenement_id: evenement.id, ...a })
+          if (error) setErreur(error.message)
+          else charger()
+        }}
+      />
 
       {/* --- 2. Les compteurs de charge --- */}
 

@@ -3,6 +3,15 @@ import { MapContainer, TileLayer, Polyline, Polygon, CircleMarker, Popup, useMap
 import { supabase } from './supabaseClient'
 
 const CATEGORIES = [
+  // Dispositif de secours — vocabulaire de la doctrine belge
+  ['point_rencontre_secours', 'Point de rencontre des secours', 'point', false],
+  ['prv', 'PRV — regroupement des victimes', 'point', false],
+  ['pma', 'PMA — poste médical avancé', 'point', false],
+  ['aire_helico', 'Aire hélicoptère', 'zone', false],
+  ['point_rassemblement', 'Point de rassemblement', 'point', false],
+  ['point_transfert', 'Point de transfert', 'point', false],
+  ['noria', 'Noria', 'ligne', false],
+  // Installations
   ['foodtruck', 'Foodtruck', 'point', true],
   ['groupe_electrogene', 'Groupe électrogène', 'point', true],
   ['stockage_gaz', 'Stockage gaz', 'point', true],
@@ -30,6 +39,30 @@ const CATEGORIES = [
 ]
 
 const libelleCat = (c) => CATEGORIES.find((x) => x[0] === c)?.[1] ?? c
+
+/* Ce qu'un service de secours cherche en arrivant : par où entrer, où
+   déposer une victime, où évacuer. */
+const SECOURS = new Set([
+  'point_rencontre_secours', 'prv', 'pma', 'aire_helico',
+  'point_rassemblement', 'point_transfert', 'noria',
+  'voie_engins', 'itineraire_evacuation', 'sortie_secours', 'poste_secours'
+])
+
+/* Séquence d'arrivée d'un service : point de rencontre, voies d'accès,
+   dispositif médical, puis évacuation. */
+const ORDRE_SECOURS = [
+  'point_rencontre_secours',
+  'voie_engins',
+  'poste_secours',
+  'prv',
+  'pma',
+  'point_transfert',
+  'noria',
+  'aire_helico',
+  'point_rassemblement',
+  'itineraire_evacuation',
+  'sortie_secours'
+]
 
 const COULEUR = (e) =>
   e.est_risque ? '#a3341f' : e.confirme ? '#1d5c4f' : '#6b6862'
@@ -93,6 +126,10 @@ export default function PlanImplantation({ evenement, membre }) {
   const risques = elements.filter((e) => e.est_risque)
   const localises = elements.filter((e) => (e.geometrie ?? []).length > 0)
 
+  // Ce qu'un service de secours cherche en arrivant : par où entrer,
+  // où déposer, où évacuer.
+  const secours = elements.filter((e) => SECOURS.has(e.categorie))
+
   return (
     <div className="bloc securite dom-prune">
       <h2>Plan d'implantation</h2>
@@ -101,6 +138,7 @@ export default function PlanImplantation({ evenement, membre }) {
         {[
           ['tournee', `Tournée (${aConfirmer.length})`],
           ['carte', 'Carte'],
+          ['secours', `Accès secours (${secours.length})`],
           ['risques', `Risques (${risques.length})`],
           ['ajout', 'Ajouter']
         ].map(([k, l]) => (
@@ -177,6 +215,63 @@ export default function PlanImplantation({ evenement, membre }) {
 
       {vue === 'carte' && (
         <Carte elements={localises} evenement={evenement} position={position} />
+      )}
+
+      {vue === 'secours' && (
+        <>
+          <div className="ligne-boutons" style={{ marginBottom: 12 }}>
+            <button className="discret" onClick={() => window.print()}>
+              Imprimer / PDF
+            </button>
+          </div>
+          <div className="imprimable">
+            <h3 className="titre-impression">
+              {evenement.nom} — accès et dispositif de secours
+            </h3>
+            {secours.length === 0 ? (
+              <p className="vide">
+                Rien d'encodé. Un service qui arrive doit savoir par où entrer, où déposer
+                une victime et où se pose un hélicoptère — c'est ce qu'on lui remet.
+              </p>
+            ) : (
+              ORDRE_SECOURS.filter((c) => secours.some((e) => e.categorie === c)).map(
+                (categorie) => (
+                  <div key={categorie}>
+                    <div className="pave-titre" style={{ marginTop: 12 }}>
+                      {libelleCat(categorie)}
+                    </div>
+                    {secours
+                      .filter((e) => e.categorie === categorie)
+                      .map((e) => (
+                        <div className="carte" key={e.id}>
+                          <div className="titre">
+                            <span className="mono">{e.code}</span> — {e.nom}
+                            {!e.confirme && (
+                              <span className="jeton alerte-texte"> non confirmé</span>
+                            )}
+                          </div>
+                          <div className="meta">
+                            {(e.geometrie ?? [])[0] && (
+                              <span className="mono">
+                                {e.geometrie[0][0].toFixed(5)} · {e.geometrie[0][1].toFixed(5)}
+                              </span>
+                            )}
+                            {e.responsable && <span>{e.responsable}</span>}
+                            {e.contact && <span className="mono">{e.contact}</span>}
+                          </div>
+                          {e.description && <p className="aide">{e.description}</p>}
+                        </div>
+                      ))}
+                  </div>
+                )
+              )
+            )}
+          </div>
+          <p className="aide">
+            Ordre d'affichage volontaire : le point de rencontre d'abord, puis les voies
+            d'accès, puis le dispositif médical. C'est la séquence d'arrivée d'un service.
+          </p>
+        </>
       )}
 
       {vue === 'risques' && (

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { Missions } from './Securite'
+import Radio from './Radio'
 
 const ONGLETS = [
   ['interventions', 'Demandes'],
   ['stocks', 'Stocks'],
   ['attributions', 'Clés & radios'],
+  ['radio', 'Matrice radio'],
   ['jauge', 'Jauge'],
   ['transports', 'Transports']
 ]
@@ -51,6 +53,7 @@ export default function Logistique({ evenement, membre }) {
       {onglet === 'attributions' && (
         <Attributions evenement={evenement} setMessage={setMessage} />
       )}
+      {onglet === 'radio' && <Radio evenement={evenement} setMessage={setMessage} />}
       {onglet === 'jauge' && (
         <Jauge evenement={evenement} membre={membre} setMessage={setMessage} />
       )}

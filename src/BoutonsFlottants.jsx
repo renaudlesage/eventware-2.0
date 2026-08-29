@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Siren, MessageSquareWarning, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Siren, MessageSquareWarning, X, TriangleAlert } from 'lucide-react'
 import { supabase } from './supabaseClient'
 
 /**
@@ -41,6 +41,8 @@ export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir 
   const [ouvert, setOuvert] = useState(null)
 
   const peutSos = toutPouvoir || peut('sos', 'creer')
+  // Le Mayday est ouvert à tout membre : on ne subordonne pas un appel
+  // au secours à une capacité.
   const peutRex =
     evenement.modules?.analyse && (toutPouvoir || peut('analyse', 'creer'))
 
@@ -69,29 +71,39 @@ export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir 
             <span>SOS</span>
           </button>
         )}
+        <button
+          className="flottant mayday"
+          onClick={() => setOuvert('mayday')}
+          aria-label="Mayday — je suis en difficulté"
+        >
+          <TriangleAlert size={20} strokeWidth={2.2} aria-hidden="true" />
+          <span>MAYDAY</span>
+        </button>
       </div>
 
       {ouvert && (
         <div className="voile" onClick={() => setOuvert(null)}>
           <div className="tiroir" onClick={(e) => e.stopPropagation()}>
             <div className="tiroir-tete">
-              <strong>{ouvert === 'sos' ? 'Signaler un incident' : 'Signaler un constat'}</strong>
+              <strong>
+                {ouvert === 'sos'
+                  ? 'Signaler un incident'
+                  : ouvert === 'mayday'
+                    ? 'Mayday — appel de détresse'
+                    : 'Signaler un constat'}
+              </strong>
               <button className="lien" onClick={() => setOuvert(null)} aria-label="Fermer">
                 <X size={18} strokeWidth={2} aria-hidden="true" />
               </button>
             </div>
-            {ouvert === 'sos' ? (
-              <FormSos
-                evenement={evenement}
-                membre={membre}
-                onFini={() => setOuvert(null)}
-              />
-            ) : (
-              <FormRex
-                evenement={evenement}
-                membre={membre}
-                onFini={() => setOuvert(null)}
-              />
+            {ouvert === 'sos' && (
+              <FormSos evenement={evenement} membre={membre} onFini={() => setOuvert(null)} />
+            )}
+            {ouvert === 'mayday' && (
+              <FormMayday evenement={evenement} onFini={() => setOuvert(null)} />
+            )}
+            {ouvert === 'rex' && (
+              <FormRex evenement={evenement} membre={membre} onFini={() => setOuvert(null)} />
             )}
           </div>
         </div>
@@ -182,6 +194,135 @@ function FormSos({ evenement, membre, onFini }) {
       <p className="aide">
         En cas d'urgence vitale, appelle le 112 d'abord. Ce signalement prévient le PC, il
         ne remplace pas les secours.
+      </p>
+    </div>
+  )
+}
+
+/**
+ * Mayday.
+ *
+ * Deux différences avec le SOS, et elles sont volontaires :
+ *   la position est prise AUTOMATIQUEMENT, sans attendre un geste — on
+ *   ne demande pas à quelqu'un en difficulté de penser à la joindre ;
+ *   l'envoi demande une confirmation, parce qu'un Mayday déclenche une
+ *   alerte d'urgence sur tous les écrans.
+ */
+function FormMayday({ evenement, onFini }) {
+  const [motif, setMotif] = useState('')
+  const [position, setPosition] = useState(null)
+  const [etatGeo, setEtatGeo] = useState('recherche')
+  const [confirme, setConfirme] = useState(false)
+  const [occupe, setOccupe] = useState(false)
+  const [erreur, setErreur] = useState(null)
+  const [envoye, setEnvoye] = useState(null)
+
+  useEffect(() => {
+    if (!navigator.geolocation) return setEtatGeo('indisponible')
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        setPosition({
+          latitude: p.coords.latitude,
+          longitude: p.coords.longitude,
+          precision_m: p.coords.accuracy
+        })
+        setEtatGeo('ok')
+      },
+      () => setEtatGeo('refusee'),
+      { enableHighAccuracy: true, timeout: 15000 }
+    )
+  }, [])
+
+  async function envoyer() {
+    setOccupe(true)
+    setErreur(null)
+    const { data, error } = await supabase.rpc('emettre_mayday', {
+      p_evenement: evenement.id,
+      p_motif: motif.trim() || null,
+      p_latitude: position?.latitude ?? null,
+      p_longitude: position?.longitude ?? null,
+      p_precision_m: position?.precision_m ?? null
+    })
+    if (error) setErreur(error.message)
+    else setEnvoye(Array.isArray(data) ? data[0] : data)
+    setOccupe(false)
+  }
+
+  if (envoye) {
+    return (
+      <div className="dom-grenat">
+        <div className="message">
+          <strong>{envoye.reference} transmis.</strong> Le poste de commandement est
+          prévenu et une alerte est affichée sur tous les écrans. Reste où tu es si tu le
+          peux, et garde la radio libre.
+        </div>
+        <button className="bouton-terrain" onClick={onFini}>
+          Fermer
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="dom-grenat">
+      {erreur && <div className="message erreur">{erreur}</div>}
+
+      <p className="aide" style={{ marginTop: 0 }}>
+        À utiliser quand <strong>tu</strong> es en difficulté : blessure, blocage, menace,
+        isolement. Pour un incident que tu constates sur quelqu'un d'autre, utilise SOS.
+      </p>
+
+      <label htmlFor="mayday-motif">Ce qui t'arrive</label>
+      <input
+        id="mayday-motif"
+        autoFocus
+        value={motif}
+        onChange={(e) => setMotif(e.target.value)}
+        placeholder="En quelques mots — facultatif"
+      />
+
+      <div className="geo">
+        {etatGeo === 'ok' && position && (
+          <>
+            Position prise automatiquement, précision ±{Math.round(position.precision_m)} m
+            <br />
+            <span className="mono">
+              {position.latitude.toFixed(5)} · {position.longitude.toFixed(5)}
+            </span>
+          </>
+        )}
+        {etatGeo === 'recherche' && 'Recherche de ta position…'}
+        {(etatGeo === 'refusee' || etatGeo === 'indisponible') && (
+          <span className="alerte-texte">
+            Position indisponible. Décris où tu es dans le message — un repère visible vaut
+            mieux qu'une adresse.
+          </span>
+        )}
+      </div>
+
+      <label className="case-confirme">
+        <input
+          type="checkbox"
+          checked={confirme}
+          onChange={(e) => setConfirme(e.target.checked)}
+        />
+        <span>
+          Je confirme être en difficulté et demander de l'aide. Une alerte d'urgence sera
+          diffusée à tout le dispositif.
+        </span>
+      </label>
+
+      <button
+        className="bouton-terrain bouton-mayday"
+        disabled={occupe || !confirme}
+        onClick={envoyer}
+      >
+        {occupe ? 'Transmission…' : 'Transmettre le Mayday'}
+      </button>
+
+      <p className="aide">
+        En cas d'urgence vitale, appelle le 112 en premier. Ce Mayday prévient le poste de
+        commandement, il ne remplace pas les secours.
       </p>
     </div>
   )
