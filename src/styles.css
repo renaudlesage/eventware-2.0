@@ -1474,3 +1474,22 @@ button.tuile:hover { background: var(--surface-2); }
 /* La météo garde ses pavés, mais réduits */
 .meteo .grand { font-size: 21px; }
 .meteo .pave { padding: 9px 11px; }
+
+/* --- Transport : lien Maps désactivé tant que l'adresse est vide --- */
+
+.bouton-maps {
+  padding: 9px 14px;
+  border: 1px solid var(--trait);
+  background: var(--surface);
+  color: var(--etat-info);
+  font-size: 13px;
+  text-decoration: none;
+  align-self: center;
+  white-space: nowrap;
+}
+
+.bouton-maps.inactif {
+  color: var(--sourdine);
+  pointer-events: none;
+  opacity: 0.5;
+}

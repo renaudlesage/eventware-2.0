@@ -473,8 +473,17 @@ function Jauge({ evenement, membre, setMessage }) {
 /* Transports                                                          */
 /* ================================================================== */
 
+/*
+ * Repris de la v18, qui était nickel sur ce point précis : un point de
+ * départ/arrivée se choisit d'abord dans une liste de lieux connus —
+ * ça remplit les coordonnées GPS sans que personne ne les tape — et
+ * seulement à défaut, on bascule sur une adresse libre avec un lien
+ * Maps à côté. La saisie libre reste toujours possible : un chauffeur
+ * qui va chercher quelqu'un à la gare n'a pas de "lieu" pour ça.
+ */
+
 const STATUTS = [
-  ['a_traiter', 'À traiter'],
+  ['a_traiter', 'À planifier'],
   ['attribuee', 'Attribuée'],
   ['en_cours', 'En cours'],
   ['resolue', 'Terminée'],
@@ -483,54 +492,52 @@ const STATUTS = [
 
 function Transports({ evenement, setMessage }) {
   const [lignes, setLignes] = useState([])
+  const [lieux, setLieux] = useState([])
+  const [chauffeurs, setChauffeurs] = useState([])
   const [masquerClos, setMasquerClos] = useState(true)
-  const [f, setF] = useState({
-    depart_libre: '',
-    arrivee_libre: '',
-    nb_personnes: 1,
-    motif: '',
-    priorite: 'P3'
-  })
+  const [ouvrir, setOuvrir] = useState(false)
+  const [attribution, setAttribution] = useState(null)
 
   async function charger() {
-    const { data, error } = await supabase
-      .from('transports')
-      .select('*')
-      .eq('evenement_id', evenement.id)
-      .order('created_at', { ascending: false })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
-    else setLignes(data ?? [])
+    const [t, l, c] = await Promise.all([
+      supabase
+        .from('transports')
+        .select('*, depart:depart_lieu_id(nom), arrivee:arrivee_lieu_id(nom), chauffeur:chauffeur_id(nom_affiche)')
+        .eq('evenement_id', evenement.id)
+        .order('created_at', { ascending: false }),
+      supabase.from('lieux').select('id, code, nom').eq('evenement_id', evenement.id),
+      supabase.rpc('chauffeurs_disponibles', { p_evenement: evenement.id })
+    ])
+    if (t.error) setMessage({ type: 'erreur', texte: t.error.message })
+    else setLignes(t.data ?? [])
+    setLieux(l.data ?? [])
+    if (!c.error) setChauffeurs(c.data ?? [])
   }
 
   useEffect(() => {
     charger()
-    const t = setInterval(charger, 20000)
-    return () => clearInterval(t)
+    const tmr = setInterval(charger, 20000)
+    return () => clearInterval(tmr)
   }, [evenement.id])
 
-  async function demander() {
-    if (!f.depart_libre.trim() || !f.arrivee_libre.trim()) return
-    const { error } = await supabase.from('transports').insert({
-      evenement_id: evenement.id,
-      ...f,
-      nb_personnes: Number(f.nb_personnes) || 1
-    })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
-    else {
-      setF({ depart_libre: '', arrivee_libre: '', nb_personnes: 1, motif: '', priorite: 'P3' })
-      charger()
-    }
-  }
-
-  async function changer(id, statut) {
+  async function changer(id, champs) {
     const { error, count } = await supabase
       .from('transports')
-      .update({ statut }, { count: 'exact' })
+      .update(champs, { count: 'exact' })
       .eq('id', id)
     if (error) setMessage({ type: 'erreur', texte: error.message })
     else if (count === 0)
       setMessage({ type: 'erreur', texte: 'Modification refusée : droits insuffisants.' })
     else charger()
+  }
+
+  async function attribuer(id, chauffeurId, vehicule) {
+    await changer(id, {
+      chauffeur_id: chauffeurId || null,
+      vehicule: vehicule || null,
+      statut: chauffeurId ? 'attribuee' : 'a_traiter'
+    })
+    setAttribution(null)
   }
 
   const visibles = masquerClos
@@ -539,66 +546,80 @@ function Transports({ evenement, setMessage }) {
 
   return (
     <>
-      <div className="saisie-rapide">
-        <input
-          value={f.depart_libre}
-          onChange={(e) => setF({ ...f, depart_libre: e.target.value })}
-          placeholder="Départ"
+      {ouvrir ? (
+        <FormTransport
+          evenement={evenement}
+          lieux={lieux}
+          onFait={() => {
+            setOuvrir(false)
+            charger()
+          }}
+          onAnnuler={() => setOuvrir(false)}
+          setMessage={setMessage}
         />
-        <input
-          value={f.arrivee_libre}
-          onChange={(e) => setF({ ...f, arrivee_libre: e.target.value })}
-          placeholder="Arrivée"
-        />
-        <input
-          type="number"
-          min="1"
-          value={f.nb_personnes}
-          onChange={(e) => setF({ ...f, nb_personnes: e.target.value })}
-          style={{ flex: '0 1 80px' }}
-        />
-        <select
-          value={f.priorite}
-          onChange={(e) => setF({ ...f, priorite: e.target.value })}
-          style={{ width: 'auto', marginBottom: 0 }}
-        >
-          {['P1', 'P2', 'P3', 'P4'].map((p) => (
-            <option key={p}>{p}</option>
-          ))}
-        </select>
-        <button onClick={demander}>Demander</button>
-      </div>
-      <input
-        value={f.motif}
-        onChange={(e) => setF({ ...f, motif: e.target.value })}
-        placeholder="Motif"
-      />
+      ) : (
+        <div className="ligne-boutons" style={{ marginBottom: 12 }}>
+          <button onClick={() => setOuvrir(true)}>Nouvelle demande</button>
+          <button className="discret" onClick={() => setMasquerClos(!masquerClos)}>
+            {masquerClos ? 'Afficher les terminés' : 'Masquer les terminés'}
+          </button>
+        </div>
+      )}
 
-      <div className="ligne-boutons" style={{ marginBottom: 12 }}>
-        <button className="discret" onClick={() => setMasquerClos(!masquerClos)}>
-          {masquerClos ? 'Afficher les terminés' : 'Masquer les terminés'}
-        </button>
-      </div>
+      {chauffeurs.length === 0 && (
+        <p className="aide">
+          Aucun chauffeur déclaré. Dans l'onglet Bénévoles, marque les personnes concernées
+          comme chauffeurs pour pouvoir leur attribuer des courses.
+        </p>
+      )}
 
       {visibles.length === 0 ? (
-        <p className="vide">Aucune course en cours.</p>
+        <p className="vide">Aucune course.</p>
       ) : (
         visibles.map((l) => (
           <div className="carte" key={l.id}>
             <div className="titre">
               <span className="mono">{l.reference}</span>{' '}
               <span className={`jeton prio-${l.priorite}`}>{l.priorite}</span>{' '}
-              {l.depart_libre} → {l.arrivee_libre}
+              {l.depart?.nom ?? l.depart_libre} → {l.arrivee?.nom ?? l.arrivee_libre}
             </div>
             <div className="meta">
               <span>{l.nb_personnes} pers.</span>
               {l.motif && <span>{l.motif}</span>}
+              {l.demandeur && <span>{l.demandeur}</span>}
+              {l.chauffeur?.nom_affiche && <span>{l.chauffeur.nom_affiche}</span>}
               {l.vehicule && <span>{l.vehicule}</span>}
             </div>
+
+            {(l.depart_libre || l.arrivee_libre) && (
+              <div className="ligne-boutons" style={{ marginTop: 6 }}>
+                {l.depart_libre && (
+                  <a
+                    className="lien-externe"
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(l.depart_libre)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Itinéraire départ
+                  </a>
+                )}
+                {l.arrivee_libre && (
+                  <a
+                    className="lien-externe"
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(l.arrivee_libre)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Itinéraire arrivée
+                  </a>
+                )}
+              </div>
+            )}
+
             <div className="ligne-boutons" style={{ marginTop: 10 }}>
               <select
                 value={l.statut}
-                onChange={(e) => changer(l.id, e.target.value)}
+                onChange={(e) => changer(l.id, { statut: e.target.value })}
                 style={{ width: 'auto', marginBottom: 0 }}
               >
                 {STATUTS.map(([v, lib]) => (
@@ -607,10 +628,210 @@ function Transports({ evenement, setMessage }) {
                   </option>
                 ))}
               </select>
+              <button
+                className="discret"
+                onClick={() => setAttribution(attribution === l.id ? null : l.id)}
+              >
+                {l.chauffeur_id ? 'Changer le chauffeur' : 'Attribuer un chauffeur'}
+              </button>
             </div>
+
+            {attribution === l.id && (
+              <AttribuerChauffeur
+                chauffeurs={chauffeurs}
+                actuel={l.chauffeur_id}
+                vehiculeActuel={l.vehicule}
+                onValider={(c, v) => attribuer(l.id, c, v)}
+              />
+            )}
           </div>
         ))
       )}
     </>
+  )
+}
+
+function AttribuerChauffeur({ chauffeurs, actuel, vehiculeActuel, onValider }) {
+  const [chauffeurId, setChauffeurId] = useState(actuel ?? '')
+  const [vehicule, setVehicule] = useState(vehiculeActuel ?? '')
+
+  return (
+    <div className="formulaire">
+      <label htmlFor="att-chauffeur">Chauffeur</label>
+      <select
+        id="att-chauffeur"
+        value={chauffeurId}
+        onChange={(e) => setChauffeurId(e.target.value)}
+      >
+        <option value="">— aucun —</option>
+        {chauffeurs.map((c) => (
+          <option key={c.membre_id} value={c.membre_id}>
+            {c.nom ?? '(sans nom)'}
+            {c.en_course ? ' — déjà en course' : ''}
+            {c.type_vehicule ? ` · ${c.type_vehicule}` : ''}
+          </option>
+        ))}
+      </select>
+      <label htmlFor="att-vehicule">Véhicule</label>
+      <input
+        id="att-vehicule"
+        value={vehicule}
+        onChange={(e) => setVehicule(e.target.value)}
+        placeholder="Plaque, modèle ou repère"
+      />
+      <button onClick={() => onValider(chauffeurId, vehicule)}>Valider</button>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Nouvelle demande — point préétabli ou adresse libre                 */
+/* ------------------------------------------------------------------ */
+
+function FormTransport({ evenement, lieux, onFait, onAnnuler, setMessage }) {
+  const [depart, setDepart] = useState({ mode: 'lieu', lieuId: '', libre: '' })
+  const [arrivee, setArrivee] = useState({ mode: 'lieu', lieuId: '', libre: '' })
+  const [nbPersonnes, setNbPersonnes] = useState(1)
+  const [motif, setMotif] = useState('')
+  const [demandeur, setDemandeur] = useState('')
+  const [contact, setContact] = useState('')
+  const [priorite, setPriorite] = useState('P3')
+  const [occupe, setOccupe] = useState(false)
+
+  const pret =
+    (depart.mode === 'lieu' ? depart.lieuId : depart.libre.trim()) &&
+    (arrivee.mode === 'lieu' ? arrivee.lieuId : arrivee.libre.trim())
+
+  async function creer() {
+    setOccupe(true)
+    const { error } = await supabase.from('transports').insert({
+      evenement_id: evenement.id,
+      depart_lieu_id: depart.mode === 'lieu' ? depart.lieuId : null,
+      depart_libre: depart.mode === 'libre' ? depart.libre.trim() : null,
+      arrivee_lieu_id: arrivee.mode === 'lieu' ? arrivee.lieuId : null,
+      arrivee_libre: arrivee.mode === 'libre' ? arrivee.libre.trim() : null,
+      nb_personnes: Number(nbPersonnes) || 1,
+      motif: motif.trim() || null,
+      demandeur: demandeur.trim() || null,
+      contact: contact.trim() || null,
+      priorite
+    })
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else onFait()
+    setOccupe(false)
+  }
+
+  return (
+    <div className="formulaire">
+      <PointDepartArrivee
+        titre="Départ"
+        lieux={lieux}
+        valeur={depart}
+        onChange={setDepart}
+      />
+      <PointDepartArrivee
+        titre="Arrivée"
+        lieux={lieux}
+        valeur={arrivee}
+        onChange={setArrivee}
+      />
+
+      <div className="saisie-rapide">
+        <input
+          type="number"
+          min="1"
+          value={nbPersonnes}
+          onChange={(e) => setNbPersonnes(e.target.value)}
+          placeholder="Nb pers."
+          style={{ flex: '0 1 90px' }}
+        />
+        <select
+          value={priorite}
+          onChange={(e) => setPriorite(e.target.value)}
+          style={{ width: 'auto', marginBottom: 0 }}
+        >
+          {['P1', 'P2', 'P3', 'P4'].map((p) => (
+            <option key={p}>{p}</option>
+          ))}
+        </select>
+        <input
+          value={motif}
+          onChange={(e) => setMotif(e.target.value)}
+          placeholder="Motif"
+        />
+      </div>
+      <div className="saisie-rapide">
+        <input
+          value={demandeur}
+          onChange={(e) => setDemandeur(e.target.value)}
+          placeholder="Demandé par"
+        />
+        <input
+          value={contact}
+          onChange={(e) => setContact(e.target.value)}
+          placeholder="Contact"
+        />
+      </div>
+
+      <div className="ligne-boutons">
+        <button disabled={occupe || !pret} onClick={creer}>
+          Créer la demande
+        </button>
+        <button className="discret" onClick={onAnnuler}>
+          Annuler
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Choix d'un point : d'abord dans les lieux connus, sinon adresse libre.
+ * Choisir un lieu remplit ses coordonnées GPS automatiquement — c'est le
+ * point de guidage du chauffeur, sans que personne ne tape de coordonnées.
+ */
+function PointDepartArrivee({ titre, lieux, valeur, onChange }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <label>{titre}</label>
+      <div className="saisie-rapide">
+        <select
+          value={valeur.mode === 'lieu' ? valeur.lieuId : '__libre__'}
+          onChange={(e) => {
+            if (e.target.value === '__libre__') onChange({ ...valeur, mode: 'libre' })
+            else onChange({ mode: 'lieu', lieuId: e.target.value, libre: '' })
+          }}
+        >
+          <option value="">— choisir un lieu —</option>
+          {lieux.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.code} · {l.nom}
+            </option>
+          ))}
+          <option value="__libre__">Autre adresse…</option>
+        </select>
+      </div>
+      {valeur.mode === 'libre' && (
+        <div className="saisie-rapide">
+          <input
+            value={valeur.libre}
+            onChange={(e) => onChange({ ...valeur, libre: e.target.value })}
+            placeholder="Rue, n°, code postal, ville"
+          />
+          <a
+            className={`bouton-maps ${valeur.libre.trim() ? '' : 'inactif'}`}
+            href={
+              valeur.libre.trim()
+                ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(valeur.libre.trim())}`
+                : undefined
+            }
+            target="_blank"
+            rel="noreferrer"
+          >
+            Vérifier sur la carte
+          </a>
+        </div>
+      )}
+    </div>
   )
 }

@@ -343,6 +343,21 @@ function Equipe({ evenement, setMessage }) {
     setEquipes(e.data ?? [])
   }
 
+  async function basculerChauffeur(id, actuel) {
+    const { error, count } = await supabase
+      .from('membres_evenement')
+      .update({ est_chauffeur: !actuel }, { count: 'exact' })
+      .eq('id', id)
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else if (count === 0) setMessage({ type: 'erreur', texte: 'Modification refusée.' })
+    else charger()
+  }
+
+  async function majVehicule(id, type_vehicule) {
+    await supabase.from('membres_evenement').update({ type_vehicule }).eq('id', id)
+    charger()
+  }
+
   useEffect(() => {
     charger()
   }, [evenement.id])
@@ -391,12 +406,28 @@ function Equipe({ evenement, setMessage }) {
                 </option>
               ))}
             </select>
+            <button
+              className={`module ${m.est_chauffeur ? 'actif' : ''}`}
+              onClick={() => basculerChauffeur(m.id, m.est_chauffeur)}
+            >
+              {m.est_chauffeur ? 'Chauffeur ✓' : 'Marquer chauffeur'}
+            </button>
           </div>
+          {m.est_chauffeur && (
+            <input
+              defaultValue={m.type_vehicule ?? ''}
+              placeholder="Véhicule habituel — utilitaire, 7 places…"
+              onBlur={(e) => majVehicule(m.id, e.target.value || null)}
+              style={{ marginTop: 8, marginBottom: 0 }}
+            />
+          )}
         </div>
       ))}
       <p className="aide">
         L'équipe de rattachement détermine les missions qui apparaissent dans « Mon terrain ».
-        Sans équipe, la personne ne voit que ce qui lui est nommément attribué.
+        « Chauffeur » n'est pas un rôle : c'est une catégorie en plus, qui rend la personne
+        disponible pour une attribution dans Logistique → Transports. Elle garde ses
+        capacités habituelles.
       </p>
     </>
   )
