@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import Sitrep from './Sitrep'
+import Maydays from './Maydays'
 
 const ONGLETS = [
+  ['mayday', 'Mayday'],
   ['journal', 'Main courante'],
   ['missions', 'Demandes'],
   ['recherches', 'Recherches'],
@@ -36,6 +38,9 @@ export default function Securite({ evenement, membre, session }) {
         </div>
       )}
 
+      {onglet === 'mayday' && (
+        <Maydays evenement={evenement} setMessage={setMessage} />
+      )}
       {onglet === 'journal' && <Journal evenement={evenement} setMessage={setMessage} />}
       {onglet === 'missions' && (
         <Missions

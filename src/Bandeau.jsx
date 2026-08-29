@@ -12,17 +12,23 @@ const NIVEAUX = [
  * Le bandeau s'impose : il n'est pas refermable tant que l'alerte est
  * active. Une alerte qu'on peut masquer d'un clic est une alerte qu'on
  * masque au pire moment.
+ *
+ * Il ne montre que les alertes de l'événement COURANT. La version
+ * précédente affichait celles de tous les événements dont on est membre,
+ * au motif qu'une urgence ne doit jamais être masquée : le raisonnement
+ * était faux. Un Mayday sur une rando n'a rien à faire sur l'écran de
+ * quelqu'un qui travaille sur un festival — il y crée du bruit et brouille
+ * le cloisonnement entre organisateurs.
  */
-export default function Bandeau({ evenements, membre }) {
+export default function Bandeau({ evenement }) {
   const [alertes, setAlertes] = useState([])
 
   async function charger() {
-    const ids = evenements.map((e) => e.id)
-    if (!ids.length) return
+    if (!evenement?.id) return setAlertes([])
     const { data } = await supabase
       .from('alertes')
-      .select('*, evenements:evenement_id(nom)')
-      .in('evenement_id', ids)
+      .select('*')
+      .eq('evenement_id', evenement.id)
       .eq('active', true)
       .order('emise_le', { ascending: false })
     setAlertes(data ?? [])
@@ -32,7 +38,7 @@ export default function Bandeau({ evenements, membre }) {
     charger()
     const t = setInterval(charger, 15000)
     return () => clearInterval(t)
-  }, [evenements.map((e) => e.id).join(',')])
+  }, [evenement?.id])
 
   if (!alertes.length) return null
 
@@ -46,7 +52,6 @@ export default function Bandeau({ evenements, membre }) {
             {a.message && <div className="msg">{a.message}</div>}
             {a.consigne && <div className="consigne">→ {a.consigne}</div>}
             <div className="meta">
-              <span>{a.evenements?.nom}</span>
               <span>
                 {new Date(a.emise_le).toLocaleTimeString('fr-BE', {
                   hour: '2-digit',

@@ -1359,3 +1359,9 @@ button.grand-lien:hover .grand { text-decoration-color: currentColor; }
 
 .bande-heure { color: var(--sourdine); font-size: 9px; }
 .bande-valeur { font-size: 11px; }
+
+/* --- Mayday : traitement --- */
+
+.mayday-bloc { --teinte: var(--etat-chaud); }
+
+.cadran.chaud[data-clef="mayday"] { background: var(--etat-chaud); }

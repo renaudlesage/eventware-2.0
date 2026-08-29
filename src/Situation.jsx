@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import Meteo from './Meteo'
+import Maydays from './Maydays'
 
 /**
  * Tableau de bord général — la vue QG.
@@ -49,6 +50,8 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
       </div>
 
       {/* --- 1. Ce qui exige une décision --- */}
+
+      <Maydays evenement={evenement} compact />
 
       {(s.alertes ?? []).map((a, i) => (
         <div className={`bandeau-alerte niv-${a.niveau}`} key={i}>

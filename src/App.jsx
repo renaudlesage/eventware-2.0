@@ -301,7 +301,7 @@ function Poste({ session, theme, setTheme }) {
       )}
       </div>
 
-      <Bandeau evenements={evenements} membre={session.user} />
+      <Bandeau evenement={courant} />
 
       {message && (
         <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
@@ -422,6 +422,12 @@ function BandeauEtat({ evenement, peut, toutPouvoir, onAller }) {
     const m = evenement.modules ?? {}
     const taches = [
       supabase
+        .from('maydays')
+        .select('id', { count: 'exact', head: true })
+        .eq('evenement_id', evenement.id)
+        .in('statut', ['emis', 'accuse', 'en_cours'])
+        .then(({ count }) => ['mayday', count ?? 0]),
+      supabase
         .from('missions')
         .select('id', { count: 'exact', head: true })
         .eq('evenement_id', evenement.id)
@@ -473,6 +479,7 @@ function BandeauEtat({ evenement, peut, toutPouvoir, onAller }) {
   const encadrement = toutPouvoir || peut('missions', 'creer')
 
   const cases = [
+    { clef: 'mayday', libelle: 'Mayday', valeur: c.mayday, vers: 'securite', pour: encadrement },
     { clef: 'p1', libelle: 'P1 ouvertes', valeur: c.p1, vers: 'securite', pour: encadrement },
     { clef: 'sos', libelle: 'Signalements', valeur: c.sos, vers: 'sos', pour: encadrement },
     { clef: 'retards', libelle: 'Sans nouvelles', valeur: c.retards, vers: 'parcours', pour: encadrement },
