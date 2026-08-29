@@ -1493,3 +1493,10 @@ button.tuile:hover { background: var(--surface-2); }
   pointer-events: none;
   opacity: 0.5;
 }
+
+/* --- Champ adresse désactivé quand un lieu du dispositif est choisi --- */
+input:disabled {
+  background: var(--surface-2);
+  color: var(--sourdine);
+  cursor: not-allowed;
+}

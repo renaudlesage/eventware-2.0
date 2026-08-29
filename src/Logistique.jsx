@@ -689,8 +689,8 @@ function AttribuerChauffeur({ chauffeurs, actuel, vehiculeActuel, onValider }) {
 /* ------------------------------------------------------------------ */
 
 function FormTransport({ evenement, lieux, onFait, onAnnuler, setMessage }) {
-  const [depart, setDepart] = useState({ mode: 'lieu', lieuId: '', libre: '' })
-  const [arrivee, setArrivee] = useState({ mode: 'lieu', lieuId: '', libre: '' })
+  const [depart, setDepart] = useState({ lieuId: '', libre: '' })
+  const [arrivee, setArrivee] = useState({ lieuId: '', libre: '' })
   const [nbPersonnes, setNbPersonnes] = useState(1)
   const [motif, setMotif] = useState('')
   const [demandeur, setDemandeur] = useState('')
@@ -698,18 +698,16 @@ function FormTransport({ evenement, lieux, onFait, onAnnuler, setMessage }) {
   const [priorite, setPriorite] = useState('P3')
   const [occupe, setOccupe] = useState(false)
 
-  const pret =
-    (depart.mode === 'lieu' ? depart.lieuId : depart.libre.trim()) &&
-    (arrivee.mode === 'lieu' ? arrivee.lieuId : arrivee.libre.trim())
+  const pret = (depart.lieuId || depart.libre.trim()) && (arrivee.lieuId || arrivee.libre.trim())
 
   async function creer() {
     setOccupe(true)
     const { error } = await supabase.from('transports').insert({
       evenement_id: evenement.id,
-      depart_lieu_id: depart.mode === 'lieu' ? depart.lieuId : null,
-      depart_libre: depart.mode === 'libre' ? depart.libre.trim() : null,
-      arrivee_lieu_id: arrivee.mode === 'lieu' ? arrivee.lieuId : null,
-      arrivee_libre: arrivee.mode === 'libre' ? arrivee.libre.trim() : null,
+      depart_lieu_id: depart.lieuId || null,
+      depart_libre: depart.lieuId ? null : depart.libre.trim() || null,
+      arrivee_lieu_id: arrivee.lieuId || null,
+      arrivee_libre: arrivee.lieuId ? null : arrivee.libre.trim() || null,
       nb_personnes: Number(nbPersonnes) || 1,
       motif: motif.trim() || null,
       demandeur: demandeur.trim() || null,
@@ -786,51 +784,65 @@ function FormTransport({ evenement, lieux, onFait, onAnnuler, setMessage }) {
 }
 
 /**
- * Choix d'un point : d'abord dans les lieux connus, sinon adresse libre.
- * Choisir un lieu remplit ses coordonnées GPS automatiquement — c'est le
- * point de guidage du chauffeur, sans que personne ne tape de coordonnées.
+ * Choix d'un point de départ ou d'arrivée.
+ *
+ * Les deux moyens coexistent visiblement, comme dans la v18 : un
+ * sélecteur de lieu connu, ET un champ d'adresse libre juste en dessous,
+ * toujours affiché. Choisir un lieu vide le champ libre ; taper dans le
+ * champ libre annule la sélection de lieu. Aucun des deux n'est masqué
+ * derrière une option de menu qu'il faut deviner.
  */
 function PointDepartArrivee({ titre, lieux, valeur, onChange }) {
+  const lieuChoisi = lieux.find((l) => l.id === valeur.lieuId)
+
   return (
-    <div style={{ marginBottom: 10 }}>
+    <div style={{ marginBottom: 12 }}>
       <label>{titre}</label>
-      <div className="saisie-rapide">
-        <select
-          value={valeur.mode === 'lieu' ? valeur.lieuId : '__libre__'}
-          onChange={(e) => {
-            if (e.target.value === '__libre__') onChange({ ...valeur, mode: 'libre' })
-            else onChange({ mode: 'lieu', lieuId: e.target.value, libre: '' })
-          }}
+
+      <select
+        value={valeur.lieuId}
+        onChange={(e) => onChange({ lieuId: e.target.value, libre: '' })}
+      >
+        <option value="">— choisir un lieu du dispositif —</option>
+        {lieux.map((l) => (
+          <option key={l.id} value={l.id}>
+            {l.code} · {l.nom}
+          </option>
+        ))}
+      </select>
+
+      <div className="saisie-rapide" style={{ marginTop: 6 }}>
+        <input
+          value={lieuChoisi ? '' : valeur.libre}
+          disabled={!!lieuChoisi}
+          onChange={(e) => onChange({ lieuId: '', libre: e.target.value })}
+          placeholder={
+            lieuChoisi
+              ? `${lieuChoisi.nom} (lieu du dispositif — vide le champ pour saisir une adresse)`
+              : 'Ou une adresse — rue, n°, code postal, ville'
+          }
+        />
+        <a
+          className={`bouton-maps ${valeur.libre.trim() && !lieuChoisi ? '' : 'inactif'}`}
+          href={
+            valeur.libre.trim() && !lieuChoisi
+              ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(valeur.libre.trim())}`
+              : undefined
+          }
+          target="_blank"
+          rel="noreferrer"
         >
-          <option value="">— choisir un lieu —</option>
-          {lieux.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.code} · {l.nom}
-            </option>
-          ))}
-          <option value="__libre__">Autre adresse…</option>
-        </select>
+          Carte
+        </a>
       </div>
-      {valeur.mode === 'libre' && (
-        <div className="saisie-rapide">
-          <input
-            value={valeur.libre}
-            onChange={(e) => onChange({ ...valeur, libre: e.target.value })}
-            placeholder="Rue, n°, code postal, ville"
-          />
-          <a
-            className={`bouton-maps ${valeur.libre.trim() ? '' : 'inactif'}`}
-            href={
-              valeur.libre.trim()
-                ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(valeur.libre.trim())}`
-                : undefined
-            }
-            target="_blank"
-            rel="noreferrer"
-          >
-            Vérifier sur la carte
-          </a>
-        </div>
+      {lieuChoisi && (
+        <button
+          className="lien"
+          style={{ marginTop: 4 }}
+          onClick={() => onChange({ lieuId: '', libre: '' })}
+        >
+          Saisir une adresse à la place
+        </button>
       )}
     </div>
   )
