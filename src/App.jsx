@@ -21,6 +21,8 @@ import Situation from './Situation'
 import AccesAutorite from './AccesAutorite'
 import Plateforme from './Plateforme'
 import Planning from './Planning'
+import LogoEvenement from './LogoEvenement'
+import { appliquerIconeEvenement } from './logoPwa'
 import BoutonsFlottants from './BoutonsFlottants'
 import { RESSOURCES } from './colonnesImport'
 import { useCapacites } from './capacites'
@@ -219,7 +221,7 @@ function Poste({ session, theme, setTheme }) {
     const { data, error } = await supabase
       .from('evenements')
       .select(
-        'id, nom, slug, geometrie, phase, jeton_public, point_0_lat, point_0_lon, modules, membres_evenement(id, role, user_id, nom_affiche, perimetre, paves, equipe_id)'
+        'id, nom, slug, geometrie, phase, jeton_public, point_0_lat, point_0_lon, modules, logo_url, membres_evenement(id, role, user_id, nom_affiche, perimetre, paves, equipe_id)'
       )
       .order('nom')
     if (error) setMessage({ type: 'erreur', texte: error.message })
@@ -234,6 +236,10 @@ function Poste({ session, theme, setTheme }) {
   useEffect(() => {
     if (courantId) localStorage.setItem('eventware.evenement', courantId)
   }, [courantId])
+
+  useEffect(() => {
+    if (courant) appliquerIconeEvenement(courant.nom, courant.logo_url)
+  }, [courant?.id, courant?.logo_url])
 
   const courant = evenements.find((e) => e.id === courantId) ?? evenements[0] ?? null
   const moi = courant?.membres_evenement.find((m) => m.user_id === session.user.id)
@@ -298,9 +304,6 @@ function Poste({ session, theme, setTheme }) {
           </span>
         </div>
 
-      {courant && moi && pret && (
-        <BandeauEtat evenement={courant} peut={peut} toutPouvoir={toutPouvoir} onAller={setEcran} />
-      )}
       </div>
 
       <Bandeau evenement={courant} />
@@ -417,96 +420,6 @@ function Reseau() {
   )
 }
 
-function BandeauEtat({ evenement, peut, toutPouvoir, onAller }) {
-  const [c, setC] = useState({})
-
-  async function compter() {
-    const m = evenement.modules ?? {}
-    const taches = [
-      supabase
-        .from('maydays')
-        .select('id', { count: 'exact', head: true })
-        .eq('evenement_id', evenement.id)
-        .in('statut', ['emis', 'accuse', 'en_cours'])
-        .then(({ count }) => ['mayday', count ?? 0]),
-      supabase
-        .from('missions')
-        .select('id', { count: 'exact', head: true })
-        .eq('evenement_id', evenement.id)
-        .eq('priorite', 'P1')
-        .not('statut', 'in', '("resolue","annulee")')
-        .then(({ count }) => ['p1', count ?? 0])
-    ]
-
-    if (m.sos_participants)
-      taches.push(
-        supabase
-          .from('signalements')
-          .select('id', { count: 'exact', head: true })
-          .eq('evenement_id', evenement.id)
-          .in('statut', ['recu', 'pris_en_charge', 'en_cours'])
-          .then(({ count }) => ['sos', count ?? 0])
-      )
-
-    if (m.parcours)
-      taches.push(
-        supabase
-          .rpc('groupes_sans_nouvelles', { p_evenement: evenement.id, p_minutes: 45 })
-          .then(({ data }) => ['retards', (data ?? []).length])
-      )
-
-    if (m.rh)
-      taches.push(
-        supabase
-          .rpc('couverture_creneaux', {
-            p_evenement: evenement.id,
-            p_depuis: new Date().toISOString()
-          })
-          .then(({ data }) => [
-            'manque',
-            (data ?? []).reduce((n, l) => n + (l.manque ?? 0), 0)
-          ])
-      )
-
-    setC(Object.fromEntries(await Promise.all(taches)))
-  }
-
-  useEffect(() => {
-    compter()
-    const t = setInterval(compter, 25000)
-    return () => clearInterval(t)
-  }, [evenement.id, JSON.stringify(evenement.modules)])
-
-  // Un cadran ne s'affiche que si la personne peut agir dessus.
-  const encadrement = toutPouvoir || peut('missions', 'creer')
-
-  const cases = [
-    { clef: 'mayday', libelle: 'Mayday', valeur: c.mayday, vers: 'securite', pour: encadrement },
-    { clef: 'p1', libelle: 'P1 ouvertes', valeur: c.p1, vers: 'securite', pour: encadrement },
-    { clef: 'sos', libelle: 'Signalements', valeur: c.sos, vers: 'sos', pour: encadrement },
-    { clef: 'retards', libelle: 'Sans nouvelles', valeur: c.retards, vers: 'parcours', pour: encadrement },
-    { clef: 'manque', libelle: 'Postes à couvrir', valeur: c.manque, vers: 'rh', pour: encadrement }
-  ].filter((x) => x.valeur !== undefined && x.pour)
-
-  // Un cadran isolé n'est pas un tableau de bord : sans vue d'ensemble à
-  // surveiller, le bandeau ne fait qu'occuper le haut de l'écran.
-  if (cases.length < 2) return null
-
-  return (
-    <div className="etat">
-      {cases.map((x) => (
-        <button
-          key={x.clef}
-          className={`cadran ${x.valeur > 0 ? 'chaud' : ''}`}
-          onClick={() => onAller(x.vers)}
-        >
-          <span className="cadran-valeur">{x.valeur}</span>
-          <span className="cadran-libelle">{x.libelle}</span>
-        </button>
-      ))}
-    </div>
-  )
-}
 
 /* ================================================================== */
 /* Aiguillage                                                          */
@@ -681,6 +594,8 @@ function Reglages({ evenement, session, exploitant, onRecharger, setMessage }) {
 
       {panneau === 'dispositif' && (
         <>
+          <LogoEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
+
           <section className="bloc">
             <h2>Phase</h2>
             <div className="plaques">

@@ -188,10 +188,12 @@ const STATUTS_MISSION = [
 
 const PRIORITES = ['P1', 'P2', 'P3', 'P4']
 
-export function Missions({ evenement, membre, setMessage, module = 'securite', libelle = 'Demandes sécurité' }) {
+export function Missions({ evenement, membre, setMessage, module = 'securite', libelle = 'Demandes' }) {
   const [missions, setMissions] = useState([])
   const [equipes, setEquipes] = useState([])
-  const [masquerClos, setMasquerClos] = useState(true)
+  const [filtre, setFiltre] = useState('tout')
+  const [ouvert, setOuvert] = useState(null)
+  const [creer, setCreer] = useState(null) // null | 'normal' | 'urgent'
   const [titre, setTitre] = useState('')
   const [priorite, setPriorite] = useState('P3')
   const [occupe, setOccupe] = useState(false)
@@ -217,7 +219,7 @@ export function Missions({ evenement, membre, setMessage, module = 'securite', l
     return () => clearInterval(t)
   }, [evenement.id, module])
 
-  async function creer() {
+  async function creerDemande() {
     setOccupe(true)
     const { error } = await supabase.from('missions').insert({
       evenement_id: evenement.id,
@@ -229,6 +231,7 @@ export function Missions({ evenement, membre, setMessage, module = 'securite', l
     if (error) setMessage({ type: 'erreur', texte: error.message })
     else {
       setTitre('')
+      setCreer(null)
       charger()
     }
     setOccupe(false)
@@ -246,109 +249,189 @@ export function Missions({ evenement, membre, setMessage, module = 'securite', l
     else charger()
   }
 
-  const visibles = masquerClos
-    ? missions.filter((m) => !['resolue', 'annulee'].includes(m.statut))
-    : missions
+  const compteurs = {
+    a_traiter: missions.filter((m) => m.statut === 'a_traiter').length,
+    attribuee: missions.filter((m) => m.statut === 'attribuee').length,
+    en_cours: missions.filter((m) => m.statut === 'en_cours').length,
+    p1: missions.filter((m) => m.priorite === 'P1' && !['resolue', 'annulee'].includes(m.statut))
+      .length
+  }
 
-  const ouvertes = missions.filter((m) => !['resolue', 'annulee'].includes(m.statut))
-  const p1 = ouvertes.filter((m) => m.priorite === 'P1').length
+  const FILTRES = [
+    ['tout', 'Tous', missions.length],
+    ['a_traiter', 'À traiter', compteurs.a_traiter],
+    ['attribuee', 'Attribuées', compteurs.attribuee],
+    ['en_cours', 'En cours', compteurs.en_cours],
+    ['resolue', 'Résolues', missions.filter((m) => m.statut === 'resolue').length]
+  ]
+
+  const visibles = filtre === 'tout' ? missions : missions.filter((m) => m.statut === filtre)
 
   return (
     <>
-      <div className="compteurs">
-        <span>{libelle}</span>
-        <span>
-          Ouvertes <strong>{ouvertes.length}</strong>
-        </span>
-        <span className={p1 ? 'alerte-texte' : ''}>
-          P1 <strong>{p1}</strong>
-        </span>
-        <span>
-          Total <strong>{missions.length}</strong>
-        </span>
+      <div className="compteurs-carres">
+        <CompteurCarre libelle="À traiter" v={compteurs.a_traiter} etat="attente" />
+        <CompteurCarre libelle="Attribuées" v={compteurs.attribuee} etat="cours" />
+        <CompteurCarre libelle="En cours" v={compteurs.en_cours} etat="cours2" />
+        <CompteurCarre libelle="Urgentes (P1)" v={compteurs.p1} etat="urgent" />
       </div>
 
-      <div className="saisie-rapide">
-        <input
-          value={titre}
-          onChange={(e) => setTitre(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && titre.trim() && creer()}
-          placeholder={`Nouvelle demande — ${libelle.toLowerCase()}`}
-        />
-        <select
-          value={priorite}
-          onChange={(e) => setPriorite(e.target.value)}
-          style={{ width: 'auto', marginBottom: 0 }}
+      <div className="pastilles-filtre">
+        {FILTRES.map(([v, l, n]) => (
+          <button
+            key={v}
+            className={`pastille ${filtre === v ? 'actif' : ''}`}
+            onClick={() => setFiltre(v)}
+          >
+            {l} <span className="pastille-n">({n})</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="actions-missions">
+        <button className="discret" onClick={() => exporterMissions(missions, module)}>
+          Export CSV
+        </button>
+        <button
+          className="action-creer"
+          onClick={() => {
+            setPriorite('P3')
+            setCreer(creer === 'normal' ? null : 'normal')
+          }}
         >
-          {PRIORITES.map((p) => (
-            <option key={p}>{p}</option>
-          ))}
-        </select>
-        <button disabled={occupe || !titre.trim()} onClick={creer}>
-          Créer
+          + Nouvelle demande
+        </button>
+        <button
+          className="action-urgente"
+          onClick={() => {
+            setPriorite('P1')
+            setCreer(creer === 'urgent' ? null : 'urgent')
+          }}
+        >
+          ⚠ Demande urgente
         </button>
       </div>
 
-      <div className="ligne-boutons" style={{ marginBottom: 12 }}>
-        <button className="discret" onClick={() => setMasquerClos(!masquerClos)}>
-          {masquerClos ? 'Afficher les clôturées' : 'Masquer les clôturées'}
-        </button>
-      </div>
+      {creer && (
+        <div className="formulaire">
+          <div className="saisie-rapide">
+            <input
+              value={titre}
+              onChange={(e) => setTitre(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && titre.trim() && creerDemande()}
+              placeholder={`Nouvelle demande — ${libelle.toLowerCase()}`}
+              autoFocus
+            />
+            <select
+              value={priorite}
+              onChange={(e) => setPriorite(e.target.value)}
+              style={{ width: 'auto', marginBottom: 0 }}
+            >
+              {['P1', 'P2', 'P3', 'P4'].map((p) => (
+                <option key={p}>{p}</option>
+              ))}
+            </select>
+            <button disabled={occupe || !titre.trim()} onClick={creerDemande}>
+              Créer
+            </button>
+          </div>
+        </div>
+      )}
 
       {visibles.length === 0 ? (
-        <p className="vide">Aucune mission ouverte.</p>
+        <p className="vide">Rien ici.</p>
       ) : (
-        visibles.map((m) => (
-          <div className="carte" key={m.id}>
-            <div className="titre">
-              <span className="mono">{m.reference}</span>{' '}
-              <span className={`jeton prio-${m.priorite}`}>{m.priorite}</span> {m.titre}
-            </div>
-            {m.description && <p style={{ margin: '4px 0' }}>{m.description}</p>}
-            <div className="meta">
-              {m.signalement_id && <span>issue d'un signalement</span>}
-              {m.delai_reel_min != null && <span>{m.delai_reel_min} min</span>}
-              {m.latitude && (
-                <span className="mono">
-                  {m.latitude.toFixed(4)} · {m.longitude.toFixed(4)}
-                </span>
+        visibles.map((m) => {
+          const deplie = ouvert === m.id
+          return (
+            <div className="ligne-mission" key={m.id}>
+              <button
+                className="ligne-mission-resume"
+                onClick={() => setOuvert(deplie ? null : m.id)}
+              >
+                <span className={`point-etat point-${etatDe(m)}`} />
+                <span className="ligne-mission-ref mono">{m.reference}</span>
+                <span className="ligne-mission-titre">{m.titre}</span>
+                <span className="ligne-mission-chevron">{deplie ? '︿' : '›'}</span>
+              </button>
+
+              {deplie && (
+                <div className="ligne-mission-detail">
+                  {m.description && <p style={{ margin: '2px 0 8px' }}>{m.description}</p>}
+                  <div className="meta">
+                    {m.signalement_id && <span>issue d'un signalement</span>}
+                    {m.delai_reel_min != null && <span>{m.delai_reel_min} min</span>}
+                    {m.latitude && (
+                      <span className="mono">
+                        {m.latitude.toFixed(4)} · {m.longitude.toFixed(4)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="ligne-boutons" style={{ marginTop: 10 }}>
+                    <select
+                      value={m.statut}
+                      onChange={(e) => modifier(m.id, { statut: e.target.value })}
+                      style={{ width: 'auto', marginBottom: 0 }}
+                    >
+                      {STATUTS_MISSION.map(([v, l]) => (
+                        <option key={v} value={v}>
+                          {l}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={m.equipe_id ?? ''}
+                      onChange={(e) => modifier(m.id, { equipe_id: e.target.value || null })}
+                      style={{ width: 'auto', marginBottom: 0 }}
+                    >
+                      <option value="">— équipe —</option>
+                      {equipes.map((eq) => (
+                        <option key={eq.id} value={eq.id}>
+                          {eq.code}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               )}
             </div>
-            <div className="ligne-boutons" style={{ marginTop: 10 }}>
-              <select
-                value={m.statut}
-                onChange={(e) => modifier(m.id, { statut: e.target.value })}
-                style={{ width: 'auto', marginBottom: 0 }}
-              >
-                {STATUTS_MISSION.map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={m.equipe_id ?? ''}
-                onChange={(e) => modifier(m.id, { equipe_id: e.target.value || null })}
-                style={{ width: 'auto', marginBottom: 0 }}
-              >
-                <option value="">— équipe —</option>
-                {equipes.map((eq) => (
-                  <option key={eq.id} value={eq.id}>
-                    {eq.code}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        ))
+          )
+        })
       )}
     </>
   )
 }
 
-/* ================================================================== */
-/* Recherches de personne                                              */
-/* ================================================================== */
+function CompteurCarre({ libelle, v, etat }) {
+  return (
+    <div className={`compteur-carre etat-${etat}`}>
+      <div className="compteur-carre-libelle">{libelle}</div>
+      <div className="compteur-carre-valeur">{v}</div>
+    </div>
+  )
+}
+
+function etatDe(m) {
+  if (['resolue', 'annulee'].includes(m.statut)) return 'ok'
+  if (m.priorite === 'P1') return 'urgent'
+  if (m.statut === 'a_traiter') return 'attente'
+  return 'cours'
+}
+
+function exporterMissions(missions, module) {
+  const entetes = ['reference', 'titre', 'priorite', 'statut', 'created_at']
+  const echappe = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
+  const csv = [
+    entetes.join(';'),
+    ...missions.map((m) => entetes.map((k) => echappe(m[k])).join(';'))
+  ].join('\n')
+  const url = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `missions-${module}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 function Recherches({ evenement, setMessage }) {
   const [lignes, setLignes] = useState([])

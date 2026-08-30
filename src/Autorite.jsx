@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { appliquerIconeEvenement } from './logoPwa'
 
 const REFUS = {
   P0002: "Ce lien ne correspond à aucun accès.",
@@ -45,6 +46,10 @@ export default function Autorite({ jeton }) {
     return () => clearInterval(t)
   }, [jeton])
 
+  useEffect(() => {
+    if (s) appliquerIconeEvenement(s.evenement?.nom, s.evenement?.logo_url)
+  }, [s?.evenement?.logo_url])
+
   if (erreur)
     return (
       <div className="autorite">
@@ -62,12 +67,17 @@ export default function Autorite({ jeton }) {
   return (
     <div className="autorite">
       <header className="bandeau">
-        <div>
-          <h1>{s.evenement?.nom}</h1>
-          <p className="acces-role">
-            {s.destinataire?.libelle}
-            {s.destinataire?.organisation ? ` · ${s.destinataire.organisation}` : ''}
-          </p>
+        <div className="bandeau-titre">
+          {s.evenement?.logo_url && (
+            <img src={s.evenement.logo_url} alt="" className="logo-participant" />
+          )}
+          <div>
+            <h1>{s.evenement?.nom}</h1>
+            <p className="acces-role">
+              {s.destinataire?.libelle}
+              {s.destinataire?.organisation ? ` · ${s.destinataire.organisation}` : ''}
+            </p>
+          </div>
         </div>
         <div className="etat-droite">
           <span className={`plaque phase-${s.evenement?.phase}`}>{s.evenement?.phase}</span>

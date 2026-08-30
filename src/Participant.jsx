@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { appliquerIconeEvenement } from './logoPwa'
 import { lireFile, ajouter, majSignalement, retirer, nouvelleCle, ETATS } from './fileSos'
 
 const TYPES = [
@@ -29,6 +30,7 @@ const REFUS_TEMPORAIRE = {
 
 export default function Participant({ jeton, codeLieu }) {
   const [file, setFile] = useState(lireFile())
+  const [evt, setEvt] = useState(null)
   const [type, setType] = useState('malaise')
   const [description, setDescription] = useState('')
   const [contact, setContact] = useState('')
@@ -37,6 +39,18 @@ export default function Participant({ jeton, codeLieu }) {
   const [enLigne, setEnLigne] = useState(navigator.onLine)
   const [envoiEnCours, setEnvoiEnCours] = useState(false)
   const minuteur = useRef(null)
+
+  useEffect(() => {
+    supabase
+      .rpc('evenement_public', { p_jeton: jeton })
+      .then(({ data }) => {
+        const e = Array.isArray(data) ? data[0] : data
+        if (e) {
+          setEvt(e)
+          appliquerIconeEvenement(e.nom, e.logo_url)
+        }
+      })
+  }, [jeton])
 
   /* --- Position --- */
   useEffect(() => {
@@ -166,7 +180,13 @@ export default function Participant({ jeton, codeLieu }) {
   return (
     <div className="enveloppe participant">
       <div className="bandeau">
-        <h1>Signaler un problème{codeLieu ? ` — ${codeLieu}` : ''}</h1>
+        <div className="bandeau-titre">
+          {evt?.logo_url && <img src={evt.logo_url} alt="" className="logo-participant" />}
+          <div>
+            <h1>Signaler un problème{codeLieu ? ` — ${codeLieu}` : ''}</h1>
+            {evt?.nom && <p className="acces-role" style={{ margin: '2px 0 0' }}>{evt.nom}</p>}
+          </div>
+        </div>
         <span className={`session ${enLigne ? '' : 'hors-ligne'}`}>
           {enLigne ? 'en ligne' : 'hors réseau'}
         </span>

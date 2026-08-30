@@ -73,8 +73,21 @@ export default function Dashboard({ evenement, membre, peut, onFait, onAller }) 
 
 /* ------------------------------------------------------------------ */
 
+/* Chaque pavé mène à l'écran où on peut agir sur ce qu'il montre.
+   « identite » n'a pas de destination naturelle — c'est une carte de
+   visite, pas un compteur — donc reste seul non cliquable. */
+const DESTINATIONS = {
+  planning: 'planning',
+  mes_creneaux: 'rh',
+  sos: 'sos',
+  lieux: 'plan',
+  contacts: 'memento',
+  materiel: 'logistique',
+  equipes: 'rh'
+}
+
 function Pave({ clef, evenement, membre, onAller }) {
-  const cliquable = clef === 'planning'
+  const cliquable = clef in DESTINATIONS
   const contenu = (
     <>
       <div className="pave-titre">{PAVES[clef].libelle}</div>
@@ -83,7 +96,7 @@ function Pave({ clef, evenement, membre, onAller }) {
   )
   if (cliquable) {
     return (
-      <button className="pave pave-lien" onClick={() => onAller?.('planning')}>
+      <button className="pave pave-lien" onClick={() => onAller?.(DESTINATIONS[clef])}>
         {contenu}
       </button>
     )

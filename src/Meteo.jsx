@@ -88,7 +88,7 @@ export default function Meteo({ evenement, peut, toutPouvoir, onAlerte }) {
   const peutAlerter = toutPouvoir || peut?.('alertes', 'creer')
 
   return (
-    <section className="bloc meteo">
+    <section className={`bloc meteo meteo-${pire.niveau}`}>
       <div className="entete-dashboard">
         <h2>Veille météo</h2>
         {peutAlerter && (

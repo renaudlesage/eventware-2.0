@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Footprints, Mic2, PartyPopper, Flag, Wrench, Car } from 'lucide-react'
 import { supabase } from './supabaseClient'
 
 /**
@@ -25,6 +26,18 @@ const COULEURS = {
   ceremonie: 'orange',
   jalon: 'ardoise',
   transport: 'bronze'
+}
+
+/* Une icône par type, dans un carré coloré — repris du planning v18 :
+   on reconnaît la nature d'un créneau au coup d'œil, avant même de lire
+   son titre. Un simple point sur le rail ne portait pas cette info. */
+const ICONES = {
+  concert: Mic2,
+  animation: PartyPopper,
+  depart: Footprints,
+  ceremonie: Flag,
+  jalon: Wrench,
+  transport: Car
 }
 
 export default function Planning({ evenement, peut, toutPouvoir }) {
@@ -215,6 +228,8 @@ export default function Planning({ evenement, peut, toutPouvoir }) {
             const passe = aujourdhui ? now.getTime() >= fin : jour.date < now && !aujourdhui
             const couleur = COULEURS[it.type] ?? 'gris'
 
+            const Icone = ICONES[it.type] ?? Wrench
+
             return (
               <div
                 key={it.id}
@@ -225,7 +240,9 @@ export default function Planning({ evenement, peut, toutPouvoir }) {
                 <div className="item-heure mono">
                   {it.heure.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
                 </div>
-                <div className="item-barre" />
+                <div className="item-icone">
+                  <Icone size={15} strokeWidth={2} aria-hidden="true" />
+                </div>
                 <div className="item-corps">
                   <div className="item-titre">
                     {it.titre}

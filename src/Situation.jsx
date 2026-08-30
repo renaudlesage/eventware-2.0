@@ -95,146 +95,133 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
         }}
       />
 
-      {/* --- 2. Les compteurs de charge ---
-           Tuiles compactes : le dashboard v18 tenait en 9 à 12 px et
-           n'avait qu'un seul gros chiffre. La densité permet de tout
-           voir d'un coup, ce qui est le propre d'un écran de QG. */}
+      {/* --- 2/3. Domaines opérationnels ------------------------------
+           Repris du dashboard v18 : un bandeau de couleur par domaine,
+           des compteurs minuscules colorés par ÉTAT (pas par domaine —
+           rouge = nouveau/urgent, ambre = en attente, bleu = en cours,
+           vert = traité), et un panneau qui défile en dessous avec un
+           lien direct vers l'écran complet. C'est ce qui tient sur un
+           seul écran de QG sans jamais faire défiler la page entière. */}
 
-      <div className="tuiles">
-        {m.sos_participants && (
-          <Tuile
-            libelle="Signalements"
-            v={s.signalements?.ouverts}
-            alerte={s.signalements?.non_pris_en_charge > 0}
-            detail={`${s.signalements?.non_pris_en_charge ?? 0} non pris en charge`}
-            onClick={() => onAller?.('sos')}
-          />
+      <div className="grille-domaines">
+        <ColonneDomaine
+          teinte="grenat"
+          icone="⚠"
+          titre="Sécurité"
+          lien="securite"
+          onAller={onAller}
+          compteurs={[
+            { libelle: 'P1', valeur: s.missions?.p1, etat: 'urgent' },
+            {
+              libelle: 'Ouvertes',
+              valeur: Math.max(0, (s.missions?.ouvertes ?? 0) - (s.missions?.p1 ?? 0)),
+              etat: 'attente'
+            }
+          ]}
+        >
+          {(s.signalements?.derniers ?? []).length === 0 &&
+          (s.recherches ?? []).length === 0 ? (
+            <p className="moniteur-vide">Aucun signalement actif.</p>
+          ) : (
+            <>
+              {(s.recherches ?? []).map((r, i) => (
+                <div className="moniteur-ligne urgent" key={'r' + i}>
+                  <strong>Recherche — {r.nom || 'personne'}</strong>
+                  <span>{r.description}</span>
+                </div>
+              ))}
+              {(s.signalements?.derniers ?? []).slice(0, 5).map((x, i) => (
+                <div
+                  className={`moniteur-ligne ${x.statut === 'recu' ? 'urgent' : ''}`}
+                  key={'s' + i}
+                >
+                  <strong>
+                    {x.reference} — {x.type}
+                  </strong>
+                  <span>{x.statut}</span>
+                </div>
+              ))}
+            </>
+          )}
+        </ColonneDomaine>
+
+        {m.logistique && (
+          <ColonneDomaine
+            teinte="bronze"
+            icone="▤"
+            titre="Logistique"
+            lien="logistique"
+            onAller={onAller}
+            compteurs={[
+              {
+                libelle: 'Sous seuil',
+                valeur: (s.logistique?.sous_seuil ?? []).length,
+                etat: 'urgent'
+              },
+              { libelle: 'Transports', valeur: s.logistique?.transports_ouverts, etat: 'cours' },
+              { libelle: 'Non rendus', valeur: s.logistique?.biens_non_rendus, etat: 'attente' }
+            ]}
+          >
+            {(s.logistique?.sous_seuil ?? []).length === 0 ? (
+              <p className="moniteur-vide">Aucune anomalie matérielle.</p>
+            ) : (
+              s.logistique.sous_seuil.map((a, i) => (
+                <div className="moniteur-ligne urgent" key={i}>
+                  <strong>{a.nom}</strong>
+                  <span>
+                    {Number(a.quantite)} {a.unite ?? ''} (seuil {Number(a.seuil)})
+                  </span>
+                </div>
+              ))
+            )}
+          </ColonneDomaine>
         )}
-        <Tuile
-          libelle="Missions"
-          v={s.missions?.ouvertes}
-          alerte={s.missions?.p1 > 0}
-          detail={`${s.missions?.p1 ?? 0} en P1 · ${s.missions?.non_attribuees ?? 0} sans affectation`}
-          onClick={() => onAller?.('securite')}
-        />
+
         {m.parcours && (
-          <Tuile
-            libelle="Sur le parcours"
-            v={s.parcours?.personnes_sur_parcours}
-            alerte={s.parcours?.sans_nouvelles > 0}
-            detail={`${s.parcours?.en_route ?? 0} groupe(s) · ${s.parcours?.sans_nouvelles ?? 0} sans nouvelles`}
-            onClick={() => onAller?.('parcours')}
-          />
+          <ColonneDomaine
+            teinte="mousse"
+            icone="➜"
+            titre="Parcours"
+            lien="parcours"
+            onAller={onAller}
+            compteurs={[
+              { libelle: 'Sans nouvelles', valeur: s.parcours?.sans_nouvelles, etat: 'urgent' },
+              { libelle: 'En route', valeur: s.parcours?.en_route, etat: 'cours' },
+              { libelle: 'Arrivés', valeur: s.parcours?.arrives, etat: 'ok' }
+            ]}
+          >
+            {s.parcours?.sans_nouvelles > 0 ? (
+              <p className="moniteur-vide alerte">
+                {s.parcours.sans_nouvelles} groupe(s) sans nouvelles — voir Parcours.
+              </p>
+            ) : (
+              <p className="moniteur-vide">Tous les groupes donnent de leurs nouvelles.</p>
+            )}
+          </ColonneDomaine>
         )}
-        {m.logistique && (
-          <Tuile
-            libelle="Jauge"
-            v={s.logistique?.jauge}
-            detail={`${s.logistique?.transports_ouverts ?? 0} transport(s)`}
-          />
-        )}
-        {m.logistique && (
-          <Tuile
-            libelle="Sous seuil"
-            v={(s.logistique?.sous_seuil ?? []).length}
-            alerte={(s.logistique?.sous_seuil ?? []).length > 0}
-            detail={`${s.logistique?.biens_non_rendus ?? 0} bien(s) non rendu(s)`}
-            onClick={() => onAller?.('logistique')}
-          />
-        )}
+
         {m.rh && (
-          <Tuile
-            libelle="À couvrir"
-            v={s.rh?.postes_a_couvrir}
-            alerte={s.rh?.postes_a_couvrir > 0}
-            detail={`${s.rh?.creneaux_decouverts ?? 0} créneau(x)`}
-            onClick={() => onAller?.('rh')}
-          />
+          <ColonneDomaine
+            teinte="azur"
+            icone="☺"
+            titre="Bénévoles"
+            lien="rh"
+            onAller={onAller}
+            compteurs={[
+              { libelle: 'À couvrir', valeur: s.rh?.postes_a_couvrir, etat: 'urgent' },
+              { libelle: 'Créneaux', valeur: s.rh?.creneaux_decouverts, etat: 'attente' }
+            ]}
+          >
+            {s.rh?.postes_a_couvrir > 0 ? (
+              <p className="moniteur-vide alerte">
+                {s.rh.creneaux_decouverts} créneau(x) découvert(s) — voir Bénévoles.
+              </p>
+            ) : (
+              <p className="moniteur-vide">Couverture complète.</p>
+            )}
+          </ColonneDomaine>
         )}
       </div>
-
-      {/* --- 3. Panneaux : hauteur fixe et défilement interne, pour que
-             la page ne s'allonge pas et que tout reste visible. --- */}
-
-      <div className="panneaux">
-      {(s.logistique?.sous_seuil ?? []).length > 0 && (
-        <section className="panneau">
-          <h2>Sous le seuil</h2>
-          <div className="panneau-corps">
-          {s.logistique.sous_seuil.map((a, i) => (
-            <div className="carte urgent" key={i}>
-              <div className="titre">{a.nom}</div>
-              <div className="meta">
-                <span className="alerte-texte">
-                  <strong>{Number(a.quantite)}</strong> {a.unite ?? ''}
-                </span>
-                <span>seuil {Number(a.seuil)}</span>
-              </div>
-            </div>
-          ))}
-          </div>
-        </section>
-      )}
-
-      {(s.signalements?.derniers ?? []).length > 0 && (
-        <section className="panneau">
-          <h2>Signalements en cours</h2>
-          <div className="panneau-corps">
-          {s.signalements.derniers.map((x, i) => (
-            <div className={`carte ${x.statut === 'recu' ? 'urgent' : ''}`} key={i}>
-              <div className="titre">
-                <span className="mono">{x.reference}</span> — {x.type}
-              </div>
-              {x.description && <p style={{ margin: '3px 0' }}>{x.description}</p>}
-              <div className="meta">
-                <span>{x.statut}</span>
-                <span>{ecoule(x.recu_le)}</span>
-                {x.latitude && (
-                  <a
-                    className="lien-externe"
-                    href={`https://www.google.com/maps?q=${x.latitude},${x.longitude}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Y aller
-                  </a>
-                )}
-              </div>
-            </div>
-          ))}
-          </div>
-        </section>
-      )}
-
-      {(s.jalons ?? []).length > 0 && (
-        <section className="panneau">
-          <h2>Prochaines échéances</h2>
-          <div className="panneau-corps">
-          {s.jalons.map((j, i) => {
-            const depasse = new Date(j.echeance) < new Date()
-            return (
-              <div className={`carte ${depasse || j.critique ? 'urgent' : ''}`} key={i}>
-                <div className="titre">
-                  {j.libelle}
-                  {j.critique && <span className="jeton alerte-texte"> critique</span>}
-                </div>
-                <div className="meta">
-                  <span className={depasse ? 'alerte-texte' : ''}>
-                    {new Date(j.echeance).toLocaleString('fr-BE', {
-                      weekday: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                    {depasse && ' — dépassée'}
-                  </span>
-                  {j.responsable && <span>{j.responsable}</span>}
-                </div>
-              </div>
-            )
-          })}
-          </div>
-        </section>
-      )}
 
       {/* --- 4. Le fil --- */}
 
@@ -266,47 +253,40 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
 
 /* ------------------------------------------------------------------ */
 
-function Tuile({ libelle, v, detail, alerte, onClick }) {
-  const contenu = (
-    <>
-      <span className="tuile-libelle">{libelle}</span>
-      <span className={`tuile-valeur ${alerte ? 'alerte-texte' : ''}`}>{v ?? '—'}</span>
-      {detail && <span className="tuile-detail">{detail}</span>}
-    </>
-  )
-  return onClick ? (
-    <button className={`tuile ${alerte ? 'chaude' : ''}`} onClick={onClick}>
-      {contenu}
-    </button>
-  ) : (
-    <div className={`tuile ${alerte ? 'chaude' : ''}`}>{contenu}</div>
-  )
-}
-
-function Pave({ titre, children }) {
+/**
+ * Colonne de domaine — bandeau coloré, compteurs minuscules colorés
+ * par ÉTAT, panneau défilant, lien direct vers l'écran complet.
+ */
+function ColonneDomaine({ teinte, icone, titre, lien, onAller, compteurs, children }) {
   return (
-    <div className="pave">
-      <div className="pave-titre">{titre}</div>
-      {children}
-    </div>
-  )
-}
+    <div className={`colonne-domaine dom-${teinte}`}>
+      <div className="colonne-tete">
+        <span className="colonne-icone">{icone}</span>
+        <span className="colonne-titre">{titre}</span>
+      </div>
 
-function Grand({ v, alerte, onClick }) {
-  const contenu = <span className={`grand ${alerte ? 'alerte-texte' : ''}`}>{v ?? '—'}</span>
-  if (!onClick) return <div>{contenu}</div>
-  return (
-    <button className="grand-lien" onClick={onClick}>
-      {contenu}
-    </button>
-  )
-}
+      <div className="colonne-compteurs">
+        {compteurs
+          .filter((c) => c.valeur !== null && c.valeur !== undefined)
+          .map((c, i) => (
+            <div className={`compteur-mini etat-${c.etat}`} key={i}>
+              <span className="compteur-mini-valeur">{c.valeur}</span>
+              <span className="compteur-mini-libelle">{c.libelle}</span>
+            </div>
+          ))}
+      </div>
 
-function Ligne({ l, v, alerte }) {
-  return (
-    <div className={`detail-metrique ${alerte ? 'alerte-texte' : ''}`}>
-      <span>{l}</span>
-      {v !== null && v !== undefined && <strong>{v}</strong>}
+      <div className="moniteur">
+        <div className="moniteur-entete">
+          <span>Moniteur</span>
+          {onAller && (
+            <button className="moniteur-lien" onClick={() => onAller(lien)}>
+              Ouvrir l'app →
+            </button>
+          )}
+        </div>
+        <div className="moniteur-corps">{children}</div>
+      </div>
     </div>
   )
 }
@@ -316,4 +296,5 @@ function ecoule(date) {
   if (min < 60) return `${min} min`
   const h = Math.floor(min / 60)
   return h < 48 ? `${h} h ${min % 60} min` : `${Math.round(h / 24)} j`
+
 }

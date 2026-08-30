@@ -328,6 +328,7 @@ function MesCreneaux({ evenement, membre, setMessage }) {
 function Equipe({ evenement, setMessage }) {
   const [membres, setMembres] = useState([])
   const [equipes, setEquipes] = useState([])
+  const [recherche, setRecherche] = useState('')
 
   async function charger() {
     const [m, e] = await Promise.all([
@@ -374,6 +375,15 @@ function Equipe({ evenement, setMessage }) {
 
   if (!membres.length) return <p className="vide">Aucun membre.</p>
 
+  const q = recherche.trim().toLowerCase()
+  const visibles = q
+    ? membres.filter((m) =>
+        [m.nom_affiche, m.perimetre, m.role, m.telephone]
+          .filter(Boolean)
+          .some((x) => x.toLowerCase().includes(q))
+      )
+    : membres
+
   return (
     <>
       <div className="compteurs">
@@ -384,7 +394,18 @@ function Equipe({ evenement, setMessage }) {
           Actifs <strong>{membres.filter((m) => m.actif).length}</strong>
         </span>
       </div>
-      {membres.map((m) => (
+
+      <input
+        value={recherche}
+        onChange={(e) => setRecherche(e.target.value)}
+        placeholder="Rechercher un bénévole, un poste, un rôle…"
+      />
+
+      {visibles.length === 0 && (
+        <p className="vide">Aucun membre ne correspond à « {recherche} ».</p>
+      )}
+
+      {visibles.map((m) => (
         <div className="carte" key={m.id}>
           <div className="titre">{m.nom_affiche ?? '(sans nom)'}</div>
           <div className="meta">
