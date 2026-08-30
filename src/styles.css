@@ -1088,16 +1088,23 @@ button.grand-lien:hover .grand { text-decoration-color: currentColor; }
 .chrono { border-left-color: color-mix(in srgb, var(--teinte, var(--trait)) 45%, var(--trait)); }
 
 /* Boutons principaux : teinte du module plutôt que noir uniforme */
-.dom-indigo button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case),
-.dom-violet button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case),
-.dom-sarcelle button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case),
-.dom-grenat button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case),
-.dom-orange button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case),
-.dom-bronze button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case),
-.dom-mousse button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case),
-.dom-azur button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case),
-.dom-prune button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case),
-.dom-ardoise button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case) {
+/*
+ * Boutons pleins colorés par domaine — RÉSERVÉ aux boutons d'action
+ * simples (une ligne de texte). Les widgets composites (tuiles, pavés
+ * cliquables) contiennent plusieurs blocs de texte avec leurs propres
+ * couleurs fixes ; leur appliquer un fond plein rendait ce texte gris
+ * illisible dessus. D'où l'exclusion explicite de .tuile et .pave-lien.
+ */
+.dom-indigo button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien),
+.dom-violet button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien),
+.dom-sarcelle button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien),
+.dom-grenat button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien),
+.dom-orange button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien),
+.dom-bronze button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien),
+.dom-mousse button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien),
+.dom-azur button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien),
+.dom-prune button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien),
+.dom-ardoise button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien) {
   background: var(--teinte);
   border-color: var(--teinte);
   color: #fff;
