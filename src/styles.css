@@ -367,9 +367,14 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
 
 .plaque-nav:hover { border-color: var(--trait-fort); border-left-color: var(--teinte); }
 
+/* Hors d'un conteneur de domaine (Réglages, listes de modules), on
+   retombe sur --etat-info plutôt que --encre : --encre est la couleur
+   du TEXTE en thème nuit — donc claire — et l'utiliser comme fond
+   produisait du texte blanc sur un fond quasi blanc. --etat-info reste
+   un vrai bleu dans les deux thèmes. */
 .plaque-nav.actif {
-  background: var(--teinte, var(--encre));
-  border-color: var(--teinte, var(--encre));
+  background: var(--teinte, var(--etat-info));
+  border-color: var(--teinte, var(--etat-info));
   color: #fff;
   font-weight: 600;
 }

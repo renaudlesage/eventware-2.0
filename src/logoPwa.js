@@ -40,7 +40,11 @@ export function appliquerIconeEvenement(nom, logoUrl) {
     start_url: '/',
     scope: '/',
     display: 'standalone',
-    orientation: 'portrait-primary',
+    // 'any' plutôt que 'portrait-primary' : verrouiller l'orientation
+    // empêchait toute rotation en paysage une fois l'app installée sur
+    // Android — un terrain de VTT ou une carte se lisent mieux à
+    // l'horizontale, l'app ne doit pas l'interdire.
+    orientation: 'any',
     background_color: '#0d1116',
     theme_color: '#0d1116',
     lang: 'fr-BE',
