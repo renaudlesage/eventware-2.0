@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { PAVES, pavesDisponibles, pavesObligatoires, composition } from './paves'
 
-export default function Dashboard({ evenement, membre, peut, onFait }) {
+export default function Dashboard({ evenement, membre, peut, onFait, onAller }) {
   const [reglage, setReglage] = useState(false)
   const [choix, setChoix] = useState(membre.paves ?? null)
 
@@ -64,7 +64,7 @@ export default function Dashboard({ evenement, membre, peut, onFait }) {
 
       <div className="grille-paves">
         {actifs.map((k) => (
-          <Pave key={k} clef={k} evenement={evenement} membre={membre} />
+          <Pave key={k} clef={k} evenement={evenement} membre={membre} onAller={onAller} />
         ))}
       </div>
     </div>
@@ -73,16 +73,25 @@ export default function Dashboard({ evenement, membre, peut, onFait }) {
 
 /* ------------------------------------------------------------------ */
 
-function Pave({ clef, evenement, membre }) {
-  return (
-    <div className="pave">
+function Pave({ clef, evenement, membre, onAller }) {
+  const cliquable = clef === 'planning'
+  const contenu = (
+    <>
       <div className="pave-titre">{PAVES[clef].libelle}</div>
-      <Contenu clef={clef} evenement={evenement} membre={membre} />
-    </div>
+      <Contenu clef={clef} evenement={evenement} membre={membre} onAller={onAller} />
+    </>
   )
+  if (cliquable) {
+    return (
+      <button className="pave pave-lien" onClick={() => onAller?.('planning')}>
+        {contenu}
+      </button>
+    )
+  }
+  return <div className="pave">{contenu}</div>
 }
 
-function Contenu({ clef, evenement, membre }) {
+function Contenu({ clef, evenement, membre, onAller }) {
   switch (clef) {
     case 'identite':
       return <PaveIdentite evenement={evenement} membre={membre} />
@@ -100,6 +109,8 @@ function Contenu({ clef, evenement, membre }) {
       return <PaveMateriel evenement={evenement} />
     case 'mes_creneaux':
       return <PaveMesCreneaux evenement={evenement} membre={membre} />
+    case 'planning':
+      return <PavePlanning evenement={evenement} onAller={onAller} />
     default:
       return null
   }
@@ -235,6 +246,126 @@ function PaveMesCreneaux({ evenement, membre }) {
             </li>
           ))}
       </ul>
+    </>
+  )
+}
+
+/**
+ * Pavé Planning : ce qui est en direct, et le prochain à venir.
+ *
+ * Même logique de fusion que l'écran Planning (programme + jalons +
+ * transports datés) et le même calcul de "en cours" — les deux doivent
+ * dire la même chose, sinon le pavé contredirait l'écran qu'il ouvre.
+ */
+function PavePlanning({ evenement }) {
+  const [items, setItems] = useState(null)
+
+  useEffect(() => {
+    let vivant = true
+
+    async function charger() {
+      const debutFenetre = new Date(Date.now() - 6 * 3600000).toISOString()
+
+      const [p, j, t] = await Promise.all([
+        supabase
+          .from('programme')
+          .select('titre, categorie, intervenant, debut, lieu_libre, lieux:lieu_id(nom)')
+          .eq('evenement_id', evenement.id)
+          .is('deleted_at', null)
+          .gte('debut', debutFenetre),
+        supabase
+          .from('jalons')
+          .select('libelle, echeance, critique, responsable')
+          .eq('evenement_id', evenement.id)
+          .is('deleted_at', null)
+          .gte('echeance', debutFenetre),
+        supabase
+          .from('transports')
+          .select('depart_libre, arrivee_libre, souhaite_pour')
+          .eq('evenement_id', evenement.id)
+          .is('deleted_at', null)
+          .not('souhaite_pour', 'is', null)
+          .not('statut', 'in', '("annulee")')
+          .gte('souhaite_pour', debutFenetre)
+      ])
+
+      const tout = [
+        ...(p.data ?? []).map((x) => ({
+          heure: new Date(x.debut),
+          titre: x.titre,
+          detail: [x.intervenant, x.lieux?.nom ?? x.lieu_libre].filter(Boolean).join(' · ')
+        })),
+        ...(j.data ?? []).map((x) => ({
+          heure: new Date(x.echeance),
+          titre: x.libelle,
+          detail: x.responsable,
+          critique: x.critique
+        })),
+        ...(t.data ?? []).map((x) => ({
+          heure: new Date(x.souhaite_pour),
+          titre: `${x.depart_libre ?? 'Départ'} → ${x.arrivee_libre ?? 'Arrivée'}`
+        }))
+      ].sort((a, b) => a.heure - b.heure)
+
+      if (vivant) setItems(tout)
+    }
+
+    charger()
+    const t = setInterval(charger, 60000)
+    return () => {
+      vivant = false
+      clearInterval(t)
+    }
+  }, [evenement.id])
+
+  if (items === null) return <div className="vide">…</div>
+  if (!items.length) return <div className="vide">Rien de planifié</div>
+
+  const maintenant = Date.now()
+  let enDirect = null
+  let suivant = null
+  for (let i = 0; i < items.length; i++) {
+    const debut = items[i].heure.getTime()
+    const fin = items[i + 1] ? items[i + 1].heure.getTime() : debut + 3600000
+    if (maintenant >= debut && maintenant < fin) {
+      enDirect = items[i]
+      suivant = items[i + 1] ?? null
+      break
+    }
+    if (debut > maintenant) {
+      suivant = items[i]
+      break
+    }
+  }
+  if (!enDirect && !suivant) suivant = items[items.length - 1]
+
+  const heure = (d) =>
+    d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
+
+  return (
+    <>
+      {enDirect ? (
+        <>
+          <div className="planning-tag en-direct">en direct</div>
+          <div className="grand" style={{ fontSize: 15, marginTop: 3 }}>
+            {enDirect.titre}
+          </div>
+          {enDirect.detail && <div className="meta"><span>{enDirect.detail}</span></div>}
+        </>
+      ) : (
+        <div className="vide">Rien en ce moment</div>
+      )}
+
+      {suivant && (
+        <>
+          <div className="planning-tag" style={{ marginTop: enDirect ? 8 : 0 }}>
+            à {heure(suivant.heure)}
+          </div>
+          <div className="meta">
+            <span className={suivant.critique ? 'alerte-texte' : ''}>{suivant.titre}</span>
+          </div>
+        </>
+      )}
     </>
   )
 }

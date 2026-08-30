@@ -69,6 +69,12 @@ export const PAVES = {
     module: null,
     besoin: null,
     obligatoire: []
+  },
+  planning: {
+    libelle: 'Planning',
+    module: null,
+    besoin: null,
+    obligatoire: []
   }
 }
 
@@ -78,11 +84,11 @@ export const PAVES = {
  * l'ordre du catalogue, filtré par ses capacités.
  */
 const DEFAUTS = {
-  coordinateur: ['identite', 'sos', 'contacts', 'equipes', 'lieux', 'materiel'],
-  admin: ['identite', 'sos', 'contacts', 'equipes', 'lieux', 'materiel'],
-  chef_equipe: ['identite', 'mes_creneaux', 'sos', 'equipes', 'lieux', 'materiel'],
-  benevole: ['identite', 'mes_creneaux', 'lieux', 'equipes'],
-  observateur: ['identite', 'lieux']
+  coordinateur: ['identite', 'sos', 'planning', 'contacts', 'equipes', 'lieux', 'materiel'],
+  admin: ['identite', 'sos', 'planning', 'contacts', 'equipes', 'lieux', 'materiel'],
+  chef_equipe: ['identite', 'mes_creneaux', 'sos', 'planning', 'equipes', 'lieux', 'materiel'],
+  benevole: ['identite', 'mes_creneaux', 'planning', 'lieux', 'equipes'],
+  observateur: ['identite', 'planning', 'lieux']
 }
 
 /**

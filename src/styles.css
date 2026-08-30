@@ -1597,3 +1597,27 @@ input:disabled {
   flex: 0 0 auto;
   align-self: center;
 }
+
+/* --- Pavé Planning --- */
+
+.pave-lien {
+  all: unset;
+  cursor: pointer;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+}
+.pave-lien:hover { background: var(--surface-2); }
+
+.planning-tag {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--sourdine);
+  margin-top: 2px;
+}
+.planning-tag.en-direct {
+  color: var(--etat-ok);
+  font-weight: 700;
+  margin-top: 0;
+}

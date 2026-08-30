@@ -526,7 +526,13 @@ function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, exploitant
     case 'accueil':
       return (
         <>
-          <Dashboard evenement={evenement} membre={membre} peut={peut} onFait={onRecharger} />
+          <Dashboard
+            evenement={evenement}
+            membre={membre}
+            peut={peut}
+            onFait={onRecharger}
+            onAller={onAller}
+          />
 
           <Terrain evenement={evenement} membre={membre} />
 
