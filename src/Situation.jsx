@@ -246,7 +246,6 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
         </ul>
         </div>
       </section>
-      </div>
     </div>
   )
 }
