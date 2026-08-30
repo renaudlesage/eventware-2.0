@@ -237,12 +237,12 @@ function Poste({ session, theme, setTheme }) {
     if (courantId) localStorage.setItem('eventware.evenement', courantId)
   }, [courantId])
 
+  const courant = evenements.find((e) => e.id === courantId) ?? evenements[0] ?? null
+  const moi = courant?.membres_evenement.find((m) => m.user_id === session.user.id)
+
   useEffect(() => {
     if (courant) appliquerIconeEvenement(courant.nom, courant.logo_url)
   }, [courant?.id, courant?.logo_url])
-
-  const courant = evenements.find((e) => e.id === courantId) ?? evenements[0] ?? null
-  const moi = courant?.membres_evenement.find((m) => m.user_id === session.user.id)
 
   const { peut, toutPouvoir, pret } = useCapacites(courant?.id, courant?.phase)
 
