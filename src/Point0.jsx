@@ -21,11 +21,22 @@ export default function Point0({ evenement, onFait, setMessage }) {
   const [lon, setLon] = useState(evenement.point_0_lon ?? '')
   const [province, setProvince] = useState(evenement.province ?? '')
   const [occupe, setOccupe] = useState(false)
+  const [occupeProvince, setOccupeProvince] = useState(false)
+  const [provinceEnregistree, setProvinceEnregistree] = useState(false)
 
-  async function enregistrerProvince(p) {
-    setProvince(p)
-    await supabase.from('evenements').update({ province: p || null }).eq('id', evenement.id)
-    onFait()
+  async function enregistrerProvince() {
+    setOccupeProvince(true)
+    const { error } = await supabase
+      .from('evenements')
+      .update({ province: province || null })
+      .eq('id', evenement.id)
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else {
+      onFait()
+      setProvinceEnregistree(true)
+      setTimeout(() => setProvinceEnregistree(false), 2500)
+    }
+    setOccupeProvince(false)
   }
 
   function localiser() {
@@ -93,18 +104,27 @@ export default function Point0({ evenement, onFait, setMessage }) {
       <label htmlFor="province" style={{ marginTop: 14 }}>
         Province — pour l'avertissement officiel IRM
       </label>
-      <select
-        id="province"
-        value={province}
-        onChange={(e) => enregistrerProvince(e.target.value)}
-      >
-        <option value="">— non renseignée —</option>
-        {PROVINCES.map((p) => (
-          <option key={p} value={p}>
-            {p}
-          </option>
-        ))}
-      </select>
+      <div className="saisie-rapide">
+        <select
+          id="province"
+          value={province}
+          onChange={(e) => setProvince(e.target.value)}
+          style={{ flex: 1 }}
+        >
+          <option value="">— non renseignée —</option>
+          {PROVINCES.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+        <button
+          disabled={occupeProvince || province === (evenement.province ?? '')}
+          onClick={enregistrerProvince}
+        >
+          {provinceEnregistree ? 'Enregistré ✓' : 'Enregistrer'}
+        </button>
+      </div>
 
       {evenement.point_0_lat && (
         <p className="aide">
