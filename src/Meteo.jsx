@@ -10,10 +10,14 @@ import MoniteurIrm from './MoniteurIrm'
  * la prévision aux seuils écrits et proposer la consigne décidée
  * d'avance.
  *
- * Ce qu'il ne fait PAS, et c'est délibéré : déclencher l'alerte tout
- * seul. Aucune tâche de fond ne tourne — si personne ne regarde, rien ne
- * se passe. Une alerte automatique donnerait l'illusion inverse, ce qui
- * serait pire que pas d'alerte du tout.
+ * Ce qu'il ne fait PAS, et c'est délibéré : DIFFUSER une alerte tout
+ * seul — cette décision reste un geste humain, bouton « Diffuser
+ * l'alerte » à l'appui. Ce qu'il fait en revanche automatiquement :
+ * CONSIGNER un franchissement de seuil dans la main courante, dès
+ * qu'il est détecté. Ce n'est pas la même chose — un constat écrit
+ * n'engage personne à agir, une alerte diffusée le fait. Le premier
+ * peut être automatique sans mentir sur ce qu'il affirme ; le second
+ * ne le peut pas.
  *
  * Source : Open-Meteo, sans clé ni compte. Nécessite du réseau.
  */
@@ -35,11 +39,15 @@ const CRITERE_LIBELLE = {
   orage: 'Orage'
 }
 
-export default function Meteo({ evenement, peut, toutPouvoir, onAlerte }) {
+export default function Meteo({ evenement, membre, peut, toutPouvoir, onAlerte, compact }) {
   const [seuils, setSeuils] = useState(null)
   const [previsions, setPrevisions] = useState(null)
   const [erreur, setErreur] = useState(null)
   const [reglage, setReglage] = useState(false)
+  // Sur la Situation, dense par nature, on démarre replié : le badge et
+  // la ligne courante suffisent la plupart du temps. Ailleurs, ouvert
+  // d'emblée.
+  const [detailsOuverts, setDetailsOuverts] = useState(!compact)
 
   const lat = evenement.point_0_lat
   const lon = evenement.point_0_lon
@@ -80,7 +88,62 @@ export default function Meteo({ evenement, peut, toutPouvoir, onAlerte }) {
     return () => clearInterval(t)
   }, [lat, lon])
 
+  const heures = extraire(previsions)
+  const evaluees = heures.map((h) => ({ ...h, ...evaluer(h, seuils ?? {}) }))
+  const pire = evaluees.reduce(
+    (acc, h) => (NIVEAUX[h.niveau] > NIVEAUX[acc.niveau] ? h : acc),
+    { niveau: 'vert' }
+  )
+  const declencheursAffiches = (pire.declencheurs ?? []).filter((d) => d.niveau !== 'jaune')
+
+  // Consigne automatique dans la main courante — pas de bouton, pas
+  // d'oubli possible. Distincte de la diffusion d'alerte, qui reste un
+  // choix humain juste en dessous. Une clé stable par critère+niveau
+  // évite de relancer l'effet à chaque re-rendu sans changement réel.
+  const cleDeclencheurs = declencheursAffiches.map((d) => `${d.critere}:${d.niveau}`).join(',')
+
+  useEffect(() => {
+    if (!seuils || declencheursAffiches.length === 0) return
+    let vivant = true
+
+    async function consigner() {
+      for (const d of declencheursAffiches) {
+        const cle = `${d.critere}:${d.niveau}`
+        const depuis = new Date(Date.now() - 3 * 3600000).toISOString()
+        const { data: dejaConsigne } = await supabase
+          .from('journal')
+          .select('id')
+          .eq('evenement_id', evenement.id)
+          .eq('objet_type', 'veille_meteo')
+          .eq('objet_ref', cle)
+          .gte('horodatage', depuis)
+          .limit(1)
+          .maybeSingle()
+
+        if (!vivant || dejaConsigne) continue
+
+        await supabase.rpc('journaliser', {
+          p_evenement: evenement.id,
+          p_module: 'meteo',
+          p_categorie: 'veille',
+          p_texte: `Seuil ${LIBELLE_NIVEAU[d.niveau].toLowerCase()} franchi — ${CRITERE_LIBELLE[d.critere]} : ${d.motif}`,
+          p_importance: d.niveau === 'rouge' ? 'majeur' : 'notable',
+          p_objet_type: 'veille_meteo',
+          p_objet_id: null,
+          p_objet_ref: cle
+        })
+      }
+    }
+
+    consigner()
+    return () => {
+      vivant = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cleDeclencheurs, seuils, evenement.id])
+
   if (!lat || !lon) {
+    if (compact) return null
     return (
       <section className="bloc">
         <h2>Veille météo</h2>
@@ -94,22 +157,11 @@ export default function Meteo({ evenement, peut, toutPouvoir, onAlerte }) {
 
   if (!seuils) return null
 
-  const heures = extraire(previsions)
-  const evaluees = heures.map((h) => ({ ...h, ...evaluer(h, seuils) }))
-  const pire = evaluees.reduce(
-    (acc, h) => (NIVEAUX[h.niveau] > NIVEAUX[acc.niveau] ? h : acc),
-    { niveau: 'vert' }
-  )
   const maintenant = evaluees[0]
   const peutAlerter = toutPouvoir || peut?.('alertes', 'creer')
 
-  // Un déclencheur par critère et par heure ; on ne remonte au bandeau
-  // que ceux qui atteignent au moins l'alerte (orange) — le jaune reste
-  // un avertissement visuel dans la bande horaire, sans texte propre.
-  const declencheursAffiches = (pire.declencheurs ?? []).filter((d) => d.niveau !== 'jaune')
-
   return (
-    <section className={`bloc meteo meteo-${pire.niveau}`}>
+    <section className={`bloc meteo meteo-${pire.niveau} ${compact ? 'meteo-compact' : ''}`}>
       <div className="entete-dashboard">
         <h2>Veille météo</h2>
         <div className="ligne-boutons" style={{ marginBottom: 0 }}>
@@ -118,7 +170,10 @@ export default function Meteo({ evenement, peut, toutPouvoir, onAlerte }) {
           <span className={`badge-vigilance niv-${pire.niveau}`}>
             {LIBELLE_NIVEAU[pire.niveau]}
           </span>
-          {peutAlerter && (
+          <button className="lien" onClick={() => setDetailsOuverts(!detailsOuverts)}>
+            {detailsOuverts ? 'Réduire' : 'Détails'}
+          </button>
+          {peutAlerter && detailsOuverts && (
             <button className="lien" onClick={() => setReglage(!reglage)}>
               {reglage ? 'Terminé' : 'Seuils'}
             </button>
@@ -126,9 +181,18 @@ export default function Meteo({ evenement, peut, toutPouvoir, onAlerte }) {
         </div>
       </div>
 
+      {/* Résumé d'une ligne, visible même replié — pour ne rien perdre
+          en fermant les détails, juste le volume. */}
+      {!detailsOuverts && maintenant && (
+        <p className="meteo-resume">
+          {Math.round(maintenant.rafale)} km/h · {Math.round(maintenant.temp)}°C
+          {maintenant.pluie > 0 ? ` · pluie ${maintenant.pluie} mm/h` : ' · sec'}
+        </p>
+      )}
+
       {erreur && <div className="message erreur">{erreur}</div>}
 
-      {reglage && (
+      {detailsOuverts && reglage && (
         <ReglageSeuils
           seuils={seuils}
           evenementId={evenement.id}
@@ -139,13 +203,14 @@ export default function Meteo({ evenement, peut, toutPouvoir, onAlerte }) {
         />
       )}
 
+      {/* Le bandeau d'alerte reste visible que l'écran soit replié ou
+          non — ce n'est pas un détail qu'on masque, c'est ce qui
+          compte le plus. */}
       {declencheursAffiches.length > 0 && (
         <div className={`bandeau-alerte niv-${pire.niveau === 'rouge' ? 'urgence' : 'vigilance'}`}>
           <div className="niv">{LIBELLE_NIVEAU[pire.niveau]}</div>
           <div className="contenu" style={{ width: '100%' }}>
             <strong>{quand(pire.heure)}</strong>
-            {/* Une ligne par critère déclenché, chacune avec SA consigne
-                — pas un texte générique commun à tous les phénomènes. */}
             {declencheursAffiches.map((d, i) => (
               <div key={i} style={{ marginTop: i === 0 ? 4 : 10 }}>
                 <div>
@@ -180,73 +245,74 @@ export default function Meteo({ evenement, peut, toutPouvoir, onAlerte }) {
                 )}
               </div>
             ))}
+            <p className="aide" style={{ marginTop: 6, marginBottom: 0 }}>
+              Déjà consigné dans la main courante. Diffuser une alerte reste un choix
+              séparé — un franchissement de seuil ne prévient personne tout seul.
+            </p>
           </div>
         </div>
       )}
 
-
-      <MoniteurIrm province={evenement.province} />
-
-      {maintenant && (
-        <div className="grille-paves" style={{ marginBottom: 14 }}>
-          <div className="pave">
-            <div className="pave-titre">Rafales</div>
-            <div className={`grand ${maintenant.niveau !== 'vert' ? 'alerte-texte' : ''}`}>
-              {Math.round(maintenant.rafale)}
-            </div>
-            <div className="detail-metrique">
-              <span>km/h · vigilance à {seuils.rafale_vigilance_kmh}</span>
-            </div>
-          </div>
-          <div className="pave">
-            <div className="pave-titre">Précipitations</div>
-            <div className="grand">{maintenant.pluie}</div>
-            <div className="detail-metrique">
-              <span>mm/h</span>
-            </div>
-          </div>
-          <div className="pave">
-            <div className="pave-titre">Température</div>
-            <div className="grand">{Math.round(maintenant.temp)}</div>
-            <div className="detail-metrique">
-              <span>°C</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {evaluees.length > 0 && (
+      {detailsOuverts && (
         <>
-          <div className="pave-titre">Prochaines 24 heures — rafales (km/h) et °C</div>
-          <div className="bandes-meteo">
-            {evaluees.slice(0, 24).map((h, i) => (
-              <div
-                key={i}
-                className={`bande niv-${h.niveau}`}
-                title={`${quand(h.heure)} — rafales ${Math.round(h.rafale)} km/h, ${Math.round(h.temp)} °C, ${h.pluie} mm/h`}
-              >
-                {/* « h » suffixe l'heure pour ne jamais la confondre avec
-                    une valeur — 14h ne se lit pas comme un chiffre brut. */}
-                <span className="bande-heure mono">
-                  {new Date(h.heure).getHours().toString().padStart(2, '0')}h
-                </span>
-                <span className="bande-valeur mono">{Math.round(h.rafale)}</span>
-                <span className="bande-temp mono">{Math.round(h.temp)}°</span>
-                {/* La pluie se lit comme une présence, pas comme un
-                    nombre : la goutte suffit dès qu'il pleut, et
-                    l'absence de goutte suffit quand il ne pleut pas —
-                    inutile d'imprimer 0.0 sur seize colonnes sèches. */}
-                <span className="bande-pluie">
-                  {h.pluie > 0 ? '💧'.repeat(h.pluie >= 4 ? 2 : 1) : ''}
-                </span>
+          <MoniteurIrm province={evenement.province} />
+
+          {maintenant && (
+            <div className="grille-paves" style={{ marginBottom: 14 }}>
+              <div className="pave">
+                <div className="pave-titre">Rafales</div>
+                <div className={`grand ${maintenant.niveau !== 'vert' ? 'alerte-texte' : ''}`}>
+                  {Math.round(maintenant.rafale)}
+                </div>
+                <div className="detail-metrique">
+                  <span>km/h · vigilance à {seuils.rafale_vigilance_kmh}</span>
+                </div>
               </div>
-            ))}
-          </div>
-          <p className="aide">
-            La goutte indique une pluie prévue, doublée si elle dépasse 4 mm/h. Aucune
-            surveillance ne tourne en arrière-plan : cet écran ne prévient que celui qui le
-            regarde.
-          </p>
+              <div className="pave">
+                <div className="pave-titre">Précipitations</div>
+                <div className="grand">{maintenant.pluie}</div>
+                <div className="detail-metrique">
+                  <span>mm/h</span>
+                </div>
+              </div>
+              <div className="pave">
+                <div className="pave-titre">Température</div>
+                <div className="grand">{Math.round(maintenant.temp)}</div>
+                <div className="detail-metrique">
+                  <span>°C</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {evaluees.length > 0 && (
+            <>
+              <div className="pave-titre">Prochaines 24 heures — rafales (km/h) et °C</div>
+              <div className="bandes-meteo">
+                {evaluees.slice(0, 24).map((h, i) => (
+                  <div
+                    key={i}
+                    className={`bande niv-${h.niveau}`}
+                    title={`${quand(h.heure)} — rafales ${Math.round(h.rafale)} km/h, ${Math.round(h.temp)} °C, ${h.pluie} mm/h`}
+                  >
+                    <span className="bande-heure mono">
+                      {new Date(h.heure).getHours().toString().padStart(2, '0')}h
+                    </span>
+                    <span className="bande-valeur mono">{Math.round(h.rafale)}</span>
+                    <span className="bande-temp mono">{Math.round(h.temp)}°</span>
+                    <span className="bande-pluie">
+                      {h.pluie > 0 ? '💧'.repeat(h.pluie >= 4 ? 2 : 1) : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="aide">
+                La goutte indique une pluie prévue, doublée si elle dépasse 4 mm/h. Aucune
+                surveillance ne tourne en arrière-plan : cet écran ne prévient que celui
+                qui le regarde.
+              </p>
+            </>
+          )}
         </>
       )}
     </section>
@@ -288,26 +354,26 @@ function evaluer(h, s) {
     declencheurs.push({ critere, niveau, motif, consigne: c[cleConsigne] || null })
   }
 
-  if (h.rafale >= s.rafale_critique_kmh) {
+  if (s.rafale_critique_kmh != null && h.rafale >= s.rafale_critique_kmh) {
     ajouter('vent', 'rouge', `rafales ${Math.round(h.rafale)} km/h`, 'vent_alarme')
-  } else if (h.rafale >= s.rafale_vigilance_kmh) {
+  } else if (s.rafale_vigilance_kmh != null && h.rafale >= s.rafale_vigilance_kmh) {
     ajouter('vent', 'orange', `rafales ${Math.round(h.rafale)} km/h`, 'vent_alerte')
-  } else if (h.rafale >= s.rafale_vigilance_kmh * 0.8) {
+  } else if (s.rafale_vigilance_kmh != null && h.rafale >= s.rafale_vigilance_kmh * 0.8) {
     ajouter('vent', 'jaune', `rafales ${Math.round(h.rafale)} km/h`, null)
   }
 
-  if (h.pluie >= Number(s.pluie_critique_mm)) {
+  if (s.pluie_critique_mm != null && h.pluie >= Number(s.pluie_critique_mm)) {
     ajouter('pluie', 'rouge', `pluie ${h.pluie} mm/h`, 'pluie_alarme')
-  } else if (h.pluie >= Number(s.pluie_vigilance_mm)) {
+  } else if (s.pluie_vigilance_mm != null && h.pluie >= Number(s.pluie_vigilance_mm)) {
     ajouter('pluie', 'orange', `pluie ${h.pluie} mm/h`, 'pluie_alerte')
-  } else if (h.pluie >= Number(s.pluie_vigilance_mm) * 0.8) {
+  } else if (s.pluie_vigilance_mm != null && h.pluie >= Number(s.pluie_vigilance_mm) * 0.8) {
     ajouter('pluie', 'jaune', `pluie ${h.pluie} mm/h`, null)
   }
 
-  if (h.temp >= s.temp_max_vigilance) {
+  if (s.temp_max_vigilance != null && h.temp >= s.temp_max_vigilance) {
     ajouter('chaleur', 'orange', `${Math.round(h.temp)} °C`, 'chaleur_alerte')
   }
-  if (h.temp <= s.temp_min_vigilance) {
+  if (s.temp_min_vigilance != null && h.temp <= s.temp_min_vigilance) {
     ajouter('froid', 'orange', `${Math.round(h.temp)} °C`, 'froid_alerte')
   }
 

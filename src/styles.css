@@ -2241,3 +2241,14 @@ input:disabled {
 .irm-bloc a { color: var(--etat-info); }
 
 .irm-ras { color: var(--etat-ok); font-style: normal; }
+
+/* --- Veille météo : vue compacte (Situation) --- */
+
+.meteo-compact { padding: 10px 12px; }
+.meteo-compact .entete-dashboard { margin-bottom: 4px; }
+
+.meteo-resume {
+  font-size: 13px;
+  color: var(--sourdine);
+  margin: 0;
+}
