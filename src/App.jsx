@@ -22,6 +22,7 @@ import AccesAutorite from './AccesAutorite'
 import Plateforme from './Plateforme'
 import Planning from './Planning'
 import LogoEvenement from './LogoEvenement'
+import Point0 from './Point0'
 import Diffusion from './Diffusion'
 import { appliquerIconeEvenement } from './logoPwa'
 import BoutonsFlottants from './BoutonsFlottants'
@@ -596,6 +597,8 @@ function Reglages({ evenement, session, exploitant, onRecharger, setMessage }) {
       {panneau === 'dispositif' && (
         <>
           <LogoEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
+
+          <Point0 evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
 
           <section className="bloc">
             <h2>Phase</h2>
