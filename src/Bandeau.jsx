@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { diffuserAlerte } from './diffusion'
 
 const NIVEAUX = [
   ['information', 'Information'],
@@ -97,15 +98,17 @@ export function GestionAlertes({ evenement, setMessage }) {
 
   async function emettre() {
     if (!f.titre.trim()) return
-    const { error } = await supabase.from('alertes').insert({
-      evenement_id: evenement.id,
-      ...f
-    })
+    const { data, error } = await supabase
+      .from('alertes')
+      .insert({ evenement_id: evenement.id, ...f })
+      .select('id')
+      .single()
     if (error) setMessage?.({ type: 'erreur', texte: error.message })
     else {
       setF({ niveau: 'vigilance', titre: '', message: '', consigne: '' })
       setOuvrir(false)
       charger()
+      diffuserAlerte(data.id)
     }
   }
 

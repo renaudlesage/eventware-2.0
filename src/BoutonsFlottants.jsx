@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Siren, MessageSquareWarning, X, TriangleAlert } from 'lucide-react'
 import { supabase } from './supabaseClient'
+import { diffuserAlerte } from './diffusion'
 
 /**
  * Boutons SOS et REX, présents sur toutes les pages.
@@ -244,7 +245,11 @@ function FormMayday({ evenement, onFini }) {
       p_precision_m: position?.precision_m ?? null
     })
     if (error) setErreur(error.message)
-    else setEnvoye(Array.isArray(data) ? data[0] : data)
+    else {
+      const ligne = Array.isArray(data) ? data[0] : data
+      setEnvoye(ligne)
+      diffuserAlerte(ligne.alerte_id)
+    }
     setOccupe(false)
   }
 

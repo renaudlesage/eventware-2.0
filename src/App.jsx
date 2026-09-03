@@ -22,6 +22,7 @@ import AccesAutorite from './AccesAutorite'
 import Plateforme from './Plateforme'
 import Planning from './Planning'
 import LogoEvenement from './LogoEvenement'
+import Diffusion from './Diffusion'
 import { appliquerIconeEvenement } from './logoPwa'
 import BoutonsFlottants from './BoutonsFlottants'
 import { RESSOURCES } from './colonnesImport'
@@ -677,6 +678,7 @@ function Reglages({ evenement, session, exploitant, onRecharger, setMessage }) {
         <>
           <AccesAutorite evenement={evenement} setMessage={setMessage} />
           {evenement.modules?.sos_participants && <QrCodes evenement={evenement} />}
+          <Diffusion evenement={evenement} setMessage={setMessage} />
         </>
       )}
 

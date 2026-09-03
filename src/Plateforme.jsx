@@ -331,6 +331,21 @@ function Evenements({ setMessage, onOuvrir }) {
     }
   }
 
+  async function reattribuer(evenementId, organisationId) {
+    const { error, count } = await supabase
+      .from('evenements')
+      .update({ organisation_id: organisationId }, { count: 'exact' })
+      .eq('id', evenementId)
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else if (count === 0)
+      setMessage({
+        type: 'erreur',
+        texte:
+          "Réattribution refusée — probablement un module actif que la nouvelle organisation n'a pas souscrit. Ajuste sa licence d'abord."
+      })
+    else charger()
+  }
+
   return (
     <>
       <div className="saisie-rapide">
@@ -366,7 +381,9 @@ function Evenements({ setMessage, onOuvrir }) {
       <p className="aide">
         Tu deviens coordinateur de l'événement que tu crées. Pour un client, transfère
         ensuite ce rôle à son responsable et retire-toi : l'éditeur n'a pas vocation à
-        rester dans le dispositif.
+        rester dans le dispositif. Le sélecteur d'organisation, sur chaque fiche
+        ci-dessous, permet de réattribuer un événement plus tard — utile pour les
+        événements créés en libre accès, rattachés par défaut à « Essais (auto) ».
       </p>
 
       {evenements.map((e) => (
@@ -383,6 +400,18 @@ function Evenements({ setMessage, onOuvrir }) {
           </div>
           <div className="ligne-boutons" style={{ marginTop: 10 }}>
             <button onClick={() => onOuvrir?.(e.id)}>Ouvrir cet événement</button>
+            <select
+              value={e.organisation_id ?? ''}
+              onChange={(ev) => reattribuer(e.id, ev.target.value)}
+              style={{ width: 'auto', marginBottom: 0 }}
+              title="Réattribuer à une autre organisation"
+            >
+              {orgs.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.nom}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       ))}

@@ -15,7 +15,7 @@
  *   et la file d'attente des signalements.
  */
 
-const VERSION = 'eventware-v3'
+const VERSION = 'eventware-v4'
 const COQUILLE = [
   '/',
   '/index.html',
