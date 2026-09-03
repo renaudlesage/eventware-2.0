@@ -96,51 +96,88 @@ export default function Meteo({ evenement, membre, peut, toutPouvoir, onAlerte, 
   )
   const declencheursAffiches = (pire.declencheurs ?? []).filter((d) => d.niveau !== 'jaune')
 
-  // Consigne automatique dans la main courante — pas de bouton, pas
-  // d'oubli possible. Distincte de la diffusion d'alerte, qui reste un
-  // choix humain juste en dessous. Une clé stable par critère+niveau
-  // évite de relancer l'effet à chaque re-rendu sans changement réel.
-  const cleDeclencheurs = declencheursAffiches.map((d) => `${d.critere}:${d.niveau}`).join(',')
+  // Suivi d'état par critère — pas seulement « c'est orange en ce
+  // moment », mais « c'est devenu orange » ou « c'est revenu au vert ».
+  // Le jaune reste hors de ce suivi, comme du bandeau : purement
+  // visuel, sans transition à consigner.
+  const pireParCritere = {}
+  for (const h of evaluees) {
+    for (const d of h.declencheurs ?? []) {
+      if (d.niveau === 'jaune') continue
+      if (!pireParCritere[d.critere] || NIVEAUX[d.niveau] > NIVEAUX[pireParCritere[d.critere].niveau]) {
+        pireParCritere[d.critere] = d
+      }
+    }
+  }
+  const criteresConnus = ['vent', 'pluie', 'chaleur', 'froid', 'orage']
+  const cleEtat = criteresConnus
+    .map((c) => `${c}:${pireParCritere[c]?.niveau ?? 'vert'}`)
+    .join(',')
 
   useEffect(() => {
-    if (!seuils || declencheursAffiches.length === 0) return
+    if (!seuils) return
     let vivant = true
 
-    async function consigner() {
-      for (const d of declencheursAffiches) {
-        const cle = `${d.critere}:${d.niveau}`
-        const depuis = new Date(Date.now() - 3 * 3600000).toISOString()
-        const { data: dejaConsigne } = await supabase
-          .from('journal')
-          .select('id')
-          .eq('evenement_id', evenement.id)
-          .eq('objet_type', 'veille_meteo')
-          .eq('objet_ref', cle)
-          .gte('horodatage', depuis)
-          .limit(1)
-          .maybeSingle()
+    async function consignerTransitions() {
+      const { data: etatsConnus } = await supabase
+        .from('veille_etat_criteres')
+        .select('*')
+        .eq('evenement_id', evenement.id)
+      if (!vivant) return
 
-        if (!vivant || dejaConsigne) continue
+      const parCritere = Object.fromEntries((etatsConnus ?? []).map((e) => [e.critere, e]))
+
+      for (const critere of criteresConnus) {
+        const nouveauNiveau = pireParCritere[critere]?.niveau ?? 'vert'
+        const ancien = parCritere[critere]
+        const ancienNiveau = ancien?.niveau ?? 'vert'
+
+        if (nouveauNiveau === ancienNiveau) continue
+        // Première observation restant au vert : rien à raconter.
+        if (!ancien && nouveauNiveau === 'vert') continue
+
+        const hausse = NIVEAUX[nouveauNiveau] > NIVEAUX[ancienNiveau]
+        const libelleCritere = CRITERE_LIBELLE[critere]
+
+        let texte
+        if (nouveauNiveau === 'vert') {
+          const duree = ancien
+            ? dureeDepuis(ancien.depuis)
+            : null
+          texte = `Retour à la normale — ${libelleCritere}${duree ? ` (après ${duree})` : ''}`
+        } else if (hausse) {
+          const motif = pireParCritere[critere]?.motif
+          texte = `Seuil ${LIBELLE_NIVEAU[nouveauNiveau].toLowerCase()} franchi — ${libelleCritere}${motif ? ` : ${motif}` : ''}`
+        } else {
+          texte = `${libelleCritere} redescend à ${LIBELLE_NIVEAU[nouveauNiveau].toLowerCase()}`
+        }
+
+        await supabase.from('veille_etat_criteres').upsert({
+          evenement_id: evenement.id,
+          critere,
+          niveau: nouveauNiveau,
+          depuis: new Date().toISOString()
+        })
 
         await supabase.rpc('journaliser', {
           p_evenement: evenement.id,
           p_module: 'meteo',
           p_categorie: 'veille',
-          p_texte: `Seuil ${LIBELLE_NIVEAU[d.niveau].toLowerCase()} franchi — ${CRITERE_LIBELLE[d.critere]} : ${d.motif}`,
-          p_importance: d.niveau === 'rouge' ? 'majeur' : 'notable',
+          p_texte: texte,
+          p_importance: nouveauNiveau === 'rouge' ? 'majeur' : 'notable',
           p_objet_type: 'veille_meteo',
           p_objet_id: null,
-          p_objet_ref: cle
+          p_objet_ref: critere
         })
       }
     }
 
-    consigner()
+    consignerTransitions()
     return () => {
       vivant = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cleDeclencheurs, seuils, evenement.id])
+  }, [cleEtat, seuils, evenement.id])
 
   if (!lat || !lon) {
     if (compact) return null
@@ -246,8 +283,8 @@ export default function Meteo({ evenement, membre, peut, toutPouvoir, onAlerte, 
               </div>
             ))}
             <p className="aide" style={{ marginTop: 6, marginBottom: 0 }}>
-              Déjà consigné dans la main courante. Diffuser une alerte reste un choix
-              séparé — un franchissement de seuil ne prévient personne tout seul.
+              Chaque franchissement — hausse, baisse, retour à la normale — se consigne
+              seul dans la main courante. Diffuser une alerte reste un choix séparé.
             </p>
           </div>
         </div>
@@ -388,6 +425,13 @@ function evaluer(h, s) {
   )
 
   return { niveau, declencheurs }
+}
+
+function dureeDepuis(iso) {
+  const min = Math.round((Date.now() - new Date(iso)) / 60000)
+  if (min < 60) return `${min} min`
+  const h = Math.floor(min / 60)
+  return `${h} h ${min % 60}`
 }
 
 function quand(iso) {
