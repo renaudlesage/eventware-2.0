@@ -10,10 +10,23 @@ import { supabase } from './supabaseClient'
  * pas savoir où regarder — d'où son absence silencieuse tant que ce
  * champ n'était encodé nulle part.
  */
+const PROVINCES = [
+  'Anvers', 'Brabant flamand', 'Brabant wallon', 'Bruxelles-Capitale',
+  'Flandre-Occidentale', 'Flandre-Orientale', 'Hainaut', 'Liège',
+  'Limbourg', 'Luxembourg', 'Namur'
+]
+
 export default function Point0({ evenement, onFait, setMessage }) {
   const [lat, setLat] = useState(evenement.point_0_lat ?? '')
   const [lon, setLon] = useState(evenement.point_0_lon ?? '')
+  const [province, setProvince] = useState(evenement.province ?? '')
   const [occupe, setOccupe] = useState(false)
+
+  async function enregistrerProvince(p) {
+    setProvince(p)
+    await supabase.from('evenements').update({ province: p || null }).eq('id', evenement.id)
+    onFait()
+  }
 
   function localiser() {
     if (!navigator.geolocation) return
@@ -76,6 +89,22 @@ export default function Point0({ evenement, onFait, setMessage }) {
       <button disabled={occupe || !lat || !lon} onClick={enregistrer}>
         Enregistrer le point 0
       </button>
+
+      <label htmlFor="province" style={{ marginTop: 14 }}>
+        Province — pour l'avertissement officiel IRM
+      </label>
+      <select
+        id="province"
+        value={province}
+        onChange={(e) => enregistrerProvince(e.target.value)}
+      >
+        <option value="">— non renseignée —</option>
+        {PROVINCES.map((p) => (
+          <option key={p} value={p}>
+            {p}
+          </option>
+        ))}
+      </select>
 
       {evenement.point_0_lat && (
         <p className="aide">

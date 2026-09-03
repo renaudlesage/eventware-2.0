@@ -1365,9 +1365,10 @@ button.grand-lien:hover .grand { text-decoration-color: currentColor; }
   font-size: 10px;
 }
 
-.bande.niv-vigilance { border-top-color: var(--etat-veille); background: var(--surface-2); }
-.bande.niv-critique  { border-top-color: var(--etat-chaud); background: var(--surface-2); }
-.bande.niv-critique .bande-valeur { color: var(--etat-chaud); font-weight: 700; }
+.bande.niv-jaune  { border-top-color: #d4a017; background: var(--surface-2); }
+.bande.niv-orange { border-top-color: var(--etat-veille); background: var(--surface-2); }
+.bande.niv-rouge  { border-top-color: var(--etat-chaud); background: var(--surface-2); }
+.bande.niv-rouge .bande-valeur { color: var(--etat-chaud); font-weight: 700; }
 
 .bande-heure { color: var(--sourdine); font-size: 9px; }
 .bande-valeur { font-size: 11px; }
@@ -1881,8 +1882,27 @@ input:disabled {
   transition: border-color 0.3s;
 }
 
-.meteo-vigilance { border-color: var(--etat-veille); }
-.meteo-critique  { border-color: var(--etat-chaud); }
+.meteo-jaune  { border-color: #d4a017; }
+.meteo-orange { border-color: var(--etat-veille); }
+.meteo-rouge  { border-color: var(--etat-chaud); }
+
+/* Badge de vigilance — pastille colorée, comme sur les cartes IRM et
+   dans la v18 : « VERT », « JAUNE », « ORANGE » ou « ROUGE » se lit
+   avant même le reste du panneau. */
+.badge-vigilance {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1.5px solid currentColor;
+}
+
+.badge-vigilance.niv-vert   { color: var(--etat-ok); }
+.badge-vigilance.niv-jaune  { color: #d4a017; }
+.badge-vigilance.niv-orange { color: var(--etat-veille); }
+.badge-vigilance.niv-rouge  { color: var(--etat-chaud); background: color-mix(in srgb, var(--etat-chaud) 12%, transparent); }
 
 /* --- Cartographie linéaire du parcours -------------------------------
    Repris du PC-Ops v18 : une ligne P0 → étapes → P0 avec la position
@@ -2185,3 +2205,27 @@ input:disabled {
   border-color: var(--etat-ok) !important;
   color: #fff !important;
 }
+
+/* --- Avertissement officiel IRM (relais Meteoalarm) --- */
+
+.irm-bloc {
+  border: 1px solid var(--trait);
+  border-left: 3px solid var(--sourdine);
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  background: var(--surface-2);
+}
+
+.irm-tete {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.irm-jaune  { border-left-color: #d4a017; }
+.irm-orange { border-left-color: var(--etat-veille); }
+.irm-rouge  { border-left-color: var(--etat-chaud); }
+
+.irm-bloc a { color: var(--etat-info); }
