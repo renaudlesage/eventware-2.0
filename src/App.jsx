@@ -223,7 +223,7 @@ function Poste({ session, theme, setTheme }) {
     const { data, error } = await supabase
       .from('evenements')
       .select(
-        'id, nom, slug, geometrie, phase, jeton_public, point_0_lat, point_0_lon, modules, logo_url, membres_evenement(id, role, user_id, nom_affiche, perimetre, paves, equipe_id)'
+        'id, nom, slug, geometrie, phase, jeton_public, point_0_lat, point_0_lon, province, modules, logo_url, membres_evenement(id, role, user_id, nom_affiche, perimetre, paves, equipe_id)'
       )
       .order('nom')
     if (error) setMessage({ type: 'erreur', texte: error.message })

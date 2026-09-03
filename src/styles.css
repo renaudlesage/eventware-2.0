@@ -2239,3 +2239,5 @@ input:disabled {
 .irm-rouge  { border-left-color: var(--etat-chaud); }
 
 .irm-bloc a { color: var(--etat-info); }
+
+.irm-ras { color: var(--etat-ok); font-style: normal; }

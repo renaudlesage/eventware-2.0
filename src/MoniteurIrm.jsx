@@ -81,8 +81,8 @@ export default function MoniteurIrm({ province }) {
           ))}
         </ul>
       ) : (
-        <p className="aide" style={{ margin: '6px 0 0' }}>
-          Aucun avertissement officiel en cours pour {province}.
+        <p className="aide irm-ras" style={{ margin: '6px 0 0' }}>
+          ✓ Aucun avertissement officiel en cours pour {province}.
         </p>
       )}
 

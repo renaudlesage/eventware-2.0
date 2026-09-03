@@ -217,7 +217,7 @@ export default function Meteo({ evenement, peut, toutPouvoir, onAlerte }) {
 
       {evaluees.length > 0 && (
         <>
-          <div className="pave-titre">Prochaines 24 heures</div>
+          <div className="pave-titre">Prochaines 24 heures — rafales (km/h) et °C</div>
           <div className="bandes-meteo">
             {evaluees.slice(0, 24).map((h, i) => (
               <div
@@ -243,9 +243,9 @@ export default function Meteo({ evenement, peut, toutPouvoir, onAlerte }) {
             ))}
           </div>
           <p className="aide">
-            Rafales (km/h) et température, heure par heure — la goutte indique une pluie
-            prévue, doublée si elle dépasse 4 mm/h. Aucune surveillance ne tourne en
-            arrière-plan : cet écran ne prévient que celui qui le regarde.
+            La goutte indique une pluie prévue, doublée si elle dépasse 4 mm/h. Aucune
+            surveillance ne tourne en arrière-plan : cet écran ne prévient que celui qui le
+            regarde.
           </p>
         </>
       )}
