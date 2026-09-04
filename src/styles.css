@@ -1063,14 +1063,6 @@ button.grand-lien:hover .grand { text-decoration-color: currentColor; }
 .jeton.statut-suspendue { color: var(--etat-chaud); }
 .jeton.statut-close     { color: var(--sourdine); }
 
-/* --- REX à chaud, sur l'écran de chacun --- */
-
-.rex-chaud {
-  margin-top: 22px;
-  padding-top: 16px;
-  border-top: 1px solid var(--trait);
-}
-
 /* --- Cartes teintées par domaine ------------------------------------
    Le filet de gauche rappelle le module ; le rouge et l'ambre restent
    réservés aux états, et l'emportent toujours sur la teinte. */

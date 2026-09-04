@@ -9,7 +9,7 @@ import Securite from './Securite'
 import Logistique from './Logistique'
 import Parcours from './Parcours'
 import Rh from './Rh'
-import Analyse, { Constats } from './Analyse'
+import Analyse from './Analyse'
 import PlanImplantation from './PlanImplantation'
 import PcOps from './PcOps'
 import QrCodes from './QrCodes'
@@ -450,26 +450,6 @@ function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, exploitant
           />
 
           <Terrain evenement={evenement} membre={membre} />
-
-          {/* Le REX à chaud reste ouvert à tous, y compris à qui n'a pas
-              accès à l'écran Analyse : celui qui constate le problème est
-              rarement celui qui exploitera les chiffres. */}
-          {evenement.modules?.analyse && (toutPouvoir || peut('analyse', 'creer')) && (
-            <section className="bloc rex-chaud">
-              <h2>Signaler un constat</h2>
-              <p className="aide">
-                Quelque chose qui coince, qui a bien marché, ou qui mériterait de changer
-                l'an prochain. À noter maintenant : un constat écrit sur le moment vaut dix
-                reconstitués de mémoire trois semaines plus tard.
-              </p>
-              <Constats
-                evenement={evenement}
-                membre={membre}
-                setMessage={setMessage}
-                compact
-              />
-            </section>
-          )}
 
           {(toutPouvoir || peut('alertes', 'creer')) && (
             <GestionAlertes evenement={evenement} setMessage={setMessage} />
