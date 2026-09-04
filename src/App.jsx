@@ -11,7 +11,6 @@ import Parcours from './Parcours'
 import Rh, { MesCreneaux } from './Rh'
 import Analyse from './Analyse'
 import PlanImplantation from './PlanImplantation'
-import PcOps from './PcOps'
 import QrCodes from './QrCodes'
 import ImportCsv from './ImportCsv'
 import ImportKml from './ImportKml'
@@ -75,7 +74,6 @@ const ECRANS = [
   { clef: 'memento',    libelle: 'Mémento',      module: null,                besoin: null },
   { clef: 'planning',   libelle: 'Planning',     module: null,                besoin: null },
   { clef: 'securite',   libelle: 'Sécurité',     module: 'securite',          besoin: ['missions', 'creer'] },
-  { clef: 'sos',        libelle: 'Signalements', module: 'sos_participants',  besoin: ['missions', 'creer'] },
   { clef: 'logistique', libelle: 'Logistique',   module: 'logistique',        besoin: ['logistique', 'lire'] },
   { clef: 'parcours',   libelle: 'Parcours',     module: 'parcours',          besoin: ['parcours', 'lire'] },
   { clef: 'rh',         libelle: 'Bénévoles',    module: 'rh',                besoin: ['rh', 'creer'] },
@@ -211,6 +209,15 @@ function Poste({ session, theme, setTheme }) {
     () => localStorage.getItem('eventware.evenement') ?? null
   )
   const [ecran, setEcran] = useState('situation')
+  // Sous-onglet demandé lors d'une navigation ciblée — ex. le pavé
+  // « Signalements ouverts » doit ouvrir directement Sécurité sur son
+  // onglet Signalements, pas sur l'onglet par défaut.
+  const [ongletCible, setOngletCible] = useState(null)
+
+  function aller(clef, sousOnglet) {
+    setEcran(clef)
+    setOngletCible(sousOnglet ?? null)
+  }
   const [message, setMessage] = useState(null)
   const [chargement, setChargement] = useState(true)
   const [exploitant, setExploitant] = useState(false)
@@ -366,12 +373,13 @@ function Poste({ session, theme, setTheme }) {
             <Ecran
               exploitant={exploitant}
               clef={ecran}
+              ongletCible={ongletCible}
               evenement={courant}
               membre={moi}
               session={session}
               peut={peut}
               toutPouvoir={toutPouvoir}
-              onAller={setEcran}
+              onAller={aller}
               onOuvrirEvenement={(id) => {
                 setCourantId(id)
                 setEcran('situation')
@@ -427,7 +435,7 @@ function Reseau() {
 /* Aiguillage                                                          */
 /* ================================================================== */
 
-function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, exploitant, onAller, onOuvrirEvenement, onRecharger, setMessage }) {
+function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoir, exploitant, onAller, onOuvrirEvenement, onRecharger, setMessage }) {
   switch (clef) {
     case 'situation':
       return (
@@ -489,10 +497,9 @@ function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, exploitant
           session={session}
           peut={peut}
           toutPouvoir={toutPouvoir}
+          ongletCible={ongletCible}
         />
       )
-    case 'sos':
-      return <PcOps evenement={evenement} />
     case 'logistique':
       return <Logistique evenement={evenement} membre={membre} />
     case 'parcours':

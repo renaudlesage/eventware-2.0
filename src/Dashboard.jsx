@@ -78,7 +78,7 @@ export default function Dashboard({ evenement, membre, peut, onFait, onAller }) 
    visite, pas un compteur — donc reste seul non cliquable. */
 const DESTINATIONS = {
   planning: 'planning',
-  sos: 'sos',
+  sos: ['securite', 'signalements'],
   lieux: 'plan',
   contacts: 'memento',
   materiel: 'logistique',
@@ -94,8 +94,12 @@ function Pave({ clef, evenement, membre, onAller }) {
     </>
   )
   if (cliquable) {
+    const cible = DESTINATIONS[clef]
     return (
-      <button className="pave pave-lien" onClick={() => onAller?.(DESTINATIONS[clef])}>
+      <button
+        className="pave pave-lien"
+        onClick={() => (Array.isArray(cible) ? onAller?.(...cible) : onAller?.(cible))}
+      >
         {contenu}
       </button>
     )

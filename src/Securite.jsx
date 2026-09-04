@@ -3,43 +3,69 @@ import { supabase } from './supabaseClient'
 import Sitrep from './Sitrep'
 import Maydays from './Maydays'
 import Meteo from './Meteo'
+import PcOps from './PcOps'
 
 /*
- * Deux familles distinctes, pas six onglets à plat :
- *   OPÉRATIONNEL — ce qui se passe maintenant, y compris les
- *   suggestions d'alerte de la veille météo, poussables d'ici sans
- *   repasser par la Situation.
+ * Deux familles distinctes, pas sept onglets à plat :
+ *   OPÉRATIONNEL — ce qui se passe maintenant : signalements, Mayday,
+ *   main courante, demandes, recherches, plus les suggestions d'alerte
+ *   de la veille météo, poussables d'ici sans repasser par la Situation.
  *   ADMINISTRATIF — ce qui se prépare à froid ou se produit après
  *   coup : fiches réflexe, rapport.
+ *
+ * « Signalements » vivait comme écran séparé — regroupé ici parce que
+ * c'est le même métier que la main courante et les demandes : réagir à
+ * ce qui se passe, pas s'y préparer.
  */
-const GROUPES = {
-  operationnel: {
-    libelle: 'Opérationnel',
-    onglets: [
-      ['mayday', 'Mayday'],
-      ['journal', 'Main courante'],
-      ['missions', 'Demandes'],
-      ['recherches', 'Recherches']
-    ]
-  },
-  administratif: {
-    libelle: 'Administratif',
-    onglets: [
-      ['fiches', 'Fiches réflexe'],
-      ['sitrep', 'Rapport']
-    ]
+function groupesPour(modules) {
+  return {
+    operationnel: {
+      libelle: 'Opérationnel',
+      onglets: [
+        ...(modules?.sos_participants ? [['signalements', 'Signalements']] : []),
+        ['mayday', 'Mayday'],
+        ['journal', 'Main courante'],
+        ['missions', 'Demandes'],
+        ['recherches', 'Recherches']
+      ]
+    },
+    administratif: {
+      libelle: 'Administratif',
+      onglets: [
+        ['fiches', 'Fiches réflexe'],
+        ['sitrep', 'Rapport']
+      ]
+    }
   }
 }
 
-export default function Securite({ evenement, membre, session, peut, toutPouvoir }) {
+export default function Securite({ evenement, membre, session, peut, toutPouvoir, ongletCible }) {
+  const GROUPES = groupesPour(evenement.modules)
   const [groupe, setGroupe] = useState('operationnel')
-  const [onglet, setOnglet] = useState('journal')
+  const [onglet, setOnglet] = useState(
+    evenement.modules?.sos_participants ? 'signalements' : 'journal'
+  )
   const [message, setMessage] = useState(null)
 
   function choisirGroupe(g) {
     setGroupe(g)
     setOnglet(GROUPES[g].onglets[0][0])
   }
+
+  // Navigation ciblée depuis un autre écran — ex. le pavé « Signalements
+  // ouverts » du tableau de bord — bascule directement sur le bon
+  // groupe et le bon onglet, sans repasser par les valeurs par défaut.
+  useEffect(() => {
+    if (!ongletCible) return
+    for (const [g, { onglets }] of Object.entries(GROUPES)) {
+      if (onglets.some(([k]) => k === ongletCible)) {
+        setGroupe(g)
+        setOnglet(ongletCible)
+        break
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ongletCible])
 
   return (
     <div className="bloc securite dom-grenat">
@@ -85,6 +111,7 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
         </div>
       )}
 
+      {onglet === 'signalements' && <PcOps evenement={evenement} />}
       {onglet === 'mayday' && (
         <Maydays evenement={evenement} setMessage={setMessage} />
       )}
