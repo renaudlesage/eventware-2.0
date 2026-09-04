@@ -383,6 +383,17 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
 
 .plaque-nav:disabled { opacity: 0.4; cursor: default; }
 
+/* Paysage sur smartphone : la largeur disponible permet 4 colonnes au
+   lieu de 3, ce qui ramène onze entrées de quatre lignes à trois. Le
+   flex-wrap habituel dépend de la largeur naturelle de chaque bouton,
+   trop imprévisible pour garantir un compte de colonnes précis — une
+   grille fige le nombre. Ciblé sur l'orientation, pas seulement la
+   largeur, pour ne pas toucher une tablette étroite en portrait. */
+@media (orientation: landscape) and (max-width: 939px) {
+  .plaques { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .plaque-nav { justify-content: flex-start; }
+}
+
 .dom-indigo   { --teinte: var(--dom-indigo); }
 .dom-violet   { --teinte: var(--dom-violet); }
 .dom-sarcelle { --teinte: var(--dom-sarcelle); }
@@ -1100,16 +1111,16 @@ button.grand-lien:hover .grand { text-decoration-color: currentColor; }
  * couleurs fixes ; leur appliquer un fond plein rendait ce texte gris
  * illisible dessus. D'où l'exclusion explicite de .tuile et .pave-lien.
  */
-.dom-indigo button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien),
-.dom-violet button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien),
-.dom-sarcelle button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien),
-.dom-grenat button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien),
-.dom-orange button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien),
-.dom-bronze button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien),
-.dom-mousse button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien),
-.dom-azur button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien),
-.dom-prune button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien),
-.dom-ardoise button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien) {
+.dom-indigo button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien),
+.dom-violet button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien),
+.dom-sarcelle button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien),
+.dom-grenat button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien),
+.dom-orange button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien),
+.dom-bronze button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien),
+.dom-mousse button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien),
+.dom-azur button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien),
+.dom-prune button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien),
+.dom-ardoise button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien) {
   background: var(--teinte);
   border-color: var(--teinte);
   color: #fff;
