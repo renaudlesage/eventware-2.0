@@ -31,13 +31,6 @@ export const PAVES = {
     besoin: null,
     obligatoire: ['coordinateur', 'chef_equipe', 'benevole', 'observateur']
   },
-  mes_creneaux: {
-    libelle: 'Mes créneaux',
-    module: 'rh',
-    besoin: null,
-    // Non retirable : c'est ce qu'on vient chercher quand on est bénévole.
-    obligatoire: ['benevole', 'chef_equipe']
-  },
   sos: {
     libelle: 'Signalements ouverts',
     module: 'sos_participants',
@@ -86,8 +79,8 @@ export const PAVES = {
 const DEFAUTS = {
   coordinateur: ['identite', 'sos', 'planning', 'contacts', 'equipes', 'lieux', 'materiel'],
   admin: ['identite', 'sos', 'planning', 'contacts', 'equipes', 'lieux', 'materiel'],
-  chef_equipe: ['identite', 'mes_creneaux', 'sos', 'planning', 'equipes', 'lieux', 'materiel'],
-  benevole: ['identite', 'mes_creneaux', 'planning', 'lieux', 'equipes'],
+  chef_equipe: ['identite', 'sos', 'planning', 'equipes', 'lieux', 'materiel'],
+  benevole: ['identite', 'planning', 'lieux', 'equipes'],
   observateur: ['identite', 'planning', 'lieux']
 }
 

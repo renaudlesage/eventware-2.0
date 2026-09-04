@@ -39,7 +39,15 @@ const CRITERE_LIBELLE = {
   orage: 'Orage'
 }
 
-export default function Meteo({ evenement, membre, peut, toutPouvoir, onAlerte, compact }) {
+export default function Meteo({
+  evenement,
+  membre,
+  peut,
+  toutPouvoir,
+  onAlerte,
+  compact,
+  autoJournal = true
+}) {
   const [seuils, setSeuils] = useState(null)
   const [previsions, setPrevisions] = useState(null)
   const [erreur, setErreur] = useState(null)
@@ -115,7 +123,7 @@ export default function Meteo({ evenement, membre, peut, toutPouvoir, onAlerte, 
     .join(',')
 
   useEffect(() => {
-    if (!seuils) return
+    if (!seuils || !autoJournal) return
     let vivant = true
 
     async function consignerTransitions() {
@@ -177,7 +185,7 @@ export default function Meteo({ evenement, membre, peut, toutPouvoir, onAlerte, 
       vivant = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cleEtat, seuils, evenement.id])
+  }, [cleEtat, seuils, evenement.id, autoJournal])
 
   if (!lat || !lon) {
     if (compact) return null

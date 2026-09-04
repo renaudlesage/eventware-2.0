@@ -8,7 +8,6 @@ import { supabase } from './supabaseClient'
  */
 const ONGLETS = [
   ['couverture', 'Couverture', true],
-  ['mes_creneaux', 'Mes créneaux', false],
   ['equipe', 'Bénévoles', true],
   ['jalons', 'Jalons', true]
 ]
@@ -21,22 +20,15 @@ const heure = (d) =>
   })
 
 export default function Rh({ evenement, membre, peut }) {
-  const encadrement = peut ? peut('rh', 'creer') : true
-  const visibles = ONGLETS.filter(([, , besoin]) => !besoin || encadrement)
-  const [onglet, setOnglet] = useState(encadrement ? 'couverture' : 'mes_creneaux')
+  const [onglet, setOnglet] = useState('couverture')
   const [message, setMessage] = useState(null)
-
-  useEffect(() => {
-    if (!visibles.some(([k]) => k === onglet)) setOnglet('mes_creneaux')
-  }, [encadrement])
 
   return (
     <div className="bloc securite dom-azur">
       <h2>Bénévoles</h2>
 
-      {visibles.length > 1 && (
-        <div className="onglets">
-          {visibles.map(([k, l]) => (
+      <div className="onglets">
+          {ONGLETS.map(([k, l]) => (
             <button
               key={k}
               className={`module ${onglet === k ? 'actif' : ''}`}
@@ -45,8 +37,7 @@ export default function Rh({ evenement, membre, peut }) {
               {l}
             </button>
           ))}
-        </div>
-      )}
+      </div>
 
       {message && (
         <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
@@ -56,9 +47,6 @@ export default function Rh({ evenement, membre, peut }) {
 
       {onglet === 'couverture' && (
         <Couverture evenement={evenement} setMessage={setMessage} />
-      )}
-      {onglet === 'mes_creneaux' && (
-        <MesCreneaux evenement={evenement} membre={membre} setMessage={setMessage} />
       )}
       {onglet === 'equipe' && <Equipe evenement={evenement} setMessage={setMessage} />}
       {onglet === 'jalons' && <Jalons evenement={evenement} setMessage={setMessage} />}
@@ -255,7 +243,7 @@ function Couverture({ evenement, setMessage }) {
 /* Mes créneaux — vue du bénévole                                      */
 /* ================================================================== */
 
-function MesCreneaux({ evenement, membre, setMessage }) {
+export function MesCreneaux({ evenement, membre, setMessage }) {
   const [lignes, setLignes] = useState([])
 
   async function charger() {

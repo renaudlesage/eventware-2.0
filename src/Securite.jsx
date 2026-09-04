@@ -2,26 +2,83 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import Sitrep from './Sitrep'
 import Maydays from './Maydays'
+import Meteo from './Meteo'
+import { diffuserAlerte } from './diffusion'
 
-const ONGLETS = [
-  ['mayday', 'Mayday'],
-  ['journal', 'Main courante'],
-  ['missions', 'Demandes'],
-  ['recherches', 'Recherches'],
-  ['fiches', 'Fiches réflexe'],
-  ['sitrep', 'Rapport']
-]
+/*
+ * Deux familles distinctes, pas six onglets à plat :
+ *   OPÉRATIONNEL — ce qui se passe maintenant, y compris les
+ *   suggestions d'alerte de la veille météo, poussables d'ici sans
+ *   repasser par la Situation.
+ *   ADMINISTRATIF — ce qui se prépare à froid ou se produit après
+ *   coup : fiches réflexe, rapport.
+ */
+const GROUPES = {
+  operationnel: {
+    libelle: 'Opérationnel',
+    onglets: [
+      ['mayday', 'Mayday'],
+      ['journal', 'Main courante'],
+      ['missions', 'Demandes'],
+      ['recherches', 'Recherches']
+    ]
+  },
+  administratif: {
+    libelle: 'Administratif',
+    onglets: [
+      ['fiches', 'Fiches réflexe'],
+      ['sitrep', 'Rapport']
+    ]
+  }
+}
 
-export default function Securite({ evenement, membre, session }) {
+export default function Securite({ evenement, membre, session, peut, toutPouvoir }) {
+  const [groupe, setGroupe] = useState('operationnel')
   const [onglet, setOnglet] = useState('journal')
   const [message, setMessage] = useState(null)
+
+  function choisirGroupe(g) {
+    setGroupe(g)
+    setOnglet(GROUPES[g].onglets[0][0])
+  }
 
   return (
     <div className="bloc securite dom-grenat">
       <h2>Sécurité</h2>
 
+      <div className="ligne-boutons" style={{ marginBottom: 10 }}>
+        {Object.entries(GROUPES).map(([g, { libelle }]) => (
+          <button
+            key={g}
+            className={groupe === g ? '' : 'discret'}
+            onClick={() => choisirGroupe(g)}
+          >
+            {libelle}
+          </button>
+        ))}
+      </div>
+
+      {groupe === 'operationnel' && (
+        <Meteo
+          evenement={evenement}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+          compact
+          autoJournal={false}
+          onAlerte={async (a) => {
+            const { data, error } = await supabase
+              .from('alertes')
+              .insert({ evenement_id: evenement.id, ...a })
+              .select('id')
+              .single()
+            if (error) setMessage({ type: 'erreur', texte: error.message })
+            else diffuserAlerte(data.id)
+          }}
+        />
+      )}
+
       <div className="onglets">
-        {ONGLETS.map(([k, l]) => (
+        {GROUPES[groupe].onglets.map(([k, l]) => (
           <button
             key={k}
             className={`module ${onglet === k ? 'actif' : ''}`}

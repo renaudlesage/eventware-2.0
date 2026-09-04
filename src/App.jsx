@@ -8,7 +8,7 @@ import Memento from './Memento'
 import Securite from './Securite'
 import Logistique from './Logistique'
 import Parcours from './Parcours'
-import Rh from './Rh'
+import Rh, { MesCreneaux } from './Rh'
 import Analyse from './Analyse'
 import PlanImplantation from './PlanImplantation'
 import PcOps from './PcOps'
@@ -78,7 +78,7 @@ const ECRANS = [
   { clef: 'sos',        libelle: 'Signalements', module: 'sos_participants',  besoin: ['missions', 'creer'] },
   { clef: 'logistique', libelle: 'Logistique',   module: 'logistique',        besoin: ['logistique', 'lire'] },
   { clef: 'parcours',   libelle: 'Parcours',     module: 'parcours',          besoin: ['parcours', 'lire'] },
-  { clef: 'rh',         libelle: 'Bénévoles',    module: 'rh',                besoin: ['rh', 'lire'] },
+  { clef: 'rh',         libelle: 'Bénévoles',    module: 'rh',                besoin: ['rh', 'creer'] },
   { clef: 'plan',       libelle: 'Implantation', module: 'plan_implantation', besoin: ['plan_implantation', 'lire'] },
   { clef: 'analyse',    libelle: 'Analyse',      module: 'analyse',           besoin: ['analyse', 'modifier'] },
   { clef: 'reglages',   libelle: 'Réglages',     module: null,                besoin: 'tout_pouvoir' },
@@ -449,6 +449,13 @@ function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, exploitant
             onAller={onAller}
           />
 
+          {evenement.modules?.rh && (
+            <section className="bloc dom-azur">
+              <h2>Mes créneaux</h2>
+              <MesCreneaux evenement={evenement} membre={membre} setMessage={setMessage} />
+            </section>
+          )}
+
           <Terrain evenement={evenement} membre={membre} />
 
           {(toutPouvoir || peut('alertes', 'creer')) && (
@@ -475,7 +482,15 @@ function Ecran({ clef, evenement, membre, session, peut, toutPouvoir, exploitant
     case 'planning':
       return <Planning evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} />
     case 'securite':
-      return <Securite evenement={evenement} membre={membre} session={session} />
+      return (
+        <Securite
+          evenement={evenement}
+          membre={membre}
+          session={session}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+        />
+      )
     case 'sos':
       return <PcOps evenement={evenement} />
     case 'logistique':

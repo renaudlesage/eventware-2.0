@@ -78,7 +78,6 @@ export default function Dashboard({ evenement, membre, peut, onFait, onAller }) 
    visite, pas un compteur — donc reste seul non cliquable. */
 const DESTINATIONS = {
   planning: 'planning',
-  mes_creneaux: 'rh',
   sos: 'sos',
   lieux: 'plan',
   contacts: 'memento',
@@ -120,8 +119,6 @@ function Contenu({ clef, evenement, membre, onAller }) {
       return <PaveListe evenement={evenement} table="equipes" champ="nom" second="code" />
     case 'materiel':
       return <PaveMateriel evenement={evenement} />
-    case 'mes_creneaux':
-      return <PaveMesCreneaux evenement={evenement} membre={membre} />
     case 'planning':
       return <PavePlanning evenement={evenement} onAller={onAller} />
     default:
@@ -204,62 +201,6 @@ function PaveListe({ evenement, table, champ, second }) {
         </li>
       ))}
     </ul>
-  )
-}
-
-function PaveMesCreneaux({ evenement, membre }) {
-  const [lignes, setLignes] = useState(null)
-
-  useEffect(() => {
-    let vivant = true
-    supabase
-      .from('affectations')
-      .select('id, statut, creneaux(poste, debut, fin)')
-      .eq('evenement_id', evenement.id)
-      .eq('membre_id', membre.id)
-      .not('statut', 'in', '("annule")')
-      .then(({ data }) => vivant && setLignes(data ?? []))
-    return () => {
-      vivant = false
-    }
-  }, [evenement.id, membre.id])
-
-  if (lignes === null) return <div className="vide">…</div>
-  if (!lignes.length) return <div className="vide">Aucun créneau</div>
-
-  const aConfirmer = lignes.filter((l) => l.statut === 'propose').length
-
-  return (
-    <>
-      {aConfirmer > 0 && (
-        <div className="grand alerte-texte">{aConfirmer}</div>
-      )}
-      {aConfirmer > 0 && (
-        <div className="meta">
-          <span>à confirmer</span>
-        </div>
-      )}
-      <ul className="liste-pave" style={{ marginTop: aConfirmer ? 8 : 0 }}>
-        {lignes
-          .sort((a, b) => new Date(a.creneaux?.debut) - new Date(b.creneaux?.debut))
-          .slice(0, 4)
-          .map((l) => (
-            <li key={l.id} className={l.statut === 'propose' ? 'alerte-texte' : ''}>
-              {l.creneaux?.poste}
-              <span className="mono">
-                {' '}
-                ·{' '}
-                {l.creneaux &&
-                  new Date(l.creneaux.debut).toLocaleString('fr-BE', {
-                    weekday: 'short',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-              </span>
-            </li>
-          ))}
-      </ul>
-    </>
   )
 }
 
