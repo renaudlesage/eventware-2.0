@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import Meteo from './Meteo'
 import Maydays from './Maydays'
-import { diffuserAlerte } from './diffusion'
 
 /**
  * Tableau de bord général — la vue QG.
@@ -83,24 +82,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
         </div>
       )}
 
-      <Meteo
-        evenement={evenement}
-        peut={peut}
-        toutPouvoir={toutPouvoir}
-        compact
-        onAlerte={async (a) => {
-          const { data, error } = await supabase
-            .from('alertes')
-            .insert({ evenement_id: evenement.id, ...a })
-            .select('id')
-            .single()
-          if (error) setErreur(error.message)
-          else {
-            charger()
-            diffuserAlerte(data.id)
-          }
-        }}
-      />
+      <Meteo evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} compact />
 
       {/* --- 2/3. Domaines opérationnels ------------------------------
            Repris du dashboard v18 : un bandeau de couleur par domaine,

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import MoniteurIrm from './MoniteurIrm'
+import { diffuserAlerte } from './diffusion'
 
 /**
  * Veille météo.
@@ -44,7 +45,6 @@ export default function Meteo({
   membre,
   peut,
   toutPouvoir,
-  onAlerte,
   compact,
   autoJournal = true
 }) {
@@ -56,6 +56,11 @@ export default function Meteo({
   // la ligne courante suffisent la plupart du temps. Ailleurs, ouvert
   // d'emblée.
   const [detailsOuverts, setDetailsOuverts] = useState(!compact)
+  // Alertes météo déjà actives, par critère — évite de proposer
+  // « Diffuser » deux fois pour le même franchissement : sans ça, un
+  // double clic créait deux alertes distinctes.
+  const [alertesActives, setAlertesActives] = useState({})
+  const [enVol, setEnVol] = useState(null)
 
   const lat = evenement.point_0_lat
   const lon = evenement.point_0_lon
@@ -86,8 +91,57 @@ export default function Meteo({
     }
   }
 
+  async function chargerAlertesActives() {
+    const { data } = await supabase
+      .from('alertes')
+      .select('id, source_meteo_critere')
+      .eq('evenement_id', evenement.id)
+      .eq('active', true)
+      .not('source_meteo_critere', 'is', null)
+    setAlertesActives(Object.fromEntries((data ?? []).map((a) => [a.source_meteo_critere, a])))
+  }
+
+  async function diffuser(d) {
+    setEnVol(d.critere)
+    const { data, error } = await supabase
+      .from('alertes')
+      .insert({
+        evenement_id: evenement.id,
+        niveau: d.niveau === 'rouge' ? 'urgence' : 'vigilance',
+        titre: `Météo — ${CRITERE_LIBELLE[d.critere]} : ${d.motif}`,
+        message: d.motif,
+        consigne: d.consigne || 'Aucune consigne saisie pour ce critère.',
+        source_meteo_critere: d.critere
+      })
+      .select('id')
+      .single()
+    if (error) setErreur(error.message)
+    else {
+      diffuserAlerte(data.id)
+      await chargerAlertesActives()
+    }
+    setEnVol(null)
+  }
+
+  async function lever(id) {
+    const motif = prompt('Motif de la levée ?')
+    if (motif === null) return
+    const { error } = await supabase
+      .from('alertes')
+      .update({ active: false, motif_levee: motif })
+      .eq('id', id)
+    if (error) setErreur(error.message)
+    else chargerAlertesActives()
+  }
+
   useEffect(() => {
     chargerSeuils()
+  }, [evenement.id])
+
+  useEffect(() => {
+    chargerAlertesActives()
+    const t = setInterval(chargerAlertesActives, 60000)
+    return () => clearInterval(t)
   }, [evenement.id])
 
   useEffect(() => {
@@ -256,43 +310,50 @@ export default function Meteo({
           <div className="niv">{LIBELLE_NIVEAU[pire.niveau]}</div>
           <div className="contenu" style={{ width: '100%' }}>
             <strong>{quand(pire.heure)}</strong>
-            {declencheursAffiches.map((d, i) => (
-              <div key={i} style={{ marginTop: i === 0 ? 4 : 10 }}>
-                <div>
-                  <span className={`badge-vigilance niv-${d.niveau}`} style={{ marginRight: 6 }}>
-                    {CRITERE_LIBELLE[d.critere]}
-                  </span>
-                  {d.motif}
+            {declencheursAffiches.map((d, i) => {
+              const active = alertesActives[d.critere]
+              return (
+                <div key={i} style={{ marginTop: i === 0 ? 4 : 10 }}>
+                  <div>
+                    <span className={`badge-vigilance niv-${d.niveau}`} style={{ marginRight: 6 }}>
+                      {CRITERE_LIBELLE[d.critere]}
+                    </span>
+                    {d.motif}
+                  </div>
+                  {d.consigne ? (
+                    <div className="consigne">→ {d.consigne}</div>
+                  ) : (
+                    <div className="consigne aide" style={{ fontStyle: 'italic' }}>
+                      Aucune consigne saisie pour {CRITERE_LIBELLE[d.critere].toLowerCase()} —
+                      complète-la dans « Seuils ».
+                    </div>
+                  )}
+                  {peutAlerter && (
+                    <div className="ligne-boutons" style={{ marginTop: 6, alignItems: 'center' }}>
+                      {active ? (
+                        <>
+                          <span className="jeton">alerte déjà diffusée</span>
+                          <button className="discret" onClick={() => lever(active.id)}>
+                            Lever
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          disabled={enVol === d.critere}
+                          onClick={() => diffuser(d)}
+                        >
+                          {enVol === d.critere ? 'Diffusion…' : `Diffuser l'alerte — ${CRITERE_LIBELLE[d.critere]}`}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
-                {d.consigne ? (
-                  <div className="consigne">→ {d.consigne}</div>
-                ) : (
-                  <div className="consigne aide" style={{ fontStyle: 'italic' }}>
-                    Aucune consigne saisie pour {CRITERE_LIBELLE[d.critere].toLowerCase()} —
-                    complète-la dans « Seuils ».
-                  </div>
-                )}
-                {peutAlerter && (
-                  <div className="ligne-boutons" style={{ marginTop: 6 }}>
-                    <button
-                      onClick={() =>
-                        onAlerte?.({
-                          niveau: d.niveau === 'rouge' ? 'urgence' : 'vigilance',
-                          titre: `Météo — ${CRITERE_LIBELLE[d.critere]} : ${d.motif} vers ${quand(pire.heure)}`,
-                          message: d.motif,
-                          consigne: d.consigne || 'Aucune consigne saisie pour ce critère.'
-                        })
-                      }
-                    >
-                      Diffuser l'alerte — {CRITERE_LIBELLE[d.critere]}
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+              )
+            })}
             <p className="aide" style={{ marginTop: 6, marginBottom: 0 }}>
               Chaque franchissement — hausse, baisse, retour à la normale — se consigne
-              seul dans la main courante. Diffuser une alerte reste un choix séparé.
+              seul dans la main courante. Diffuser une alerte reste un choix séparé, et ne
+              se propose qu'une fois par critère tant qu'elle est active.
             </p>
           </div>
         </div>

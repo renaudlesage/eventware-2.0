@@ -3,7 +3,6 @@ import { supabase } from './supabaseClient'
 import Sitrep from './Sitrep'
 import Maydays from './Maydays'
 import Meteo from './Meteo'
-import { diffuserAlerte } from './diffusion'
 
 /*
  * Deux familles distinctes, pas six onglets à plat :
@@ -65,15 +64,6 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
           toutPouvoir={toutPouvoir}
           compact
           autoJournal={false}
-          onAlerte={async (a) => {
-            const { data, error } = await supabase
-              .from('alertes')
-              .insert({ evenement_id: evenement.id, ...a })
-              .select('id')
-              .single()
-            if (error) setMessage({ type: 'erreur', texte: error.message })
-            else diffuserAlerte(data.id)
-          }}
         />
       )}
 
