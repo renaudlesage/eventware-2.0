@@ -4,6 +4,7 @@ import Sitrep from './Sitrep'
 import Maydays from './Maydays'
 import Meteo from './Meteo'
 import PcOps from './PcOps'
+import Conformite from './Conformite'
 
 /*
  * Deux familles distinctes, pas sept onglets à plat :
@@ -33,6 +34,7 @@ function groupesPour(modules) {
       libelle: 'Administratif',
       onglets: [
         ['fiches', 'Fiches réflexe'],
+        ['conformite', 'Conformité'],
         ['sitrep', 'Rapport']
       ]
     }
@@ -129,6 +131,9 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
         <Recherches evenement={evenement} setMessage={setMessage} />
       )}
       {onglet === 'fiches' && <Fiches evenement={evenement} />}
+      {onglet === 'conformite' && (
+        <Conformite evenement={evenement} setMessage={setMessage} />
+      )}
       {onglet === 'sitrep' && (
         <Sitrep evenement={evenement} session={session} membre={membre} />
       )}
