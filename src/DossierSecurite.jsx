@@ -4,6 +4,7 @@ import {
   WidthType, AlignmentType
 } from 'docx'
 import { supabase } from './supabaseClient'
+import { resoudreDispositionsApplicables } from './Conformite'
 
 /*
  * Dossier de sécurité — généré depuis les données structurées
@@ -71,9 +72,7 @@ async function construireDocument(evenement) {
     { data: segments },
     { data: moyens },
     { data: contacts },
-    { data: groupes },
-    { data: referentielItems },
-    { data: reponsesConformite }
+    { data: groupes }
   ] = await Promise.all([
     supabase.from('programme').select('*').eq('evenement_id', evenement.id).is('deleted_at', null).order('debut'),
     supabase.from('canaux_radio').select('*').eq('evenement_id', evenement.id).eq('actif', true).order('ordre'),
@@ -81,21 +80,13 @@ async function construireDocument(evenement) {
     supabase.from('segments_parcours').select('*, depart:depart_lieu_id(code,nom), arrivee:arrivee_lieu_id(code,nom)').eq('evenement_id', evenement.id),
     supabase.from('moyens_premiers_secours').select('*').eq('evenement_id', evenement.id),
     supabase.from('contacts').select('*').eq('evenement_id', evenement.id).is('deleted_at', null).order('categorie'),
-    supabase.from('groupes').select('*').eq('evenement_id', evenement.id).is('deleted_at', null),
-    supabase.from('referentiel_items').select('*, referentiels(nom, organisation_id, zone_nom)'),
-    supabase.from('conformite_reponses').select('reponses').eq('evenement_id', evenement.id).maybeSingle()
+    supabase.from('groupes').select('*').eq('evenement_id', evenement.id).is('deleted_at', null)
   ])
 
-  const reponses = reponsesConformite?.reponses ?? {}
-  const dispositionsApplicables = (referentielItems ?? []).filter((it) => {
-    const ref = it.referentiels
-    const appartient = ref.organisation_id === evenement.organisation_id || !ref.organisation_id
-    if (!appartient) return false
-    if (it.toujours_applicable) return true
-    if (!it.condition_cle) return false
-    const [groupe, critere] = it.condition_cle.split('.')
-    return !!reponses[groupe]?.[critere]
-  })
+  // Même résolution que l'écran Bilan — organisation, zone géographique
+  // et questionnaire. Un point unique partagé, pour ne plus jamais
+  // laisser les deux logiques diverger comme elles l'avaient fait.
+  const { applicables: dispositionsApplicables } = await resoudreDispositionsApplicables(evenement)
 
   const titre = (texte) => new Paragraph({ text: texte, heading: HeadingLevel.HEADING_1, spacing: { before: 300, after: 150 } })
   const sousTitre = (texte) => new Paragraph({ text: texte, heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } })
@@ -238,13 +229,10 @@ async function construireDocument(evenement) {
   // §11 Contrôles préalables — exigences applicables du référentiel
   enfants.push(titre('11. Contrôles préalables'))
   const obligatoires = dispositionsApplicables.filter((d) => d.caractere === 'obligatoire')
-  if (!obligatoires.length) {
-    enfants.push(aCompleter('aucune exigence résolue — vérifie Sécurité → Conformité → Questionnaire.'))
-  } else {
-    enfants.push(texte(
-      `${obligatoires.length} exigence(s) applicable(s), résolues depuis le questionnaire de conformité :`
-    ))
-    for (const d of obligatoires) {
+  const recommandes = dispositionsApplicables.filter((d) => d.caractere === 'recommande')
+
+  function listerDispositions(liste) {
+    for (const d of liste) {
       enfants.push(new Paragraph({
         children: [
           new TextRun({ text: `${d.code} — ${d.titre}`, bold: true })
@@ -252,6 +240,23 @@ async function construireDocument(evenement) {
       }))
       enfants.push(texte(d.dispositions))
     }
+  }
+
+  enfants.push(sousTitre('11.1 Exigé aujourd\u2019hui'))
+  if (!obligatoires.length) {
+    enfants.push(aCompleter('aucune exigence résolue — vérifie Sécurité → Conformité → Questionnaire.'))
+  } else {
+    enfants.push(texte(`${obligatoires.length} exigence(s) contraignante(s) sur ce territoire :`))
+    listerDispositions(obligatoires)
+  }
+
+  if (recommandes.length) {
+    enfants.push(sousTitre('11.2 Recommandé — pas encore imposé partout'))
+    enfants.push(texte(
+      `${recommandes.length} bonne(s) pratique(s) en cours de généralisation (RezonWal), à titre indicatif — ` +
+      `ne remplace pas ce qui est exigé aujourd'hui par la commune ou la zone :`
+    ))
+    listerDispositions(recommandes)
   }
 
   // §12 Contacts

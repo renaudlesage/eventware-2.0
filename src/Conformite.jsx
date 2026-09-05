@@ -98,6 +98,53 @@ function libelleCritere(cle) {
   return (critere ?? cle).replaceAll('_', ' ')
 }
 
+/**
+ * Résout, à partir des items du référentiel, des réponses au
+ * questionnaire et de la commune de l'événement, la liste des
+ * dispositions réellement applicables.
+ *
+ * Point unique — utilisé par le Bilan ET par le générateur de dossier
+ * de sécurité. Écrite deux fois, cette logique dérive inévitablement :
+ * c'est exactement ce qui s'est produit ici avant d'être corrigé.
+ */
+export async function resoudreDispositionsApplicables(evenement) {
+  const [r, i, c] = await Promise.all([
+    supabase
+      .from('conformite_reponses')
+      .select('reponses')
+      .eq('evenement_id', evenement.id)
+      .maybeSingle(),
+    supabase
+      .from('referentiel_items')
+      .select('*, referentiels(nom, portee, organisation_id, zone_nom)')
+      .order('code'),
+    evenement.commune
+      ? supabase.from('communes').select('*').eq('nom', evenement.commune).maybeSingle()
+      : Promise.resolve({ data: null })
+  ])
+  if (i.error) throw new Error(i.error.message)
+
+  const zone = c.data ?? null
+  const reponses = r.data?.reponses ?? {}
+  const zonesEvenement = [zone?.zone_police, zone?.zone_secours].filter(Boolean)
+
+  const visibles = (i.data ?? []).filter((it) => {
+    const ref = it.referentiels
+    if (ref.organisation_id) return true
+    if (!ref.zone_nom) return true
+    return zonesEvenement.includes(ref.zone_nom)
+  })
+
+  const applicables = visibles.filter((it) => {
+    if (it.toujours_applicable) return true
+    if (!it.condition_cle) return false
+    const [groupe, critere] = it.condition_cle.split('.')
+    return !!reponses[groupe]?.[critere]
+  })
+
+  return { zone, applicables }
+}
+
 export default function Conformite({ evenement, exploitant, setMessage }) {
   const [vue, setVue] = useState('questionnaire')
 
@@ -229,49 +276,13 @@ function Bilan({ evenement, setMessage }) {
   const [zone, setZone] = useState(undefined) // undefined = pas encore chargé, null = commune inconnue de la bibliothèque
 
   async function charger() {
-    const [r, i, c] = await Promise.all([
-      supabase
-        .from('conformite_reponses')
-        .select('reponses')
-        .eq('evenement_id', evenement.id)
-        .maybeSingle(),
-      supabase
-        .from('referentiel_items')
-        .select('*, referentiels(nom, portee, organisation_id, zone_nom)')
-        .order('code'),
-      evenement.commune
-        ? supabase.from('communes').select('*').eq('nom', evenement.commune).maybeSingle()
-        : Promise.resolve({ data: null })
-    ])
-    if (i.error) {
-      setMessage({ type: 'erreur', texte: i.error.message })
-      return
+    try {
+      const { zone, applicables } = await resoudreDispositionsApplicables(evenement)
+      setZone(zone)
+      setItems(applicables)
+    } catch (e) {
+      setMessage({ type: 'erreur', texte: e.message })
     }
-    setZone(c.data ?? null)
-
-    const reponses = r.data?.reponses ?? {}
-    const zonesEvenement = [c.data?.zone_police, c.data?.zone_secours].filter(Boolean)
-
-    const visibles = (i.data ?? []).filter((it) => {
-      const ref = it.referentiels
-      // Propre à cette organisation : déjà correctement filtré par RLS,
-      // toujours retenu.
-      if (ref.organisation_id) return true
-      // Partagé, universel (sans zone précise, ex. RezonWal) : retenu
-      // partout.
-      if (!ref.zone_nom) return true
-      // Partagé, zone-spécifique : retenu seulement si la zone résolue
-      // de l'événement correspond.
-      return zonesEvenement.includes(ref.zone_nom)
-    })
-
-    const applicables = visibles.filter((it) => {
-      if (it.toujours_applicable) return true
-      if (!it.condition_cle) return false
-      const [groupe, critere] = it.condition_cle.split('.')
-      return !!reponses[groupe]?.[critere]
-    })
-    setItems(applicables)
   }
 
   useEffect(() => {
