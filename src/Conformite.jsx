@@ -24,14 +24,72 @@ import { supabase } from './supabaseClient'
 // libellé ici s'affiche avec un nom dérivé de sa clé, pas absent.
 const LIBELLES_CONNUS = {
   'structure.chapiteau': 'Chapiteau(x)',
-  'structure.chapiteau_cuisine': 'Chapiteau cuisine distinct du public',
-  'structure.podium': 'Podium / structure portante',
+  'structure.podium': 'Podium et structures portantes',
   'structure.tribune': 'Tribune ou gradins',
-  'structure.gonflable': 'Structure gonflable',
-  'activite.balade': 'Balade / marche / randonnée',
+  'structure.portante': 'Structure portante — scène, portique, passerelle',
+  'structure.gonflable': 'Structure gonflable (château, arche)',
+  'structure.tonnelle': 'Tonnelle / canopy',
+  'structure.tente_communautaire': 'Tente communautaire (type SNJ)',
+  'structure.extension_temporaire': 'Extension temporaire (chalet, stand fermé)',
+  'structure.patinoire': 'Patinoire temporaire',
+  'structure.cube_publicitaire': 'Cube publicitaire',
+  'structure.ecran_geant': 'Écran géant',
+  'structure.local_permanent': "Local permanent utilisé hors de son usage habituel",
+  'cuisson.foodtruck': 'Food truck',
+  'cuisson.barbecue': 'Barbecue',
+  'cuisson.electrique': 'Cuisson — appareils électriques',
+  'cuisson.gaz': 'Cuisson — appareils au gaz',
+  'cuisson.gel_combustible': 'Cuisson — appareils à gel combustible',
+  'gaz.installation_fixe': 'Gaz — installation fixe',
+  'gaz.bouteilles_mobiles': 'Gaz — bouteilles mobiles',
+  'gaz.stockage': 'Gaz — stockage sur site',
+  'gaz.helium': "Gaz — ballons à l\u2019hélium",
+  'chauffage.brasero': 'Brasero',
+  'chauffage.champignon_gaz': 'Champignon chauffant à gaz',
+  'chauffage.canon_chaleur': 'Canon à chaleur',
+  'chauffage.poele_pellet_bois': 'Poêle à pellet / bois',
+  'chauffage.reserve_carburant': 'Réserve de carburant',
+  'installation.groupe_electrogene': 'Groupe électrogène',
+  'installation.stands': 'Plus de dix stands',
+  'activite.balade': 'Balade / marche / randonnée / trail',
+  'activite.balade_flambeaux': 'Balade aux flambeaux',
   'activite.camping': 'Camping provisoire',
-  'activite.pyrotechnie': 'Effets pyrotechniques / feu',
-  'activite.effets_speciaux': 'Brouillard, mousse ou stroboscope'
+  'activite.camp_scout': 'Camp scout',
+  'activite.cortege': 'Cortège pédestre',
+  'activite.cortege_motorise': 'Cortège motorisé / chars',
+  'activite.course_cycliste': 'Course cycliste',
+  'activite.automobile': 'Activité automobile (rallye, rassemblement)',
+  'activite.caisse_savon': 'Caisse à savon / cuistax / tracteur tondeuse',
+  'activite.pyrotechnie': 'Effets pyrotechniques / feu de grande taille',
+  'activite.feu_reduit': 'Feu de taille réduite',
+  'activite.bougies': 'Bougies',
+  'activite.lampes_combustible': 'Lampes à combustible liquide',
+  'activite.cracheur_feu': 'Cracheur de feu',
+  'activite.effets_speciaux': 'Brouillard, mousse ou stroboscope',
+  'activite.lacher_ballons': 'Lâcher de ballons',
+  'activite.lanternes': 'Lâcher de lanternes / balade aux lanternes',
+  'activite.animaux': 'Activité impliquant des animaux',
+  'activite.aquatique': 'Activité aquatique',
+  'activite.divertissement_actif': 'Divertissement actif',
+  'activite.divertissement_extreme': 'Divertissement extrême',
+  'activite.agricole': 'Démonstration agricole / horticole'
+}
+
+// Regroupe l'affichage du questionnaire par famille — une liste plate
+// de vingt-cinq cases devient illisible, un sujet à la fois ne l'est
+// pas. Un critère qui n'a pas encore de groupe connu (ajouté par un
+// référentiel local) atterrit sous « Autre », jamais perdu.
+const GROUPES_QUESTIONNAIRE = [
+  ['structure', 'Structures'],
+  ['cuisson', 'Cuisson et restauration'],
+  ['gaz', 'Gaz'],
+  ['chauffage', 'Chauffage'],
+  ['installation', 'Installations techniques'],
+  ['activite', 'Activités']
+]
+
+function libelleGroupe(prefixe) {
+  return GROUPES_QUESTIONNAIRE.find(([p]) => p === prefixe)?.[1] ?? 'Autre'
 }
 
 function libelleCritere(cle) {
@@ -138,11 +196,22 @@ function Questionnaire({ evenement, setMessage }) {
         les check-lists d'ouverture. La liste s'allonge automatiquement si un référentiel
         local ajoute une disposition conditionnée à un nouveau critère.
       </p>
-      {criteres.map((c) => (
-        <label key={c.cle} className="case-confirme" style={{ margin: '6px 0' }}>
-          <input type="checkbox" checked={coche(c.cle)} onChange={() => basculer(c.cle)} />
-          <span>{c.libelle}</span>
-        </label>
+      {Object.entries(
+        criteres.reduce((groupes, c) => {
+          const prefixe = c.cle.split('.')[0]
+          ;(groupes[prefixe] ??= []).push(c)
+          return groupes
+        }, {})
+      ).map(([prefixe, liste]) => (
+        <div key={prefixe} style={{ marginBottom: 14 }}>
+          <div className="pave-titre">{libelleGroupe(prefixe)}</div>
+          {liste.map((c) => (
+            <label key={c.cle} className="case-confirme" style={{ margin: '6px 0' }}>
+              <input type="checkbox" checked={coche(c.cle)} onChange={() => basculer(c.cle)} />
+              <span>{c.libelle}</span>
+            </label>
+          ))}
+        </div>
       ))}
       <button onClick={enregistrer} style={{ marginTop: 10 }}>
         {enregistre ? 'Enregistré ✓' : 'Enregistrer le questionnaire'}
