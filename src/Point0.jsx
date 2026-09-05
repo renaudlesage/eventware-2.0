@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 
 /**
@@ -20,9 +20,36 @@ export default function Point0({ evenement, onFait, setMessage }) {
   const [lat, setLat] = useState(evenement.point_0_lat ?? '')
   const [lon, setLon] = useState(evenement.point_0_lon ?? '')
   const [province, setProvince] = useState(evenement.province ?? '')
+  const [commune, setCommune] = useState(evenement.commune ?? '')
+  const [communesConnues, setCommunesConnues] = useState([])
   const [occupe, setOccupe] = useState(false)
   const [occupeProvince, setOccupeProvince] = useState(false)
+  const [occupeCommune, setOccupeCommune] = useState(false)
   const [provinceEnregistree, setProvinceEnregistree] = useState(false)
+  const [communeEnregistree, setCommuneEnregistree] = useState(false)
+
+  useEffect(() => {
+    supabase
+      .from('communes')
+      .select('nom')
+      .order('nom')
+      .then(({ data }) => setCommunesConnues(data ?? []))
+  }, [])
+
+  async function enregistrerCommune() {
+    setOccupeCommune(true)
+    const { error } = await supabase
+      .from('evenements')
+      .update({ commune: commune.trim() || null })
+      .eq('id', evenement.id)
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else {
+      onFait()
+      setCommuneEnregistree(true)
+      setTimeout(() => setCommuneEnregistree(false), 2500)
+    }
+    setOccupeCommune(false)
+  }
 
   async function enregistrerProvince() {
     setOccupeProvince(true)
@@ -134,6 +161,36 @@ export default function Point0({ evenement, onFait, setMessage }) {
           </span>
         </p>
       )}
+
+      <label htmlFor="commune" style={{ marginTop: 14 }}>
+        Commune — pour résoudre automatiquement la zone de police et la zone de secours
+      </label>
+      <div className="saisie-rapide">
+        <input
+          id="commune"
+          list="communes-connues"
+          value={commune}
+          onChange={(e) => setCommune(e.target.value)}
+          placeholder="ex. Ferrières"
+          style={{ flex: 1 }}
+        />
+        <datalist id="communes-connues">
+          {communesConnues.map((c) => (
+            <option key={c.nom} value={c.nom} />
+          ))}
+        </datalist>
+        <button
+          disabled={occupeCommune || commune === (evenement.commune ?? '')}
+          onClick={enregistrerCommune}
+        >
+          {communeEnregistree ? 'Enregistré ✓' : 'Enregistrer'}
+        </button>
+      </div>
+      <p className="aide">
+        Si la commune ne figure pas encore dans la bibliothèque, l'onglet Conformité →
+        Référentiels le signale clairement plutôt que de laisser croire à une couverture qui
+        n'existe pas.
+      </p>
     </section>
   )
 }

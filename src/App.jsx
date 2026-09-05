@@ -230,7 +230,7 @@ function Poste({ session, theme, setTheme }) {
     const { data, error } = await supabase
       .from('evenements')
       .select(
-        'id, nom, slug, geometrie, phase, jeton_public, point_0_lat, point_0_lon, province, modules, logo_url, membres_evenement(id, role, user_id, nom_affiche, perimetre, paves, equipe_id)'
+        'id, nom, slug, geometrie, phase, jeton_public, point_0_lat, point_0_lon, province, commune, organisation_id, modules, logo_url, membres_evenement(id, role, user_id, nom_affiche, perimetre, paves, equipe_id)'
       )
       .order('nom')
     if (error) setMessage({ type: 'erreur', texte: error.message })
@@ -497,6 +497,7 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
           session={session}
           peut={peut}
           toutPouvoir={toutPouvoir}
+          exploitant={exploitant}
           ongletCible={ongletCible}
         />
       )

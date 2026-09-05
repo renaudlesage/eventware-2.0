@@ -41,7 +41,7 @@ function groupesPour(modules) {
   }
 }
 
-export default function Securite({ evenement, membre, session, peut, toutPouvoir, ongletCible }) {
+export default function Securite({ evenement, membre, session, peut, toutPouvoir, exploitant, ongletCible }) {
   const GROUPES = groupesPour(evenement.modules)
   const [groupe, setGroupe] = useState('operationnel')
   const [onglet, setOnglet] = useState(
@@ -132,7 +132,7 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
       )}
       {onglet === 'fiches' && <Fiches evenement={evenement} />}
       {onglet === 'conformite' && (
-        <Conformite evenement={evenement} setMessage={setMessage} />
+        <Conformite evenement={evenement} exploitant={exploitant} setMessage={setMessage} />
       )}
       {onglet === 'sitrep' && (
         <Sitrep evenement={evenement} session={session} membre={membre} />
