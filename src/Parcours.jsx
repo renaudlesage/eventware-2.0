@@ -38,6 +38,12 @@ export default function Parcours({ evenement, membre }) {
         >
           Trace
         </button>
+        <button
+          className={`module ${vue === 'segments' ? 'actif' : ''}`}
+          onClick={() => setVue('segments')}
+        >
+          Segments
+        </button>
       </div>
 
       {message && (
@@ -51,6 +57,7 @@ export default function Parcours({ evenement, membre }) {
         <Pointage evenement={evenement} membre={membre} setMessage={setMessage} />
       )}
       {vue === 'trace' && <Trace evenement={evenement} setMessage={setMessage} />}
+      {vue === 'segments' && <Segments evenement={evenement} setMessage={setMessage} />}
     </div>
   )
 }
@@ -251,7 +258,8 @@ function FormGroupe({ evenement, onFait, setMessage }) {
     nom: '',
     effectif_prevu: '',
     accompagnateur_libre: '',
-    contact: ''
+    contact: '',
+    ratio_encadrement: ''
   })
 
   async function creer() {
@@ -259,7 +267,8 @@ function FormGroupe({ evenement, onFait, setMessage }) {
     const { error } = await supabase.from('groupes').insert({
       evenement_id: evenement.id,
       ...f,
-      effectif_prevu: f.effectif_prevu ? Number(f.effectif_prevu) : null
+      effectif_prevu: f.effectif_prevu ? Number(f.effectif_prevu) : null,
+      ratio_encadrement: f.ratio_encadrement ? Number(f.ratio_encadrement) : null
     })
     if (error) setMessage({ type: 'erreur', texte: error.message })
     else onFait()
@@ -298,11 +307,20 @@ function FormGroupe({ evenement, onFait, setMessage }) {
           onChange={(e) => setF({ ...f, contact: e.target.value })}
           placeholder="Téléphone"
         />
+        <input
+          type="number"
+          value={f.ratio_encadrement}
+          onChange={(e) => setF({ ...f, ratio_encadrement: e.target.value })}
+          placeholder="Encadrants visés"
+          style={{ flex: '0 1 130px' }}
+        />
         <button onClick={creer}>Créer</button>
       </div>
       <p className="aide">
         Le téléphone de l'accompagnateur est le champ le plus important : c'est la première
-        chose qu'on cherche quand un groupe ne donne plus de nouvelles.
+        chose qu'on cherche quand un groupe ne donne plus de nouvelles. « Encadrants visés »
+        est un nombre cible — combien de personnes doivent accompagner ce groupe — distinct
+        de l'accompagnateur nommé ci-dessus, qui n'est qu'une seule personne responsable.
       </p>
     </div>
   )
@@ -562,5 +580,173 @@ function FormulaireGenerique({ groupes, lieux, position, occupe, onPointer }) {
           : 'Position non disponible — le pointage reste valable avec le point de passage choisi.'}
       </p>
     </div>
+  )
+}
+
+/* ================================================================== */
+/* Segments — composition du chemin et distance de brancardage         */
+/* ================================================================== */
+
+const TYPES_CHEMIN = [
+  ['chemin_forestier', 'Chemin forestier carrossable'],
+  ['chemin_non_carrossable', 'Chemin non carrossable'],
+  ['voirie', 'Voirie']
+]
+
+function Segments({ evenement, setMessage }) {
+  const [lieux, setLieux] = useState([])
+  const [segments, setSegments] = useState([])
+  const [ouvrir, setOuvrir] = useState(false)
+  const [f, setF] = useState({
+    libelle: '', depart_lieu_id: '', arrivee_lieu_id: '',
+    brancardage_max_m: '', composition: [{ type: 'chemin_forestier', distance_m: '' }]
+  })
+
+  async function charger() {
+    const [l, s] = await Promise.all([
+      supabase.from('lieux').select('id, code, nom').eq('evenement_id', evenement.id).is('deleted_at', null).order('pk_km'),
+      supabase.from('segments_parcours').select('*, depart:depart_lieu_id(code,nom), arrivee:arrivee_lieu_id(code,nom)')
+        .eq('evenement_id', evenement.id).order('created_at')
+    ])
+    setLieux(l.data ?? [])
+    setSegments(s.data ?? [])
+  }
+
+  useEffect(() => {
+    charger()
+  }, [evenement.id])
+
+  function majComposition(i, champ, valeur) {
+    setF((x) => {
+      const c = [...x.composition]
+      c[i] = { ...c[i], [champ]: valeur }
+      return { ...x, composition: c }
+    })
+  }
+
+  function ajouterLigne() {
+    setF((x) => ({ ...x, composition: [...x.composition, { type: 'chemin_forestier', distance_m: '' }] }))
+  }
+
+  async function creer() {
+    const composition = f.composition
+      .filter((c) => c.distance_m)
+      .map((c) => ({ type: c.type, distance_m: Number(c.distance_m) }))
+    const distance_totale_m = composition.reduce((n, c) => n + c.distance_m, 0)
+
+    const { error } = await supabase.from('segments_parcours').insert({
+      evenement_id: evenement.id,
+      libelle: f.libelle.trim() || null,
+      depart_lieu_id: f.depart_lieu_id || null,
+      arrivee_lieu_id: f.arrivee_lieu_id || null,
+      brancardage_max_m: f.brancardage_max_m ? Number(f.brancardage_max_m) : null,
+      composition,
+      distance_totale_m: distance_totale_m || null
+    })
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else {
+      setF({ libelle: '', depart_lieu_id: '', arrivee_lieu_id: '', brancardage_max_m: '', composition: [{ type: 'chemin_forestier', distance_m: '' }] })
+      setOuvrir(false)
+      charger()
+    }
+  }
+
+  return (
+    <>
+      <p className="aide" style={{ marginTop: 0 }}>
+        Pas seulement une distance point à point : de quoi le tronçon est fait, et jusqu'où
+        il faudrait porter un blessé avant d'atteindre un point d'évacuation. Ce dernier
+        chiffre conditionne où placer les PRV — ce n'est pas une donnée décorative.
+      </p>
+
+      {segments.length === 0 ? (
+        <p className="vide">Aucun segment saisi pour l'instant.</p>
+      ) : (
+        segments.map((s) => (
+          <div className="carte" key={s.id}>
+            <div className="titre">
+              {s.libelle || `${s.depart?.code ?? '?'} → ${s.arrivee?.code ?? '?'}`}
+            </div>
+            <div className="meta">
+              {s.distance_totale_m && <span>{s.distance_totale_m} m</span>}
+              {s.brancardage_max_m && (
+                <span className={s.brancardage_max_m > 500 ? 'alerte-texte' : ''}>
+                  brancardage max {s.brancardage_max_m} m
+                </span>
+              )}
+            </div>
+            {s.composition?.length > 0 && (
+              <p className="aide" style={{ marginTop: 6 }}>
+                {s.composition
+                  .map((c) => `${TYPES_CHEMIN.find((t) => t[0] === c.type)?.[1] ?? c.type} : ${c.distance_m} m`)
+                  .join(' · ')}
+              </p>
+            )}
+          </div>
+        ))
+      )}
+
+      <div className="ligne-boutons" style={{ marginTop: 12 }}>
+        <button onClick={() => setOuvrir(!ouvrir)}>
+          {ouvrir ? 'Fermer' : '+ Ajouter un segment'}
+        </button>
+      </div>
+
+      {ouvrir && (
+        <div className="formulaire" style={{ marginTop: 10 }}>
+          <input
+            value={f.libelle}
+            onChange={(e) => setF({ ...f, libelle: e.target.value })}
+            placeholder="Libellé — ex. P0 → Étape 1"
+          />
+          <div className="saisie-rapide">
+            <select value={f.depart_lieu_id} onChange={(e) => setF({ ...f, depart_lieu_id: e.target.value })}>
+              <option value="">Départ —</option>
+              {lieux.map((l) => (
+                <option key={l.id} value={l.id}>{l.code} — {l.nom}</option>
+              ))}
+            </select>
+            <select value={f.arrivee_lieu_id} onChange={(e) => setF({ ...f, arrivee_lieu_id: e.target.value })}>
+              <option value="">Arrivée —</option>
+              {lieux.map((l) => (
+                <option key={l.id} value={l.id}>{l.code} — {l.nom}</option>
+              ))}
+            </select>
+          </div>
+
+          <label>Composition du chemin</label>
+          {f.composition.map((c, i) => (
+            <div className="saisie-rapide" key={i}>
+              <select value={c.type} onChange={(e) => majComposition(i, 'type', e.target.value)} style={{ flex: 2 }}>
+                {TYPES_CHEMIN.map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+              <input
+                type="number"
+                value={c.distance_m}
+                onChange={(e) => majComposition(i, 'distance_m', e.target.value)}
+                placeholder="mètres"
+                style={{ flex: '0 1 100px' }}
+              />
+            </div>
+          ))}
+          <button className="discret" onClick={ajouterLigne} style={{ marginBottom: 8 }}>
+            + Portion
+          </button>
+
+          <label htmlFor="branc">Distance maximale de brancardage (m)</label>
+          <input
+            id="branc"
+            type="number"
+            value={f.brancardage_max_m}
+            onChange={(e) => setF({ ...f, brancardage_max_m: e.target.value })}
+          />
+          <button onClick={creer} style={{ marginTop: 8 }}>
+            Enregistrer le segment
+          </button>
+        </div>
+      )}
+    </>
   )
 }

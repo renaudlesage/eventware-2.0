@@ -140,6 +140,7 @@ export default function PlanImplantation({ evenement, membre }) {
           ['carte', 'Carte'],
           ['secours', `Accès secours (${secours.length})`],
           ['risques', `Risques (${risques.length})`],
+          ['effectifs', 'Effectifs'],
           ['ajout', 'Ajouter']
         ].map(([k, l]) => (
           <button
@@ -342,6 +343,10 @@ export default function PlanImplantation({ evenement, membre }) {
         </>
       )}
 
+      {vue === 'effectifs' && (
+        <Effectifs evenement={evenement} setMessage={setMessage} />
+      )}
+
       {vue === 'ajout' && (
         <Ajout
           evenement={evenement}
@@ -526,4 +531,105 @@ function Cadrer({ elements }) {
     if (pts.length) carte.fitBounds(pts, { padding: [30, 30], maxZoom: 18 })
   }, [elements.length])
   return null
+}
+
+/* ================================================================== */
+/* Effectifs — fréquentation attendue et moyens de secours dénombrés   */
+/* ================================================================== */
+
+const TYPES_MOYENS = [
+  ['secouriste', 'Secouristes'],
+  ['trousse', 'Trousses de secours'],
+  ['ambulance', 'Ambulances'],
+  ['dea', 'DEA'],
+  ['extincteur', 'Extincteurs']
+]
+
+function Effectifs({ evenement, setMessage }) {
+  const [min, setMin] = useState(evenement.frequentation_min ?? '')
+  const [max, setMax] = useState(evenement.frequentation_max ?? '')
+  const [enregistre, setEnregistre] = useState(false)
+  const [moyens, setMoyens] = useState([])
+
+  async function charger() {
+    const { data } = await supabase
+      .from('moyens_premiers_secours')
+      .select('*')
+      .eq('evenement_id', evenement.id)
+      .order('type')
+    setMoyens(data ?? [])
+  }
+
+  useEffect(() => {
+    charger()
+  }, [evenement.id])
+
+  async function enregistrerFrequentation() {
+    const { error } = await supabase
+      .from('evenements')
+      .update({
+        frequentation_min: min ? Number(min) : null,
+        frequentation_max: max ? Number(max) : null
+      })
+      .eq('id', evenement.id)
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else {
+      setEnregistre(true)
+      setTimeout(() => setEnregistre(false), 2500)
+    }
+  }
+
+  async function majQuantite(type, quantite) {
+    const existant = moyens.find((m) => m.type === type)
+    if (existant) {
+      await supabase.from('moyens_premiers_secours').update({ quantite }).eq('id', existant.id)
+    } else {
+      await supabase.from('moyens_premiers_secours').insert({ evenement_id: evenement.id, type, quantite })
+    }
+    charger()
+  }
+
+  return (
+    <>
+      <div className="pave-titre">Fréquentation attendue au site principal</div>
+      <p className="aide" style={{ marginTop: -2 }}>
+        Distincte des effectifs de balade, déjà suivis groupe par groupe dans Parcours —
+        celle-ci porte sur le public général du site.
+      </p>
+      <div className="saisie-rapide">
+        <input
+          type="number"
+          value={min}
+          onChange={(e) => setMin(e.target.value)}
+          placeholder="Minimum"
+        />
+        <input
+          type="number"
+          value={max}
+          onChange={(e) => setMax(e.target.value)}
+          placeholder="Maximum"
+        />
+        <button onClick={enregistrerFrequentation}>
+          {enregistre ? 'Enregistré ✓' : 'Enregistrer'}
+        </button>
+      </div>
+
+      <div className="pave-titre" style={{ marginTop: 18 }}>Moyens de première intervention</div>
+      <p className="aide" style={{ marginTop: -2 }}>
+        Un compte, pas une localisation — les DEA et extincteurs situés sur le plan restent
+        des points sur la carte. Ici, combien il y en a au total.
+      </p>
+      {TYPES_MOYENS.map(([type, libelle]) => (
+        <div className="saisie-rapide" key={type}>
+          <span style={{ flex: 1 }}>{libelle}</span>
+          <input
+            type="number"
+            defaultValue={moyens.find((m) => m.type === type)?.quantite ?? 0}
+            onBlur={(e) => majQuantite(type, Number(e.target.value) || 0)}
+            style={{ flex: '0 1 90px' }}
+          />
+        </div>
+      ))}
+    </>
+  )
 }

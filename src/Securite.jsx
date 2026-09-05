@@ -5,6 +5,7 @@ import Maydays from './Maydays'
 import Meteo from './Meteo'
 import PcOps from './PcOps'
 import Conformite from './Conformite'
+import DossierSecurite from './DossierSecurite'
 
 /*
  * Deux familles distinctes, pas sept onglets à plat :
@@ -35,6 +36,7 @@ function groupesPour(modules) {
       onglets: [
         ['fiches', 'Fiches réflexe'],
         ['conformite', 'Conformité'],
+        ['dossier', 'Dossier de sécurité'],
         ['sitrep', 'Rapport']
       ]
     }
@@ -133,6 +135,9 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
       {onglet === 'fiches' && <Fiches evenement={evenement} />}
       {onglet === 'conformite' && (
         <Conformite evenement={evenement} exploitant={exploitant} setMessage={setMessage} />
+      )}
+      {onglet === 'dossier' && (
+        <DossierSecurite evenement={evenement} setMessage={setMessage} />
       )}
       {onglet === 'sitrep' && (
         <Sitrep evenement={evenement} session={session} membre={membre} />
