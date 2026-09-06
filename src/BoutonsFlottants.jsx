@@ -31,13 +31,6 @@ const NATURES_REX = [
   ['risque', 'Risque repéré']
 ]
 
-const IMPACTS = [
-  ['mineur', 'Mineur'],
-  ['gene', 'Gêne'],
-  ['bloquant', 'Bloquant'],
-  ['dangereux', 'Dangereux']
-]
-
 export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir }) {
   const [ouvert, setOuvert] = useState(null)
 
@@ -91,7 +84,7 @@ export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir 
                   ? 'Signaler un incident'
                   : ouvert === 'mayday'
                     ? 'Mayday — appel de détresse'
-                    : 'Signaler un constat'}
+                    : 'Retour d\u2019expérience'}
               </strong>
               <button className="lien" onClick={() => setOuvert(null)} aria-label="Fermer">
                 <X size={18} strokeWidth={2} aria-hidden="true" />
@@ -335,9 +328,7 @@ function FormMayday({ evenement, onFini }) {
 
 function FormRex({ evenement, membre, onFini }) {
   const [nature, setNature] = useState('dysfonctionnement')
-  const [impact, setImpact] = useState('gene')
   const [constat, setConstat] = useState('')
-  const [proposition, setProposition] = useState('')
   const [occupe, setOccupe] = useState(false)
   const [erreur, setErreur] = useState(null)
 
@@ -347,9 +338,8 @@ function FormRex({ evenement, membre, onFini }) {
     const { error } = await supabase.from('rex_entrees').insert({
       evenement_id: evenement.id,
       nature,
-      impact,
+      impact: 'gene',
       constat: constat.trim(),
-      proposition: proposition.trim() || null,
       phase: evenement.phase,
       membre_id: membre.id
     })
@@ -362,55 +352,36 @@ function FormRex({ evenement, membre, onFini }) {
     <div className="dom-ardoise">
       {erreur && <div className="message erreur">{erreur}</div>}
 
-      <div className="ligne-boutons" style={{ marginBottom: 12 }}>
+      <p className="aide" style={{ marginTop: 0 }}>
+        Noté à chaud, relu au débriefing. Court et concret suffit.
+      </p>
+
+      <label htmlFor="rex-nature">Nature</label>
+      <select id="rex-nature" value={nature} onChange={(e) => setNature(e.target.value)}>
         {NATURES_REX.map(([v, l]) => (
-          <button
-            key={v}
-            className={`module ${nature === v ? 'actif' : ''}`}
-            onClick={() => setNature(v)}
-          >
-            {l}
-          </button>
-        ))}
-      </div>
-
-      <label htmlFor="rex-constat">Ce que tu constates</label>
-      <input
-        id="rex-constat"
-        autoFocus
-        value={constat}
-        onChange={(e) => setConstat(e.target.value)}
-        placeholder="Sur le moment, avec tes mots"
-      />
-
-      <label htmlFor="rex-prop">Ce qu'il faudrait changer</label>
-      <input
-        id="rex-prop"
-        value={proposition}
-        onChange={(e) => setProposition(e.target.value)}
-        placeholder="Facultatif"
-      />
-
-      <label htmlFor="rex-impact">Impact</label>
-      <select id="rex-impact" value={impact} onChange={(e) => setImpact(e.target.value)}>
-        {IMPACTS.map(([v, l]) => (
           <option key={v} value={v}>
             {l}
           </option>
         ))}
       </select>
 
+      <label htmlFor="rex-constat">Ce que tu veux remonter</label>
+      <textarea
+        id="rex-constat"
+        autoFocus
+        rows={3}
+        value={constat}
+        onChange={(e) => setConstat(e.target.value)}
+        placeholder="Ex : le canal PMR15 sature aux heures de pointe, prévoir un 2e canal l'an prochain."
+      />
+
       <button
         className="bouton-terrain"
         disabled={occupe || !constat.trim()}
         onClick={envoyer}
       >
-        Consigner
+        Remonter ce point
       </button>
-      <p className="aide">
-        Un constat bloquant ou dangereux remonte aussitôt dans la main courante. Les autres
-        alimentent le retour d'expérience.
-      </p>
     </div>
   )
 }

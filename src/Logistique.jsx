@@ -688,28 +688,73 @@ function AttribuerChauffeur({ chauffeurs, actuel, vehiculeActuel, onValider }) {
 /* Nouvelle demande — point préétabli ou adresse libre                 */
 /* ------------------------------------------------------------------ */
 
+const TYPES_TRANSPORT = [
+  ['artiste_groupe', 'Artiste / groupe'],
+  ['staff_benevole', 'Staff / bénévole'],
+  ['technique_prestataire', 'Technique / prestataire']
+]
+
+const VOLUMES_MATERIEL = [
+  ['aucun', 'Aucun / bagages à main — voiture OK'],
+  ['leger', 'Léger — coffre suffisant'],
+  ['moyen', 'Moyen — utilitaire conseillé'],
+  ['important', 'Important — camion nécessaire']
+]
+
 function FormTransport({ evenement, lieux, onFait, onAnnuler, setMessage }) {
+  const [type, setType] = useState('artiste_groupe')
   const [depart, setDepart] = useState({ lieuId: '', libre: '' })
   const [arrivee, setArrivee] = useState({ lieuId: '', libre: '' })
   const [nbPersonnes, setNbPersonnes] = useState(1)
-  const [motif, setMotif] = useState('')
-  const [demandeur, setDemandeur] = useState('')
+  const [adresseDepart, setAdresseDepart] = useState('')
+  const [adresseArrivee, setAdresseArrivee] = useState('')
+  const [jour, setJour] = useState('')
+  const [heureRdv, setHeureRdv] = useState('')
+  const [heureAttendue, setHeureAttendue] = useState('')
+  const [volumeMateriel, setVolumeMateriel] = useState('aucun')
   const [contact, setContact] = useState('')
+  const [demandeur, setDemandeur] = useState('')
+  const [motif, setMotif] = useState('')
+  const [precisions, setPrecisions] = useState('')
   const [priorite, setPriorite] = useState('P3')
   const [occupe, setOccupe] = useState(false)
 
   const pret = (depart.lieuId || depart.libre.trim()) && (arrivee.lieuId || arrivee.libre.trim())
 
+  function combinerDateHeure(heure) {
+    if (!jour || !heure) return null
+    return new Date(`${jour}T${heure}:00`).toISOString()
+  }
+
+  function localiser(champ) {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        const texte = `${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)}`
+        if (champ === 'depart') setAdresseDepart(texte)
+        else setAdresseArrivee(texte)
+      },
+      () => setMessage({ type: 'erreur', texte: 'Position indisponible sur cet appareil.' })
+    )
+  }
+
   async function creer() {
     setOccupe(true)
     const { error } = await supabase.from('transports').insert({
       evenement_id: evenement.id,
+      type_transport: type,
       depart_lieu_id: depart.lieuId || null,
       depart_libre: depart.lieuId ? null : depart.libre.trim() || null,
       arrivee_lieu_id: arrivee.lieuId || null,
       arrivee_libre: arrivee.lieuId ? null : arrivee.libre.trim() || null,
+      adresse_depart: adresseDepart.trim() || null,
+      adresse_arrivee: adresseArrivee.trim() || null,
       nb_personnes: Number(nbPersonnes) || 1,
+      souhaite_pour: combinerDateHeure(heureRdv),
+      attendu_le: combinerDateHeure(heureAttendue),
+      volume_materiel: volumeMateriel,
       motif: motif.trim() || null,
+      precisions: precisions.trim() || null,
       demandeur: demandeur.trim() || null,
       contact: contact.trim() || null,
       priorite
@@ -721,27 +766,100 @@ function FormTransport({ evenement, lieux, onFait, onAnnuler, setMessage }) {
 
   return (
     <div className="formulaire">
-      <PointDepartArrivee
-        titre="Départ"
-        lieux={lieux}
-        valeur={depart}
-        onChange={setDepart}
-      />
-      <PointDepartArrivee
-        titre="Arrivée"
-        lieux={lieux}
-        valeur={arrivee}
-        onChange={setArrivee}
-      />
+      <label htmlFor="type-transport">Type</label>
+      <div className="ligne-boutons" style={{ marginBottom: 10 }}>
+        {TYPES_TRANSPORT.map(([v, l]) => (
+          <button
+            key={v}
+            className={`module ${type === v ? 'actif' : ''}`}
+            onClick={() => setType(v)}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
 
       <div className="saisie-rapide">
+        <input
+          value={motif}
+          onChange={(e) => setMotif(e.target.value)}
+          placeholder="Qui — nom du groupe ou de la personne"
+        />
         <input
           type="number"
           min="1"
           value={nbPersonnes}
           onChange={(e) => setNbPersonnes(e.target.value)}
-          placeholder="Nb pers."
+          placeholder="Nombre"
           style={{ flex: '0 1 90px' }}
+        />
+      </div>
+
+      <PointDepartArrivee titre="Depuis" lieux={lieux} valeur={depart} onChange={setDepart} />
+      <PointDepartArrivee titre="Vers" lieux={lieux} valeur={arrivee} onChange={setArrivee} />
+
+      <label htmlFor="adr-depart">Point de prise en charge (adresse GPS)</label>
+      <div className="saisie-rapide">
+        <input
+          id="adr-depart"
+          value={adresseDepart}
+          onChange={(e) => setAdresseDepart(e.target.value)}
+          placeholder="Rue, n°, code postal, ville"
+        />
+        <button className="discret" onClick={() => localiser('depart')} style={{ flex: '0 1 auto' }}>
+          📍
+        </button>
+      </div>
+
+      <label htmlFor="adr-arrivee">Destination finale (adresse GPS)</label>
+      <div className="saisie-rapide">
+        <input
+          id="adr-arrivee"
+          value={adresseArrivee}
+          onChange={(e) => setAdresseArrivee(e.target.value)}
+          placeholder="Rue, n°, code postal, ville"
+        />
+        <button className="discret" onClick={() => localiser('arrivee')} style={{ flex: '0 1 auto' }}>
+          📍
+        </button>
+      </div>
+
+      <label htmlFor="jour-transport">Jour</label>
+      <input
+        id="jour-transport"
+        type="date"
+        value={jour}
+        onChange={(e) => setJour(e.target.value)}
+      />
+
+      <label htmlFor="heure-rdv">Heure de rendez-vous — avec les personnes à transporter</label>
+      <input
+        id="heure-rdv"
+        type="time"
+        value={heureRdv}
+        onChange={(e) => setHeureRdv(e.target.value)}
+      />
+
+      <label htmlFor="heure-attendue">Heure attendue à destination</label>
+      <input
+        id="heure-attendue"
+        type="time"
+        value={heureAttendue}
+        onChange={(e) => setHeureAttendue(e.target.value)}
+      />
+
+      <label htmlFor="volume">Volume de matériel à embarquer</label>
+      <select id="volume" value={volumeMateriel} onChange={(e) => setVolumeMateriel(e.target.value)}>
+        {VOLUMES_MATERIEL.map(([v, l]) => (
+          <option key={v} value={v}>{l}</option>
+        ))}
+      </select>
+
+      <div className="saisie-rapide">
+        <input
+          value={contact}
+          onChange={(e) => setContact(e.target.value)}
+          placeholder="Contact sur place (téléphone, facultatif)"
         />
         <select
           value={priorite}
@@ -752,26 +870,20 @@ function FormTransport({ evenement, lieux, onFait, onAnnuler, setMessage }) {
             <option key={p}>{p}</option>
           ))}
         </select>
-        <input
-          value={motif}
-          onChange={(e) => setMotif(e.target.value)}
-          placeholder="Motif"
-        />
       </div>
-      <div className="saisie-rapide">
-        <input
-          value={demandeur}
-          onChange={(e) => setDemandeur(e.target.value)}
-          placeholder="Demandé par"
-        />
-        <input
-          value={contact}
-          onChange={(e) => setContact(e.target.value)}
-          placeholder="Contact"
-        />
-      </div>
+      <input
+        value={demandeur}
+        onChange={(e) => setDemandeur(e.target.value)}
+        placeholder="Demandé par (facultatif)"
+      />
+      <textarea
+        rows={2}
+        value={precisions}
+        onChange={(e) => setPrecisions(e.target.value)}
+        placeholder="Précisions — contraintes horaires, matériel particulier, accès…"
+      />
 
-      <div className="ligne-boutons">
+      <div className="ligne-boutons" style={{ marginTop: 10 }}>
         <button disabled={occupe || !pret} onClick={creer}>
           Créer la demande
         </button>

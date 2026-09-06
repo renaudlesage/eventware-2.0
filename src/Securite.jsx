@@ -275,26 +275,26 @@ const PRIORITES = ['P1', 'P2', 'P3', 'P4']
 export function Missions({ evenement, membre, setMessage, module = 'securite', libelle = 'Demandes' }) {
   const [missions, setMissions] = useState([])
   const [equipes, setEquipes] = useState([])
+  const [lieux, setLieux] = useState([])
   const [filtre, setFiltre] = useState('tout')
   const [ouvert, setOuvert] = useState(null)
   const [creer, setCreer] = useState(null) // null | 'normal' | 'urgent'
-  const [titre, setTitre] = useState('')
-  const [priorite, setPriorite] = useState('P3')
-  const [occupe, setOccupe] = useState(false)
 
   async function charger() {
-    const [m, e] = await Promise.all([
+    const [m, e, l] = await Promise.all([
       supabase
         .from('missions')
         .select('*')
         .eq('evenement_id', evenement.id)
         .eq('module', module)
         .order('created_at', { ascending: false }),
-      supabase.from('equipes').select('id, code, nom').eq('evenement_id', evenement.id)
+      supabase.from('equipes').select('id, code, nom').eq('evenement_id', evenement.id),
+      supabase.from('lieux').select('id, code, nom').eq('evenement_id', evenement.id).is('deleted_at', null)
     ])
     if (m.error) setMessage({ type: 'erreur', texte: m.error.message })
     else setMissions(m.data ?? [])
     setEquipes(e.data ?? [])
+    setLieux(l.data ?? [])
   }
 
   useEffect(() => {
@@ -302,24 +302,6 @@ export function Missions({ evenement, membre, setMessage, module = 'securite', l
     const t = setInterval(charger, 20000)
     return () => clearInterval(t)
   }, [evenement.id, module])
-
-  async function creerDemande() {
-    setOccupe(true)
-    const { error } = await supabase.from('missions').insert({
-      evenement_id: evenement.id,
-      module,
-      titre: titre.trim(),
-      priorite,
-      phase: evenement.phase
-    })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
-    else {
-      setTitre('')
-      setCreer(null)
-      charger()
-    }
-    setOccupe(false)
-  }
 
   async function modifier(id, champs) {
     const { error, count } = await supabase
@@ -378,48 +360,33 @@ export function Missions({ evenement, membre, setMessage, module = 'securite', l
         </button>
         <button
           className="action-creer"
-          onClick={() => {
-            setPriorite('P3')
-            setCreer(creer === 'normal' ? null : 'normal')
-          }}
+          onClick={() => setCreer(creer === 'normal' ? null : 'normal')}
         >
           + Nouvelle demande
         </button>
         <button
           className="action-urgente"
-          onClick={() => {
-            setPriorite('P1')
-            setCreer(creer === 'urgent' ? null : 'urgent')
-          }}
+          onClick={() => setCreer(creer === 'urgent' ? null : 'urgent')}
         >
           ⚠ Demande urgente
         </button>
       </div>
 
       {creer && (
-        <div className="formulaire">
-          <div className="saisie-rapide">
-            <input
-              value={titre}
-              onChange={(e) => setTitre(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && titre.trim() && creerDemande()}
-              placeholder={`Nouvelle demande — ${libelle.toLowerCase()}`}
-              autoFocus
-            />
-            <select
-              value={priorite}
-              onChange={(e) => setPriorite(e.target.value)}
-              style={{ width: 'auto', marginBottom: 0 }}
-            >
-              {['P1', 'P2', 'P3', 'P4'].map((p) => (
-                <option key={p}>{p}</option>
-              ))}
-            </select>
-            <button disabled={occupe || !titre.trim()} onClick={creerDemande}>
-              Créer
-            </button>
-          </div>
-        </div>
+        <FormDemande
+          mode={creer}
+          evenement={evenement}
+          membre={membre}
+          module={module}
+          libelle={libelle}
+          lieux={lieux}
+          setMessage={setMessage}
+          onFait={() => {
+            setCreer(null)
+            charger()
+          }}
+          onAnnuler={() => setCreer(null)}
+        />
       )}
 
       {visibles.length === 0 ? (
@@ -483,6 +450,219 @@ export function Missions({ evenement, membre, setMessage, module = 'securite', l
         })
       )}
     </>
+  )
+}
+
+const NATURES_URGENTES = [
+  ['bloquante_generale', 'Situation bloquante générale'],
+  ['secours_necessaire', 'Besoin de secours'],
+  ['probleme_securite', 'Problème de sécurité'],
+  ['panne_critique', 'Panne critique'],
+  ['autre', 'Autre urgence']
+]
+
+const DELAIS_SOUHAITES = [
+  ['dans_heure', "Dans l'heure"],
+  ['avant_fin_journee', 'Avant la fin de journée'],
+  ['demain', 'Demain'],
+  ['sans_urgence', 'Sans urgence particulière']
+]
+
+const LIBELLE_ROLE = {
+  coordinateur: 'Coordinateur',
+  admin: 'Admin',
+  chef_equipe: "Chef d'équipe",
+  benevole: 'Bénévole',
+  observateur: 'Observateur'
+}
+
+function echeanceDepuisDelai(delai) {
+  const maintenant = new Date()
+  if (delai === 'dans_heure') return new Date(maintenant.getTime() + 3600000).toISOString()
+  if (delai === 'avant_fin_journee') {
+    const fin = new Date(maintenant)
+    fin.setHours(23, 59, 0, 0)
+    return fin.toISOString()
+  }
+  if (delai === 'demain') {
+    const demain = new Date(maintenant)
+    demain.setDate(demain.getDate() + 1)
+    demain.setHours(12, 0, 0, 0)
+    return demain.toISOString()
+  }
+  return null
+}
+
+/**
+ * Demande urgente ou normale — deux formulaires distincts, repris de
+ * BFMF2026, pas une variante habillée différemment. L'urgente capte la
+ * position GPS toute seule et demande qui est concerné ; la normale
+ * demande un délai souhaité et affiche qui signale, en lecture seule,
+ * parce que c'est toujours celui qui est connecté.
+ */
+function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessage, onFait, onAnnuler }) {
+  const urgent = mode === 'urgent'
+  const [natureUrgente, setNatureUrgente] = useState(NATURES_URGENTES[0][0])
+  const [natureLibre, setNatureLibre] = useState('')
+  const [lieuId, setLieuId] = useState('')
+  const [quiConcerne, setQuiConcerne] = useState('')
+  const [descriptif, setDescriptif] = useState('')
+  const [delaiSouhaite, setDelaiSouhaite] = useState('dans_heure')
+  const [bloquant, setBloquant] = useState(false)
+  const [position, setPosition] = useState(null)
+  const [occupe, setOccupe] = useState(false)
+
+  useEffect(() => {
+    if (!urgent || !navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      (p) => setPosition({ lat: p.coords.latitude, lon: p.coords.longitude, precision: Math.round(p.coords.accuracy) }),
+      () => {} // silencieux : la position reste facultative, la localisation par lieu suffit
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urgent])
+
+  const pret = urgent
+    ? descriptif.trim().length >= 5
+    : natureLibre.trim().length > 0
+
+  async function creer() {
+    setOccupe(true)
+    const titre = urgent ? NATURES_URGENTES.find((n) => n[0] === natureUrgente)[1] : natureLibre.trim()
+    const { error } = await supabase.from('missions').insert({
+      evenement_id: evenement.id,
+      module,
+      phase: evenement.phase,
+      titre,
+      priorite: urgent ? 'P1' : 'P3',
+      lieu_id: lieuId || null,
+      latitude: urgent ? position?.lat ?? null : null,
+      longitude: urgent ? position?.lon ?? null : null,
+      qui_concerne: urgent ? quiConcerne.trim() || null : null,
+      description: urgent ? descriptif.trim() : null,
+      bloquant: urgent ? false : bloquant,
+      echeance: urgent ? null : echeanceDepuisDelai(delaiSouhaite)
+    })
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else onFait()
+    setOccupe(false)
+  }
+
+  return (
+    <div className="formulaire">
+      <div className="pave-titre" style={{ marginTop: 0 }}>
+        {urgent ? `Demande urgente — ${libelle}` : `Nouvelle demande — ${libelle}`}
+      </div>
+      {urgent ? (
+        <>
+          <p className="aide" style={{ marginTop: 0 }}>
+            Pour un besoin d'appui (renfort, matériel, panne), traité <strong>en priorité P1</strong> au
+            QG. Pour une <strong>urgence vitale</strong>, utilisez le bouton SOS ou le 112.
+          </p>
+
+          <label htmlFor="nature-urgente">Nature de l'alerte *</label>
+          <select id="nature-urgente" value={natureUrgente} onChange={(e) => setNatureUrgente(e.target.value)}>
+            {NATURES_URGENTES.map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </select>
+
+          <label htmlFor="lieu-urgente">Localisation *</label>
+          <select id="lieu-urgente" value={lieuId} onChange={(e) => setLieuId(e.target.value)}>
+            <option value="">— choisir un lieu du dispositif —</option>
+            {lieux.map((l) => (
+              <option key={l.id} value={l.id}>{l.code} · {l.nom}</option>
+            ))}
+          </select>
+
+          {position && (
+            <p className="aide" style={{ color: 'var(--etat-ok)' }}>
+              📍 Position GPS captée (~{position.precision} m) — ajoutée à la zone pour préciser
+              l'endroit exact.
+            </p>
+          )}
+
+          <label htmlFor="qui-concerne">Qui est concerné</label>
+          <input
+            id="qui-concerne"
+            value={quiConcerne}
+            onChange={(e) => setQuiConcerne(e.target.value)}
+            placeholder="Ex : bénévole bar, festivalier, prestataire son…"
+          />
+
+          <label htmlFor="descriptif">Descriptif de la situation * (min. 5 car.)</label>
+          <textarea
+            id="descriptif"
+            rows={3}
+            value={descriptif}
+            onChange={(e) => setDescriptif(e.target.value)}
+            placeholder="Ce qui se passe, depuis quand, besoin exprimé…"
+          />
+
+          <button disabled={occupe || !pret} onClick={creer} style={{ marginTop: 8 }}>
+            Envoyer la demande
+          </button>
+          <p className="aide">
+            Visible immédiatement au QG et sur l'app Volante. Doubler à la radio (PMR4.1, PMR333
+            si vital).
+          </p>
+        </>
+      ) : (
+        <>
+          <label htmlFor="nature-normale">Nature de l'incident / besoin matériel *</label>
+          <input
+            id="nature-normale"
+            value={natureLibre}
+            onChange={(e) => setNatureLibre(e.target.value)}
+            placeholder="Ex : Panne éclairage, manque gobelets…"
+          />
+
+          <div className="saisie-rapide">
+            <div style={{ flex: 1 }}>
+              <label htmlFor="lieu-normale">Localisation</label>
+              <select id="lieu-normale" value={lieuId} onChange={(e) => setLieuId(e.target.value)}>
+                <option value="">— choisir un lieu du dispositif —</option>
+                {lieux.map((l) => (
+                  <option key={l.id} value={l.id}>{l.code} · {l.nom}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <label htmlFor="delai">Délai souhaité</label>
+              <select id="delai" value={delaiSouhaite} onChange={(e) => setDelaiSouhaite(e.target.value)}>
+                {DELAIS_SOUHAITES.map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <label htmlFor="bloquant-select">Incident bloquant ?</label>
+          <select
+            id="bloquant-select"
+            value={bloquant ? 'oui' : 'non'}
+            onChange={(e) => setBloquant(e.target.value === 'oui')}
+          >
+            <option value="non">Non</option>
+            <option value="oui">Oui</option>
+          </select>
+
+          <label htmlFor="qui-signale">Qui signale ? (lecture seule — auto)</label>
+          <input
+            id="qui-signale"
+            value={`${membre.nom_affiche ?? '—'} (${LIBELLE_ROLE[membre.role] ?? membre.role})`}
+            disabled
+          />
+
+          <button disabled={occupe || !pret} onClick={creer} style={{ marginTop: 8 }}>
+            Injecter la demande
+          </button>
+        </>
+      )}
+
+      <button className="discret" onClick={onAnnuler} style={{ marginTop: 8 }}>
+        Annuler
+      </button>
+    </div>
   )
 }
 

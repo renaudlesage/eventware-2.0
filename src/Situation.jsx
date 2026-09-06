@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
 import Meteo from './Meteo'
 import Maydays from './Maydays'
@@ -18,11 +18,54 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
   const [s, setS] = useState(null)
   const [erreur, setErreur] = useState(null)
   const [maj, setMaj] = useState(null)
+  const [sonActif, setSonActif] = useState(false)
+  const [veilleActive, setVeilleActive] = useState(false)
+  const [veilleIndisponible, setVeilleIndisponible] = useState(false)
+  const wakeLockRef = useRef(null)
+  const urgencePrecedenteRef = useRef(null)
+
+  // Compte ce qui exige vraiment une réaction immédiate — alertes
+  // actives (le Mayday y crée déjà sa propre ligne, pas besoin de le
+  // compter à part) et missions P1 non résolues. Un simple total, pas
+  // le détail : on ne veut savoir qu'une chose, si ça vient de monter.
+  function compterUrgent(donnees) {
+    const alertesActives = donnees?.alertes?.length ?? 0
+    const p1 = donnees?.missions?.p1 ?? 0
+    return alertesActives + p1
+  }
+
+  function jouerAlarme() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)()
+      ;[0, 260, 520].forEach((decalage) => {
+        setTimeout(() => {
+          const osc = ctx.createOscillator()
+          const gain = ctx.createGain()
+          osc.type = 'square'
+          osc.frequency.value = 880
+          gain.gain.value = 0.15
+          osc.connect(gain)
+          gain.connect(ctx.destination)
+          osc.start()
+          osc.stop(ctx.currentTime + 0.18)
+        }, decalage)
+      })
+    } catch {
+      /* Certains navigateurs bloquent l'audio sans interaction récente
+         de l'utilisateur — l'activation du son par un clic suffit
+         normalement, mais on ne casse jamais l'écran pour ça. */
+    }
+  }
 
   async function charger() {
     const { data, error } = await supabase.rpc('situation', { p_evenement: evenement.id })
     if (error) setErreur(error.message)
     else {
+      const urgentAvant = urgencePrecedenteRef.current
+      const urgentMaintenant = compterUrgent(data)
+      if (sonActif && urgentAvant != null && urgentMaintenant > urgentAvant) jouerAlarme()
+      urgencePrecedenteRef.current = urgentMaintenant
+
       setS(data)
       setMaj(new Date())
       setErreur(null)
@@ -33,7 +76,37 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
     charger()
     const t = setInterval(charger, 20000)
     return () => clearInterval(t)
-  }, [evenement.id])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evenement.id, sonActif])
+
+  // Veille active — repris de BFMF2026 : le QG reste affiché en
+  // permanence sur un écran dédié, un verrouillage automatique y est
+  // plus gênant qu'utile. Relâché à la fermeture ou si l'onglet perd le
+  // focus puis qu'on désactive — jamais laissé actif en arrière-plan
+  // sans que l'utilisateur l'ait choisi ici.
+  async function basculerVeille() {
+    if (veilleActive) {
+      wakeLockRef.current?.release()
+      wakeLockRef.current = null
+      setVeilleActive(false)
+      return
+    }
+    if (!('wakeLock' in navigator)) {
+      setVeilleIndisponible(true)
+      return
+    }
+    try {
+      wakeLockRef.current = await navigator.wakeLock.request('screen')
+      setVeilleActive(true)
+      wakeLockRef.current.addEventListener('release', () => setVeilleActive(false))
+    } catch {
+      setVeilleIndisponible(true)
+    }
+  }
+
+  useEffect(() => {
+    return () => wakeLockRef.current?.release()
+  }, [])
 
   if (erreur) return <div className="message erreur">{erreur}</div>
   if (!s) return <p className="vide">Chargement de la situation…</p>
@@ -44,10 +117,31 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
     <div className="situation dom-indigo">
       <div className="entete-dashboard">
         <h2>Situation</h2>
-        <span className="compte">
-          {maj && `relevé ${maj.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}`}
-        </span>
+        <div className="ligne-boutons" style={{ marginBottom: 0 }}>
+          <button
+            className={sonActif ? '' : 'discret'}
+            onClick={() => setSonActif(!sonActif)}
+            title="Alarme sonore sur toute nouvelle urgence — mayday, P1, alerte"
+          >
+            {sonActif ? '🔔 Son ON' : '🔕 Son OFF'}
+          </button>
+          <button
+            className={veilleActive ? '' : 'discret'}
+            onClick={basculerVeille}
+            title="Empêche le verrouillage automatique de cet écran"
+          >
+            {veilleActive ? '☀ Veille ON' : '🌙 Veille OFF'}
+          </button>
+          <span className="compte">
+            {maj && `relevé ${maj.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}`}
+          </span>
+        </div>
       </div>
+      {veilleIndisponible && (
+        <p className="aide">
+          Ce navigateur ne permet pas d'empêcher le verrouillage d'écran depuis cette page.
+        </p>
+      )}
 
       {/* --- 1. Ce qui exige une décision --- */}
 
