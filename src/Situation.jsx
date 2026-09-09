@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import Meteo from './Meteo'
 import Maydays from './Maydays'
 import { libelleStatut } from './libelles'
+import { TYPES } from './PcOps'
 
 /**
  * Tableau de bord général — la vue QG.
@@ -17,6 +18,7 @@ import { libelleStatut } from './libelles'
  */
 export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
   const [s, setS] = useState(null)
+  const [signalementsRecents, setSignalementsRecents] = useState([])
   const [erreur, setErreur] = useState(null)
   const [maj, setMaj] = useState(null)
   const [sonActif, setSonActif] = useState(false)
@@ -59,7 +61,21 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
   }
 
   async function charger() {
-    const { data, error } = await supabase.rpc('situation', { p_evenement: evenement.id })
+    const [{ data, error }, sig] = await Promise.all([
+      supabase.rpc('situation', { p_evenement: evenement.id }),
+      // Requête directe plutôt que de dépendre du sous-objet exposé
+      // par situation() : le moniteur affichait la référence et le
+      // type, jamais le descriptif que la personne a réellement tapé
+      // — illisible en pratique. On garde le contrôle total des
+      // colonnes ici plutôt que de deviner ce que le RPC choisit
+      // d'exposer.
+      supabase
+        .from('signalements')
+        .select('id, reference, type, description, statut')
+        .eq('evenement_id', evenement.id)
+        .order('recu_le', { ascending: false })
+        .limit(5)
+    ])
     if (error) setErreur(error.message)
     else {
       const urgentAvant = urgencePrecedenteRef.current
@@ -68,6 +84,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
       urgencePrecedenteRef.current = urgentMaintenant
 
       setS(data)
+      setSignalementsRecents(sig.data ?? [])
       setMaj(new Date())
       setErreur(null)
     }
@@ -203,8 +220,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
             }
           ]}
         >
-          {(s.signalements?.derniers ?? []).length === 0 &&
-          (s.recherches ?? []).length === 0 ? (
+          {signalementsRecents.length === 0 && (s.recherches ?? []).length === 0 ? (
             <p className="moniteur-vide">Aucun signalement actif.</p>
           ) : (
             <>
@@ -214,15 +230,18 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
                   <span>{r.description}</span>
                 </div>
               ))}
-              {(s.signalements?.derniers ?? []).slice(0, 5).map((x, i) => (
+              {signalementsRecents.map((x) => (
                 <div
                   className={`moniteur-ligne ${x.statut === 'recu' ? 'urgent' : ''}`}
-                  key={'s' + i}
+                  key={x.id}
                 >
                   <strong>
-                    {x.reference} — {x.type}
+                    {TYPES[x.type] ?? x.type}
+                    {x.description ? ` — ${x.description}` : ''}
                   </strong>
-                  <span>{libelleStatut(x.statut)}</span>
+                  <span>
+                    {libelleStatut(x.statut)} <span className="mono">· {x.reference}</span>
+                  </span>
                 </div>
               ))}
             </>

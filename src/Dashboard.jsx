@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { PAVES, pavesDisponibles, pavesObligatoires, composition } from './paves'
+import { libelleStatut } from './libelles'
+import { etatDe } from './Securite'
 
 export default function Dashboard({ evenement, membre, peut, onFait, onAller }) {
   const [reglage, setReglage] = useState(false)
@@ -125,6 +127,8 @@ function Contenu({ clef, evenement, membre, onAller }) {
       return <PaveMateriel evenement={evenement} />
     case 'planning':
       return <PavePlanning evenement={evenement} onAller={onAller} />
+    case 'mes_demandes':
+      return <PaveMesDemandes evenement={evenement} membre={membre} onAller={onAller} />
     default:
       return null
   }
@@ -215,6 +219,76 @@ function PaveListe({ evenement, table, champ, second }) {
  * transports datés) et le même calcul de "en cours" — les deux doivent
  * dire la même chose, sinon le pavé contredirait l'écran qu'il ouvre.
  */
+// Module → écran, pour router chaque demande vers le bon endroit sans
+// devoir cliquer sur tout le pavé — une demande sécurité et une
+// demande logistique ne mènent pas au même écran.
+const ECRAN_PAR_MODULE = {
+  securite: 'securite',
+  logistique: 'logistique',
+  rh: 'rh',
+  parcours: 'parcours'
+}
+
+function PaveMesDemandes({ evenement, membre, onAller }) {
+  const [demandes, setDemandes] = useState(null)
+
+  useEffect(() => {
+    let vivant = true
+    supabase
+      .from('missions')
+      .select('id, reference, titre, statut, module, priorite')
+      .eq('evenement_id', evenement.id)
+      .eq('created_by', membre.user_id)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(6)
+      .then(({ data }) => {
+        if (vivant) setDemandes(data ?? [])
+      })
+    return () => {
+      vivant = false
+    }
+  }, [evenement.id, membre.user_id])
+
+  if (demandes === null) return null
+  if (demandes.length === 0) {
+    return <p className="vide">Aucune demande envoyée pour l'instant.</p>
+  }
+
+  const enCours = demandes.filter((d) => !['resolue', 'annulee'].includes(d.statut))
+
+  return (
+    <ul className="chrono">
+      {demandes.map((d) => {
+        const ecran = ECRAN_PAR_MODULE[d.module]
+        const contenu = (
+          <>
+            <span className={`point-etat point-${etatDe(d)}`} />
+            <span className="corps">
+              <span className="mono">{d.reference}</span> {d.titre}
+            </span>
+            <span className="jeton">{libelleStatut(d.statut)}</span>
+          </>
+        )
+        return ecran ? (
+          <li key={d.id}>
+            <button className="pave-lien-ligne" onClick={() => onAller?.(ecran)}>
+              {contenu}
+            </button>
+          </li>
+        ) : (
+          <li key={d.id}>{contenu}</li>
+        )
+      })}
+      {enCours.length > 0 && (
+        <li className="aide" style={{ padding: '4px 0 0' }}>
+          {enCours.length} en cours de traitement
+        </li>
+      )}
+    </ul>
+  )
+}
+
 function PavePlanning({ evenement }) {
   const [items, setItems] = useState(null)
 

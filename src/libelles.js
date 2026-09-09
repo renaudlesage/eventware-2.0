@@ -57,6 +57,7 @@ export function libelleStatut(code) {
 export const DOMAINES = [
   ['securite', 'Sécurité'],
   ['logistique', 'Logistique'],
+  ['sanitaire', 'Sanitaire'],
   ['parcours', 'Parcours'],
   ['rh', 'Bénévoles'],
   ['sos', 'Signalements']

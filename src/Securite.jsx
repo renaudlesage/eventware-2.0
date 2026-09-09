@@ -153,7 +153,6 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
 /* ================================================================== */
 
 // Pour la saisie manuelle : uniquement les domaines qu'une personne
-// Pour la saisie manuelle : uniquement les domaines qu'une personne
 // choisit elle-même, importés du module partagé — « Météo », « noyau »
 // (alertes système) et « Analyse » n'existent que par écriture
 // automatique, inutile de les proposer à la saisie, mais leurs
@@ -163,7 +162,6 @@ const MODULES_SAISIE = DOMAINES
 const MODULES_JOURNAL = [
   ...MODULES_SAISIE,
   ['meteo', 'Météo'],
-  ['sanitaire', 'Sanitaire'],
   ['analyse', 'Analyse'],
   ['noyau', 'Plateforme']
 ]
@@ -320,16 +318,22 @@ const STATUTS_MISSION = [
 
 const PRIORITES = ['P1', 'P2', 'P3', 'P4']
 
+function emetteurDe(mission, membres) {
+  const m = membres.find((x) => x.user_id === mission.created_by)
+  return m?.nom_affiche ? `signalée par ${m.nom_affiche}` : 'émetteur inconnu'
+}
+
 export function Missions({ evenement, membre, setMessage, module = 'securite', libelle = 'Demandes' }) {
   const [missions, setMissions] = useState([])
   const [equipes, setEquipes] = useState([])
   const [lieux, setLieux] = useState([])
+  const [membres, setMembres] = useState([])
   const [filtre, setFiltre] = useState('tout')
   const [ouvert, setOuvert] = useState(null)
   const [creer, setCreer] = useState(null) // null | 'normal' | 'urgent'
 
   async function charger() {
-    const [m, e, l] = await Promise.all([
+    const [m, e, l, mb] = await Promise.all([
       supabase
         .from('missions')
         .select('*')
@@ -337,12 +341,14 @@ export function Missions({ evenement, membre, setMessage, module = 'securite', l
         .eq('module', module)
         .order('created_at', { ascending: false }),
       supabase.from('equipes').select('id, code, nom').eq('evenement_id', evenement.id),
-      supabase.from('lieux').select('id, code, nom').eq('evenement_id', evenement.id).is('deleted_at', null)
+      supabase.from('lieux').select('id, code, nom').eq('evenement_id', evenement.id).is('deleted_at', null),
+      supabase.from('membres_evenement').select('user_id, nom_affiche').eq('evenement_id', evenement.id)
     ])
     if (m.error) setMessage({ type: 'erreur', texte: m.error.message })
     else setMissions(m.data ?? [])
     setEquipes(e.data ?? [])
     setLieux(l.data ?? [])
+    setMembres(mb.data ?? [])
   }
 
   useEffect(() => {
@@ -466,6 +472,28 @@ export function Missions({ evenement, membre, setMessage, module = 'securite', l
                       </span>
                     )}
                   </div>
+
+                  {/* Horodatage et émetteur — demande explicite du terrain
+                      dans le REX BFMF 2026 : les deux existaient déjà en
+                      base, jamais montrés à l'écran. */}
+                  <p className="aide" style={{ margin: '6px 0' }}>
+                    {emetteurDe(m, membres)} · créée{' '}
+                    {new Date(m.created_at).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
+                    {m.attribuee_le && ` · attribuée ${new Date(m.attribuee_le).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}`}
+                    {m.demarree_le && ` · démarrée ${new Date(m.demarree_le).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}`}
+                    {m.resolue_le && ` · résolue ${new Date(m.resolue_le).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}`}
+                  </p>
+
+                  <label htmlFor={`commentaire-${m.id}`}>
+                    Commentaire du QG — visible par celui qui a signalé
+                  </label>
+                  <input
+                    id={`commentaire-${m.id}`}
+                    defaultValue={m.commentaire_qg ?? ''}
+                    placeholder="Pris en compte, en cours, prévu pour…"
+                    onBlur={(e) => modifier(m.id, { commentaire_qg: e.target.value.trim() || null })}
+                  />
+
                   <div className="ligne-boutons" style={{ marginTop: 10 }}>
                     <select
                       value={m.statut}
@@ -490,6 +518,23 @@ export function Missions({ evenement, membre, setMessage, module = 'securite', l
                         </option>
                       ))}
                     </select>
+                    <select
+                      value={m.module}
+                      onChange={(e) => modifier(m.id, { module: e.target.value })}
+                      style={{ width: 'auto', marginBottom: 0 }}
+                    >
+                      {MODULES_SAISIE.map(([v, l]) => (
+                        <option key={v} value={v}>{l}</option>
+                      ))}
+                    </select>
+                    {(m.equipe_id || m.statut === 'attribuee') && (
+                      <button
+                        className="discret"
+                        onClick={() => modifier(m.id, { equipe_id: null, statut: 'a_traiter' })}
+                      >
+                        Annuler l'attribution
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -821,7 +866,7 @@ function CompteurCarre({ libelle, v, etat }) {
   )
 }
 
-function etatDe(m) {
+export function etatDe(m) {
   if (['resolue', 'annulee'].includes(m.statut)) return 'ok'
   if (m.priorite === 'P1') return 'urgent'
   if (m.statut === 'a_traiter') return 'attente'

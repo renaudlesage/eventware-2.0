@@ -68,6 +68,16 @@ export const PAVES = {
     module: null,
     besoin: null,
     obligatoire: []
+  },
+  mes_demandes: {
+    libelle: 'Mes demandes',
+    module: null,
+    besoin: null,
+    // Ouvert à tout le monde : n'importe qui peut lever une demande
+    // depuis Sécurité ou Logistique, pas seulement l'encadrement — le
+    // suivi de sa propre demande ne devrait pas exiger de repasser par
+    // l'écran dédié pour savoir où ça en est.
+    obligatoire: []
   }
 }
 
@@ -77,10 +87,10 @@ export const PAVES = {
  * l'ordre du catalogue, filtré par ses capacités.
  */
 const DEFAUTS = {
-  coordinateur: ['identite', 'sos', 'planning', 'contacts', 'equipes', 'lieux', 'materiel'],
-  admin: ['identite', 'sos', 'planning', 'contacts', 'equipes', 'lieux', 'materiel'],
-  chef_equipe: ['identite', 'sos', 'planning', 'equipes', 'lieux', 'materiel'],
-  benevole: ['identite', 'planning', 'lieux', 'equipes'],
+  coordinateur: ['identite', 'sos', 'mes_demandes', 'planning', 'contacts', 'equipes', 'lieux', 'materiel'],
+  admin: ['identite', 'sos', 'mes_demandes', 'planning', 'contacts', 'equipes', 'lieux', 'materiel'],
+  chef_equipe: ['identite', 'sos', 'mes_demandes', 'planning', 'equipes', 'lieux', 'materiel'],
+  benevole: ['identite', 'mes_demandes', 'planning', 'lieux', 'equipes'],
   observateur: ['identite', 'planning', 'lieux']
 }
 

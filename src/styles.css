@@ -618,9 +618,15 @@ button.module:disabled { opacity: 0.5; }
 
 .grille-paves {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
 }
+
+/* Mêmes points de rupture que .grille-domaines (Situation) —
+   cohérence délibérée entre les deux écrans plutôt que deux grilles
+   qui se comportent différemment selon la largeur d'écran. */
+@media (min-width: 640px)  { .grille-paves { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1080px) { .grille-paves { grid-template-columns: repeat(4, 1fr); } }
 
 .pave {
   background: var(--surface);
@@ -1864,6 +1870,23 @@ input:disabled {
 .moniteur-ligne strong { font-weight: 600; }
 .moniteur-ligne span { color: var(--sourdine); font-size: 10.5px; }
 .moniteur-ligne.urgent strong { color: var(--etat-chaud); }
+
+/* Une ligne de .chrono rendue cliquable, sans rien changer à son
+   apparence — pour un pavé comme « Mes demandes » où chaque ligne
+   mène à un écran différent selon son module. */
+.pave-lien-ligne {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
 
 /* --- Planning : icône par type, dans un carré coloré --- */
 

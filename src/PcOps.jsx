@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { supabase } from './supabaseClient'
 
-const TYPES = {
+export const TYPES = {
   malaise: 'Malaise',
   blessure: 'Blessure',
   danger: 'Danger',
