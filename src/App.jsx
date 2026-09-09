@@ -3,18 +3,17 @@ import { supabase } from './supabaseClient'
 import Participant from './Participant'
 import Autorite from './Autorite'
 import Dashboard from './Dashboard'
-import Terrain from './Terrain'
 import Memento from './Memento'
 import Securite from './Securite'
 import Logistique from './Logistique'
 import Parcours from './Parcours'
-import Rh, { MesCreneaux } from './Rh'
+import Rh from './Rh'
 import Analyse from './Analyse'
 import PlanImplantation from './PlanImplantation'
 import QrCodes from './QrCodes'
 import ImportCsv from './ImportCsv'
 import ImportKml from './ImportKml'
-import Bandeau, { GestionAlertes } from './Bandeau'
+import Bandeau from './Bandeau'
 import Roles from './Roles'
 import Situation from './Situation'
 import AccesAutorite from './AccesAutorite'
@@ -448,42 +447,16 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
       )
     case 'accueil':
       return (
-        <>
-          <Dashboard
-            evenement={evenement}
-            membre={membre}
-            peut={peut}
-            onFait={onRecharger}
-            onAller={onAller}
-          />
-
-          {evenement.modules?.rh && (
-            <section className="bloc dom-azur">
-              <h2>Mes créneaux</h2>
-              <MesCreneaux evenement={evenement} membre={membre} setMessage={setMessage} />
-            </section>
-          )}
-
-          <Terrain evenement={evenement} membre={membre} />
-
-          {(toutPouvoir || peut('alertes', 'creer')) && (
-            <GestionAlertes evenement={evenement} setMessage={setMessage} />
-          )}
-          {/* Sortie de secours : accessible à TOUS les rôles, y compris ceux
-              qui n'ont pas accès aux Réglages, et sans dépendre de la mise en
-              page de la barre du haut. */}
-          <section className="bloc session-bloc">
-            <h2>Mon compte</h2>
-            <p className="aide">Connecté en tant que {session.user.email}.</p>
-            <div className="identite">
-              <span className="etiquette">Mon identifiant</span>
-              <code>{session.user.id}</code>
-            </div>
-            <button className="discret" onClick={() => supabase.auth.signOut()}>
-              Se déconnecter
-            </button>
-          </section>
-        </>
+        <Dashboard
+          evenement={evenement}
+          membre={membre}
+          session={session}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+          onFait={onRecharger}
+          onAller={onAller}
+          setMessage={setMessage}
+        />
       )
     case 'memento':
       return <Memento evenement={evenement} />

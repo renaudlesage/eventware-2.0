@@ -27,50 +27,29 @@
 export const PAVES = {
   identite: {
     libelle: 'Mon rôle',
+    teinte: 'violet',
+    icone: '◉',
+    lien: null,
     module: null,
     besoin: null,
-    obligatoire: ['coordinateur', 'chef_equipe', 'benevole', 'observateur']
+    obligatoire: ['coordinateur', 'admin', 'chef_equipe', 'benevole', 'observateur']
   },
-  sos: {
-    libelle: 'Signalements ouverts',
-    module: 'sos_participants',
-    besoin: ['missions', 'creer'],
-    // Non retirable pour ceux qui doivent réagir : le confort ne prime
-    // pas sur la remontée d'un signalement.
-    obligatoire: ['coordinateur', 'chef_equipe']
-  },
-  lieux: {
-    libelle: 'Lieux',
+  mes_missions: {
+    libelle: 'Mes missions',
+    teinte: 'violet',
+    icone: '▶',
+    lien: null,
     module: null,
     besoin: null,
-    obligatoire: []
-  },
-  contacts: {
-    libelle: "Contacts d'urgence",
-    module: null,
-    besoin: null,
-    obligatoire: ['coordinateur']
-  },
-  materiel: {
-    libelle: 'Matériel sous seuil',
-    module: 'logistique',
-    besoin: ['missions', 'creer'],
-    obligatoire: []
-  },
-  equipes: {
-    libelle: 'Équipes',
-    module: null,
-    besoin: null,
-    obligatoire: []
-  },
-  planning: {
-    libelle: 'Planning',
-    module: null,
-    besoin: null,
-    obligatoire: []
+    // La raison d'être de l'écran pour qui est sur le terrain : ne se
+    // retire pas.
+    obligatoire: ['coordinateur', 'chef_equipe', 'benevole']
   },
   mes_demandes: {
     libelle: 'Mes demandes',
+    teinte: 'bronze',
+    icone: '≡',
+    lien: null,
     module: null,
     besoin: null,
     // Ouvert à tout le monde : n'importe qui peut lever une demande
@@ -78,6 +57,93 @@ export const PAVES = {
     // suivi de sa propre demande ne devrait pas exiger de repasser par
     // l'écran dédié pour savoir où ça en est.
     obligatoire: []
+  },
+  mes_creneaux: {
+    libelle: 'Mes créneaux',
+    teinte: 'azur',
+    icone: '☺',
+    lien: null,
+    module: 'rh',
+    besoin: null,
+    obligatoire: ['benevole', 'chef_equipe']
+  },
+  alertes: {
+    libelle: 'Alertes',
+    teinte: 'grenat',
+    icone: '⚠',
+    lien: null,
+    module: null,
+    besoin: ['alertes', 'creer'],
+    obligatoire: ['coordinateur', 'chef_equipe']
+  },
+  sos: {
+    libelle: 'Signalements ouverts',
+    teinte: 'grenat',
+    icone: '⚠',
+    lien: ['securite', 'signalements'],
+    module: 'sos_participants',
+    besoin: ['missions', 'creer'],
+    // Non retirable pour ceux qui doivent réagir : le confort ne prime
+    // pas sur la remontée d'un signalement.
+    obligatoire: ['coordinateur', 'chef_equipe']
+  },
+  planning: {
+    libelle: 'Planning',
+    teinte: 'azur',
+    icone: '◷',
+    lien: 'planning',
+    module: null,
+    besoin: null,
+    obligatoire: []
+  },
+  contacts: {
+    libelle: "Contacts d'urgence",
+    teinte: 'sarcelle',
+    icone: '☎',
+    lien: 'memento',
+    module: null,
+    besoin: null,
+    obligatoire: ['coordinateur']
+  },
+  equipes: {
+    libelle: 'Équipes',
+    teinte: 'azur',
+    icone: '☺',
+    lien: 'rh',
+    module: null,
+    besoin: null,
+    obligatoire: []
+  },
+  lieux: {
+    libelle: 'Lieux',
+    teinte: 'prune',
+    icone: '◎',
+    lien: 'plan',
+    module: null,
+    besoin: null,
+    obligatoire: []
+  },
+  materiel: {
+    libelle: 'Matériel sous seuil',
+    teinte: 'bronze',
+    icone: '▤',
+    lien: 'logistique',
+    module: 'logistique',
+    besoin: ['missions', 'creer'],
+    obligatoire: []
+  },
+  compte: {
+    libelle: 'Mon compte',
+    teinte: 'ardoise',
+    icone: '⚙',
+    lien: null,
+    module: null,
+    besoin: null,
+    // Sortie de secours : accessible à TOUS les rôles, y compris ceux
+    // qui n'ont pas accès aux Réglages. Ne se retire jamais — admin
+    // compris, sinon une préférence enregistrée avant l'arrivée de ce
+    // bloc le ferait disparaître.
+    obligatoire: ['coordinateur', 'admin', 'chef_equipe', 'benevole', 'observateur']
   }
 }
 
@@ -87,11 +153,11 @@ export const PAVES = {
  * l'ordre du catalogue, filtré par ses capacités.
  */
 const DEFAUTS = {
-  coordinateur: ['identite', 'sos', 'mes_demandes', 'planning', 'contacts', 'equipes', 'lieux', 'materiel'],
-  admin: ['identite', 'sos', 'mes_demandes', 'planning', 'contacts', 'equipes', 'lieux', 'materiel'],
-  chef_equipe: ['identite', 'sos', 'mes_demandes', 'planning', 'equipes', 'lieux', 'materiel'],
-  benevole: ['identite', 'mes_demandes', 'planning', 'lieux', 'equipes'],
-  observateur: ['identite', 'planning', 'lieux']
+  coordinateur: ['identite', 'mes_missions', 'alertes', 'sos', 'mes_demandes', 'planning', 'contacts', 'equipes', 'lieux', 'materiel', 'compte'],
+  admin: ['identite', 'mes_missions', 'alertes', 'sos', 'mes_demandes', 'planning', 'contacts', 'equipes', 'lieux', 'materiel', 'compte'],
+  chef_equipe: ['identite', 'mes_missions', 'mes_creneaux', 'alertes', 'sos', 'mes_demandes', 'planning', 'equipes', 'lieux', 'materiel', 'compte'],
+  benevole: ['identite', 'mes_missions', 'mes_creneaux', 'mes_demandes', 'planning', 'lieux', 'equipes', 'compte'],
+  observateur: ['identite', 'planning', 'lieux', 'compte']
 }
 
 /**

@@ -3,8 +3,25 @@ import { supabase } from './supabaseClient'
 import { PAVES, pavesDisponibles, pavesObligatoires, composition } from './paves'
 import { libelleStatut } from './libelles'
 import { etatDe } from './Securite'
+import { ColonneDomaine } from './Situation'
+import Terrain from './Terrain'
+import { MesCreneaux } from './Rh'
+import { GestionAlertes } from './Bandeau'
 
-export default function Dashboard({ evenement, membre, peut, onFait, onAller }) {
+/**
+ * Mon poste — la position d'une seule personne, dans le même langage
+ * visuel que la Situation : des blocs thématiques uniformes, un
+ * compteur en tête quand il dit quelque chose, un moniteur qui défile
+ * quand la liste dépasse.
+ *
+ * Toute la page est personnalisable. Il n'y a plus de bandeau de pavés
+ * d'un côté et de sections figées de l'autre : Mes missions, Mes
+ * créneaux, Alertes et Mon compte sont des blocs comme les autres,
+ * réordonnables ou masquables — sauf ceux qu'un rôle impose.
+ */
+export default function Dashboard({
+  evenement, membre, session, peut, toutPouvoir, onFait, onAller, setMessage
+}) {
   const [reglage, setReglage] = useState(false)
   const [choix, setChoix] = useState(membre.paves ?? null)
 
@@ -31,10 +48,12 @@ export default function Dashboard({ evenement, membre, peut, onFait, onAller }) 
     enregistrer(nouveau)
   }
 
+  const props = { evenement, membre, session, peut, toutPouvoir, onAller, setMessage }
+
   return (
     <div className="dashboard dom-violet">
       <div className="entete-dashboard">
-        <h2>Mon tableau de bord</h2>
+        <h2>Mon poste</h2>
         <button className="lien" onClick={() => setReglage(!reglage)}>
           {reglage ? 'Terminé' : 'Personnaliser'}
         </button>
@@ -58,15 +77,15 @@ export default function Dashboard({ evenement, membre, peut, onFait, onAller }) 
             )
           })}
           <p className="aide">
-            Les pavés marqués d'un point sont imposés par votre rôle et ne peuvent pas être
+            Les blocs marqués d'un point sont imposés par votre rôle et ne peuvent pas être
             retirés. Les autres sont libres.
           </p>
         </div>
       )}
 
-      <div className="grille-paves">
+      <div className="grille-domaines grille-poste">
         {actifs.map((k) => (
-          <Pave key={k} clef={k} evenement={evenement} membre={membre} onAller={onAller} />
+          <Contenu key={k} clef={k} {...props} />
         ))}
       </div>
     </div>
@@ -75,81 +94,139 @@ export default function Dashboard({ evenement, membre, peut, onFait, onAller }) 
 
 /* ------------------------------------------------------------------ */
 
-/* Chaque pavé mène à l'écran où on peut agir sur ce qu'il montre.
-   « identite » n'a pas de destination naturelle — c'est une carte de
-   visite, pas un compteur — donc reste seul non cliquable. */
-const DESTINATIONS = {
-  planning: 'planning',
-  sos: ['securite', 'signalements'],
-  lieux: 'plan',
-  contacts: 'memento',
-  materiel: 'logistique',
-  equipes: 'rh'
-}
-
-function Pave({ clef, evenement, membre, onAller }) {
-  const cliquable = clef in DESTINATIONS
-  const contenu = (
-    <>
-      <div className="pave-titre">{PAVES[clef].libelle}</div>
-      <Contenu clef={clef} evenement={evenement} membre={membre} onAller={onAller} />
-    </>
+/**
+ * Un bloc du tableau de bord = une ColonneDomaine de la Situation,
+ * réutilisée telle quelle, habillée par les métadonnées du catalogue.
+ */
+function Bloc({ clef, compteurs = [], onAller, children }) {
+  const p = PAVES[clef]
+  const lien = p.lien
+  return (
+    <ColonneDomaine
+      teinte={p.teinte}
+      icone={p.icone}
+      titre={p.libelle}
+      lien={lien}
+      onAller={
+        lien
+          ? () => (Array.isArray(lien) ? onAller?.(...lien) : onAller?.(lien))
+          : undefined
+      }
+      compteurs={compteurs}
+    >
+      {children}
+    </ColonneDomaine>
   )
-  if (cliquable) {
-    const cible = DESTINATIONS[clef]
-    return (
-      <button
-        className="pave pave-lien"
-        onClick={() => (Array.isArray(cible) ? onAller?.(...cible) : onAller?.(cible))}
-      >
-        {contenu}
-      </button>
-    )
-  }
-  return <div className="pave">{contenu}</div>
 }
 
-function Contenu({ clef, evenement, membre, onAller }) {
+function Contenu({ clef, ...p }) {
   switch (clef) {
     case 'identite':
-      return <PaveIdentite evenement={evenement} membre={membre} />
-    case 'sos':
-      return <PaveSos evenement={evenement} />
-    case 'lieux':
-      return <PaveListe evenement={evenement} table="lieux" champ="nom" second="type" />
-    case 'contacts':
-      return (
-        <PaveListe evenement={evenement} table="contacts" champ="nom" second="telephone" />
-      )
-    case 'equipes':
-      return <PaveListe evenement={evenement} table="equipes" champ="nom" second="code" />
-    case 'materiel':
-      return <PaveMateriel evenement={evenement} />
-    case 'planning':
-      return <PavePlanning evenement={evenement} onAller={onAller} />
+      return <PaveIdentite {...p} />
+    case 'mes_missions':
+      return <PaveMesMissions {...p} />
     case 'mes_demandes':
-      return <PaveMesDemandes evenement={evenement} membre={membre} onAller={onAller} />
+      return <PaveMesDemandes {...p} />
+    case 'mes_creneaux':
+      return <PaveMesCreneaux {...p} />
+    case 'alertes':
+      return <PaveAlertes {...p} />
+    case 'sos':
+      return <PaveSos {...p} />
+    case 'planning':
+      return <PavePlanning {...p} />
+    case 'contacts':
+      return <PaveListe clef="contacts" table="contacts" champ="nom" second="telephone" {...p} />
+    case 'equipes':
+      return <PaveListe clef="equipes" table="equipes" champ="nom" second="code" {...p} />
+    case 'lieux':
+      return <PaveListe clef="lieux" table="lieux" champ="nom" second="type" {...p} />
+    case 'materiel':
+      return <PaveMateriel {...p} />
+    case 'compte':
+      return <PaveCompte {...p} />
     default:
       return null
   }
 }
 
-/* --- Pavés --- */
+/* --- Blocs ---------------------------------------------------------- */
 
-function PaveIdentite({ evenement, membre }) {
+function PaveIdentite({ evenement, membre, onAller }) {
   return (
-    <>
+    <Bloc clef="identite" onAller={onAller}>
       <div className="grand">{membre.nom_affiche ?? '—'}</div>
       <div className="meta">
         <span className={`jeton ${membre.role}`}>{membre.role}</span>
         <span className="jeton phase">{evenement.phase}</span>
         {membre.perimetre && <span>{membre.perimetre}</span>}
       </div>
-    </>
+    </Bloc>
   )
 }
 
-function PaveSos({ evenement }) {
+function PaveMesMissions({ evenement, membre, onAller }) {
+  const [c, setC] = useState({ aFaire: null, pourMoi: null, p1: null })
+  return (
+    <Bloc
+      clef="mes_missions"
+      onAller={onAller}
+      compteurs={[
+        { libelle: 'à faire', valeur: c.aFaire, etat: c.aFaire ? 'attente' : 'ok' },
+        { libelle: 'pour moi', valeur: c.pourMoi, etat: c.pourMoi ? 'cours' : 'ok' },
+        { libelle: 'P1', valeur: c.p1, etat: c.p1 ? 'urgent' : 'ok' }
+      ]}
+    >
+      <Terrain evenement={evenement} membre={membre} embarque onCompteurs={setC} />
+    </Bloc>
+  )
+}
+
+function PaveMesCreneaux({ evenement, membre, setMessage, onAller }) {
+  const [c, setC] = useState({ aConfirmer: null, confirmes: null })
+  return (
+    <Bloc
+      clef="mes_creneaux"
+      onAller={onAller}
+      compteurs={[
+        { libelle: 'à confirmer', valeur: c.aConfirmer, etat: c.aConfirmer ? 'attente' : 'ok' },
+        { libelle: 'confirmés', valeur: c.confirmes, etat: 'ok' }
+      ]}
+    >
+      <MesCreneaux evenement={evenement} membre={membre} setMessage={setMessage} onCompteurs={setC} />
+    </Bloc>
+  )
+}
+
+function PaveAlertes({ evenement, setMessage, onAller }) {
+  const [c, setC] = useState({ actives: null })
+  return (
+    <Bloc
+      clef="alertes"
+      onAller={onAller}
+      compteurs={[{ libelle: 'actives', valeur: c.actives, etat: c.actives ? 'urgent' : 'ok' }]}
+    >
+      <GestionAlertes evenement={evenement} setMessage={setMessage} embarque onCompteurs={setC} />
+    </Bloc>
+  )
+}
+
+function PaveCompte({ session, onAller }) {
+  return (
+    <Bloc clef="compte" onAller={onAller}>
+      <p className="aide" style={{ marginTop: 0 }}>Connecté en tant que {session.user.email}.</p>
+      <div className="identite">
+        <span className="etiquette">Mon identifiant</span>
+        <code>{session.user.id}</code>
+      </div>
+      <button className="discret" onClick={() => supabase.auth.signOut()}>
+        Se déconnecter
+      </button>
+    </Bloc>
+  )
+}
+
+function PaveSos({ evenement, onAller }) {
   const [n, setN] = useState(null)
 
   useEffect(() => {
@@ -170,18 +247,20 @@ function PaveSos({ evenement }) {
     }
   }, [evenement.id])
 
-  if (n === null) return <div className="vide">…</div>
   return (
-    <>
-      <div className={`grand ${n > 0 ? 'alerte-texte' : ''}`}>{n}</div>
-      <div className="meta">
-        <span>{n === 0 ? 'aucun signalement ouvert' : 'en attente de traitement'}</span>
-      </div>
-    </>
+    <Bloc
+      clef="sos"
+      onAller={onAller}
+      compteurs={[{ libelle: 'ouverts', valeur: n, etat: n ? 'urgent' : 'ok' }]}
+    >
+      <p className={n ? 'moniteur-vide' : 'moniteur-vide'}>
+        {n === null ? '…' : n === 0 ? 'Aucun signalement ouvert.' : 'En attente de traitement — ouvrir l\u2019app.'}
+      </p>
+    </Bloc>
   )
 }
 
-function PaveListe({ evenement, table, champ, second }) {
+function PaveListe({ clef, evenement, table, champ, second, onAller }) {
   const [lignes, setLignes] = useState(null)
 
   useEffect(() => {
@@ -190,38 +269,38 @@ function PaveListe({ evenement, table, champ, second }) {
       .from(table)
       .select('*')
       .eq('evenement_id', evenement.id)
-      .limit(6)
+      .limit(8)
       .then(({ data }) => vivant && setLignes(data ?? []))
     return () => {
       vivant = false
     }
   }, [evenement.id, table])
 
-  if (lignes === null) return <div className="vide">…</div>
-  if (!lignes.length) return <div className="vide">Rien d'encodé</div>
-
   return (
-    <ul className="liste-pave">
-      {lignes.map((l) => (
-        <li key={l.id}>
-          {l[champ]}
-          {l[second] && <span className="mono"> · {l[second]}</span>}
-        </li>
-      ))}
-    </ul>
+    <Bloc
+      clef={clef}
+      onAller={onAller}
+      compteurs={[{ libelle: 'encodés', valeur: lignes?.length ?? null, etat: 'ok' }]}
+    >
+      {lignes === null ? (
+        <p className="moniteur-vide">…</p>
+      ) : !lignes.length ? (
+        <p className="moniteur-vide">Rien d'encodé.</p>
+      ) : (
+        lignes.map((l) => (
+          <div className="moniteur-ligne" key={l.id}>
+            <strong>{l[champ]}</strong>
+            {l[second] && <span className="mono">{l[second]}</span>}
+          </div>
+        ))
+      )}
+    </Bloc>
   )
 }
 
-/**
- * Pavé Planning : ce qui est en direct, et le prochain à venir.
- *
- * Même logique de fusion que l'écran Planning (programme + jalons +
- * transports datés) et le même calcul de "en cours" — les deux doivent
- * dire la même chose, sinon le pavé contredirait l'écran qu'il ouvre.
- */
-// Module → écran, pour router chaque demande vers le bon endroit sans
-// devoir cliquer sur tout le pavé — une demande sécurité et une
-// demande logistique ne mènent pas au même écran.
+// Module → écran, pour router chaque demande vers le bon endroit —
+// une demande sécurité et une demande logistique ne mènent pas au
+// même écran.
 const ECRAN_PAR_MODULE = {
   securite: 'securite',
   logistique: 'logistique',
@@ -241,7 +320,7 @@ function PaveMesDemandes({ evenement, membre, onAller }) {
       .eq('created_by', membre.user_id)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
-      .limit(6)
+      .limit(8)
       .then(({ data }) => {
         if (vivant) setDemandes(data ?? [])
       })
@@ -250,46 +329,61 @@ function PaveMesDemandes({ evenement, membre, onAller }) {
     }
   }, [evenement.id, membre.user_id])
 
-  if (demandes === null) return null
-  if (demandes.length === 0) {
-    return <p className="vide">Aucune demande envoyée pour l'instant.</p>
-  }
-
-  const enCours = demandes.filter((d) => !['resolue', 'annulee'].includes(d.statut))
+  const enCours = demandes?.filter((d) => !['resolue', 'annulee'].includes(d.statut)).length ?? null
 
   return (
-    <ul className="chrono">
-      {demandes.map((d) => {
-        const ecran = ECRAN_PAR_MODULE[d.module]
-        const contenu = (
-          <>
-            <span className={`point-etat point-${etatDe(d)}`} />
-            <span className="corps">
-              <span className="mono">{d.reference}</span> {d.titre}
-            </span>
-            <span className="jeton">{libelleStatut(d.statut)}</span>
-          </>
-        )
-        return ecran ? (
-          <li key={d.id}>
-            <button className="pave-lien-ligne" onClick={() => onAller?.(ecran)}>
-              {contenu}
+    <Bloc
+      clef="mes_demandes"
+      onAller={onAller}
+      compteurs={[
+        { libelle: 'en cours', valeur: enCours, etat: enCours ? 'cours' : 'ok' },
+        { libelle: 'au total', valeur: demandes?.length ?? null, etat: 'ok' }
+      ]}
+    >
+      {demandes === null ? (
+        <p className="moniteur-vide">…</p>
+      ) : demandes.length === 0 ? (
+        <p className="moniteur-vide">Aucune demande envoyée pour l'instant.</p>
+      ) : (
+        demandes.map((d) => {
+          const ecran = ECRAN_PAR_MODULE[d.module]
+          const ligne = (
+            <>
+              <strong>
+                <span className={`point-etat point-${etatDe(d)}`} /> {d.titre}
+              </strong>
+              <span>
+                {libelleStatut(d.statut)} <span className="mono">· {d.reference}</span>
+              </span>
+            </>
+          )
+          return ecran ? (
+            <button
+              className="moniteur-ligne pave-lien-ligne"
+              key={d.id}
+              onClick={() => onAller?.(ecran)}
+            >
+              {ligne}
             </button>
-          </li>
-        ) : (
-          <li key={d.id}>{contenu}</li>
-        )
-      })}
-      {enCours.length > 0 && (
-        <li className="aide" style={{ padding: '4px 0 0' }}>
-          {enCours.length} en cours de traitement
-        </li>
+          ) : (
+            <div className="moniteur-ligne" key={d.id}>
+              {ligne}
+            </div>
+          )
+        })
       )}
-    </ul>
+    </Bloc>
   )
 }
 
-function PavePlanning({ evenement }) {
+/**
+ * Bloc Planning : ce qui est en direct, et le prochain à venir.
+ *
+ * Même logique de fusion que l'écran Planning (programme + jalons +
+ * transports datés) et le même calcul de "en cours" — les deux doivent
+ * dire la même chose, sinon le bloc contredirait l'écran qu'il ouvre.
+ */
+function PavePlanning({ evenement, onAller }) {
   const [items, setItems] = useState(null)
 
   useEffect(() => {
@@ -350,59 +444,38 @@ function PavePlanning({ evenement }) {
     }
   }, [evenement.id])
 
-  if (items === null) return <div className="vide">…</div>
-  if (!items.length) return <div className="vide">Rien de planifié</div>
-
   const maintenant = Date.now()
-  let enDirect = null
-  let suivant = null
-  for (let i = 0; i < items.length; i++) {
-    const debut = items[i].heure.getTime()
-    const fin = items[i + 1] ? items[i + 1].heure.getTime() : debut + 3600000
-    if (maintenant >= debut && maintenant < fin) {
-      enDirect = items[i]
-      suivant = items[i + 1] ?? null
-      break
-    }
-    if (debut > maintenant) {
-      suivant = items[i]
-      break
-    }
-  }
-  if (!enDirect && !suivant) suivant = items[items.length - 1]
-
-  const heure = (d) =>
-    d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
+  const aVenir = items?.filter((i) => i.heure.getTime() > maintenant) ?? []
+  const heure = (d) => d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
 
   return (
-    <>
-      {enDirect ? (
-        <>
-          <div className="planning-tag en-direct">en direct</div>
-          <div className="grand" style={{ fontSize: 15, marginTop: 3 }}>
-            {enDirect.titre}
-          </div>
-          {enDirect.detail && <div className="meta"><span>{enDirect.detail}</span></div>}
-        </>
+    <Bloc
+      clef="planning"
+      onAller={onAller}
+      compteurs={[{ libelle: 'à venir', valeur: items ? aVenir.length : null, etat: 'ok' }]}
+    >
+      {items === null ? (
+        <p className="moniteur-vide">…</p>
+      ) : !items.length ? (
+        <p className="moniteur-vide">Rien de planifié.</p>
       ) : (
-        <div className="vide">Rien en ce moment</div>
+        items.slice(0, 8).map((i, idx) => {
+          const passe = i.heure.getTime() <= maintenant
+          return (
+            <div className={`moniteur-ligne ${i.critique ? 'urgent' : ''}`} key={idx}>
+              <strong style={passe ? { opacity: 0.6 } : undefined}>
+                <span className="mono">{heure(i.heure)}</span> {i.titre}
+              </strong>
+              {i.detail && <span>{i.detail}</span>}
+            </div>
+          )
+        })
       )}
-
-      {suivant && (
-        <>
-          <div className="planning-tag" style={{ marginTop: enDirect ? 8 : 0 }}>
-            à {heure(suivant.heure)}
-          </div>
-          <div className="meta">
-            <span className={suivant.critique ? 'alerte-texte' : ''}>{suivant.titre}</span>
-          </div>
-        </>
-      )}
-    </>
+    </Bloc>
   )
 }
 
-function PaveMateriel({ evenement }) {
+function PaveMateriel({ evenement, onAller }) {
   const [lignes, setLignes] = useState(null)
 
   useEffect(() => {
@@ -421,20 +494,26 @@ function PaveMateriel({ evenement }) {
     }
   }, [evenement.id])
 
-  if (lignes === null) return <div className="vide">…</div>
-  if (!lignes.length) return <div className="vide">Aucun seuil franchi</div>
-
   return (
-    <ul className="liste-pave">
-      {lignes.map((m) => (
-        <li key={m.id} className="alerte-texte">
-          {m.nom}
-          <span className="mono">
-            {' '}
-            · {m.quantite} {m.unite ?? ''} (seuil {m.seuil_alerte})
-          </span>
-        </li>
-      ))}
-    </ul>
+    <Bloc
+      clef="materiel"
+      onAller={onAller}
+      compteurs={[{ libelle: 'sous seuil', valeur: lignes?.length ?? null, etat: lignes?.length ? 'urgent' : 'ok' }]}
+    >
+      {lignes === null ? (
+        <p className="moniteur-vide">…</p>
+      ) : !lignes.length ? (
+        <p className="moniteur-vide">Aucun seuil franchi.</p>
+      ) : (
+        lignes.map((m) => (
+          <div className="moniteur-ligne urgent" key={m.id}>
+            <strong>{m.nom}</strong>
+            <span className="mono">
+              {m.quantite} {m.unite ?? ''} · seuil {m.seuil_alerte}
+            </span>
+          </div>
+        ))
+      )}
+    </Bloc>
   )
 }

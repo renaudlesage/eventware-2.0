@@ -359,7 +359,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
  * Colonne de domaine — bandeau coloré, compteurs minuscules colorés
  * par ÉTAT, panneau défilant, lien direct vers l'écran complet.
  */
-function ColonneDomaine({ teinte, icone, titre, lien, onAller, compteurs, children }) {
+export function ColonneDomaine({ teinte, icone, titre, lien, onAller, compteurs, children }) {
   return (
     <div className={`colonne-domaine dom-${teinte}`}>
       <div className="colonne-tete">

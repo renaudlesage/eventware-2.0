@@ -12,7 +12,7 @@ import { libelleStatut } from './libelles'
  * Contraintes de conception : on est debout, en mouvement, souvent
  * d'une seule main. Deux gestes maximum par action.
  */
-export default function Terrain({ evenement, membre }) {
+export default function Terrain({ evenement, membre, embarque = false, onCompteurs }) {
   const [lignes, setLignes] = useState([])
   const [message, setMessage] = useState(null)
   const [filtre, setFiltre] = useState('tout')
@@ -51,9 +51,18 @@ export default function Terrain({ evenement, membre }) {
   const mesLignes = lignes.filter((l) => l.pour_moi).length
   const p1 = lignes.filter((l) => l.priorite === 'P1').length
 
+  // Embarqué dans un bloc du tableau de bord : les compteurs remontent
+  // dans l'en-tête du bloc, calculés ici à partir de la même source —
+  // jamais recalculés à côté, pour que l'en-tête et le contenu ne
+  // puissent pas se contredire.
+  useEffect(() => {
+    onCompteurs?.({ aFaire: lignes.length, pourMoi: mesLignes, p1 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lignes.length, mesLignes, p1])
+
   return (
-    <div className="bloc securite dom-violet">
-      <h2>Mes missions</h2>
+    <div className={embarque ? '' : 'bloc securite dom-violet'}>
+      {!embarque && <h2>Mes missions</h2>}
 
       {message && (
         <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
@@ -61,17 +70,19 @@ export default function Terrain({ evenement, membre }) {
         </div>
       )}
 
-      <div className="compteurs">
-        <span>
-          À faire <strong>{lignes.length}</strong>
-        </span>
-        <span>
-          Pour moi <strong>{mesLignes}</strong>
-        </span>
-        <span className={p1 ? 'alerte-texte' : ''}>
-          P1 <strong>{p1}</strong>
-        </span>
-      </div>
+      {!embarque && (
+        <div className="compteurs">
+          <span>
+            À faire <strong>{lignes.length}</strong>
+          </span>
+          <span>
+            Pour moi <strong>{mesLignes}</strong>
+          </span>
+          <span className={p1 ? 'alerte-texte' : ''}>
+            P1 <strong>{p1}</strong>
+          </span>
+        </div>
+      )}
 
       <div className="ligne-boutons" style={{ marginBottom: 12 }}>
         {[

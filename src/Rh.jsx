@@ -244,7 +244,7 @@ function Couverture({ evenement, setMessage }) {
 /* Mes créneaux — vue du bénévole                                      */
 /* ================================================================== */
 
-export function MesCreneaux({ evenement, membre, setMessage }) {
+export function MesCreneaux({ evenement, membre, setMessage, onCompteurs }) {
   const [lignes, setLignes] = useState([])
 
   async function charger() {
@@ -260,6 +260,16 @@ export function MesCreneaux({ evenement, membre, setMessage }) {
   useEffect(() => {
     charger()
   }, [evenement.id, membre.id])
+
+  // Remonte au bloc parent : combien de créneaux attendent une
+  // confirmation, combien sont confirmés — sur la même liste que
+  // celle affichée en dessous.
+  const aConfirmer = lignes.filter((a) => a.statut === 'propose').length
+  const confirmes = lignes.filter((a) => a.statut === 'confirme').length
+  useEffect(() => {
+    onCompteurs?.({ aConfirmer, confirmes })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aConfirmer, confirmes])
 
   async function repondre(id, statut) {
     const { error, count } = await supabase

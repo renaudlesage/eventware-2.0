@@ -71,7 +71,7 @@ export default function Bandeau({ evenement }) {
 /* Émission et levée — réservé aux rôles qui en ont le droit           */
 /* ------------------------------------------------------------------ */
 
-export function GestionAlertes({ evenement, setMessage }) {
+export function GestionAlertes({ evenement, setMessage, embarque = false, onCompteurs }) {
   const [alertes, setAlertes] = useState([])
   const [ouvrir, setOuvrir] = useState(false)
   const [f, setF] = useState({
@@ -95,6 +95,15 @@ export function GestionAlertes({ evenement, setMessage }) {
   useEffect(() => {
     charger()
   }, [evenement.id])
+
+  // Embarqué dans un bloc du tableau de bord : le nombre d'alertes
+  // actives remonte dans l'en-tête, calculé sur la même liste que
+  // celle affichée en dessous.
+  const actives = alertes.filter((a) => a.active).length
+  useEffect(() => {
+    onCompteurs?.({ actives })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actives])
 
   async function emettre() {
     if (!f.titre.trim()) return
@@ -129,7 +138,7 @@ export function GestionAlertes({ evenement, setMessage }) {
   return (
     <div className="gestion-alertes">
       <div className="entete-dashboard">
-        <h2>Alertes</h2>
+        {!embarque && <h2>Alertes</h2>}
         <button className="lien" onClick={() => setOuvrir(!ouvrir)}>
           {ouvrir ? 'Annuler' : 'Émettre une alerte'}
         </button>
