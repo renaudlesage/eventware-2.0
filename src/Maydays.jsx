@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { libelleStatut } from './libelles'
 
 /**
  * Traitement des Mayday.
@@ -92,7 +93,7 @@ export default function Maydays({ evenement, compact, setMessage }) {
                 ) : (
                   <span className="alerte-texte">sans position</span>
                 )}
-                <span className="jeton">{m.statut}</span>
+                <span className="jeton">{libelleStatut(m.statut)}</span>
               </div>
 
               {m.accuse_le && (

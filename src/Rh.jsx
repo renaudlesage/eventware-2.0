@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { libelleStatut } from './libelles'
 
 /*
  * `besoin` : capacité d'encadrement requise.
@@ -289,7 +290,7 @@ export function MesCreneaux({ evenement, membre, setMessage }) {
               })}
           </span>
           {a.creneaux?.lieux?.nom && <span>{a.creneaux.lieux.nom}</span>}
-          <span className="jeton">{a.statut}</span>
+          <span className="jeton">{libelleStatut(a.statut)}</span>
         </div>
         {a.creneaux?.consignes && <p className="aide">{a.creneaux.consignes}</p>}
         {['propose', 'confirme'].includes(a.statut) && (

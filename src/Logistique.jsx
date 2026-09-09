@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
-import { Missions } from './Securite'
+import { Missions, Journal } from './Securite'
 import Radio from './Radio'
 
 const ONGLETS = [
@@ -9,7 +9,8 @@ const ONGLETS = [
   ['attributions', 'Clés & radios'],
   ['radio', 'Matrice radio'],
   ['jauge', 'Jauge'],
-  ['transports', 'Transports']
+  ['transports', 'Transports'],
+  ['journal', 'Main courante']
 ]
 
 export default function Logistique({ evenement, membre }) {
@@ -60,6 +61,9 @@ export default function Logistique({ evenement, membre }) {
       {onglet === 'transports' && (
         <Transports evenement={evenement} setMessage={setMessage} />
       )}
+      {onglet === 'journal' && (
+        <Journal evenement={evenement} setMessage={setMessage} moduleParDefaut="logistique" />
+      )}
     </div>
   )
 }
@@ -72,6 +76,7 @@ function Stocks({ evenement, membre, setMessage }) {
   const [articles, setArticles] = useState([])
   const [lieux, setLieux] = useState([])
   const [ouvert, setOuvert] = useState(null)
+  const [ouvrirCreation, setOuvrirCreation] = useState(false)
 
   async function charger() {
     const [m, l] = await Promise.all([
@@ -126,6 +131,24 @@ function Stocks({ evenement, membre, setMessage }) {
           Sous seuil <strong>{sousSeuil.length}</strong>
         </span>
       </div>
+
+      <div className="ligne-boutons" style={{ marginBottom: 12 }}>
+        <button onClick={() => setOuvrirCreation(!ouvrirCreation)}>
+          {ouvrirCreation ? 'Fermer' : '+ Ajouter un article'}
+        </button>
+      </div>
+
+      {ouvrirCreation && (
+        <FormArticle
+          evenement={evenement}
+          lieux={lieux}
+          setMessage={setMessage}
+          onFait={() => {
+            setOuvrirCreation(false)
+            charger()
+          }}
+        />
+      )}
 
       {articles.length === 0 ? (
         <p className="vide">
@@ -212,6 +235,98 @@ function FormMouvement({ article, lieux, onValider }) {
         Le stock suit le mouvement — il ne se corrige pas à la main. Pour un écart
         d'inventaire, utilise « Ajustement » avec un motif : c'est ce qui rend l'écart
         explicable trois semaines après.
+      </p>
+    </div>
+  )
+}
+
+const CATEGORIES_MATERIEL = [
+  'boissons', 'consommables', 'hygiène', 'énergie', 'sécurité', 'signalétique', 'autre'
+]
+
+/**
+ * Créer un article de stock — manquait entièrement : l'écran promettait
+ * « ou à créer » sans qu'aucun formulaire n'existe. Le seuil d'alerte
+ * se règle ici, à la création — c'est lui qui fait basculer le réactif
+ * (« il n'y en avait plus ») au proactif (une alerte avant la rupture).
+ */
+function FormArticle({ evenement, lieux, setMessage, onFait }) {
+  const [code, setCode] = useState('')
+  const [nom, setNom] = useState('')
+  const [categorie, setCategorie] = useState('consommables')
+  const [quantite, setQuantite] = useState('')
+  const [unite, setUnite] = useState('')
+  const [seuilAlerte, setSeuilAlerte] = useState('')
+  const [lieuId, setLieuId] = useState('')
+  const [occupe, setOccupe] = useState(false)
+
+  async function creer() {
+    if (!code.trim() || !nom.trim()) return
+    setOccupe(true)
+    const { error } = await supabase.from('materiel').insert({
+      evenement_id: evenement.id,
+      code: code.trim(),
+      nom: nom.trim(),
+      categorie,
+      quantite: Number(quantite) || 0,
+      unite: unite.trim() || null,
+      seuil_alerte: seuilAlerte.trim() ? Number(seuilAlerte) : null,
+      lieu_id: lieuId || null
+    })
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else onFait()
+    setOccupe(false)
+  }
+
+  return (
+    <div className="formulaire">
+      <div className="saisie-rapide">
+        <input
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="Code — ex. GOB-01"
+          style={{ flex: '0 1 110px' }}
+        />
+        <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom" />
+      </div>
+      <select value={categorie} onChange={(e) => setCategorie(e.target.value)}>
+        {CATEGORIES_MATERIEL.map((c) => (
+          <option key={c} value={c}>{c}</option>
+        ))}
+      </select>
+      <div className="saisie-rapide">
+        <input
+          type="number"
+          value={quantite}
+          onChange={(e) => setQuantite(e.target.value)}
+          placeholder="Quantité initiale"
+        />
+        <input
+          value={unite}
+          onChange={(e) => setUnite(e.target.value)}
+          placeholder="Unité — ex. litres, unités"
+        />
+      </div>
+      <label htmlFor="seuil-article">Seuil d'alerte</label>
+      <input
+        id="seuil-article"
+        type="number"
+        value={seuilAlerte}
+        onChange={(e) => setSeuilAlerte(e.target.value)}
+        placeholder="En dessous de cette quantité, l'article passe en alerte"
+      />
+      <select value={lieuId} onChange={(e) => setLieuId(e.target.value)}>
+        <option value="">— lieu de stockage (facultatif) —</option>
+        {lieux.map((l) => (
+          <option key={l.id} value={l.id}>{l.code} · {l.nom}</option>
+        ))}
+      </select>
+      <button disabled={occupe || !code.trim() || !nom.trim()} onClick={creer} style={{ marginTop: 8 }}>
+        Créer l'article
+      </button>
+      <p className="aide">
+        Sans seuil, l'article ne pourra jamais basculer en alerte — il reste utilisable, juste
+        muet sur la rupture qui approche.
       </p>
     </div>
   )
@@ -584,7 +699,7 @@ function Transports({ evenement, setMessage }) {
               {l.depart?.nom ?? l.depart_libre} → {l.arrivee?.nom ?? l.arrivee_libre}
             </div>
             <div className="meta">
-              <span>{l.nb_personnes} pers.</span>
+              <span>{l.nb_personnes} {l.unite_quantite ?? 'pers.'}</span>
               {l.motif && <span>{l.motif}</span>}
               {l.demandeur && <span>{l.demandeur}</span>}
               {l.chauffeur?.nom_affiche && <span>{l.chauffeur.nom_affiche}</span>}
@@ -691,7 +806,25 @@ function AttribuerChauffeur({ chauffeurs, actuel, vehiculeActuel, onValider }) {
 const TYPES_TRANSPORT = [
   ['artiste_groupe', 'Artiste / groupe'],
   ['staff_benevole', 'Staff / bénévole'],
-  ['technique_prestataire', 'Technique / prestataire']
+  ['technique_prestataire', 'Technique / prestataire'],
+  ['materiel', 'Matériel / ravitaillement']
+]
+
+// L'unité du champ quantité dépend de ce qu'on transporte — un
+// mazout ne se compte pas en « personnes ». Sans ça, le champ se
+// détourne en silence, comme observé dans le REX BFMF 2026.
+const UNITES_PAR_TYPE = {
+  artiste_groupe: 'personnes',
+  staff_benevole: 'personnes',
+  technique_prestataire: 'personnes',
+  materiel: 'unites'
+}
+
+const UNITES_QUANTITE = [
+  ['personnes', 'personnes'],
+  ['litres', 'litres'],
+  ['kg', 'kg'],
+  ['unites', 'unités']
 ]
 
 const VOLUMES_MATERIEL = [
@@ -706,6 +839,7 @@ function FormTransport({ evenement, lieux, onFait, onAnnuler, setMessage }) {
   const [depart, setDepart] = useState({ lieuId: '', libre: '' })
   const [arrivee, setArrivee] = useState({ lieuId: '', libre: '' })
   const [nbPersonnes, setNbPersonnes] = useState(1)
+  const [unite, setUnite] = useState('personnes')
   const [adresseDepart, setAdresseDepart] = useState('')
   const [adresseArrivee, setAdresseArrivee] = useState('')
   const [jour, setJour] = useState('')
@@ -750,6 +884,7 @@ function FormTransport({ evenement, lieux, onFait, onAnnuler, setMessage }) {
       adresse_depart: adresseDepart.trim() || null,
       adresse_arrivee: adresseArrivee.trim() || null,
       nb_personnes: Number(nbPersonnes) || 1,
+      unite_quantite: unite,
       souhaite_pour: combinerDateHeure(heureRdv),
       attendu_le: combinerDateHeure(heureAttendue),
       volume_materiel: volumeMateriel,
@@ -772,7 +907,10 @@ function FormTransport({ evenement, lieux, onFait, onAnnuler, setMessage }) {
           <button
             key={v}
             className={`module ${type === v ? 'actif' : ''}`}
-            onClick={() => setType(v)}
+            onClick={() => {
+              setType(v)
+              setUnite(UNITES_PAR_TYPE[v])
+            }}
           >
             {l}
           </button>
@@ -783,16 +921,22 @@ function FormTransport({ evenement, lieux, onFait, onAnnuler, setMessage }) {
         <input
           value={motif}
           onChange={(e) => setMotif(e.target.value)}
-          placeholder="Qui — nom du groupe ou de la personne"
+          placeholder={type === 'materiel' ? 'Quoi — nature du matériel' : 'Qui — nom du groupe ou de la personne'}
         />
         <input
           type="number"
-          min="1"
+          min="0"
+          step={unite === 'personnes' ? 1 : 0.1}
           value={nbPersonnes}
           onChange={(e) => setNbPersonnes(e.target.value)}
-          placeholder="Nombre"
+          placeholder="Quantité"
           style={{ flex: '0 1 90px' }}
         />
+        <select value={unite} onChange={(e) => setUnite(e.target.value)} style={{ flex: '0 1 110px' }}>
+          {UNITES_QUANTITE.map(([v, l]) => (
+            <option key={v} value={v}>{l}</option>
+          ))}
+        </select>
       </div>
 
       <PointDepartArrivee titre="Depuis" lieux={lieux} valeur={depart} onChange={setDepart} />

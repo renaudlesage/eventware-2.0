@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { libelleStatut } from './libelles'
 
 /**
  * Mes missions.
@@ -107,7 +108,7 @@ export default function Terrain({ evenement, membre }) {
             {l.detail && <p style={{ margin: '4px 0' }}>{l.detail}</p>}
             <div className="meta">
               <span>{l.genre}</span>
-              <span>{l.statut}</span>
+              <span>{libelleStatut(l.statut)}</span>
               {l.pour_moi && <span className="jeton">à moi</span>}
               {l.latitude && (
                 <a

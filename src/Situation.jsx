@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
 import Meteo from './Meteo'
 import Maydays from './Maydays'
+import { libelleStatut } from './libelles'
 
 /**
  * Tableau de bord général — la vue QG.
@@ -221,7 +222,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
                   <strong>
                     {x.reference} — {x.type}
                   </strong>
-                  <span>{x.statut}</span>
+                  <span>{libelleStatut(x.statut)}</span>
                 </div>
               ))}
             </>

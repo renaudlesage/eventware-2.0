@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { DOMAINES } from './libelles'
 
 const NATURES = [
   ['dysfonctionnement', 'Dysfonctionnement'],
@@ -13,6 +14,13 @@ const IMPACTS = [
   ['gene', 'Gêne'],
   ['bloquant', 'Bloquant'],
   ['dangereux', 'Dangereux']
+]
+
+const STATUTS_REX = [
+  ['a_arbitrer', 'À arbitrer'],
+  ['retenu', 'Retenu'],
+  ['rejete', 'Rejeté'],
+  ['realise', 'Réalisé']
 ]
 
 export default function Analyse({ evenement, membre }) {
@@ -272,6 +280,12 @@ export function Constats({ evenement, membre, setMessage, compact }) {
     }
   }
 
+  async function arbitrer(id, champs) {
+    const { error } = await supabase.from('rex_entrees').update(champs).eq('id', id)
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else charger()
+  }
+
   return (
     <>
       <div className="formulaire">
@@ -292,8 +306,10 @@ export function Constats({ evenement, membre, setMessage, compact }) {
             onChange={(e) => setF({ ...f, module: e.target.value })}
             style={{ width: 'auto', marginBottom: 0 }}
           >
-            {['securite', 'logistique', 'rh', 'parcours', 'noyau'].map((m) => (
-              <option key={m}>{m}</option>
+            {DOMAINES.map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
             ))}
           </select>
           <select
@@ -342,10 +358,35 @@ export function Constats({ evenement, membre, setMessage, compact }) {
               <span className={['bloquant', 'dangereux'].includes(r.impact) ? 'alerte-texte' : ''}>
                 {r.impact}
               </span>
-              {r.module && <span>{r.module}</span>}
+              {r.module && <span>{DOMAINES.find(([v]) => v === r.module)?.[1] ?? r.module}</span>}
               {r.phase && <span>{r.phase}</span>}
             </div>
             {r.proposition && <p className="aide">→ {r.proposition}</p>}
+
+            <div className="ligne-boutons" style={{ marginTop: 8 }}>
+              {STATUTS_REX.map(([v, l]) => (
+                <button
+                  key={v}
+                  className={`module ${r.statut === v ? 'actif' : ''}`}
+                  onClick={() => arbitrer(r.id, { statut: v })}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+            <div className="saisie-rapide" style={{ marginTop: 6 }}>
+              <input
+                defaultValue={r.porteur ?? ''}
+                placeholder="Porteur"
+                onBlur={(e) => arbitrer(r.id, { porteur: e.target.value.trim() || null })}
+              />
+              <input
+                type="date"
+                defaultValue={r.echeance ?? ''}
+                onBlur={(e) => arbitrer(r.id, { echeance: e.target.value || null })}
+                style={{ flex: '0 1 150px' }}
+              />
+            </div>
           </div>
         ))
       )}

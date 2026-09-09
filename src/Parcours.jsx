@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import Trace from './Trace'
+import { libelleStatut } from './libelles'
 import LigneParcours from './LigneParcours'
 
 const STATUTS = [
@@ -467,7 +468,7 @@ function Pointage({ evenement, membre, setMessage }) {
                     <span className="mono"> · {g.effectif_reel ?? g.effectif_prevu ?? '?'} pers.</span>
                   </span>
                   <span className={`jeton ${g.statut === 'arrive' ? '' : 'alerte-texte'}`}>
-                    {g.statut}
+                    {libelleStatut(g.statut)}
                   </span>
                 </div>
               </div>

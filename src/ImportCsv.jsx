@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Papa from 'papaparse'
 import { supabase } from './supabaseClient'
+import { libelleStatut } from './libelles'
 import { RESSOURCES, validerLigne, modeleCsv } from './colonnesImport'
 
 const MODES = [
@@ -235,7 +236,7 @@ export default function ImportCsv({ evenementId, onFait }) {
                 <tr key={l.numero} className={l.statut}>
                   <td>{l.numero}</td>
                   <td className="mono">{l.valeurs.code ?? '—'}</td>
-                  <td>{l.statut}</td>
+                  <td>{libelleStatut(l.statut)}</td>
                   <td>{l.erreurs.join(' · ')}</td>
                 </tr>
               ))}

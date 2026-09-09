@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Siren, MessageSquareWarning, X, TriangleAlert } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { diffuserAlerte } from './diffusion'
+import { DOMAINES } from './libelles'
+import { detecterDoublons } from './doublons'
 
 /**
  * Boutons SOS et REX, présents sur toutes les pages.
@@ -328,9 +330,40 @@ function FormMayday({ evenement, onFini }) {
 
 function FormRex({ evenement, membre, onFini }) {
   const [nature, setNature] = useState('dysfonctionnement')
+  const [domaine, setDomaine] = useState('securite')
   const [constat, setConstat] = useState('')
   const [occupe, setOccupe] = useState(false)
   const [erreur, setErreur] = useState(null)
+  const [doublons, setDoublons] = useState([])
+  const [ignorerDoublons, setIgnorerDoublons] = useState(false)
+
+  // Même principe que pour les missions : un avertissement discret, pas
+  // un blocage. C'est ici, sur ce même formulaire, que trois personnes
+  // ont signalé séparément le manque de bouchons d'oreille sans que
+  // rien ne les rapproche.
+  async function verifierDoublons() {
+    if (!constat.trim()) {
+      setDoublons([])
+      return
+    }
+    const { data } = await supabase
+      .from('rex_entrees')
+      .select('id, constat, created_at, membre:membre_id(nom_affiche)')
+      .eq('evenement_id', evenement.id)
+      .eq('module', domaine)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    const candidats = (data ?? []).map((r) => ({
+      id: r.id,
+      texte: r.constat,
+      lieu_id: null,
+      cree_le: r.created_at,
+      auteur: r.membre?.nom_affiche
+    }))
+    setDoublons(detecterDoublons({ texte: constat, lieuId: null, candidats, fenetreMinutes: 360 }))
+    setIgnorerDoublons(false)
+  }
 
   async function envoyer() {
     if (!constat.trim()) return
@@ -338,6 +371,7 @@ function FormRex({ evenement, membre, onFini }) {
     const { error } = await supabase.from('rex_entrees').insert({
       evenement_id: evenement.id,
       nature,
+      module: domaine,
       impact: 'gene',
       constat: constat.trim(),
       phase: evenement.phase,
@@ -356,14 +390,35 @@ function FormRex({ evenement, membre, onFini }) {
         Noté à chaud, relu au débriefing. Court et concret suffit.
       </p>
 
-      <label htmlFor="rex-nature">Nature</label>
-      <select id="rex-nature" value={nature} onChange={(e) => setNature(e.target.value)}>
-        {NATURES_REX.map(([v, l]) => (
-          <option key={v} value={v}>
-            {l}
-          </option>
-        ))}
-      </select>
+      <div className="saisie-rapide">
+        <select
+          id="rex-nature"
+          value={nature}
+          onChange={(e) => setNature(e.target.value)}
+          style={{ flex: 1 }}
+        >
+          {NATURES_REX.map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+        <select
+          id="rex-domaine"
+          value={domaine}
+          onChange={(e) => {
+            setDomaine(e.target.value)
+            verifierDoublons()
+          }}
+          style={{ flex: 1 }}
+        >
+          {DOMAINES.map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <label htmlFor="rex-constat">Ce que tu veux remonter</label>
       <textarea
@@ -372,12 +427,23 @@ function FormRex({ evenement, membre, onFini }) {
         rows={3}
         value={constat}
         onChange={(e) => setConstat(e.target.value)}
+        onBlur={verifierDoublons}
         placeholder="Ex : le canal PMR15 sature aux heures de pointe, prévoir un 2e canal l'an prochain."
       />
 
+      {doublons.length > 0 && !ignorerDoublons && (
+        <p className="aide" style={{ color: 'var(--etat-veille)' }}>
+          Déjà remonté par {doublons[0].auteur ?? 'quelqu\u2019un'} il y a{' '}
+          {Math.round((Date.now() - new Date(doublons[0].cree_le).getTime()) / 60000)} min —{' '}
+          <button className="lien" onClick={() => setIgnorerDoublons(true)}>
+            envoyer quand même
+          </button>
+        </p>
+      )}
+
       <button
         className="bouton-terrain"
-        disabled={occupe || !constat.trim()}
+        disabled={occupe || !constat.trim() || (doublons.length > 0 && !ignorerDoublons)}
         onClick={envoyer}
       >
         Remonter ce point

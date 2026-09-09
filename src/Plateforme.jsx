@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { libelleStatut } from './libelles'
 
 /**
  * Console plateforme — vue de l'éditeur.
@@ -152,7 +153,7 @@ function Organisations({ setMessage }) {
         return (
           <div className={`carte ${o.statut === 'suspendue' ? 'urgent' : ''}`} key={o.id}>
             <div className="titre">
-              {o.nom} <span className={`jeton statut-${o.statut}`}>{o.statut}</span>
+              {o.nom} <span className={`jeton statut-${o.statut}`}>{libelleStatut(o.statut)}</span>
             </div>
             <div className="meta">
               <span className="mono">{o.slug}</span>

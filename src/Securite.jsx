@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import Sitrep from './Sitrep'
+import { libelleStatut, DOMAINES } from './libelles'
+import { detecterDoublons } from './doublons'
 import Maydays from './Maydays'
 import Meteo from './Meteo'
 import PcOps from './PcOps'
@@ -150,10 +152,29 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
 /* Main courante                                                       */
 /* ================================================================== */
 
-function Journal({ evenement, setMessage }) {
+// Pour la saisie manuelle : uniquement les domaines qu'une personne
+// Pour la saisie manuelle : uniquement les domaines qu'une personne
+// choisit elle-même, importés du module partagé — « Météo », « noyau »
+// (alertes système) et « Analyse » n'existent que par écriture
+// automatique, inutile de les proposer à la saisie, mais leurs
+// entrées doivent rester filtrables et lisibles au même titre que les
+// autres.
+const MODULES_SAISIE = DOMAINES
+const MODULES_JOURNAL = [
+  ...MODULES_SAISIE,
+  ['meteo', 'Météo'],
+  ['sanitaire', 'Sanitaire'],
+  ['analyse', 'Analyse'],
+  ['noyau', 'Plateforme']
+]
+const LIBELLE_MODULE = Object.fromEntries(MODULES_JOURNAL)
+
+export function Journal({ evenement, setMessage, moduleParDefaut = 'securite' }) {
   const [lignes, setLignes] = useState([])
   const [texte, setTexte] = useState('')
+  const [moduleSaisie, setModuleSaisie] = useState(moduleParDefaut)
   const [filtre, setFiltre] = useState('tout')
+  const [filtreModule, setFiltreModule] = useState('tout')
   const [occupe, setOccupe] = useState(false)
 
   async function charger() {
@@ -179,7 +200,7 @@ function Journal({ evenement, setMessage }) {
     const { error } = await supabase.from('journal').insert({
       evenement_id: evenement.id,
       source: 'saisie',
-      module: 'securite',
+      module: moduleSaisie,
       categorie: 'observation',
       texte: texte.trim(),
       phase: evenement.phase
@@ -192,17 +213,24 @@ function Journal({ evenement, setMessage }) {
     setOccupe(false)
   }
 
-  const visibles = lignes.filter((l) =>
-    filtre === 'tout'
-      ? true
-      : filtre === 'saisie'
-        ? l.source === 'saisie'
-        : l.importance === 'majeur'
-  )
+  const visibles = lignes
+    .filter((l) =>
+      filtre === 'tout' ? true : filtre === 'saisie' ? l.source === 'saisie' : l.importance === 'majeur'
+    )
+    .filter((l) => filtreModule === 'tout' || l.module === filtreModule)
 
   return (
     <>
       <div className="saisie-rapide">
+        <select
+          value={moduleSaisie}
+          onChange={(e) => setModuleSaisie(e.target.value)}
+          style={{ flex: '0 1 150px' }}
+        >
+          {MODULES_SAISIE.map(([v, l]) => (
+            <option key={v} value={v}>{l}</option>
+          ))}
+        </select>
         <input
           value={texte}
           onChange={(e) => setTexte(e.target.value)}
@@ -214,7 +242,7 @@ function Journal({ evenement, setMessage }) {
         </button>
       </div>
 
-      <div className="ligne-boutons" style={{ marginBottom: 12 }}>
+      <div className="ligne-boutons" style={{ marginBottom: 6 }}>
         {[
           ['tout', 'Tout'],
           ['majeur', 'Majeur'],
@@ -224,6 +252,23 @@ function Journal({ evenement, setMessage }) {
             key={k}
             className={`module ${filtre === k ? 'actif' : ''}`}
             onClick={() => setFiltre(k)}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+      <div className="ligne-boutons" style={{ marginBottom: 12 }}>
+        <button
+          className={`discret ${filtreModule === 'tout' ? 'actif' : ''}`}
+          onClick={() => setFiltreModule('tout')}
+        >
+          Tous domaines
+        </button>
+        {MODULES_JOURNAL.map(([v, l]) => (
+          <button
+            key={v}
+            className={`discret ${filtreModule === v ? 'actif' : ''}`}
+            onClick={() => setFiltreModule(v)}
           >
             {l}
           </button>
@@ -244,15 +289,18 @@ function Journal({ evenement, setMessage }) {
               </span>
               <span className="corps">
                 {l.texte}
-                {l.module && <span className="tag">{l.module}</span>}
+                {l.module && <span className="tag">{LIBELLE_MODULE[l.module] ?? l.module}</span>}
               </span>
             </li>
           ))}
         </ul>
       )}
       <p className="aide">
-        Les entrées grises sont écrites automatiquement par les autres modules. Rien ne peut
-        être modifié ni supprimé : une main courante qui se réécrit n'a aucune valeur.
+        Une seule main courante pour la sécurité et la logistique — délibérément. Comprendre
+        après coup les circonstances logistiques d'un événement sécurité demande qu'elles
+        soient au même endroit, pas dans deux journaux qu'il faudrait recouper. Les entrées
+        grises sont écrites automatiquement par les autres modules. Rien ne peut être modifié
+        ni supprimé : une main courante qui se réécrit n'a aucune valeur.
       </p>
     </>
   )
@@ -503,7 +551,9 @@ function echeanceDepuisDelai(delai) {
 function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessage, onFait, onAnnuler }) {
   const urgent = mode === 'urgent'
   const [natureUrgente, setNatureUrgente] = useState(NATURES_URGENTES[0][0])
-  const [natureLibre, setNatureLibre] = useState('')
+  const [types, setTypes] = useState([])
+  const [typeId, setTypeId] = useState('')
+  const [precision, setPrecision] = useState('')
   const [lieuId, setLieuId] = useState('')
   const [quiConcerne, setQuiConcerne] = useState('')
   const [descriptif, setDescriptif] = useState('')
@@ -511,6 +561,19 @@ function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessa
   const [bloquant, setBloquant] = useState(false)
   const [position, setPosition] = useState(null)
   const [occupe, setOccupe] = useState(false)
+  const [doublons, setDoublons] = useState([])
+  const [ignorerDoublons, setIgnorerDoublons] = useState(false)
+
+  useEffect(() => {
+    if (urgent) return
+    supabase
+      .from('types_mission')
+      .select('*')
+      .eq('evenement_id', evenement.id)
+      .is('deleted_at', null)
+      .then(({ data }) => setTypes(data ?? []))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urgent])
 
   useEffect(() => {
     if (!urgent || !navigator.geolocation) return
@@ -521,19 +584,59 @@ function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urgent])
 
+  // À la saisie, pas après coup — REX BFMF 2026 point 9 : deux missions
+  // identiques pour le même seau de jetons à 21 minutes d'intervalle,
+  // jamais rapprochées. Comparaison simple par mots partagés, pas un
+  // modèle de langage — elle attrape les cas grossiers, pas tous les
+  // doublons possibles. Un avertissement à ignorer d'un clic, jamais
+  // un blocage : le coût d'un faux positif reste faible, celui d'un
+  // blocage à tort ne l'est pas.
+  async function verifierDoublons() {
+    if (urgent || !precision.trim()) {
+      setDoublons([])
+      return
+    }
+    const { data } = await supabase
+      .from('missions')
+      .select('id, titre, lieu_id, created_at, membre:membre_id(nom_affiche)')
+      .eq('evenement_id', evenement.id)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    const candidats = (data ?? []).map((m) => ({
+      id: m.id,
+      texte: m.titre,
+      lieu_id: m.lieu_id,
+      cree_le: m.created_at,
+      auteur: m.membre?.nom_affiche
+    }))
+    setDoublons(detecterDoublons({ texte: precision, lieuId: lieuId || null, candidats }))
+    setIgnorerDoublons(false)
+  }
+
+  const typeChoisi = types.find((t) => t.id === typeId)
+
   const pret = urgent
     ? descriptif.trim().length >= 5
-    : natureLibre.trim().length > 0
+    : !!typeId && (doublons.length === 0 || ignorerDoublons)
 
   async function creer() {
     setOccupe(true)
-    const titre = urgent ? NATURES_URGENTES.find((n) => n[0] === natureUrgente)[1] : natureLibre.trim()
+    const titre = urgent
+      ? NATURES_URGENTES.find((n) => n[0] === natureUrgente)[1]
+      : typeChoisi.libelle + (precision.trim() ? ` — ${precision.trim()}` : '')
     const { error } = await supabase.from('missions').insert({
       evenement_id: evenement.id,
       module,
       phase: evenement.phase,
       titre,
-      priorite: urgent ? 'P1' : 'P3',
+      // La catégorie « sécurité » impose sa priorité — ce n'est pas
+      // une suggestion qu'on pourrait rétrograder au clic suivant.
+      // C'est exactement le flag qui manquait au REX : sans lui, P1
+      // ne voulait plus rien dire (35 % des missions classées P1,
+      // aucun écart de délai mesurable avec P2).
+      priorite: urgent ? 'P1' : typeChoisi.priorite,
+      type_id: urgent ? null : typeId,
       lieu_id: lieuId || null,
       latitude: urgent ? position?.lat ?? null : null,
       longitude: urgent ? position?.lon ?? null : null,
@@ -608,18 +711,61 @@ function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessa
         </>
       ) : (
         <>
-          <label htmlFor="nature-normale">Nature de l'incident / besoin matériel *</label>
+          <label htmlFor="type-normale">Catégorie *</label>
+          <select id="type-normale" value={typeId} onChange={(e) => setTypeId(e.target.value)}>
+            <option value="">— choisir une catégorie —</option>
+            {types.map((t) => (
+              <option key={t.id} value={t.id}>{t.libelle}</option>
+            ))}
+          </select>
+          {typeChoisi && (
+            <p className="aide" style={{ marginTop: -6 }}>
+              Priorité {typeChoisi.priorite} — délai cible {typeChoisi.delai_cible_min} min
+              {typeChoisi.categorie === 'securite' && ' · verrouillée, cette catégorie ne se rétrograde pas'}
+            </p>
+          )}
+
+          <label htmlFor="precision-normale">Précision (facultatif)</label>
           <input
-            id="nature-normale"
-            value={natureLibre}
-            onChange={(e) => setNatureLibre(e.target.value)}
-            placeholder="Ex : Panne éclairage, manque gobelets…"
+            id="precision-normale"
+            value={precision}
+            onChange={(e) => setPrecision(e.target.value)}
+            onBlur={verifierDoublons}
+            placeholder="Ex : gobelets scène 2, panne projecteur backstage…"
           />
+
+          {doublons.length > 0 && !ignorerDoublons && (
+            <div className="message erreur">
+              <strong>Une demande très proche existe déjà :</strong>
+              <ul className="chrono" style={{ marginTop: 6 }}>
+                {doublons.slice(0, 3).map((d) => (
+                  <li key={d.id}>
+                    <span className="corps">
+                      {d.texte} — {d.auteur ?? 'quelqu\u2019un'},{' '}
+                      {Math.round((Date.now() - new Date(d.cree_le).getTime()) / 60000)} min
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="ligne-boutons" style={{ marginTop: 6 }}>
+                <button className="discret" onClick={() => setIgnorerDoublons(true)}>
+                  Créer quand même — ce n'est pas la même chose
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="saisie-rapide">
             <div style={{ flex: 1 }}>
               <label htmlFor="lieu-normale">Localisation</label>
-              <select id="lieu-normale" value={lieuId} onChange={(e) => setLieuId(e.target.value)}>
+              <select
+                id="lieu-normale"
+                value={lieuId}
+                onChange={(e) => {
+                  setLieuId(e.target.value)
+                  verifierDoublons()
+                }}
+              >
                 <option value="">— choisir un lieu du dispositif —</option>
                 {lieux.map((l) => (
                   <option key={l.id} value={l.id}>{l.code} · {l.nom}</option>
@@ -820,7 +966,7 @@ function Recherches({ evenement, setMessage }) {
               {l.dernier_lieu && <span>vu·e : {l.dernier_lieu}</span>}
               {l.point_regroupement && <span>regroupement : {l.point_regroupement}</span>}
               {l.accompagnant_tel && <span>{l.accompagnant_tel}</span>}
-              <span className="jeton">{l.statut}</span>
+              <span className="jeton">{libelleStatut(l.statut)}</span>
             </div>
             {l.statut === 'en_cours' && (
               <div className="ligne-boutons" style={{ marginTop: 10 }}>
