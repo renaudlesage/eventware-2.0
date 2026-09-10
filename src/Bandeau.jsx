@@ -96,15 +96,6 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
     charger()
   }, [evenement.id])
 
-  // Embarqué dans un bloc du tableau de bord : le nombre d'alertes
-  // actives remonte dans l'en-tête, calculé sur la même liste que
-  // celle affichée en dessous.
-  const actives = alertes.filter((a) => a.active).length
-  useEffect(() => {
-    onCompteurs?.({ actives })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actives])
-
   async function emettre() {
     if (!f.titre.trim()) return
     const { data, error } = await supabase
@@ -134,6 +125,14 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
   }
 
   const actives = alertes.filter((a) => a.active)
+
+  // Embarqué dans un bloc du tableau de bord : le compteur d'en-tête
+  // est dérivé de cette même liste, jamais recalculé à côté — sinon
+  // l'en-tête et le contenu pourraient se contredire.
+  useEffect(() => {
+    onCompteurs?.({ actives: actives.length })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actives.length])
 
   return (
     <div className="gestion-alertes">
