@@ -3,6 +3,9 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import 'leaflet/dist/leaflet.css'
 import './styles.css'
+// Après la feuille principale : la couche mobile n'ajoute pas un thème,
+// elle rectifie la présentation sous 700 px et doit donc passer après.
+import './mobile.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

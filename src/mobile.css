@@ -1,0 +1,429 @@
+/* ===================================================================
+   EVENTWARE 2.0 — couche mobile
+   -------------------------------------------------------------------
+   Une seule règle d'or : ce fichier ne change QUE la présentation, et
+   seulement sous 700 px. Aucune donnée, aucun droit, aucun écran ne
+   dépend de la largeur de la fenêtre — le poste de travail au PC reste
+   exactement ce qu'il était.
+
+   Le parti pris du bureau tient à un écran qu'on regarde de loin, posé,
+   pendant des heures : des angles droits, des filets fins, de la
+   densité. Sur un téléphone tenu à bout de bras, sous la pluie, avec
+   des gants, ce même dessin devient illisible et intouchable. D'où les
+   trois écarts assumés :
+
+     — des cibles au pouce (44 px au minimum, 52 pour les boutons
+       d'urgence) plutôt que des filets de 1 px ;
+     — des cartes détachées, à angles arrondis, parce que sur 400 px de
+       large une grille dense ne se lit plus comme une grille mais
+       comme un mur ;
+     — la navigation en bas, là où le pouce arrive.
+
+   Les couleurs, elles, ne bougent pas d'un ton : mêmes variables, même
+   sens fixe, mêmes deux thèmes. Une teinte ne veut pas dire autre chose
+   parce qu'on a changé d'appareil.
+   =================================================================== */
+
+/* Éléments propres au mobile : présents dans le DOM, invisibles au-delà
+   du seuil. Un seul arbre à rendre, pas deux applications à maintenir —
+   c'est la largeur qui décide de ce qui s'affiche, jamais le code. */
+.marque-mobile,
+.barre-onglets { display: none; }
+
+@media (max-width: 700px) {
+
+  /* Le rayon est la seule valeur de fond qui change : sur un téléphone,
+     l'angle droit lit « document », l'angle arrondi lit « application
+     qu'on manipule ». C'est le seul endroit où l'on suit la convention
+     de la plateforme plutôt que la nôtre. */
+  :root { --rayon: 8px; }
+
+  /* ---------------- Coquille ---------------- */
+
+  /* De la place sous le contenu pour la barre d'onglets ET les boutons
+     d'urgence qui la surmontent : sans ça, la dernière ligne de chaque
+     écran est définitivement inatteignable. */
+  .poste {
+    padding: 0 16px calc(150px + env(safe-area-inset-bottom));
+  }
+
+  /* ---------------- Tête ---------------- */
+
+  /* Pleine largeur sur fond de surface : la tête devient une barre
+     d'application et non un bloc posé sur la page. Les marges
+     négatives annulent le retrait de .poste sans le remettre en cause
+     pour le reste. */
+  .tete {
+    background: var(--surface);
+    border-bottom: 1px solid var(--trait);
+    margin: 0 -16px 14px;
+    padding: 0 16px 8px;
+  }
+
+  .marque-mobile {
+    display: block;
+    padding: 10px 0 0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--sourdine);
+  }
+
+  .barre-haut { padding: 2px 0 6px; }
+  .barre-bas  { padding: 0 0 4px; }
+
+  /* Le sélecteur d'événement EST le titre de l'écran : il en prend la
+     graisse et perd son cadre. La flèche reste, c'est elle qui dit
+     qu'on peut en changer. */
+  .selecteur-evenement {
+    border-color: transparent;
+    background: transparent;
+    padding: 0 20px 0 0;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  /* L'adresse et la déconnexion quittent la barre : elles sont dans le
+     pavé « Mon rôle », qui est la première chose que voit qui ouvre
+     l'app. Le témoin de réseau et le thème restent — le premier
+     conditionne la confiance dans ce qui est affiché, le second la
+     lisibilité en plein soleil ou de nuit, qui est précisément la
+     raison d'être des deux thèmes. */
+  .barre-haut button.deconnexion,
+  .barre-bas .compte { display: none; }
+
+  /* Ce qui reste dans la barre se fait discret : c'est le nom de
+     l'événement qui doit occuper la ligne. */
+  .barre-haut button.sortie {
+    min-height: 32px;
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+
+  .temoin { font-size: 9px; }
+
+  .plaque { border-radius: 4px; }
+
+  /* ---------------- Bandeau d'alerte ---------------- */
+
+  /* Au bureau, le bandeau est une carte parmi d'autres. Sur le terrain,
+     une alerte doit occuper toute la largeur et se lire d'un coup d'œil
+     à bout de bras : aplat plein, texte en blanc, pas de cadre. */
+  .bandeaux { margin: -14px -16px 14px; }
+
+  .bandeau-alerte {
+    flex-direction: column;
+    gap: 2px;
+    border: none;
+    border-radius: 0;
+    margin-bottom: 0;
+    padding: 10px 16px;
+    color: #fff;
+  }
+
+  .bandeau-alerte + .bandeau-alerte { border-top: 1px solid rgba(255, 255, 255, 0.25); }
+
+  .bandeau-alerte .niv {
+    flex: 0 0 auto;
+    padding: 0;
+    justify-content: flex-start;
+    text-align: left;
+    background: none !important;
+    opacity: 0.85;
+  }
+
+  .bandeau-alerte .contenu { padding: 0; }
+  .bandeau-alerte .contenu strong { font-size: 13px; line-height: 1.3; }
+  .bandeau-alerte .msg,
+  .bandeau-alerte .consigne { font-size: 12px; line-height: 1.4; }
+  .bandeau-alerte .meta { color: rgba(255, 255, 255, 0.85); }
+
+  .bandeau-alerte.niv-information { background: var(--etat-info); }
+  .bandeau-alerte.niv-vigilance   { background: var(--etat-veille); }
+  .bandeau-alerte.niv-urgence,
+  .bandeau-alerte.niv-evacuation  { background: var(--etat-chaud); }
+
+  /* ---------------- Navigation ---------------- */
+
+  /* Les plaques cèdent la place à la barre du bas. */
+  .corps > .plaques { display: none; }
+
+  .barre-onglets {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 55;
+    display: flex;
+    background: var(--surface);
+    border-top: 1px solid var(--trait);
+    padding: 8px 6px calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .onglet-bas {
+    all: unset;
+    cursor: pointer;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 44px;
+    color: var(--sourdine);
+    font-size: 10px;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .onglet-bas.actif { color: var(--etat-info); }
+
+  .liste-ecrans { display: flex; flex-direction: column; gap: 6px; }
+  .liste-ecrans .plaque-nav { padding: 12px 13px; }
+
+  /* ---------------- Mon poste ---------------- */
+
+  .entete-dashboard h2 { font-size: 11px; }
+
+  .grille-domaines { gap: 8px; }
+
+  /* La carte perd son bandeau de titre teinté au profit d'un filet à
+     gauche : sur 400 px, l'aplat de tête mangeait une ligne entière
+     pour ne dire qu'un mot. Le filet dit la même chose sur zéro. */
+  .colonne-domaine {
+    border-radius: 10px;
+    border-left: 3px solid var(--teinte, var(--trait));
+    overflow: hidden;
+  }
+
+  .colonne-tete {
+    background: none;
+    border-bottom: none;
+    padding: 13px 15px 6px;
+  }
+
+  /* Le glyphe du catalogue double le titre sans rien ajouter dès qu'on
+     est en pleine largeur. */
+  .colonne-icone { display: none; }
+  .colonne-titre { font-size: 10px; letter-spacing: 0.1em; }
+
+  /* Les compteurs restent — ils portent la seule donnée chiffrée de la
+     carte — mais sans grille ni filets : trois nombres alignés suffisent
+     à se lire. */
+  .colonne-compteurs {
+    background: none;
+    gap: 0;
+    padding: 0 15px;
+  }
+
+  .compteur-mini {
+    background: none !important;
+    align-items: flex-start;
+    padding: 2px 0;
+  }
+
+  .compteur-mini-valeur { font-size: 22px; }
+  .compteur-mini-libelle { text-align: left; font-size: 9px; }
+
+  /* « Moniteur » nommait un cadre visible ; sans le cadre, l'étiquette
+     ne désigne plus rien. Le lien vers l'écran, lui, reste : c'est la
+     seule façon d'ouvrir le module depuis un pavé. */
+  .moniteur-entete {
+    border-bottom: none;
+    padding: 4px 15px 0;
+    justify-content: flex-end;
+  }
+
+  .moniteur-entete > span:first-child { display: none; }
+  .moniteur-lien { font-size: 12px; }
+
+  .moniteur-corps {
+    padding: 6px 15px 13px;
+    max-height: none;
+    min-height: 0;
+  }
+
+  /* Sur téléphone on déroule la page, on ne fait pas défiler huit
+     cadres indépendants : un moniteur qui garde sa propre barre de
+     défilement piège le doigt et cache la moitié de sa liste. */
+  .grille-poste .moniteur-corps { max-height: none; }
+
+  .moniteur-corps .grand { font-size: 22px; line-height: 1.15; }
+  .moniteur-ligne { font-size: 13px; padding: 6px 0; }
+
+  .reglage-paves button.module { min-height: 34px; }
+
+  /* ---------------- Onglets internes ---------------- */
+
+  /* Sécurité, Logistique, Mémento : la rangée de modules est la
+     navigation de second niveau. Elle doit rester touchable. */
+  .onglets,
+  .groupes-securite {
+    gap: 6px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+
+  .onglets::-webkit-scrollbar,
+  .groupes-securite::-webkit-scrollbar { display: none; }
+
+  .onglets button.module,
+  .groupes-securite button {
+    flex: 0 0 auto;
+    min-height: 34px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+  }
+
+  /* L'onglet actif garde la teinte de son domaine, comme partout
+     ailleurs dans l'application. La maquette le montrait en bleu
+     d'information, mais c'était l'effet d'un prototype qui ignorait les
+     teintes de domaine : sur l'écran Sécurité, un onglet bleu au-dessus
+     d'un contenu grenat dirait qu'on a changé de module. */
+
+  /* ---------------- Cartes et listes ---------------- */
+
+  .bloc { margin-bottom: 22px; }
+
+  .carte {
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+
+  .carte.urgent { border-left: 3px solid var(--etat-chaud); }
+
+  /* ---------------- Planning ---------------- */
+
+  /* Deux ou trois jours se partagent la largeur : des onglets de
+     largeur égale sont plus faciles à viser qu'une rangée qui défile. */
+  .jours-planning { gap: 8px; }
+
+  .jour-onglet {
+    flex: 1 1 0;
+    min-width: 0;
+    border-radius: 8px;
+    padding: 8px 6px;
+  }
+
+  .item-planning { padding: 10px 0 10px 14px; }
+  .item-heure { flex: 0 0 42px; font-size: 12px; font-weight: 600; }
+  .item-titre { font-size: 13px; font-weight: 600; }
+  .item-detail { font-size: 12px; }
+
+  /* ---------------- Mémento ---------------- */
+
+  /* Le seul endroit de l'application où l'on tape un bouton sans
+     réfléchir : il occupe la largeur, il est rouge, il appelle. */
+  .memento .carte.urgent .ligne-boutons { gap: 8px; }
+
+  .memento .bouton-appel {
+    flex: 1;
+    text-align: center;
+    padding: 12px;
+    font-size: 16px;
+    border-radius: 6px;
+  }
+
+  /* ---------------- Boutons d'urgence ---------------- */
+
+  /* Trois carrés empilés au-dessus de la barre d'onglets, dans l'ordre
+     d'urgence croissante de haut en bas : la main monte depuis le bas
+     de l'écran, le geste le plus court va au plus grave. Le libellé
+     seul, sans icône : à 52 px, les deux ensemble ne laissent lisible
+     ni l'un ni l'autre, et c'est le mot qu'on cherche sous stress. */
+  .flottants {
+    right: 14px;
+    bottom: calc(78px + env(safe-area-inset-bottom));
+    gap: 8px;
+    align-items: center;
+  }
+
+  .flottant {
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    padding: 0;
+    border-radius: 14px;
+    font-size: 9px;
+    letter-spacing: 0.03em;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  }
+
+  .flottant svg { display: none; }
+
+  /* REX et Mayday en contour : ils ne doivent pas concurrencer le SOS,
+     qui est le geste par défaut quand on constate quelque chose. */
+  /* L'ordre du DOM sert le clavier, l'ordre visuel sert le pouce : le
+     geste le plus court doit aller au plus grave. SOS en bas, contre la
+     barre d'onglets ; REX tout en haut, c'est celui qui attend. */
+  .flottant.rex    { order: 1; }
+  .flottant.mayday { order: 2; }
+  .flottant.sos    { order: 3; }
+
+  .flottant.rex {
+    width: 52px;
+    height: 52px;
+    padding: 0;
+    font-size: 9px;
+    background: var(--surface);
+    border: 1px solid var(--dom-ardoise);
+    color: var(--dom-ardoise);
+  }
+
+  .flottant.rex span { display: inline; }
+
+  .flottant.mayday {
+    background: var(--surface);
+    border: 2px solid var(--dom-grenat);
+    color: var(--dom-grenat);
+  }
+
+  .flottant.sos {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    font-size: 11px;
+    box-shadow: 0 4px 10px rgba(179, 49, 29, 0.4);
+  }
+
+  /* ---------------- Tiroirs ---------------- */
+
+  /* Une feuille qui monte du bas, avec sa poignée : elle se referme du
+     pouce, sans viser la croix. */
+  .voile { background: rgba(16, 21, 27, 0.45); }
+
+  .tiroir {
+    background: var(--surface);
+    border: none;
+    border-radius: 18px 18px 0 0;
+    padding: 8px 18px calc(24px + env(safe-area-inset-bottom));
+    max-height: 86vh;
+  }
+
+  .tiroir::before {
+    content: "";
+    display: block;
+    width: 36px;
+    height: 4px;
+    margin: 0 auto 14px;
+    border-radius: 2px;
+    background: var(--trait);
+  }
+
+  .tiroir-tete { border-bottom: 1px solid var(--trait); }
+
+  /* ---------------- Cibles de saisie ---------------- */
+
+  /* 16 px : en dessous, iOS zoome à la mise au point et l'écran part de
+     travers. Ce n'est pas un choix esthétique. */
+  input, select, textarea { font-size: 16px; padding: 11px 12px; }
+
+  button { min-height: 40px; }
+  button.lien { min-height: 0; }
+}

@@ -24,6 +24,7 @@ import Point0 from './Point0'
 import Diffusion from './Diffusion'
 import { appliquerIconeEvenement } from './logoPwa'
 import BoutonsFlottants from './BoutonsFlottants'
+import BarreOnglets from './BarreOnglets'
 import { RESSOURCES } from './colonnesImport'
 import { useCapacites } from './capacites'
 import { Icone, DOMAINES } from './icones'
@@ -276,6 +277,11 @@ function Poste({ session, theme, setTheme }) {
   return (
     <div className="poste">
       <div className="tete">
+        {/* Sur téléphone, le nom de l'application ne figure nulle part
+            ailleurs : l'app est lancée depuis l'écran d'accueil, sans
+            barre d'adresse pour dire où l'on est. */}
+        <span className="marque-mobile">Eventware 2.0</span>
+
         <div className="barre-haut">
           {evenements.length > 0 && (
             <select
@@ -296,7 +302,10 @@ function Poste({ session, theme, setTheme }) {
           <span className="pousse" />
           <Reseau />
           <BasculeTheme theme={theme} setTheme={setTheme} compact />
-          <button className="discret sortie" onClick={() => supabase.auth.signOut()}>
+          <button
+            className="discret sortie deconnexion"
+            onClick={() => supabase.auth.signOut()}
+          >
             Quitter
           </button>
         </div>
@@ -397,6 +406,13 @@ function Poste({ session, theme, setTheme }) {
           peut={peut}
           toutPouvoir={toutPouvoir}
         />
+      )}
+
+      {/* Même liste d'écrans que la navigation par plaques, même filtre
+          de capacités : la barre du bas n'ouvre rien de plus que ce à
+          quoi la personne a droit. Elle n'apparaît que sous 700 px. */}
+      {courant && moi && pret && (
+        <BarreOnglets ecrans={visibles} ecran={ecran} onAller={aller} />
       )}
     </div>
   )

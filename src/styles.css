@@ -1104,17 +1104,23 @@ button.grand-lien:hover .grand { text-decoration-color: currentColor; }
  * cliquables) contiennent plusieurs blocs de texte avec leurs propres
  * couleurs fixes ; leur appliquer un fond plein rendait ce texte gris
  * illisible dessus. D'où l'exclusion explicite de .tuile et .pave-lien.
+ *
+ * .jour-onglet relève du même cas et manquait à la liste : dans le bloc
+ * Planning (.dom-azur), TOUS les onglets de jour recevaient l'aplat
+ * azur, y compris les inactifs — leur propre règle .actif, moins
+ * spécifique que cette liste, ne pouvait pas l'emporter. Le jour
+ * sélectionné ne se distinguait plus des autres.
  */
-.dom-indigo button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne),
-.dom-violet button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne),
-.dom-sarcelle button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne),
-.dom-grenat button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne),
-.dom-orange button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne),
-.dom-bronze button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne),
-.dom-mousse button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne),
-.dom-azur button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne),
-.dom-prune button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne),
-.dom-ardoise button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne) {
+.dom-indigo button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet),
+.dom-violet button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet),
+.dom-sarcelle button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet),
+.dom-grenat button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet),
+.dom-orange button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet),
+.dom-bronze button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet),
+.dom-mousse button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet),
+.dom-azur button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet),
+.dom-prune button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet),
+.dom-ardoise button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet) {
   background: var(--teinte);
   border-color: var(--teinte);
   color: #fff;

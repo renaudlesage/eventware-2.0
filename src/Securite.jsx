@@ -77,7 +77,7 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
     <div className="bloc securite dom-grenat">
       <h2>Sécurité</h2>
 
-      <div className="ligne-boutons" style={{ marginBottom: 10 }}>
+      <div className="ligne-boutons groupes-securite" style={{ marginBottom: 10 }}>
         {Object.entries(GROUPES).map(([g, { libelle }]) => (
           <button
             key={g}
