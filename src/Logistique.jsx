@@ -41,6 +41,7 @@ export default function Logistique({ evenement, membre }) {
 
       {onglet === 'interventions' && (
         <Missions
+          key="logistique"
           evenement={evenement}
           membre={membre}
           setMessage={setMessage}

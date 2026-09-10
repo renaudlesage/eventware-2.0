@@ -26,7 +26,7 @@
  */
 export const PAVES = {
   identite: {
-    libelle: 'Mon rôle',
+    libelle: 'Mon poste',
     teinte: 'violet',
     icone: '◉',
     lien: null,
@@ -114,15 +114,6 @@ export const PAVES = {
     besoin: null,
     obligatoire: []
   },
-  lieux: {
-    libelle: 'Lieux',
-    teinte: 'prune',
-    icone: '◎',
-    lien: 'plan',
-    module: null,
-    besoin: null,
-    obligatoire: []
-  },
   materiel: {
     libelle: 'Matériel sous seuil',
     teinte: 'bronze',
@@ -131,19 +122,6 @@ export const PAVES = {
     module: 'logistique',
     besoin: ['missions', 'creer'],
     obligatoire: []
-  },
-  compte: {
-    libelle: 'Mon compte',
-    teinte: 'ardoise',
-    icone: '⚙',
-    lien: null,
-    module: null,
-    besoin: null,
-    // Sortie de secours : accessible à TOUS les rôles, y compris ceux
-    // qui n'ont pas accès aux Réglages. Ne se retire jamais — admin
-    // compris, sinon une préférence enregistrée avant l'arrivée de ce
-    // bloc le ferait disparaître.
-    obligatoire: ['coordinateur', 'admin', 'chef_equipe', 'benevole', 'observateur']
   }
 }
 
@@ -153,11 +131,11 @@ export const PAVES = {
  * l'ordre du catalogue, filtré par ses capacités.
  */
 const DEFAUTS = {
-  coordinateur: ['identite', 'mes_missions', 'alertes', 'sos', 'mes_demandes', 'planning', 'contacts', 'equipes', 'lieux', 'materiel', 'compte'],
-  admin: ['identite', 'mes_missions', 'alertes', 'sos', 'mes_demandes', 'planning', 'contacts', 'equipes', 'lieux', 'materiel', 'compte'],
-  chef_equipe: ['identite', 'mes_missions', 'mes_creneaux', 'alertes', 'sos', 'mes_demandes', 'planning', 'equipes', 'lieux', 'materiel', 'compte'],
-  benevole: ['identite', 'mes_missions', 'mes_creneaux', 'mes_demandes', 'planning', 'lieux', 'equipes', 'compte'],
-  observateur: ['identite', 'planning', 'lieux', 'compte']
+  coordinateur: ['identite', 'mes_missions', 'alertes', 'sos', 'mes_demandes', 'planning', 'contacts', 'equipes', 'materiel'],
+  admin: ['identite', 'mes_missions', 'alertes', 'sos', 'mes_demandes', 'planning', 'contacts', 'equipes', 'materiel'],
+  chef_equipe: ['identite', 'mes_missions', 'mes_creneaux', 'alertes', 'sos', 'mes_demandes', 'planning', 'equipes', 'materiel'],
+  benevole: ['identite', 'mes_missions', 'mes_creneaux', 'mes_demandes', 'planning', 'equipes'],
+  observateur: ['identite', 'planning']
 }
 
 /**

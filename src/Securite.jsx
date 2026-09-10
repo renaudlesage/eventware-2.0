@@ -124,6 +124,7 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
       {onglet === 'journal' && <Journal evenement={evenement} setMessage={setMessage} />}
       {onglet === 'missions' && (
         <Missions
+          key="securite"
           evenement={evenement}
           membre={membre}
           setMessage={setMessage}
@@ -166,6 +167,16 @@ const MODULES_JOURNAL = [
   ['noyau', 'Plateforme']
 ]
 const LIBELLE_MODULE = Object.fromEntries(MODULES_JOURNAL)
+
+// Modules vers lesquels une demande peut réellement être déplacée : ceux
+// qui ont un écran de demandes pour l'accueillir. « Sanitaire » n'en a
+// pas encore — l'y envoyer la rendrait invisible partout, exactement le
+// défaut que ce garde-fou existe pour empêcher. À rouvrir le jour où
+// l'écran Sanitaire affichera ses propres demandes.
+const MODULES_DEMANDE = [
+  ['securite', 'Sécurité'],
+  ['logistique', 'Logistique']
+]
 
 export function Journal({ evenement, setMessage, moduleParDefaut = 'securite' }) {
   const [lignes, setLignes] = useState([])
@@ -366,7 +377,15 @@ export function Missions({ evenement, membre, setMessage, module = 'securite', l
     if (error) setMessage({ type: 'erreur', texte: error.message })
     else if (count === 0)
       setMessage({ type: 'erreur', texte: 'Modification refusée : droits insuffisants.' })
-    else charger()
+    else {
+      // Changer le module fait sortir la demande de cet écran : sans le
+      // dire, elle semble disparaître. On nomme sa nouvelle destination.
+      if (champs.module && champs.module !== module) {
+        const cible = MODULES_SAISIE.find(([v]) => v === champs.module)?.[1] ?? champs.module
+        setMessage({ type: 'info', texte: `Demande déplacée vers ${cible} — elle n'apparaît plus ici.` })
+      }
+      charger()
+    }
   }
 
   const compteurs = {
@@ -523,7 +542,7 @@ export function Missions({ evenement, membre, setMessage, module = 'securite', l
                       onChange={(e) => modifier(m.id, { module: e.target.value })}
                       style={{ width: 'auto', marginBottom: 0 }}
                     >
-                      {MODULES_SAISIE.map(([v, l]) => (
+                      {MODULES_DEMANDE.map(([v, l]) => (
                         <option key={v} value={v}>{l}</option>
                       ))}
                     </select>

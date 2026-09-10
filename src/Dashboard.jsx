@@ -139,12 +139,8 @@ function Contenu({ clef, ...p }) {
       return <PaveListe clef="contacts" table="contacts" champ="nom" second="telephone" {...p} />
     case 'equipes':
       return <PaveListe clef="equipes" table="equipes" champ="nom" second="code" {...p} />
-    case 'lieux':
-      return <PaveListe clef="lieux" table="lieux" champ="nom" second="type" {...p} />
     case 'materiel':
       return <PaveMateriel {...p} />
-    case 'compte':
-      return <PaveCompte {...p} />
     default:
       return null
   }
@@ -152,7 +148,7 @@ function Contenu({ clef, ...p }) {
 
 /* --- Blocs ---------------------------------------------------------- */
 
-function PaveIdentite({ evenement, membre, onAller }) {
+function PaveIdentite({ evenement, membre, session, onAller }) {
   return (
     <Bloc clef="identite" onAller={onAller}>
       <div className="grand">{membre.nom_affiche ?? '—'}</div>
@@ -161,6 +157,15 @@ function PaveIdentite({ evenement, membre, onAller }) {
         <span className="jeton phase">{evenement.phase}</span>
         {membre.perimetre && <span>{membre.perimetre}</span>}
       </div>
+
+      <p className="aide" style={{ marginTop: 10 }}>{session.user.email}</p>
+      <div className="identite">
+        <span className="etiquette">Mon identifiant</span>
+        <code>{session.user.id}</code>
+      </div>
+      <button className="discret" onClick={() => supabase.auth.signOut()} style={{ marginTop: 8 }}>
+        Se déconnecter
+      </button>
     </Bloc>
   )
 }
@@ -207,21 +212,6 @@ function PaveAlertes({ evenement, setMessage, onAller }) {
       compteurs={[{ libelle: 'actives', valeur: c.actives, etat: c.actives ? 'urgent' : 'ok' }]}
     >
       <GestionAlertes evenement={evenement} setMessage={setMessage} embarque onCompteurs={setC} />
-    </Bloc>
-  )
-}
-
-function PaveCompte({ session, onAller }) {
-  return (
-    <Bloc clef="compte" onAller={onAller}>
-      <p className="aide" style={{ marginTop: 0 }}>Connecté en tant que {session.user.email}.</p>
-      <div className="identite">
-        <span className="etiquette">Mon identifiant</span>
-        <code>{session.user.id}</code>
-      </div>
-      <button className="discret" onClick={() => supabase.auth.signOut()}>
-        Se déconnecter
-      </button>
     </Bloc>
   )
 }
