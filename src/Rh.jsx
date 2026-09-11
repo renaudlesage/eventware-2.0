@@ -9,7 +9,8 @@ import { libelleStatut } from './libelles'
  */
 const ONGLETS = [
   ['couverture', 'Couverture', true],
-  ['equipe', 'Bénévoles', true]
+  ['equipe', 'Bénévoles', true],
+  ['fiches', 'Fiches de poste', true]
 ]
 
 const heure = (d) =>
@@ -49,6 +50,7 @@ export default function Rh({ evenement, membre, peut }) {
         <Couverture evenement={evenement} setMessage={setMessage} />
       )}
       {onglet === 'equipe' && <Equipe evenement={evenement} setMessage={setMessage} />}
+      {onglet === 'fiches' && <FichesPoste evenement={evenement} setMessage={setMessage} />}
     </div>
   )
 }
@@ -64,6 +66,8 @@ function Couverture({ evenement, setMessage }) {
   const [aVenir, setAVenir] = useState(true)
   const [f, setF] = useState({ code: '', poste: '', besoin: 2, debut: '', fin: '' })
   const [ouvrir, setOuvrir] = useState(false)
+  const [rappelPour, setRappelPour] = useState(null)
+  const [fiches, setFiches] = useState([])
 
   async function charger() {
     const [c, m] = await Promise.all([
@@ -78,6 +82,13 @@ function Couverture({ evenement, setMessage }) {
     ])
     if (c.error) setMessage({ type: 'erreur', texte: c.error.message })
     else setLignes(c.data ?? [])
+    supabase
+      .from('fiches_poste')
+      .select('id, intitule')
+      .eq('evenement_id', evenement.id)
+      .is('deleted_at', null)
+      .order('intitule')
+      .then(({ data }) => setFiches(data ?? []))
     setMembres(m.data ?? [])
   }
 
@@ -104,6 +115,41 @@ function Couverture({ evenement, setMessage }) {
       setOuvrir(false)
       charger()
     }
+  }
+
+  /**
+   * Rappel de prise de poste. Il est écrit sur le créneau, donc tous
+   * ses affectés le voient — pas d'envoi personne par personne, qui
+   * garantirait surtout d'en oublier un.
+   *
+   * Livraison : dans l'application. Celui qui ne l'ouvre pas ne le voit
+   * pas — c'est la limite honnête de ce qui existe aujourd'hui, il n'y
+   * a ni SMS ni notification poussée dans le projet.
+   */
+  async function envoyerRappel(creneauId, texte) {
+    const { error, count } = await supabase
+      .from('creneaux')
+      .update(
+        { rappel: texte.trim() || null, rappel_envoye_le: texte.trim() ? new Date().toISOString() : null },
+        { count: 'exact' }
+      )
+      .eq('id', creneauId)
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else if (count === 0) setMessage({ type: 'erreur', texte: 'Envoi refusé : droits insuffisants.' })
+    else {
+      setRappelPour(null)
+      charger()
+    }
+  }
+
+  async function rattacherFiche(creneauId, ficheId) {
+    const { error, count } = await supabase
+      .from('creneaux')
+      .update({ fiche_id: ficheId }, { count: 'exact' })
+      .eq('id', creneauId)
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else if (count === 0) setMessage({ type: 'erreur', texte: 'Modification refusée.' })
+    else charger()
   }
 
   async function affecter(creneauId, membreId) {
@@ -211,7 +257,43 @@ function Couverture({ evenement, setMessage }) {
               >
                 {detail === l.creneau_id ? 'Fermer' : 'Affecter'}
               </button>
+              <button
+                className="discret"
+                onClick={() => setRappelPour(rappelPour === l.creneau_id ? null : l.creneau_id)}
+              >
+                {l.rappel_envoye_le ? 'Rappel envoyé ✓' : 'Rappel'}
+              </button>
             </div>
+
+            {detail === l.creneau_id && (
+              <div className="formulaire" style={{ marginTop: 6 }}>
+                <label htmlFor={`fiche-${l.creneau_id}`}>Fiche de poste</label>
+                <select
+                  id={`fiche-${l.creneau_id}`}
+                  value={l.fiche_id ?? ''}
+                  onChange={(e) => rattacherFiche(l.creneau_id, e.target.value || null)}
+                >
+                  <option value="">— aucune —</option>
+                  {fiches.map((fi) => (
+                    <option key={fi.id} value={fi.id}>{fi.intitule}</option>
+                  ))}
+                </select>
+                <p className="aide">
+                  Ce que le bénévole lira sur ce créneau. Les fiches se rédigent dans
+                  l'onglet « Fiches de poste » — une fois, pour tous les créneaux du même
+                  poste.
+                </p>
+              </div>
+            )}
+
+            {rappelPour === l.creneau_id && (
+              <FormRappel
+                valeurInitiale={l.rappel ?? ''}
+                envoyeLe={l.rappel_envoye_le}
+                onEnvoyer={(texte) => envoyerRappel(l.creneau_id, texte)}
+                onAnnuler={() => setRappelPour(null)}
+              />
+            )}
             {detail === l.creneau_id && (
               <div className="formulaire">
                 <div className="ligne-boutons">
@@ -238,6 +320,42 @@ function Couverture({ evenement, setMessage }) {
   )
 }
 
+function FormRappel({ valeurInitiale, envoyeLe, onEnvoyer, onAnnuler }) {
+  const [texte, setTexte] = useState(valeurInitiale)
+
+  return (
+    <div className="formulaire">
+      <label htmlFor="rappel">Rappel avant la prise de poste</label>
+      <textarea
+        id="rappel"
+        rows={2}
+        autoFocus
+        value={texte}
+        onChange={(e) => setTexte(e.target.value)}
+        placeholder="Ex : rendez-vous à l'entrée technique, prends une frontale."
+      />
+      <div className="ligne-boutons">
+        <button disabled={!texte.trim()} onClick={() => onEnvoyer(texte)}>
+          {envoyeLe ? 'Mettre à jour le rappel' : 'Envoyer aux affectés'}
+        </button>
+        {envoyeLe && (
+          <button className="discret" onClick={() => onEnvoyer('')}>
+            Retirer
+          </button>
+        )}
+        <button className="discret" onClick={onAnnuler}>
+          Annuler
+        </button>
+      </div>
+      <p className="aide">
+        Visible par tous les affectés de ce créneau, dans leur écran « Mes créneaux ».
+        Ils le verront en ouvrant l'application — il n'y a ni SMS ni notification poussée.
+        {envoyeLe && ` Dernier envoi : ${heure(envoyeLe)}.`}
+      </p>
+    </div>
+  )
+}
+
 /* ================================================================== */
 /* Mes créneaux — vue du bénévole                                      */
 /* ================================================================== */
@@ -248,7 +366,7 @@ export function MesCreneaux({ evenement, membre, setMessage, onCompteurs }) {
   async function charger() {
     const { data, error } = await supabase
       .from('affectations')
-      .select('*, creneaux(code, poste, debut, fin, consignes, lieux:lieu_id(nom))')
+      .select('*, creneaux(code, poste, debut, fin, consignes, rappel, rappel_envoye_le, lieux:lieu_id(nom), fiches_poste:fiche_id(intitule, mission, taches, materiel, a_signaler, contact))')
       .eq('evenement_id', evenement.id)
       .eq('membre_id', membre.id)
     if (error) setMessage({ type: 'erreur', texte: error.message })
@@ -301,6 +419,18 @@ export function MesCreneaux({ evenement, membre, setMessage, onCompteurs }) {
           <span className="jeton">{libelleStatut(a.statut)}</span>
         </div>
         {a.creneaux?.consignes && <p className="aide">{a.creneaux.consignes}</p>}
+
+        {/* Le rappel passe AVANT la fiche : il est ponctuel et vient
+            d'être écrit pour ce créneau-là, la fiche est permanente. */}
+        {a.creneaux?.rappel && (
+          <div className="message" style={{ marginTop: 8 }}>
+            <strong>Rappel du chef d'équipe</strong>
+            <p style={{ margin: '4px 0 0' }}>{a.creneaux.rappel}</p>
+          </div>
+        )}
+
+        {a.creneaux?.fiches_poste && <FichePoste fiche={a.creneaux.fiches_poste} />}
+
         {['propose', 'confirme'].includes(a.statut) && (
           <div className="ligne-boutons" style={{ marginTop: 10 }}>
             {a.statut === 'propose' && (
@@ -316,6 +446,63 @@ export function MesCreneaux({ evenement, membre, setMessage, onCompteurs }) {
         )}
       </div>
     ))
+}
+
+/**
+ * Fiche de poste, côté bénévole — repliée par défaut.
+ *
+ * Dépliée d'office, elle noierait l'heure et le lieu, qui sont ce qu'on
+ * vient vérifier en ouvrant l'app. Ce qu'on lit une fois en préparant
+ * son poste ne doit pas encombrer ce qu'on relit dix fois sur place.
+ */
+function FichePoste({ fiche }) {
+  const [ouvert, setOuvert] = useState(false)
+  const taches = Array.isArray(fiche.taches) ? fiche.taches : []
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <button className="lien" onClick={() => setOuvert(!ouvert)}>
+        {ouvert ? 'Masquer la fiche de poste' : 'Voir ma fiche de poste'}
+      </button>
+
+      {ouvert && (
+        <div className="formulaire" style={{ marginTop: 6 }}>
+          {fiche.mission && <p style={{ marginTop: 0 }}>{fiche.mission}</p>}
+
+          {taches.length > 0 && (
+            <>
+              <span className="etiquette">Ce qu'il y a à faire</span>
+              <ul className="chrono">
+                {taches.map((t, i) => (
+                  <li key={i}>
+                    <span className="corps">{t}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {fiche.materiel && (
+            <p className="aide">
+              <span className="etiquette">Matériel remis</span> {fiche.materiel}
+            </p>
+          )}
+
+          {fiche.a_signaler && (
+            <p className="aide alerte-texte">
+              <span className="etiquette">À remonter tout de suite</span> {fiche.a_signaler}
+            </p>
+          )}
+
+          {fiche.contact && (
+            <p className="aide">
+              <span className="etiquette">En cas de doute</span> {fiche.contact}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 /* ================================================================== */
@@ -448,5 +635,198 @@ function Equipe({ evenement, setMessage }) {
         capacités habituelles.
       </p>
     </>
+  )
+}
+
+/* ================================================================== */
+/* Fiches de poste — rédaction                                         */
+/* ================================================================== */
+
+/**
+ * La fiche appartient au poste, pas au créneau : « Responsable BAR »
+ * veut dire la même chose à 18h et à 02h. Écrite une fois, rattachée
+ * à autant de créneaux qu'il faut — deux copies finiraient par dire
+ * deux choses différentes.
+ *
+ * Les champs sont séparés plutôt que libres parce qu'un champ
+ * « consignes » existait déjà et était resté vide sur les cinq
+ * créneaux : devant une page blanche on n'écrit rien, devant une
+ * question on répond.
+ */
+function FichesPoste({ evenement, setMessage }) {
+  const [fiches, setFiches] = useState([])
+  const [ouvert, setOuvert] = useState(null)
+
+  async function charger() {
+    const { data, error } = await supabase
+      .from('fiches_poste')
+      .select('*')
+      .eq('evenement_id', evenement.id)
+      .is('deleted_at', null)
+      .order('intitule')
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else setFiches(data ?? [])
+  }
+
+  useEffect(() => {
+    charger()
+  }, [evenement.id])
+
+  async function enregistrer(fiche) {
+    const charge = {
+      evenement_id: evenement.id,
+      intitule: fiche.intitule.trim(),
+      mission: fiche.mission?.trim() || null,
+      taches: (fiche.taches ?? []).filter((t) => t.trim()),
+      materiel: fiche.materiel?.trim() || null,
+      a_signaler: fiche.a_signaler?.trim() || null,
+      contact: fiche.contact?.trim() || null
+    }
+    const requete = fiche.id
+      ? supabase.from('fiches_poste').update(charge).eq('id', fiche.id)
+      : supabase.from('fiches_poste').insert(charge)
+    const { error } = await requete
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else {
+      setOuvert(null)
+      charger()
+    }
+  }
+
+  return (
+    <>
+      <p className="aide" style={{ marginTop: 0 }}>
+        Une fiche par poste, réutilisée par tous ses créneaux. Elle se rattache depuis
+        l'onglet Couverture.
+      </p>
+
+      {fiches.length === 0 && ouvert === null && (
+        <p className="vide">Aucune fiche rédigée.</p>
+      )}
+
+      {fiches.map((fi) =>
+        ouvert === fi.id ? (
+          <FormFiche
+            key={fi.id}
+            initiale={fi}
+            onEnregistrer={enregistrer}
+            onAnnuler={() => setOuvert(null)}
+          />
+        ) : (
+          <div className="carte" key={fi.id}>
+            <div className="titre">{fi.intitule}</div>
+            {fi.mission && <p className="aide">{fi.mission}</p>}
+            <div className="meta">
+              <span>{(fi.taches ?? []).length} tâche(s)</span>
+              {!fi.a_signaler && <span className="alerte-texte">rien à remonter précisé</span>}
+            </div>
+            <div className="ligne-boutons" style={{ marginTop: 8 }}>
+              <button className="discret" onClick={() => setOuvert(fi.id)}>
+                Modifier
+              </button>
+            </div>
+          </div>
+        )
+      )}
+
+      {ouvert === 'nouvelle' ? (
+        <FormFiche
+          initiale={{ intitule: '', mission: '', taches: [''], materiel: '', a_signaler: '', contact: '' }}
+          onEnregistrer={enregistrer}
+          onAnnuler={() => setOuvert(null)}
+        />
+      ) : (
+        <div className="ligne-boutons" style={{ marginTop: 10 }}>
+          <button onClick={() => setOuvert('nouvelle')}>+ Nouvelle fiche</button>
+        </div>
+      )}
+    </>
+  )
+}
+
+function FormFiche({ initiale, onEnregistrer, onAnnuler }) {
+  const [f, setF] = useState({
+    ...initiale,
+    taches: (initiale.taches ?? []).length ? initiale.taches : ['']
+  })
+
+  const maj = (champ, valeur) => setF((x) => ({ ...x, [champ]: valeur }))
+
+  function majTache(i, valeur) {
+    setF((x) => {
+      const t = [...x.taches]
+      t[i] = valeur
+      return { ...x, taches: t }
+    })
+  }
+
+  return (
+    <div className="formulaire">
+      <label htmlFor="f-intitule">Intitulé du poste</label>
+      <input
+        id="f-intitule"
+        value={f.intitule}
+        onChange={(e) => maj('intitule', e.target.value)}
+        placeholder="Ex : Responsable BAR plaine"
+      />
+
+      <label htmlFor="f-mission">La mission en une phrase</label>
+      <input
+        id="f-mission"
+        value={f.mission ?? ''}
+        onChange={(e) => maj('mission', e.target.value)}
+        placeholder="À quoi sert ce poste — ce que le bénévole lit en premier"
+      />
+
+      <label>Ce qu'il y a à faire</label>
+      {f.taches.map((t, i) => (
+        <input
+          key={i}
+          value={t}
+          onChange={(e) => majTache(i, e.target.value)}
+          placeholder={`Tâche ${i + 1}`}
+        />
+      ))}
+      <button
+        className="discret"
+        onClick={() => setF((x) => ({ ...x, taches: [...x.taches, ''] }))}
+        style={{ marginBottom: 8 }}
+      >
+        + Tâche
+      </button>
+
+      <label htmlFor="f-materiel">Matériel remis</label>
+      <input
+        id="f-materiel"
+        value={f.materiel ?? ''}
+        onChange={(e) => maj('materiel', e.target.value)}
+        placeholder="Radio canal 5, caisse, frontale…"
+      />
+
+      <label htmlFor="f-signaler">À remonter tout de suite</label>
+      <input
+        id="f-signaler"
+        value={f.a_signaler ?? ''}
+        onChange={(e) => maj('a_signaler', e.target.value)}
+        placeholder="Ce qu'il ne doit pas gérer seul — la limite de son autonomie"
+      />
+
+      <label htmlFor="f-contact">En cas de doute, qui</label>
+      <input
+        id="f-contact"
+        value={f.contact ?? ''}
+        onChange={(e) => maj('contact', e.target.value)}
+        placeholder="Nom et canal radio ou téléphone"
+      />
+
+      <div className="ligne-boutons" style={{ marginTop: 8 }}>
+        <button disabled={!f.intitule.trim()} onClick={() => onEnregistrer(f)}>
+          Enregistrer
+        </button>
+        <button className="discret" onClick={onAnnuler}>
+          Annuler
+        </button>
+      </div>
+    </div>
   )
 }
