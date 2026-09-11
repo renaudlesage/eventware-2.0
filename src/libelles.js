@@ -62,3 +62,16 @@ export const DOMAINES = [
   ['rh', 'Bénévoles'],
   ['sos', 'Signalements']
 ]
+
+/**
+ * Date + heure courtes, format belge. Partagé : Bénévoles l'utilisait
+ * seul, puis les jalons ont migré vers Planning en l'emportant dans
+ * leur code sans l'emporter dans leur fichier — écran noir. Un seul
+ * endroit évite de refaire deux fois le même oubli.
+ */
+export const heure = (d) =>
+  new Date(d).toLocaleString('fr-BE', {
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  })

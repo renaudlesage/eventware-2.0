@@ -503,14 +503,11 @@ export function Missions({ evenement, membre, setMessage, module = 'securite', l
                     {m.resolue_le && ` · résolue ${new Date(m.resolue_le).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}`}
                   </p>
 
-                  <label htmlFor={`commentaire-${m.id}`}>
-                    Commentaire du QG — visible par celui qui a signalé
-                  </label>
-                  <input
-                    id={`commentaire-${m.id}`}
-                    defaultValue={m.commentaire_qg ?? ''}
-                    placeholder="Pris en compte, en cours, prévu pour…"
-                    onBlur={(e) => modifier(m.id, { commentaire_qg: e.target.value.trim() || null })}
+                  <FilCommentaires
+                    mission={m}
+                    membre={membre}
+                    membres={membres}
+                    setMessage={setMessage}
                   />
 
                   <div className="ligne-boutons" style={{ marginTop: 10 }}>
@@ -1382,5 +1379,108 @@ function ListeOrdonnee({ titre, aide, valeurs, setValeurs, alerte }) {
         {aide}
       </p>
     </>
+  )
+}
+
+/* ================================================================== */
+/* Fil de commentaires d'une demande                                   */
+/* ================================================================== */
+
+/**
+ * Un échange à deux sens entre le QG et le demandeur, attaché à une
+ * demande qui a un statut, un porteur et une échéance.
+ *
+ * C'est la différence avec un tchat d'équipe : la conversation ne peut
+ * pas remplacer l'objet, elle le documente. Une question posée ici
+ * reste rattachée à la demande qu'elle concerne, et se retrouve avec
+ * elle.
+ */
+function FilCommentaires({ mission, membre, membres, setMessage }) {
+  const [fil, setFil] = useState(null)
+  const [texte, setTexte] = useState('')
+  const [occupe, setOccupe] = useState(false)
+
+  async function charger() {
+    const { data, error } = await supabase
+      .from('mission_commentaires')
+      .select('*')
+      .eq('mission_id', mission.id)
+      .order('created_at')
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else setFil(data ?? [])
+  }
+
+  useEffect(() => {
+    charger()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mission.id])
+
+  async function envoyer() {
+    if (!texte.trim()) return
+    setOccupe(true)
+    const { error } = await supabase.from('mission_commentaires').insert({
+      evenement_id: mission.evenement_id,
+      mission_id: mission.id,
+      auteur_id: membre.user_id,
+      texte: texte.trim()
+    })
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else {
+      setTexte('')
+      charger()
+    }
+    setOccupe(false)
+  }
+
+  const nomDe = (userId) =>
+    membres.find((x) => x.user_id === userId)?.nom_affiche ??
+    (userId === mission.created_by ? 'le demandeur' : 'QG')
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <label>Échange avec le demandeur</label>
+
+      {fil === null ? (
+        <p className="aide">…</p>
+      ) : fil.length === 0 ? (
+        <p className="aide">Aucun échange pour l'instant.</p>
+      ) : (
+        <ul className="chrono">
+          {fil.map((c) => (
+            <li key={c.id}>
+              <span className="heure mono">
+                {new Date(c.created_at).toLocaleTimeString('fr-BE', {
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </span>
+              <span className="corps">
+                <strong>{nomDe(c.auteur_id)}</strong> {c.texte}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="saisie-rapide">
+        <input
+          value={texte}
+          onChange={(e) => setTexte(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && texte.trim() && envoyer()}
+          placeholder="Pris en compte, en cours, prévu pour…"
+          /* Sans ça, le navigateur superpose ses anciennes saisies en
+             bulle blanche par-dessus le fil — on croit lire des
+             messages alors qu'on lit son propre historique. */
+          autoComplete="off"
+        />
+        <button disabled={occupe || !texte.trim()} onClick={envoyer}>
+          Répondre
+        </button>
+      </div>
+      <p className="aide">
+        Visible par le demandeur, qui peut répondre ici même — souvent c'est lui qui a la
+        précision qui manque.
+      </p>
+    </div>
   )
 }

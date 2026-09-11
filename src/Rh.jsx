@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
-import { libelleStatut } from './libelles'
+import { libelleStatut, heure } from './libelles'
 
 /*
  * `besoin` : capacité d'encadrement requise.
@@ -12,13 +12,6 @@ const ONGLETS = [
   ['equipe', 'Bénévoles', true],
   ['fiches', 'Fiches de poste', true]
 ]
-
-const heure = (d) =>
-  new Date(d).toLocaleString('fr-BE', {
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
 
 export default function Rh({ evenement, membre, peut }) {
   const [onglet, setOnglet] = useState('couverture')
