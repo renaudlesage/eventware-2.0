@@ -13,6 +13,11 @@ import { supabase } from './supabaseClient'
  * continu : entre deux bornes, on sait seulement qu'il a dépassé la
  * précédente. C'est une estimation, pas un tracking — l'étiquette au
  * survol le rappelle.
+ *
+ * La ligne ne montre QUE les groupes en route. Un groupe arrivé en
+ * sort : son dernier pointage n'est plus sa position, et le laisser
+ * dessiné là désignerait au QG une borne qu'il a quittée. Son état se
+ * lit dans la liste en dessous, qui est faite pour ça.
  */
 export default function LigneParcours({ evenement, groupes }) {
   const [bornes, setBornes] = useState(null)
@@ -39,17 +44,26 @@ export default function LigneParcours({ evenement, groupes }) {
   const etendue = max - min || 1
   const pourcent = (pk) => Math.min(100, Math.max(0, ((pk - min) / etendue) * 100))
 
-  // Un groupe se place sur la ligne si sa dernière position connue
-  // porte un PK. Sinon il reste dans la liste texte, pas sur le schéma
-  // — mieux vaut l'absence que la fausse précision.
-  const surLigne = groupes.filter(
-    (g) =>
-      ['parti', 'en_cours', 'arrive'].includes(g.statut) &&
-      (g.lieux?.pk_km != null || (g.statut === 'parti' && !g.dernier_passage))
-  )
-
+  // Une seule définition de « en route », partagée par la ligne, le
+  // compteur et le signalement des absents. Elles étaient trois avant,
+  // et elles avaient divergé : le compteur excluait les arrivés, la
+  // ligne les dessinait — d'où « 0 personne(s) sur le parcours » sous
+  // un groupe bien visible.
   const enRoute = groupes.filter((g) => ['parti', 'en_cours'].includes(g.statut))
   const total = enRoute.reduce((n, g) => n + (g.effectif_reel ?? g.effectif_prevu ?? 0), 0)
+
+  // Plaçable : soit le dernier pointage porte un PK, soit le groupe
+  // vient de partir sans avoir jamais pointé (on le met au départ, en
+  // pointillé). Un groupe arrivé ne figure plus sur la ligne : son
+  // dernier pointage n'est plus sa position, et l'afficher là
+  // désignerait au QG un endroit qu'il a quitté.
+  const plaçable = (g) => g.lieux?.pk_km != null || (g.statut === 'parti' && !g.dernier_passage)
+  const surLigne = enRoute.filter(plaçable)
+
+  // En route mais impossible à situer : le dernier pointage est une
+  // borne sans PK. Le taire ferait disparaître un groupe de la ligne
+  // tout en le comptant dans le total — l'incohérence inverse.
+  const sansPosition = enRoute.filter((g) => !plaçable(g))
 
   return (
     <div className="ligne-parcours-bloc">
@@ -78,14 +92,14 @@ export default function LigneParcours({ evenement, groupes }) {
         {surLigne.map((g, i) => {
           const pk = g.lieux?.pk_km ?? min
           const connu = g.lieux?.pk_km != null
-          const enRetard = ['parti', 'en_cours'].includes(g.statut) && retardeur(g)
+          const enRetard = retardeur(g)
 
           return (
             <div
               key={g.id}
               className={`ligne-parcours-groupe ${connu ? '' : 'incertain'} ${
                 enRetard ? 'urgent' : ''
-              } ${g.statut === 'arrive' ? 'arrive' : ''}`}
+              }`}
               style={{ left: `${pourcent(pk)}%`, top: `${(i % 3) * 16}px` }}
               title={`${g.nom} — ${g.effectif_reel ?? g.effectif_prevu ?? '?'} pers.${
                 connu ? ` — ${g.lieux.nom}` : ' — position estimée, pas encore pointé'
@@ -96,6 +110,15 @@ export default function LigneParcours({ evenement, groupes }) {
           )
         })}
       </div>
+
+      {sansPosition.length > 0 && (
+        <p className="aide alerte-texte">
+          {sansPosition.length === 1 ? 'Groupe en route absent' : 'Groupes en route absents'} de la
+          ligne : {sansPosition.map((g) => g.code).join(', ')} —{' '}
+          {sansPosition.length === 1 ? 'son dernier pointage porte' : 'leur dernier pointage porte'}{' '}
+          sur une borne sans PK. Renseigner le PK du lieu dans Implantation les y fera apparaître.
+        </p>
+      )}
 
       <p className="aide">
         Position au dernier pointage — entre deux bornes, un groupe est simplement compté

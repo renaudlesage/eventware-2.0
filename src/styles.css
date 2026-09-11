@@ -2086,7 +2086,6 @@ input:disabled {
 }
 
 .ligne-parcours-groupe.urgent { background: var(--etat-chaud); }
-.ligne-parcours-groupe.arrive { background: var(--etat-ok); opacity: 0.75; }
 
 .ligne-parcours-groupe.incertain {
   background: transparent;

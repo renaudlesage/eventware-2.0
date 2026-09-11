@@ -4,13 +4,12 @@ import { libelleStatut } from './libelles'
 
 /*
  * `besoin` : capacité d'encadrement requise.
- * Un bénévole ne voit que ses propres créneaux — la couverture globale,
- * la liste de l'équipe et les jalons ne le concernent pas.
+ * Un bénévole ne voit que ses propres créneaux — la couverture globale
+ * et la liste de l'équipe ne le concernent pas.
  */
 const ONGLETS = [
   ['couverture', 'Couverture', true],
-  ['equipe', 'Bénévoles', true],
-  ['jalons', 'Jalons', true]
+  ['equipe', 'Bénévoles', true]
 ]
 
 const heure = (d) =>
@@ -50,7 +49,6 @@ export default function Rh({ evenement, membre, peut }) {
         <Couverture evenement={evenement} setMessage={setMessage} />
       )}
       {onglet === 'equipe' && <Equipe evenement={evenement} setMessage={setMessage} />}
-      {onglet === 'jalons' && <Jalons evenement={evenement} setMessage={setMessage} />}
     </div>
   )
 }
@@ -449,125 +447,6 @@ function Equipe({ evenement, setMessage }) {
         disponible pour une attribution dans Logistique → Transports. Elle garde ses
         capacités habituelles.
       </p>
-    </>
-  )
-}
-
-/* ================================================================== */
-/* Jalons                                                              */
-/* ================================================================== */
-
-const STATUTS_JALON = [
-  ['a_venir', 'À venir'],
-  ['en_cours', 'En cours'],
-  ['fait', 'Fait'],
-  ['rate', 'Raté'],
-  ['annule', 'Annulé']
-]
-
-function Jalons({ evenement, setMessage }) {
-  const [lignes, setLignes] = useState([])
-  const [f, setF] = useState({ code: '', libelle: '', echeance: '', responsable: '' })
-
-  async function charger() {
-    const { data, error } = await supabase
-      .from('jalons')
-      .select('*')
-      .eq('evenement_id', evenement.id)
-      .order('echeance')
-    if (error) setMessage({ type: 'erreur', texte: error.message })
-    else setLignes(data ?? [])
-  }
-
-  useEffect(() => {
-    charger()
-  }, [evenement.id])
-
-  async function creer() {
-    if (!f.code.trim() || !f.libelle.trim() || !f.echeance) return
-    const { error } = await supabase.from('jalons').insert({
-      evenement_id: evenement.id,
-      ...f,
-      echeance: new Date(f.echeance).toISOString()
-    })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
-    else {
-      setF({ code: '', libelle: '', echeance: '', responsable: '' })
-      charger()
-    }
-  }
-
-  async function changer(id, statut) {
-    const { error } = await supabase.from('jalons').update({ statut }).eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
-    else charger()
-  }
-
-  const maintenant = Date.now()
-
-  return (
-    <>
-      <div className="saisie-rapide">
-        <input
-          value={f.code}
-          onChange={(e) => setF({ ...f, code: e.target.value })}
-          placeholder="Code"
-          style={{ flex: '0 1 90px' }}
-        />
-        <input
-          value={f.libelle}
-          onChange={(e) => setF({ ...f, libelle: e.target.value })}
-          placeholder="Libellé"
-        />
-        <input
-          type="datetime-local"
-          value={f.echeance}
-          onChange={(e) => setF({ ...f, echeance: e.target.value })}
-        />
-        <input
-          value={f.responsable}
-          onChange={(e) => setF({ ...f, responsable: e.target.value })}
-          placeholder="Responsable"
-          style={{ flex: '0 1 140px' }}
-        />
-        <button onClick={creer}>Ajouter</button>
-      </div>
-
-      {lignes.length === 0 ? (
-        <p className="vide">Aucun jalon.</p>
-      ) : (
-        lignes.map((j) => {
-          const depasse =
-            j.statut === 'a_venir' && new Date(j.echeance).getTime() < maintenant
-          return (
-            <div className={`carte ${depasse || j.statut === 'rate' ? 'urgent' : ''}`} key={j.id}>
-              <div className="titre">
-                <span className="mono">{j.code}</span> — {j.libelle}
-                {j.critique && <span className="jeton alerte-texte"> critique</span>}
-              </div>
-              <div className="meta">
-                <span className={depasse ? 'alerte-texte' : ''}>{heure(j.echeance)}</span>
-                {j.responsable && <span>{j.responsable}</span>}
-                {j.categorie && <span>{j.categorie}</span>}
-                {depasse && <span className="alerte-texte">échéance dépassée</span>}
-              </div>
-              <div className="ligne-boutons" style={{ marginTop: 10 }}>
-                <select
-                  value={j.statut}
-                  onChange={(e) => changer(j.id, e.target.value)}
-                  style={{ width: 'auto', marginBottom: 0 }}
-                >
-                  {STATUTS_JALON.map(([v, l]) => (
-                    <option key={v} value={v}>
-                      {l}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )
-        })
-      )}
     </>
   )
 }

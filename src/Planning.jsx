@@ -46,6 +46,7 @@ export default function Planning({ evenement, peut, toutPouvoir }) {
   const [transports, setTransports] = useState([])
   const [now, setNow] = useState(new Date())
   const [jourActif, setJourActif] = useState(0)
+  const [onglet, setOnglet] = useState('frise')
   const [ouvrir, setOuvrir] = useState(false)
   const [message, setMessage] = useState(null)
 
@@ -137,36 +138,6 @@ export default function Planning({ evenement, peut, toutPouvoir }) {
     if (jourActif >= jours.length) setJourActif(0)
   }, [jours.length])
 
-  if (items.length === 0 && !ouvrir) {
-    return (
-      <div className="bloc dom-azur planning">
-        <div className="entete-dashboard">
-          <h2>Planning</h2>
-          {peutEditer && (
-            <button className="lien" onClick={() => setOuvrir(true)}>
-              Ajouter un créneau
-            </button>
-          )}
-        </div>
-        <p className="vide">
-          Rien de planifié. Le planning fusionne le programme, les jalons datés et les
-          transports attribués sur une même ligne de temps.
-        </p>
-        {ouvrir && (
-          <FormProgramme
-            evenement={evenement}
-            onFait={() => {
-              setOuvrir(false)
-              charger()
-            }}
-            onAnnuler={() => setOuvrir(false)}
-            setMessage={setMessage}
-          />
-        )}
-      </div>
-    )
-  }
-
   const jour = jours[jourActif]
   const aujourdhui = jour && jour.date.toDateString() === now.toDateString()
 
@@ -174,11 +145,26 @@ export default function Planning({ evenement, peut, toutPouvoir }) {
     <div className="bloc dom-azur planning">
       <div className="entete-dashboard">
         <h2>Planning</h2>
-        {peutEditer && (
+        {peutEditer && onglet === 'frise' && (
           <button className="lien" onClick={() => setOuvrir(!ouvrir)}>
             {ouvrir ? 'Fermer' : 'Ajouter un créneau'}
           </button>
         )}
+      </div>
+
+      <div className="onglets">
+        {[
+          ['frise', 'Frise'],
+          ['jalons', 'Jalons']
+        ].map(([k, l]) => (
+          <button
+            key={k}
+            className={`module ${onglet === k ? 'actif' : ''}`}
+            onClick={() => setOnglet(k)}
+          >
+            {l}
+          </button>
+        ))}
       </div>
 
       {message && (
@@ -187,6 +173,10 @@ export default function Planning({ evenement, peut, toutPouvoir }) {
         </div>
       )}
 
+      {onglet === 'jalons' && <Jalons evenement={evenement} setMessage={setMessage} />}
+
+      {onglet === 'frise' && (
+        <>
       {ouvrir && (
         <FormProgramme
           evenement={evenement}
@@ -257,11 +247,148 @@ export default function Planning({ evenement, peut, toutPouvoir }) {
         </div>
       )}
 
+      {items.length === 0 && !ouvrir && (
+        <p className="vide">
+          Rien de planifié. La frise fusionne le programme, les jalons datés et les
+          transports attribués sur une même ligne de temps.
+        </p>
+      )}
+
       <p className="aide">
         Fusionne le programme public, les jalons datés et les transports attribués. Lecture
         ouverte à tout le monde — c'est un document du dispositif, pas un outil de pilotage.
       </p>
+        </>
+      )}
     </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+
+/**
+ * Jalons — déplacés de Bénévoles, où ils n'avaient rien à faire : un
+ * jalon comme « Livraison chapiteau » ne concerne pas l'encadrement des
+ * bénévoles. Il est défini par une échéance, comme le programme et les
+ * transports que cette frise fusionne déjà — et elle les affichait
+ * d'ailleurs en lecture seule pendant qu'on les éditait ailleurs.
+ *
+ * Ni Logistique non plus : le champ « catégorie » existe pour que les
+ * jalons traversent les domaines. Un « Briefing sécurité » y serait
+ * mal rangé.
+ */
+const STATUTS_JALON = [
+  ['a_venir', 'À venir'],
+  ['en_cours', 'En cours'],
+  ['fait', 'Fait'],
+  ['rate', 'Raté'],
+  ['annule', 'Annulé']
+]
+
+function Jalons({ evenement, setMessage }) {
+  const [lignes, setLignes] = useState([])
+  const [f, setF] = useState({ code: '', libelle: '', echeance: '', responsable: '' })
+
+  async function charger() {
+    const { data, error } = await supabase
+      .from('jalons')
+      .select('*')
+      .eq('evenement_id', evenement.id)
+      .order('echeance')
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else setLignes(data ?? [])
+  }
+
+  useEffect(() => {
+    charger()
+  }, [evenement.id])
+
+  async function creer() {
+    if (!f.code.trim() || !f.libelle.trim() || !f.echeance) return
+    const { error } = await supabase.from('jalons').insert({
+      evenement_id: evenement.id,
+      ...f,
+      echeance: new Date(f.echeance).toISOString()
+    })
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else {
+      setF({ code: '', libelle: '', echeance: '', responsable: '' })
+      charger()
+    }
+  }
+
+  async function changer(id, statut) {
+    const { error } = await supabase.from('jalons').update({ statut }).eq('id', id)
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else charger()
+  }
+
+  const maintenant = Date.now()
+
+  return (
+    <>
+      <div className="saisie-rapide">
+        <input
+          value={f.code}
+          onChange={(e) => setF({ ...f, code: e.target.value })}
+          placeholder="Code"
+          style={{ flex: '0 1 90px' }}
+        />
+        <input
+          value={f.libelle}
+          onChange={(e) => setF({ ...f, libelle: e.target.value })}
+          placeholder="Libellé"
+        />
+        <input
+          type="datetime-local"
+          value={f.echeance}
+          onChange={(e) => setF({ ...f, echeance: e.target.value })}
+        />
+        <input
+          value={f.responsable}
+          onChange={(e) => setF({ ...f, responsable: e.target.value })}
+          placeholder="Responsable"
+          style={{ flex: '0 1 140px' }}
+        />
+        <button onClick={creer}>Ajouter</button>
+      </div>
+
+      {lignes.length === 0 ? (
+        <p className="vide">Aucun jalon.</p>
+      ) : (
+        lignes.map((j) => {
+          const depasse =
+            j.statut === 'a_venir' && new Date(j.echeance).getTime() < maintenant
+          return (
+            <div className={`carte ${depasse || j.statut === 'rate' ? 'urgent' : ''}`} key={j.id}>
+              <div className="titre">
+                <span className="mono">{j.code}</span> — {j.libelle}
+                {j.critique && <span className="jeton alerte-texte"> critique</span>}
+              </div>
+              <div className="meta">
+                <span className={depasse ? 'alerte-texte' : ''}>{heure(j.echeance)}</span>
+                {j.responsable && <span>{j.responsable}</span>}
+                {j.categorie && <span>{j.categorie}</span>}
+                {depasse && <span className="alerte-texte">échéance dépassée</span>}
+              </div>
+              <div className="ligne-boutons" style={{ marginTop: 10 }}>
+                <select
+                  value={j.statut}
+                  onChange={(e) => changer(j.id, e.target.value)}
+                  style={{ width: 'auto', marginBottom: 0 }}
+                >
+                  {STATUTS_JALON.map(([v, l]) => (
+                    <option key={v} value={v}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )
+        })
+      )}
+    </>
   )
 }
 
