@@ -4,6 +4,7 @@ import Meteo from './Meteo'
 import Maydays from './Maydays'
 import { libelleStatut } from './libelles'
 import { TYPES } from './PcOps'
+import { ChevronDown } from 'lucide-react'
 
 /**
  * Tableau de bord général — la vue QG.
@@ -359,13 +360,51 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
  * Colonne de domaine — bandeau coloré, compteurs minuscules colorés
  * par ÉTAT, panneau défilant, lien direct vers l'écran complet.
  */
+/**
+ * Un bloc de domaine — partagé par Situation et Mon poste.
+ *
+ * Le repli vient de la couche mobile mais ne lui appartient pas : ce
+ * qu'il résout, c'est le NOMBRE de blocs, pas la largeur de l'écran.
+ * Un coordinateur a neuf blocs sur Mon poste ; même en quatre colonnes,
+ * cela fait trois rangées pleine hauteur. Pouvoir n'en garder ouverts
+ * que deux ou trois vaut aussi devant un grand écran.
+ *
+ * Le défaut diffère, lui, selon l'appareil : tout ouvert sur un poste
+ * de PC, tout replié sur un téléphone. Et le choix se retient — un bloc
+ * qu'on doit replier à chaque rechargement est une corvée, pas un
+ * réglage.
+ */
 export function ColonneDomaine({ teinte, icone, titre, lien, onAller, compteurs, children }) {
+  const clef = `bloc-replie:${titre}`
+
+  const [ouvert, setOuvert] = useState(() => {
+    if (typeof window === 'undefined') return true
+    try {
+      const garde = window.localStorage.getItem(clef)
+      if (garde !== null) return garde === 'ouvert'
+    } catch {
+      /* stockage refusé (navigation privée) : on retombe sur le défaut */
+    }
+    return !window.matchMedia('(max-width: 700px)').matches
+  })
+
+  function basculer() {
+    const suivant = !ouvert
+    setOuvert(suivant)
+    try {
+      window.localStorage.setItem(clef, suivant ? 'ouvert' : 'replie')
+    } catch {
+      /* sans persistance, le repli reste valable pour la session */
+    }
+  }
+
   return (
-    <div className={`colonne-domaine dom-${teinte}`}>
-      <div className="colonne-tete">
+    <div className={`colonne-domaine dom-${teinte} ${ouvert ? '' : 'replie'}`}>
+      <button className="colonne-tete" onClick={basculer} aria-expanded={ouvert}>
         <span className="colonne-icone">{icone}</span>
         <span className="colonne-titre">{titre}</span>
-      </div>
+        <ChevronDown className="colonne-chevron" size={16} strokeWidth={2} aria-hidden="true" />
+      </button>
 
       <div className="colonne-compteurs">
         {compteurs

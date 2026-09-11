@@ -727,6 +727,19 @@ ol.liste-pave { list-style: decimal; padding-left: 18px; }
 /* ---------------- Cartes géographiques ---------------- */
 
 .carte-conteneur { height: 300px; border: 1px solid var(--trait); margin-bottom: 12px; }
+/*
+ * Leaflet gère ses propres couches en interne : .leaflet-pane est à
+ * z-index 400, les contrôles montent à 1000. Toutes les surfaces de
+ * l'application (barre d'onglets 55, boutons flottants 60, tiroirs 70)
+ * passaient donc DESSOUS n'importe quelle carte — un tiroir ouvert sur
+ * Parcours > Trace se faisait recouvrir par la carte.
+ *
+ * isolation crée un contexte d'empilement sur l'enveloppe : les
+ * z-index de Leaflet restent confinés à l'intérieur et ne rivalisent
+ * plus avec ceux de l'application. Une seule règle, les trois cartes
+ * (Trace, Plan d'implantation, Signalements), bureau et mobile.
+ */
+.carte-conteneur { isolation: isolate; }
 .carte-conteneur .leaflet-container { height: 100%; width: 100%; background: var(--surface-2); }
 
 .lien-externe { align-self: center; font-size: 13px; color: var(--etat-info); }
@@ -1111,16 +1124,16 @@ button.grand-lien:hover .grand { text-decoration-color: currentColor; }
  * spécifique que cette liste, ne pouvait pas l'emporter. Le jour
  * sélectionné ne se distinguait plus des autres.
  */
-.dom-indigo button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet),
-.dom-violet button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet),
-.dom-sarcelle button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet),
-.dom-grenat button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet),
-.dom-orange button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet),
-.dom-bronze button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet),
-.dom-mousse button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet),
-.dom-azur button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet),
-.dom-prune button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet),
-.dom-ardoise button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet) {
+.dom-indigo button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet):not(.colonne-tete),
+.dom-violet button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet):not(.colonne-tete),
+.dom-sarcelle button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet):not(.colonne-tete),
+.dom-grenat button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet):not(.colonne-tete),
+.dom-orange button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet):not(.colonne-tete),
+.dom-bronze button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet):not(.colonne-tete),
+.dom-mousse button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet):not(.colonne-tete),
+.dom-azur button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet):not(.colonne-tete),
+.dom-prune button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet):not(.colonne-tete),
+.dom-ardoise button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet):not(.colonne-tete) {
   background: var(--teinte);
   border-color: var(--teinte);
   color: #fff;
@@ -1752,14 +1765,38 @@ input:disabled {
   min-width: 0;
 }
 
+/* Cet en-tête est un <button> (il replie le bloc sur téléphone) : il
+   faut donc neutraliser l'apparence par défaut du navigateur —
+   bordure, police, alignement — pour qu'il reste visuellement
+   l'en-tête qu'il était sur bureau. */
 .colonne-tete {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   padding: 9px 11px;
   background: color-mix(in srgb, var(--teinte) 16%, var(--surface));
+  border: none;
   border-bottom: 1px solid var(--trait);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
+
+/* Repli des blocs — partagé bureau et mobile. Ce qu'il résout est le
+   nombre de blocs (neuf sur Mon poste pour un coordinateur), pas la
+   largeur de l'écran. Seul le DÉFAUT dépend de l'appareil, côté JS. */
+.colonne-chevron {
+  margin-left: auto;
+  flex: none;
+  color: var(--sourdine);
+  transition: transform 0.15s ease;
+}
+
+.colonne-domaine.replie .colonne-chevron { transform: rotate(-90deg); }
+.colonne-domaine.replie .moniteur { display: none; }
+.colonne-domaine.replie .colonne-compteurs { margin-bottom: 0; }
 
 .colonne-icone {
   font-size: 13px;

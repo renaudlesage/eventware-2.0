@@ -202,6 +202,9 @@
     background: none;
     border-bottom: none;
     padding: 13px 15px 6px;
+    /* Cible au pouce : le seul aspect de cet en-tête qui reste propre
+       au téléphone, le reste du reset vit dans styles.css. */
+    min-height: 44px;
   }
 
   /* Le glyphe du catalogue double le titre sans rien ajouter dès qu'on
@@ -426,4 +429,19 @@
 
   button { min-height: 40px; }
   button.lien { min-height: 0; }
+  /* --------------------------------------------------------------
+     Blocs de domaine repliables — Situation et Mon poste
+     --------------------------------------------------------------
+     Une colonne de blocs pleine hauteur oblige à faire défiler
+     longtemps avant d'atteindre le domaine suivant. Replié, l'écran
+     tient une liste de domaines avec leurs compteurs : on voit tout
+     l'état d'un coup, on ouvre ce dont on a besoin.
+
+     Les compteurs restent visibles repliés — c'est eux qui portent
+     l'information de veille. Seul le moniteur se cache.
+  -------------------------------------------------------------- */
+
+  /* Replié, le bloc se resserre : c'est ce resserrement qui fait tenir
+     tous les domaines sur un écran. */
+  .colonne-domaine.replie { padding-bottom: 8px; }
 }
