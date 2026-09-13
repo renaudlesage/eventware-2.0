@@ -22,6 +22,7 @@ import Planning from './Planning'
 import LogoEvenement from './LogoEvenement'
 import Point0 from './Point0'
 import Diffusion from './Diffusion'
+import VitrineAdmin from './VitrineAdmin'
 import { appliquerIconeEvenement } from './logoPwa'
 import BoutonsFlottants from './BoutonsFlottants'
 import BarreOnglets from './BarreOnglets'
@@ -672,6 +673,7 @@ function Reglages({ evenement, session, exploitant, onRecharger, setMessage }) {
       {panneau === 'partage' && (
         <>
           <AccesAutorite evenement={evenement} setMessage={setMessage} />
+          <VitrineAdmin evenement={evenement} setMessage={setMessage} />
           {evenement.modules?.sos_participants && <QrCodes evenement={evenement} />}
           <Diffusion evenement={evenement} setMessage={setMessage} />
         </>
