@@ -21,6 +21,7 @@ import Plateforme from './Plateforme'
 import Planning from './Planning'
 import Preparation from './Preparation'
 import Invitations, { RejoindreParCode } from './Invitations'
+import Membres from './Membres'
 import LogoEvenement from './LogoEvenement'
 import Point0 from './Point0'
 import Diffusion from './Diffusion'
@@ -632,6 +633,7 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
     case 'reglages':
       return (
         <Reglages
+          membre={membre}
           evenement={evenement}
           session={session}
           exploitant={exploitant}
@@ -666,7 +668,7 @@ const PANNEAUX = [
   ['compte', 'Mon compte']
 ]
 
-function Reglages({ evenement, session, exploitant, onRecharger, setMessage }) {
+function Reglages({ evenement, membre, session, exploitant, onRecharger, setMessage }) {
   const [panneau, setPanneau] = useState('dispositif')
   const [occupe, setOccupe] = useState(false)
   const [compteur, setCompteur] = useState(0)
@@ -759,6 +761,12 @@ function Reglages({ evenement, session, exploitant, onRecharger, setMessage }) {
       {panneau === 'equipe' && (
         <>
             <Invitations evenement={evenement} setMessage={setMessage} />
+            <Membres
+              evenement={evenement}
+              membre={membre}
+              setMessage={setMessage}
+              onRecharger={onRecharger}
+            />
           <section className="bloc">
             <h2>Ajouter un membre</h2>
             <AjoutMembre
