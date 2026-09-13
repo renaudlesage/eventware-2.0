@@ -20,7 +20,12 @@ export default function Membres({ evenement, membre, setMessage, onRecharger }) 
     const [m, r] = await Promise.all([
       supabase
         .from('membres_evenement')
-        .select('*, roles(id, code, libelle), equipes(code, nom)')
+        // Deux clés étrangères relient membres_evenement et equipes
+        // (membres_evenement.equipe_id, et equipes.responsable_id en retour).
+        // Sans le nom de la contrainte, PostgREST refuse l'embed (PGRST201).
+        .select(
+          '*, roles(id, code, libelle), equipes!membres_evenement_equipe_id_fkey(code, nom)'
+        )
         .eq('evenement_id', evenement.id)
         .is('deleted_at', null)
         .order('nom_affiche', { nullsFirst: false }),
