@@ -36,13 +36,20 @@ const NATURES_REX = [
 export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir }) {
   const [ouvert, setOuvert] = useState(null)
 
-  const peutSos = toutPouvoir || peut('sos', 'creer')
-  // Le Mayday est ouvert à tout membre : on ne subordonne pas un appel
-  // au secours à une capacité.
+  // SOS et Mayday écrivent tous deux dans le domaine sécurité, et ne
+  // sont relevés que par l'écran Sécurité. Module coupé : personne ne
+  // lit à l'autre bout, et un appel au secours sans destinataire est
+  // pire que pas de bouton du tout.
+  const moduleSecurite = !!evenement.modules?.securite
+
+  const peutSos = moduleSecurite && (toutPouvoir || peut('sos', 'creer'))
+  // Le Mayday reste ouvert à tout membre : on ne subordonne pas un appel
+  // au secours à une capacité — seulement à l'existence du module.
+  const peutMayday = moduleSecurite
   const peutRex =
     evenement.modules?.analyse && (toutPouvoir || peut('analyse', 'creer'))
 
-  if (!peutSos && !peutRex) return null
+  if (!peutSos && !peutRex && !peutMayday) return null
 
   return (
     <>
@@ -67,14 +74,16 @@ export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir 
             <span>SOS</span>
           </button>
         )}
-        <button
-          className="flottant mayday"
-          onClick={() => setOuvert('mayday')}
-          aria-label="Mayday — je suis en difficulté"
-        >
-          <TriangleAlert size={20} strokeWidth={2.2} aria-hidden="true" />
-          <span>MAYDAY</span>
-        </button>
+        {peutMayday && (
+          <button
+            className="flottant mayday"
+            onClick={() => setOuvert('mayday')}
+            aria-label="Mayday — je suis en difficulté"
+          >
+            <TriangleAlert size={20} strokeWidth={2.2} aria-hidden="true" />
+            <span>MAYDAY</span>
+          </button>
+        )}
       </div>
 
       {ouvert && (

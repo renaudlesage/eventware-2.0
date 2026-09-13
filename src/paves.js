@@ -140,7 +140,17 @@ export function pavesDisponibles(modules, peut) {
     .map(([k]) => k)
 }
 
-export function pavesObligatoires(role, modules, peut) {
+/**
+ * Les pavés imposés le sont parce qu'ils portent quelque chose qui ne
+ * peut pas attendre : une mission en cours, une alerte, un signalement.
+ * Cela n'est vrai qu'en exploitation — quand le public est là et que
+ * l'écran doit remonter ce qu'on n'a pas le temps d'aller chercher.
+ * Partout ailleurs (préparation, montage, démontage, clôture), imposer
+ * « Mes missions » n'est pas un garde-fou : c'est un bloc vide qu'on ne
+ * peut pas retirer. Chacun compose alors son écran librement.
+ */
+export function pavesObligatoires(role, modules, peut, phase) {
+  if (phase !== 'exploitation') return []
   return pavesDisponibles(modules, peut).filter((k) =>
     PAVES[k].obligatoire.includes(role)
   )
@@ -151,11 +161,13 @@ export function pavesObligatoires(role, modules, peut) {
  * Les obligatoires sont réinjectés en tête quoi qu'il arrive : c'est le
  * sécu qui garde la main sur ce qui est critique.
  */
-export function composition(role, modules, choix, peut) {
+export function composition(role, modules, choix, peut, phase) {
   const dispo = pavesDisponibles(modules, peut)
-  const obligatoires = pavesObligatoires(role, modules, peut)
-  const base =
-    Array.isArray(choix) && choix.length ? choix : (DEFAUTS[role] ?? dispo)
+  const obligatoires = pavesObligatoires(role, modules, peut, phase)
+  // Un tableau vide est un choix, pas une absence de choix : quelqu'un
+  // qui décoche tout veut un écran vide. Seul `null` — personne n'a
+  // jamais touché au réglage — retombe sur le jeu par défaut.
+  const base = Array.isArray(choix) ? choix : (DEFAUTS[role] ?? dispo)
   const retenus = base.filter((k) => dispo.includes(k))
   return [...obligatoires, ...retenus.filter((k) => !obligatoires.includes(k))]
 }

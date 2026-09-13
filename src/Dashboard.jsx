@@ -27,9 +27,10 @@ export default function Dashboard({
 
   const modules = evenement.modules ?? {}
   const role = membre.role
-  const obligatoires = pavesObligatoires(role, modules, peut)
+  const phase = evenement.phase
+  const obligatoires = pavesObligatoires(role, modules, peut, phase)
   const disponibles = pavesDisponibles(modules, peut)
-  const actifs = composition(role, modules, choix, peut)
+  const actifs = composition(role, modules, choix, peut, phase)
 
   async function enregistrer(nouveau) {
     setChoix(nouveau)
@@ -77,17 +78,31 @@ export default function Dashboard({
             )
           })}
           <p className="aide">
-            Les blocs marqués d'un point sont imposés par votre rôle et ne peuvent pas être
-            retirés. Les autres sont libres.
+            {obligatoires.length
+              ? "Les blocs marqués d'un point sont imposés par votre rôle et ne peuvent pas être retirés. Les autres sont libres."
+              : phase !== 'exploitation'
+                ? "Hors exploitation, aucun bloc n'est imposé : vous pouvez tout retirer. Ceux que votre rôle exige redeviendront obligatoires au passage en exploitation."
+                : "Aucun bloc n'est imposé par votre rôle : tous sont libres."}
           </p>
+          {!actifs.length && (
+            <button className="lien" onClick={() => enregistrer(null)}>
+              Revenir à l&rsquo;affichage par défaut
+            </button>
+          )}
         </div>
       )}
 
-      <div className="grille-domaines grille-poste">
-        {actifs.map((k) => (
-          <Contenu key={k} clef={k} {...props} />
-        ))}
-      </div>
+      {actifs.length ? (
+        <div className="grille-domaines grille-poste">
+          {actifs.map((k) => (
+            <Contenu key={k} clef={k} {...props} />
+          ))}
+        </div>
+      ) : (
+        <p className="moniteur-vide">
+          Aucun bloc affiché. « Personnaliser » permet d&rsquo;en remettre.
+        </p>
+      )}
     </div>
   )
 }
