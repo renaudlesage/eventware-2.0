@@ -22,6 +22,7 @@ import Planning from './Planning'
 import Preparation from './Preparation'
 import Invitations, { RejoindreParCode } from './Invitations'
 import Membres from './Membres'
+import MonCompte from './MonCompte'
 import LogoEvenement from './LogoEvenement'
 import Point0 from './Point0'
 import Diffusion from './Diffusion'
@@ -809,20 +810,13 @@ function Reglages({ evenement, membre, session, exploitant, onRecharger, setMess
       )}
 
       {panneau === 'compte' && (
-        <section className="bloc">
-          <h2>Mon compte</h2>
-          <p className="aide">Connecté en tant que {session.user.email}.</p>
-          <div className="identite">
-            <span className="etiquette">Mon identifiant</span>
-            <code>{session.user.id}</code>
-            <p className="aide">
-              À transmettre à l'administrateur d'un autre événement pour y être ajouté.
-            </p>
-          </div>
-          <button className="discret" onClick={() => supabase.auth.signOut()}>
-            Se déconnecter
-          </button>
-        </section>
+        <MonCompte
+          session={session}
+          membre={membre}
+          evenement={evenement}
+          setMessage={setMessage}
+          onRecharger={onRecharger}
+        />
       )}
     </>
   )

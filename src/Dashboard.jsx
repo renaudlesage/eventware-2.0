@@ -4,6 +4,7 @@ import { PAVES, pavesDisponibles, pavesObligatoires, composition } from './paves
 import { libelleStatut } from './libelles'
 import { etatDe } from './Securite'
 import { ColonneDomaine } from './Situation'
+import MonCompte from './MonCompte'
 import Terrain from './Terrain'
 import { MesCreneaux } from './Rh'
 import { GestionAlertes } from './Bandeau'
@@ -148,7 +149,7 @@ function Contenu({ clef, ...p }) {
 
 /* --- Blocs ---------------------------------------------------------- */
 
-function PaveIdentite({ evenement, membre, session, onAller }) {
+function PaveIdentite({ evenement, membre, session, setMessage, onAller }) {
   return (
     <Bloc clef="identite" onAller={onAller}>
       <div className="grand">{membre.nom_affiche ?? '—'}</div>
@@ -158,14 +159,18 @@ function PaveIdentite({ evenement, membre, session, onAller }) {
         {membre.perimetre && <span>{membre.perimetre}</span>}
       </div>
 
-      <p className="aide" style={{ marginTop: 10 }}>{session.user.email}</p>
-      <div className="identite">
-        <span className="etiquette">Mon identifiant</span>
-        <code>{session.user.id}</code>
-      </div>
-      <button className="discret" onClick={() => supabase.auth.signOut()} style={{ marginTop: 8 }}>
-        Se déconnecter
-      </button>
+      {/* Le même composant que dans Réglages — mais les Réglages exigent
+          « tout pouvoir », donc un bénévole n'y accède jamais. Or c'est
+          lui qui a le plus besoin de corriger son nom. Ce pavé est
+          obligatoire pour tous les rôles : c'est la seule porte qui
+          reste ouverte à tout le monde. */}
+      <MonCompte
+        session={session}
+        membre={membre}
+        evenement={evenement}
+        setMessage={setMessage}
+        sansTitre
+      />
     </Bloc>
   )
 }
