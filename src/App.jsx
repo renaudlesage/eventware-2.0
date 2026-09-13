@@ -42,6 +42,7 @@ const GEOMETRIES = [
 
 const MODULES = [
   ['securite', 'Sécurité'],
+  ['preparation', 'Préparation'],
   ['logistique', 'Logistique'],
   ['rh', 'Bénévoles'],
   ['parcours', 'Parcours'],
@@ -75,7 +76,7 @@ const ECRANS = [
   // les deux.
   { clef: 'accueil',    libelle: 'Mon poste',    module: null,                besoin: null },
   { clef: 'memento',    libelle: 'Mémento',      module: null,                besoin: null },
-    { clef: 'preparation', libelle: 'Préparation', module: null,              besoin: ['rh', 'lire'] },
+    { clef: 'preparation', libelle: 'Préparation', module: 'preparation',     besoin: ['rh', 'lire'] },
   { clef: 'planning',   libelle: 'Planning',     module: null,                besoin: null },
   { clef: 'securite',   libelle: 'Sécurité',     module: 'securite',          besoin: ['missions', 'creer'] },
   { clef: 'logistique', libelle: 'Logistique',   module: 'logistique',        besoin: ['logistique', 'lire'] },
