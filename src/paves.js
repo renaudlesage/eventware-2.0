@@ -25,15 +25,6 @@
  * traiter.
  */
 export const PAVES = {
-  identite: {
-    libelle: 'Mon poste',
-    teinte: 'violet',
-    icone: '◉',
-    lien: null,
-    module: null,
-    besoin: null,
-    obligatoire: ['coordinateur', 'admin', 'chef_equipe', 'benevole', 'observateur']
-  },
   mes_missions: {
     libelle: 'Mes missions',
     teinte: 'violet',
@@ -131,11 +122,11 @@ export const PAVES = {
  * l'ordre du catalogue, filtré par ses capacités.
  */
 const DEFAUTS = {
-  coordinateur: ['identite', 'mes_missions', 'alertes', 'sos', 'mes_demandes', 'planning', 'contacts', 'equipes', 'materiel'],
-  admin: ['identite', 'mes_missions', 'alertes', 'sos', 'mes_demandes', 'planning', 'contacts', 'equipes', 'materiel'],
-  chef_equipe: ['identite', 'mes_missions', 'mes_creneaux', 'alertes', 'sos', 'mes_demandes', 'planning', 'equipes', 'materiel'],
-  benevole: ['identite', 'mes_missions', 'mes_creneaux', 'mes_demandes', 'planning', 'equipes'],
-  observateur: ['identite', 'planning']
+  coordinateur: ['mes_missions', 'alertes', 'sos', 'mes_demandes', 'planning', 'contacts', 'equipes', 'materiel'],
+  admin: ['mes_missions', 'alertes', 'sos', 'mes_demandes', 'planning', 'contacts', 'equipes', 'materiel'],
+  chef_equipe: ['mes_missions', 'mes_creneaux', 'alertes', 'sos', 'mes_demandes', 'planning', 'equipes', 'materiel'],
+  benevole: ['mes_missions', 'mes_creneaux', 'mes_demandes', 'planning', 'equipes'],
+  observateur: ['planning']
 }
 
 /**

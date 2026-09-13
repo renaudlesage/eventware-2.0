@@ -4,7 +4,6 @@ import { PAVES, pavesDisponibles, pavesObligatoires, composition } from './paves
 import { libelleStatut } from './libelles'
 import { etatDe } from './Securite'
 import { ColonneDomaine } from './Situation'
-import MonCompte from './MonCompte'
 import Terrain from './Terrain'
 import { MesCreneaux } from './Rh'
 import { GestionAlertes } from './Bandeau'
@@ -122,8 +121,6 @@ function Bloc({ clef, compteurs = [], onAller, children }) {
 
 function Contenu({ clef, ...p }) {
   switch (clef) {
-    case 'identite':
-      return <PaveIdentite {...p} />
     case 'mes_missions':
       return <PaveMesMissions {...p} />
     case 'mes_demandes':
@@ -148,32 +145,6 @@ function Contenu({ clef, ...p }) {
 }
 
 /* --- Blocs ---------------------------------------------------------- */
-
-function PaveIdentite({ evenement, membre, session, setMessage, onAller }) {
-  return (
-    <Bloc clef="identite" onAller={onAller}>
-      <div className="grand">{membre.nom_affiche ?? '—'}</div>
-      <div className="meta">
-        <span className={`jeton ${membre.role}`}>{membre.role}</span>
-        <span className="jeton phase">{evenement.phase}</span>
-        {membre.perimetre && <span>{membre.perimetre}</span>}
-      </div>
-
-      {/* Le même composant que dans Réglages — mais les Réglages exigent
-          « tout pouvoir », donc un bénévole n'y accède jamais. Or c'est
-          lui qui a le plus besoin de corriger son nom. Ce pavé est
-          obligatoire pour tous les rôles : c'est la seule porte qui
-          reste ouverte à tout le monde. */}
-      <MonCompte
-        session={session}
-        membre={membre}
-        evenement={evenement}
-        setMessage={setMessage}
-        sansTitre
-      />
-    </Bloc>
-  )
-}
 
 function PaveMesMissions({ evenement, membre, onAller }) {
   const [c, setC] = useState({ aFaire: null, pourMoi: null, p1: null })

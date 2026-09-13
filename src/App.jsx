@@ -298,6 +298,7 @@ function Poste({ session, theme, setTheme }) {
     () => localStorage.getItem('eventware.evenement') ?? null
   )
   const [ecran, setEcran] = useState('situation')
+  const [compteOuvert, setCompteOuvert] = useState(false)
   // Sous-onglet demandé lors d'une navigation ciblée — ex. le pavé
   // « Signalements ouverts » doit ouvrir directement Sécurité sur son
   // onglet Signalements, pas sur l'onglet par défaut.
@@ -422,9 +423,13 @@ function Poste({ session, theme, setTheme }) {
           )}
           {moi && <span className="plaque role">{moi.role}</span>}
           <span className="pousse" />
-          <span className="compte" title={session.user.email}>
-            {session.user.email}
-          </span>
+          <button
+            className="lien"
+            title={session.user.email}
+            onClick={() => setCompteOuvert(true)}
+          >
+            Mon compte
+          </button>
         </div>
 
       </div>
@@ -437,7 +442,29 @@ function Poste({ session, theme, setTheme }) {
         </div>
       )}
 
-      {!courant ? (
+      {/* Le compte s'ouvre par-dessus le contenu plutôt que dans un
+          écran de navigation : il ne fait pas partie du travail, on y
+          passe et on revient. Et il reste joignable par TOUS les rôles,
+          y compris ceux qui n'atteignent pas les Réglages. */}
+      {compteOuvert && courant && moi ? (
+        <div className="corps">
+          <main className="travail">
+            <div className="ligne-boutons" style={{ marginBottom: 10 }}>
+              <button className="discret" onClick={() => setCompteOuvert(false)}>
+                ← Retour
+              </button>
+            </div>
+            <MonCompte
+              session={session}
+              membre={moi}
+              evenement={courant}
+              setMessage={setMessage}
+              onRecharger={charger}
+            />
+          </main>
+        </div>
+      ) : 
+      !courant ? (
         <>
           <RejoindreParCode onRejoint={async (id) => { await charger(); if (id) setCourantId(id) }} />
           <PremierEvenement session={session} onFait={charger} setMessage={setMessage} />
