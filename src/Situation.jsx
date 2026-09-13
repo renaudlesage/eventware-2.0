@@ -17,6 +17,32 @@ import { ChevronDown } from 'lucide-react'
  * Ordre de lecture délibéré : ce qui exige une décision d'abord,
  * ce qui informe ensuite, ce qui rassure en dernier.
  */
+/**
+ * Ce que la Situation montre, selon la phase.
+ *
+ * On ne pilote pas la même chose avant et pendant. En préparation, un
+ * coordinateur voyait « 0 mission, 0 signalement, 0 sur le parcours,
+ * 0 créneau découvert » — un mur de zéros — pendant que ses deux
+ * jalons à venir n'étaient affichés nulle part.
+ *
+ * Chaque phase déclare donc ses colonnes. Les composants ne changent
+ * pas : seule leur composition change, comme les pavés de Mon poste
+ * suivent le rôle.
+ */
+const COLONNES_PAR_PHASE = {
+  // Des échéances et des trous. Rien de temps réel n'existe encore.
+  preparation:  ['preparation', 'rh', 'securite'],
+  // Une installation et ses risques. La météo compte ici plus que
+  // partout ailleurs : le vent décide du montage d'un chapiteau.
+  montage:      ['preparation', 'securite', 'logistique', 'rh'],
+  // Le temps réel, tel qu'il existait.
+  exploitation: ['securite', 'logistique', 'parcours', 'rh'],
+  // Des restitutions : qui est rentré, ce qui n'est pas rendu.
+  demontage:    ['parcours', 'logistique', 'preparation'],
+  // On ne pilote plus, on capitalise.
+  cloture:      ['logistique', 'preparation']
+}
+
 export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
   const [s, setS] = useState(null)
   const [signalementsRecents, setSignalementsRecents] = useState([])
@@ -139,6 +165,14 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
   const secu = parModule.securite ?? { ouvertes: 0, p1: 0 }
   const logi = parModule.logistique ?? { ouvertes: 0, p1: 0 }
 
+  // Colonnes de cette phase. Une phase inconnue retombe sur
+  // l'exploitation : mieux vaut trop montrer que rien du tout.
+  const colonnes = COLONNES_PAR_PHASE[s.evenement?.phase] ?? COLONNES_PAR_PHASE.exploitation
+  const montre = (clef) => colonnes.includes(clef)
+  const jalonsEnRetard = (s.jalons ?? []).filter(
+    (j) => j.echeance && new Date(j.echeance) < new Date()
+  ).length
+
   return (
     <div className="situation dom-indigo">
       <div className="entete-dashboard">
@@ -213,6 +247,50 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
            seul écran de QG sans jamais faire défiler la page entière. */}
 
       <div className="grille-domaines">
+        {/* Colonne propre aux phases où l'on pilote des échéances plutôt
+            que du temps réel. C'est elle qui manquait : les jalons
+            existaient dans les données mais n'étaient affichés nulle
+            part sur cet écran. */}
+        {montre('preparation') && (
+          <ColonneDomaine
+            teinte="tilleul"
+            icone="☑"
+            titre="Préparation"
+            lien="preparation"
+            onAller={onAller}
+            compteurs={[
+              { libelle: 'En retard', valeur: jalonsEnRetard || null, etat: 'urgent' },
+              { libelle: 'À venir', valeur: (s.jalons ?? []).length, etat: 'attente' }
+            ]}
+          >
+            {(s.jalons ?? []).length === 0 ? (
+              <p className="moniteur-vide">Aucune échéance à venir.</p>
+            ) : (
+              (s.jalons ?? []).map((j, i) => {
+                const retard = j.echeance && new Date(j.echeance) < new Date()
+                return (
+                  <div className={`moniteur-ligne ${retard || j.critique ? 'urgent' : ''}`} key={i}>
+                    <strong>{j.libelle}</strong>
+                    <span>
+                      {j.echeance
+                        ? new Date(j.echeance).toLocaleDateString('fr-BE', {
+                            weekday: 'short',
+                            day: '2-digit',
+                            month: '2-digit'
+                          })
+                        : 'sans échéance'}
+                      {j.responsable ? ` · ${j.responsable}` : ''}
+                      {retard ? ' · en retard' : ''}
+                    </span>
+                  </div>
+                )
+              })
+            )}
+          </ColonneDomaine>
+        )}
+
+
+        {montre('securite') && (
         <ColonneDomaine
           teinte="grenat"
           icone="⚠"
@@ -255,8 +333,9 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
             </>
           )}
         </ColonneDomaine>
+        )}
 
-        {m.logistique && (
+        {m.logistique && montre('logistique') && (
           <ColonneDomaine
             teinte="bronze"
             icone="▤"
@@ -297,7 +376,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
           </ColonneDomaine>
         )}
 
-        {m.parcours && (
+        {m.parcours && montre('parcours') && (
           <ColonneDomaine
             teinte="mousse"
             icone="➜"
@@ -320,7 +399,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
           </ColonneDomaine>
         )}
 
-        {m.rh && (
+        {m.rh && montre('rh') && (
           <ColonneDomaine
             teinte="azur"
             icone="☺"
