@@ -193,6 +193,8 @@ export default function Participant({ jeton, codeLieu }) {
         </span>
       </div>
 
+      <Vitrine jeton={jeton} codeLieu={codeLieu} />
+
       {file.length > 0 && (
         <section>
           <h2>Mes signalements</h2>

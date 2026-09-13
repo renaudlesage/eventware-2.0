@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import Pointage from './Pointage'
 
 /**
  * Vitrine publique — ce que voit un participant qui scanne le QR.
@@ -15,7 +16,7 @@ import { supabase } from './supabaseClient'
  * organisateur qui peut pousser « mise à l'abri » sur le téléphone de
  * chaque participant a une vraie capacité, pas un gadget.
  */
-export default function Vitrine({ jeton }) {
+export default function Vitrine({ jeton, codeLieu }) {
   const [contenu, setContenu] = useState(null)
   const [erreur, setErreur] = useState(null)
   const [vue, setVue] = useState('infos')
@@ -58,6 +59,14 @@ export default function Vitrine({ jeton }) {
           {a.consigne && <p style={{ margin: '4px 0 0' }}>{a.consigne}</p>}
         </div>
       ))}
+
+      {contenu.evenement?.mode_parcours === 'individuels' && codeLieu && (
+        <Pointage
+          jeton={jeton}
+          codeLieu={codeLieu}
+          nomLieu={lieux.find((l) => l.code === codeLieu)?.nom}
+        />
+      )}
 
       <div className="onglets">
         {[
