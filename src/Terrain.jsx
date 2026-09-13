@@ -32,6 +32,23 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
   }, [evenement.id])
 
   async function avancer(l, statut) {
+    // Un jalon ne partage pas les statuts d'une mission : il va de
+    // « à venir » à « fait », sans passer par « attribuée » ni
+    // « résolue ». On traduit plutôt que d'écrire un statut qui
+    // n'existe pas dans son énumération.
+    if (l.genre === 'jalon') {
+      const cible = statut === 'resolue' ? 'fait' : 'en_cours'
+      const { error, count } = await supabase
+        .from('jalons')
+        .update({ statut: cible }, { count: 'exact' })
+        .eq('id', l.id)
+      if (error) setMessage({ type: 'erreur', texte: error.message })
+      else if (count === 0)
+        setMessage({ type: 'erreur', texte: 'Modification refusée : droits insuffisants.' })
+      else charger()
+      return
+    }
+
     const table = l.genre === 'transport' ? 'transports' : 'missions'
     const champs = { statut }
     if (statut === 'attribuee') {
@@ -136,6 +153,12 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
             <div className="ligne-boutons" style={{ marginTop: 10 }}>
               {l.statut === 'a_traiter' && (
                 <button onClick={() => avancer(l, 'attribuee')}>Je prends</button>
+              )}
+              {/* Un jalon arrive déjà attribué : on ne « le prend » pas,
+                  on le démarre. Sans cette branche il n'aurait aucun
+                  bouton, son statut « a_venir » n'étant prévu nulle part. */}
+              {l.statut === 'a_venir' && (
+                <button onClick={() => avancer(l, 'en_cours')}>Je démarre</button>
               )}
               {l.statut === 'attribuee' && (
                 <button onClick={() => avancer(l, 'en_cours')}>Je démarre</button>

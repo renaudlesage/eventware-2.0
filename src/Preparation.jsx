@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import PiecesJointes from './PiecesJointes'
 
 /**
  * Préparation — l'avant-événement.
@@ -19,13 +20,14 @@ import { supabase } from './supabaseClient'
 export default function Preparation({ evenement, membre, peut, toutPouvoir, setMessage }) {
   const [groupes, setGroupes] = useState(null)
   const [actions, setActions] = useState([])
+  const [membres, setMembres] = useState([])
   const [ouvert, setOuvert] = useState(null)
   const [creerGroupe, setCreerGroupe] = useState(false)
 
   const peutGerer = toutPouvoir || peut?.('rh', 'creer')
 
   async function charger() {
-    const [g, a] = await Promise.all([
+    const [g, a, mb] = await Promise.all([
       supabase
         .from('groupes_travail')
         .select('*, pilote:pilote_membre_id(nom_affiche)')
@@ -38,11 +40,18 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
         .select('*')
         .eq('evenement_id', evenement.id)
         .is('deleted_at', null)
-        .order('echeance', { nullsFirst: false })
+        .order('echeance', { nullsFirst: false }),
+      supabase
+        .from('membres_evenement')
+        .select('id, nom_affiche, role')
+        .eq('evenement_id', evenement.id)
+        .is('deleted_at', null)
+        .order('nom_affiche', { nullsFirst: false })
     ])
     if (g.error) setMessage({ type: 'erreur', texte: g.error.message })
     else setGroupes(g.data ?? [])
     setActions(a.data ?? [])
+    setMembres(mb.data ?? [])
   }
 
   useEffect(() => {
@@ -118,6 +127,7 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
                 evenement={evenement}
                 groupe={g}
                 actions={siennes}
+                membres={membres}
                 peutGerer={peutGerer}
                 setMessage={setMessage}
                 onFait={charger}
@@ -139,6 +149,7 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
             evenement={evenement}
             groupe={null}
             actions={orphelines}
+            membres={membres}
             peutGerer={peutGerer}
             groupesDisponibles={groupes}
             setMessage={setMessage}
@@ -160,9 +171,9 @@ const STATUTS = [
   ['annule', 'Annulé']
 ]
 
-function Actions({ evenement, groupe, actions, peutGerer, groupesDisponibles, setMessage, onFait }) {
+function Actions({ evenement, groupe, actions, membres, peutGerer, groupesDisponibles, setMessage, onFait }) {
   const [ouvrir, setOuvrir] = useState(false)
-  const [f, setF] = useState({ code: '', libelle: '', echeance: '', responsable: '' })
+  const [f, setF] = useState({ code: '', libelle: '', echeance: '', responsable_membre_id: '' })
 
   async function creer() {
     if (!f.code.trim() || !f.libelle.trim()) return
@@ -172,12 +183,12 @@ function Actions({ evenement, groupe, actions, peutGerer, groupesDisponibles, se
       libelle: f.libelle.trim(),
       // Facultative — c'est tout l'intérêt en préparation.
       echeance: f.echeance ? new Date(f.echeance).toISOString() : null,
-      responsable: f.responsable.trim() || null,
+      responsable_membre_id: f.responsable_membre_id || null,
       groupe_travail_id: groupe?.id ?? null
     })
     if (error) setMessage({ type: 'erreur', texte: error.message })
     else {
-      setF({ code: '', libelle: '', echeance: '', responsable: '' })
+      setF({ code: '', libelle: '', echeance: '', responsable_membre_id: '' })
       setOuvrir(false)
       onFait()
     }
@@ -212,9 +223,23 @@ function Actions({ evenement, groupe, actions, peutGerer, groupesDisponibles, se
                     ? new Date(a.echeance).toLocaleDateString('fr-BE')
                     : 'sans échéance'}
                 </span>
+                {a.responsable_membre_id && (
+                  <span>
+                    {membres.find((m) => m.id === a.responsable_membre_id)?.nom_affiche ??
+                      'quelqu\u2019un'}
+                  </span>
+                )}
                 {a.responsable && <span>{a.responsable}</span>}
                 {a.critique && <span className="alerte-texte">critique</span>}
               </div>
+
+              <PiecesJointes
+                evenement={evenement}
+                objetType="jalon"
+                objetId={a.id}
+                peutGerer={peutGerer}
+                setMessage={setMessage}
+              />
 
               {peutGerer && (
                 <div className="ligne-boutons" style={{ marginTop: 6 }}>
@@ -241,6 +266,22 @@ function Actions({ evenement, groupe, actions, peutGerer, groupesDisponibles, se
                       title="Donner une échéance la fera apparaître dans le Planning"
                     />
                   )}
+
+                  <select
+                    value={a.responsable_membre_id ?? ''}
+                    onChange={(e) =>
+                      modifier(a.id, { responsable_membre_id: e.target.value || null })
+                    }
+                    style={{ width: 'auto', marginBottom: 0 }}
+                    title="L'action apparaîtra dans « Mes missions » de cette personne"
+                  >
+                    <option value="">— personne —</option>
+                    {membres.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.nom_affiche ?? 'sans nom'}
+                      </option>
+                    ))}
+                  </select>
 
                   {groupesDisponibles && (
                     <select
@@ -284,11 +325,17 @@ function Actions({ evenement, groupe, actions, peutGerer, groupesDisponibles, se
                 />
               </div>
               <div className="saisie-rapide">
-                <input
-                  value={f.responsable}
-                  onChange={(e) => setF({ ...f, responsable: e.target.value })}
-                  placeholder="Qui s'en charge"
-                />
+                <select
+                  value={f.responsable_membre_id}
+                  onChange={(e) => setF({ ...f, responsable_membre_id: e.target.value })}
+                >
+                  <option value="">Qui s'en charge ?</option>
+                  {membres.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.nom_affiche ?? 'sans nom'}
+                    </option>
+                  ))}
+                </select>
                 <input
                   type="date"
                   value={f.echeance}
@@ -301,7 +348,8 @@ function Actions({ evenement, groupe, actions, peutGerer, groupesDisponibles, se
               </div>
               <p className="aide">
                 L'échéance est facultative. Sans elle, l'action reste ici ; avec elle, elle
-                rejoint la frise du Planning.
+                rejoint la frise du Planning. Attribuée à quelqu'un, elle apparaît dans son
+                écran « Mes missions ».
               </p>
             </div>
           ) : (
