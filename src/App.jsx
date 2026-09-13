@@ -460,6 +460,7 @@ function Poste({ session, theme, setTheme }) {
                     setMessage={setMessage}
                   />
                 </>
+              ) : (
                 <p className="aide">
                   Tu n'es pas membre de cet événement. Demande à son coordinateur de
                   t'ajouter, en lui transmettant ton identifiant.
@@ -761,26 +762,13 @@ function Reglages({ evenement, membre, session, exploitant, onRecharger, setMess
 
       {panneau === 'equipe' && (
         <>
-            <Invitations evenement={evenement} setMessage={setMessage} />
-            <Membres
-              evenement={evenement}
-              membre={membre}
-              setMessage={setMessage}
-              onRecharger={onRecharger}
-            />
-          <section className="bloc">
-            <h2>Ajouter un membre</h2>
-            <AjoutMembre
-              evenementId={evenement.id}
-              onFait={onRecharger}
-              setMessage={setMessage}
-            />
-            <p className="aide">
-              L'identifiant se trouve sur l'écran « Mon compte » de la personne, qu'elle
-              t'envoie après avoir créé son compte.
-            </p>
-          </section>
-
+          <Invitations evenement={evenement} setMessage={setMessage} />
+          <Membres
+            evenement={evenement}
+            membre={membre}
+            setMessage={setMessage}
+            onRecharger={onRecharger}
+          />
           <Roles evenement={evenement} setMessage={setMessage} />
         </>
       )}
@@ -850,78 +838,6 @@ function Compteurs({ evenementId, cle }) {
           {libelle} <strong>{n}</strong>
         </span>
       ))}
-    </div>
-  )
-}
-
-function AjoutMembre({ evenementId, onFait, setMessage }) {
-  const [userId, setUserId] = useState('')
-  const [nomAffiche, setNomAffiche] = useState('')
-  const [roleId, setRoleId] = useState('')
-  const [roles, setRoles] = useState([])
-  const [occupe, setOccupe] = useState(false)
-
-  useEffect(() => {
-    supabase
-      .from('roles')
-      .select('id, code, libelle')
-      .eq('evenement_id', evenementId)
-      .is('deleted_at', null)
-      .order('ordre')
-      .then(({ data }) => {
-        setRoles(data ?? [])
-        setRoleId((r) => r || data?.find((x) => x.code === 'benevole')?.id || '')
-      })
-  }, [evenementId])
-
-  async function ajouter() {
-    setOccupe(true)
-    const choisi = roles.find((r) => r.id === roleId)
-    const { error } = await supabase.from('membres_evenement').insert({
-      evenement_id: evenementId,
-      user_id: userId.trim(),
-      role_id: roleId || null,
-      // colonne héritée, conservée le temps de la transition
-      role: ['admin','coordinateur','chef_equipe','benevole','observateur']
-        .includes(choisi?.code) ? choisi.code : 'benevole',
-      nom_affiche: nomAffiche || null
-    })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
-    else {
-      setUserId('')
-      setNomAffiche('')
-      onFait()
-    }
-    setOccupe(false)
-  }
-
-  return (
-    <div className="saisie-rapide">
-      <input
-        value={userId}
-        onChange={(e) => setUserId(e.target.value)}
-        placeholder="Identifiant de la personne"
-      />
-      <input
-        value={nomAffiche}
-        onChange={(e) => setNomAffiche(e.target.value)}
-        placeholder="Nom affiché"
-        style={{ flex: '0 1 170px' }}
-      />
-      <select
-        value={roleId}
-        onChange={(e) => setRoleId(e.target.value)}
-        style={{ width: 'auto', marginBottom: 0 }}
-      >
-        {roles.map((r) => (
-          <option key={r.id} value={r.id}>
-            {r.libelle}
-          </option>
-        ))}
-      </select>
-      <button disabled={occupe || !userId.trim() || !roleId} onClick={ajouter}>
-        Ajouter
-      </button>
     </div>
   )
 }

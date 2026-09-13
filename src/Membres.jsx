@@ -85,6 +85,36 @@ export default function Membres({ evenement, membre, setMessage, onRecharger }) 
     }
   }
 
+  async function retirer(m) {
+    // Deux garde-fous. Le dernier encadrant, sinon l'événement devient
+    // inadministrable. Et soi-même, parce que c'est presque toujours une
+    // fausse manœuvre et qu'aucun écran ne permet de revenir en arrière.
+    if (m.user_id === membre.user_id) {
+      setMessage({
+        type: 'erreur',
+        texte: "Tu ne peux pas te retirer toi-même — demande à un autre coordinateur."
+      })
+      return
+    }
+    if (['coordinateur', 'admin'].includes(m.role) && encadrants.length <= 1) {
+      setMessage({
+        type: 'erreur',
+        texte: "Impossible : ce serait le dernier coordinateur."
+      })
+      return
+    }
+    if (!window.confirm(`Retirer ${m.nom_affiche ?? 'ce membre'} de l'événement ?`)) return
+
+    const { error, count } = await supabase
+      .from('membres_evenement')
+      .update({ deleted_at: new Date().toISOString() }, { count: 'exact' })
+      .eq('id', m.id)
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else if (count === 0)
+      setMessage({ type: 'erreur', texte: 'Retrait refusé : droits insuffisants.' })
+    else charger()
+  }
+
   if (membres === null) return <p className="vide">…</p>
 
   return (
@@ -92,7 +122,8 @@ export default function Membres({ evenement, membre, setMessage, onRecharger }) 
       <h2>Membres ({membres.length})</h2>
       <p className="aide" style={{ marginTop: 0 }}>
         Le rôle détermine ce que la personne voit et peut faire. Il s'attribue ici — personne
-        ne peut se l'accorder soi-même.
+        ne peut se l'accorder soi-même. Pour ajouter quelqu'un, passe par un lien
+        d'invitation : plus besoin d'échanger des identifiants.
       </p>
 
       {membres.map((m) => {
@@ -123,6 +154,9 @@ export default function Membres({ evenement, membre, setMessage, onRecharger }) 
                   </option>
                 ))}
               </select>
+              <button className="discret" onClick={() => retirer(m)}>
+                Retirer
+              </button>
             </div>
           </div>
         )
