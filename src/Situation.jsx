@@ -132,6 +132,13 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
 
   const m = s.evenement?.modules ?? {}
 
+  // Demandes ventilées par domaine. Avant, chaque colonne affichait le
+  // total tous modules confondus : « 7 ouvertes » sous Sécurité alors
+  // que 4 des 7 étaient logistiques, et absentes de Logistique.
+  const parModule = s.missions?.par_module ?? {}
+  const secu = parModule.securite ?? { ouvertes: 0, p1: 0 }
+  const logi = parModule.logistique ?? { ouvertes: 0, p1: 0 }
+
   return (
     <div className="situation dom-indigo">
       <div className="entete-dashboard">
@@ -213,10 +220,10 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
           lien="securite"
           onAller={onAller}
           compteurs={[
-            { libelle: 'P1', valeur: s.missions?.p1, etat: 'urgent' },
+            { libelle: 'P1', valeur: secu.p1, etat: 'urgent' },
             {
               libelle: 'Ouvertes',
-              valeur: Math.max(0, (s.missions?.ouvertes ?? 0) - (s.missions?.p1 ?? 0)),
+              valeur: Math.max(0, (secu.ouvertes ?? 0) - (secu.p1 ?? 0)),
               etat: 'attente'
             }
           ]}
@@ -257,6 +264,15 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
             lien="logistique"
             onAller={onAller}
             compteurs={[
+              // Masqué à zéro : cinq compteurs sur un téléphone, c'est
+              // trop, et une demande logistique P1 est rare. Sécurité
+              // garde le sien visible — y lire « 0 P1 » rassure.
+              { libelle: 'P1', valeur: logi.p1 || null, etat: 'urgent' },
+              {
+                libelle: 'Demandes',
+                valeur: Math.max(0, (logi.ouvertes ?? 0) - (logi.p1 ?? 0)),
+                etat: 'attente'
+              },
               {
                 libelle: 'Sous seuil',
                 valeur: (s.logistique?.sous_seuil ?? []).length,

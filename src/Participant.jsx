@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
+import Vitrine from './Vitrine'
 import { appliquerIconeEvenement } from './logoPwa'
 import { lireFile, ajouter, majSignalement, retirer, nouvelleCle, ETATS } from './fileSos'
 

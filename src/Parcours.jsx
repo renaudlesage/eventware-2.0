@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import Trace from './Trace'
+import Flux from './Flux'
 import { libelleStatut } from './libelles'
 import LigneParcours from './LigneParcours'
 
@@ -13,7 +14,12 @@ const STATUTS = [
 ]
 
 export default function Parcours({ evenement, membre }) {
-  const [vue, setVue] = useState('qg')
+  // Deux modes : des groupes encadrés qu'on suit nommément, ou des
+  // individus isolés qu'on ne peut que compter aux bornes. Le mode
+  // choisit la vue d'entrée ; les deux jeux de données coexistent,
+  // pour qu'un événement hybride reste possible.
+  const individuels = evenement.mode_parcours === 'individuels'
+  const [vue, setVue] = useState(individuels ? 'flux' : 'qg')
   const [message, setMessage] = useState(null)
 
   return (
@@ -21,6 +27,14 @@ export default function Parcours({ evenement, membre }) {
       <h2>Parcours</h2>
 
       <div className="onglets">
+        {individuels && (
+          <button
+            className={`module ${vue === 'flux' ? 'actif' : ''}`}
+            onClick={() => setVue('flux')}
+          >
+            Comptage
+          </button>
+        )}
         <button
           className={`module ${vue === 'qg' ? 'actif' : ''}`}
           onClick={() => setVue('qg')}
@@ -56,6 +70,9 @@ export default function Parcours({ evenement, membre }) {
       {vue === 'qg' && <SuiviQg evenement={evenement} setMessage={setMessage} />}
       {vue === 'terrain' && (
         <Pointage evenement={evenement} membre={membre} setMessage={setMessage} />
+      )}
+      {vue === 'flux' && (
+        <Flux evenement={evenement} membre={membre} setMessage={setMessage} />
       )}
       {vue === 'trace' && <Trace evenement={evenement} setMessage={setMessage} />}
       {vue === 'segments' && <Segments evenement={evenement} setMessage={setMessage} />}

@@ -22,6 +22,9 @@ export default function Point0({ evenement, onFait, setMessage }) {
   const [province, setProvince] = useState(evenement.province ?? '')
   const [commune, setCommune] = useState(evenement.commune ?? '')
   const [communesConnues, setCommunesConnues] = useState([])
+  const [modeParcours, setModeParcours] = useState(evenement.mode_parcours ?? 'groupes')
+  const [occupeMode, setOccupeMode] = useState(false)
+  const [modeEnregistre, setModeEnregistre] = useState(false)
   const [occupe, setOccupe] = useState(false)
   const [occupeProvince, setOccupeProvince] = useState(false)
   const [occupeCommune, setOccupeCommune] = useState(false)
@@ -35,6 +38,22 @@ export default function Point0({ evenement, onFait, setMessage }) {
       .order('nom')
       .then(({ data }) => setCommunesConnues(data ?? []))
   }, [])
+
+  async function enregistrerMode(valeur) {
+    setOccupeMode(true)
+    setModeParcours(valeur)
+    const { error } = await supabase
+      .from('evenements')
+      .update({ mode_parcours: valeur })
+      .eq('id', evenement.id)
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else {
+      onFait()
+      setModeEnregistre(true)
+      setTimeout(() => setModeEnregistre(false), 2500)
+    }
+    setOccupeMode(false)
+  }
 
   async function enregistrerCommune() {
     setOccupeCommune(true)
@@ -190,6 +209,27 @@ export default function Point0({ evenement, onFait, setMessage }) {
         Si la commune ne figure pas encore dans la bibliothèque, l'onglet Conformité →
         Référentiels le signale clairement plutôt que de laisser croire à une couverture qui
         n'existe pas.
+      </p>
+
+      <label htmlFor="mode-parcours" style={{ marginTop: 14 }}>
+        Suivi du parcours {modeEnregistre && <span className="jeton">enregistré ✓</span>}
+      </label>
+      <select
+        id="mode-parcours"
+        value={modeParcours}
+        disabled={occupeMode}
+        onChange={(e) => enregistrerMode(e.target.value)}
+      >
+        <option value="groupes">Groupes encadrés — on suit qui est où</option>
+        <option value="individuels">Individus isolés — on compte les passages</option>
+      </select>
+      <p className="aide">
+        <strong>Groupes encadrés</strong> : des groupes nommés, un accompagnateur joignable,
+        un effectif connu. On sait lequel n'a pas pointé depuis trop longtemps.
+        <br />
+        <strong>Individus isolés</strong> : marche Adeps, rando VTT. Personne ne peut nommer
+        six cents marcheurs — on compte les passages à chaque borne, et l'écart entre deux
+        bornes dit combien de personnes sont encore sur le tronçon.
       </p>
     </section>
   )
