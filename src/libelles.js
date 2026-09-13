@@ -69,9 +69,16 @@ export const DOMAINES = [
  * leur code sans l'emporter dans leur fichier — écran noir. Un seul
  * endroit évite de refaire deux fois le même oubli.
  */
-export const heure = (d) =>
-  new Date(d).toLocaleString('fr-BE', {
-    weekday: 'short',
+export const heure = (d) => {
+  const date = new Date(d)
+  const aujourdhui = date.toDateString() === new Date().toDateString()
+  return date.toLocaleString('fr-BE', {
+    // Pour aujourd'hui, l'heure seule suffit. Au-delà, « 08:00 » ne dit
+    // pas quel jour : le jour et la date deviennent indispensables, et
+    // le jour de la semaine seul ne suffit plus dès qu'une échéance
+    // dépasse la semaine.
+    ...(aujourdhui ? {} : { weekday: 'short', day: '2-digit', month: '2-digit' }),
     hour: '2-digit',
     minute: '2-digit'
   })
+}

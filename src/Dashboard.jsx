@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { PAVES, pavesDisponibles, pavesObligatoires, composition } from './paves'
-import { libelleStatut } from './libelles'
+import { libelleStatut, heure } from './libelles'
 import { etatDe } from './Securite'
 import { ColonneDomaine } from './Situation'
 import Terrain from './Terrain'
@@ -412,7 +412,6 @@ function PavePlanning({ evenement, onAller }) {
 
   const maintenant = Date.now()
   const aVenir = items?.filter((i) => i.heure.getTime() > maintenant) ?? []
-  const heure = (d) => d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
 
   return (
     <Bloc
