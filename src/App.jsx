@@ -129,8 +129,71 @@ export default function App() {
 /* Connexion                                                           */
 /* ================================================================== */
 
+/**
+ * Rattrapage du nom manquant.
+ *
+ * Le nom est demandé à l'inscription depuis peu, mais les comptes créés
+ * avant — et les membres ajoutés à la main — n'en ont pas. Ils
+ * apparaissent « sans nom » dans Bénévoles, et le PC ne sait pas qui
+ * répond à la radio. C'est une information de sécurité, pas de confort :
+ * on la demande avant d'ouvrir l'application, une fois, en un champ.
+ */
+function NomManquant({ membre, session, onFait }) {
+  const [nom, setNom] = useState(
+    () => session.user.user_metadata?.nom ?? ''
+  )
+  const [occupe, setOccupe] = useState(false)
+  const [erreur, setErreur] = useState(null)
+
+  async function enregistrer() {
+    if (!nom.trim()) return
+    setOccupe(true)
+    setErreur(null)
+    // Sur le compte ET sur l'adhésion : le compte pour les prochains
+    // événements, l'adhésion pour celui-ci.
+    await supabase.auth.updateUser({ data: { nom: nom.trim() } })
+    const { error } = await supabase
+      .from('membres_evenement')
+      .update({ nom_affiche: nom.trim() })
+      .eq('id', membre.id)
+    if (error) setErreur(error.message)
+    else onFait()
+    setOccupe(false)
+  }
+
+  return (
+    <div className="corps">
+      <main className="travail">
+        <section className="bloc dom-violet">
+          <h2>Comment t'appelles-tu ?</h2>
+          <p className="aide" style={{ marginTop: 0 }}>
+            C'est le nom que verra le poste de commandement dans les listes et sur les
+            missions. Sans lui, tu apparais « sans nom » et personne ne sait qui répond.
+          </p>
+          {erreur && <div className="message erreur">{erreur}</div>}
+          <div className="saisie-rapide">
+            <input
+              value={nom}
+              autoFocus
+              autoComplete="name"
+              onChange={(e) => setNom(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && nom.trim() && enregistrer()}
+              placeholder="Nom et prénom"
+            />
+            <button disabled={occupe || !nom.trim()} onClick={enregistrer}>
+              Continuer
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+  )
+}
+
+
 function Connexion({ theme, setTheme }) {
   const [email, setEmail] = useState('')
+    const [nom, setNom] = useState('')
   const [motDePasse, setMotDePasse] = useState('')
   const [message, setMessage] = useState(null)
   const [occupe, setOccupe] = useState(false)
@@ -140,7 +203,13 @@ function Connexion({ theme, setTheme }) {
     setMessage(null)
     const { data, error } =
       mode === 'creer'
-        ? await supabase.auth.signUp({ email, password: motDePasse })
+          ? await supabase.auth.signUp({
+              email,
+              password: motDePasse,
+              // Porté par le COMPTE : une personne qui rejoint trois
+              // événements ne doit pas se renommer trois fois.
+              options: { data: { nom: nom.trim() } }
+            })
         : await supabase.auth.signInWithPassword({ email, password: motDePasse })
     if (error) setMessage({ type: 'erreur', texte: error.message })
     else if (mode === 'creer' && !data.session)
@@ -187,10 +256,23 @@ function Connexion({ theme, setTheme }) {
           onChange={(e) => setMotDePasse(e.target.value)}
         />
 
+          <label htmlFor="nom">Nom et prénom</label>
+          <input
+            id="nom"
+            autoComplete="name"
+            value={nom}
+            onChange={(e) => setNom(e.target.value)}
+            placeholder="Uniquement pour créer un compte"
+          />
+          <p className="aide" style={{ marginTop: -4 }}>
+            C'est ce nom que verra le poste de commandement. Sans lui, tu apparais « sans
+            nom » dans les listes, et personne ne sait qui répond à la radio.
+          </p>
+
         <button className="principal" disabled={occupe || !pret} onClick={() => agir('entrer')}>
           Se connecter
         </button>
-        <button className="discret" disabled={occupe || !pret} onClick={() => agir('creer')}>
+        <button className="discret" disabled={occupe || !pret || !nom.trim()} onClick={() => agir('creer')}>
           Créer un compte
         </button>
 
@@ -376,7 +458,6 @@ function Poste({ session, theme, setTheme }) {
                     setMessage={setMessage}
                   />
                 </>
-              ) : (
                 <p className="aide">
                   Tu n'es pas membre de cet événement. Demande à son coordinateur de
                   t'ajouter, en lui transmettant ton identifiant.
@@ -385,6 +466,8 @@ function Poste({ session, theme, setTheme }) {
             </section>
           </main>
         </div>
+      ) : !moi.nom_affiche ? (
+        <NomManquant membre={moi} session={session} onFait={charger} />
       ) : (
         <div className="corps">
           <nav className="plaques" aria-label="Modules">
