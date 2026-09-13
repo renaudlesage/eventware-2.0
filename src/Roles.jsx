@@ -105,14 +105,19 @@ export default function Roles({ evenement, setMessage }) {
     const jeu = capacites[roleId] ?? new Set()
     const actif = phases.every((p) => jeu.has(`${ressource}:${action}:${p}`))
     if (actif) {
-      const { error } = await supabase
+      const { error, count } = await supabase
         .from('role_capacites')
-        .delete()
+        .delete({ count: 'exact' })
         .eq('role_id', roleId)
         .eq('ressource', ressource)
         .eq('action', action)
         .in('phase', phases)
       if (error) return setMessage({ type: 'erreur', texte: error.message })
+      // RLS filtre sans lever d'erreur : sans ce test, retirer un droit
+      // qu'on n'a pas le pouvoir de retirer passait pour un succès.
+      if (count === 0) {
+        return setMessage({ type: 'erreur', texte: 'Modification refusée.' })
+      }
     } else {
       const lignes = phases.map((p) => ({
         role_id: roleId,
@@ -120,7 +125,18 @@ export default function Roles({ evenement, setMessage }) {
         action,
         phase: p
       }))
-      const { error } = await supabase.from('role_capacites').upsert(lignes)
+      // `upsert` sans option se traduit par ON CONFLICT DO UPDATE, ce qui
+      // exige une policy UPDATE sur role_capacites — elle n'existe pas, et
+      // c'est volontaire : la table n'a pas de colonne hors clé primaire,
+      // il n'y a donc jamais rien à mettre à jour. Une ligne existante est
+      // déjà le droit qu'on veut accorder. ON CONFLICT DO NOTHING dit
+      // exactement cela, et ne réclame que la policy INSERT.
+      const { error } = await supabase
+        .from('role_capacites')
+        .upsert(lignes, {
+          onConflict: 'role_id,ressource,action,phase',
+          ignoreDuplicates: true
+        })
       if (error) return setMessage({ type: 'erreur', texte: error.message })
     }
     charger()
