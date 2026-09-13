@@ -211,26 +211,40 @@ export default function Point0({ evenement, onFait, setMessage }) {
         n'existe pas.
       </p>
 
+      {/* Un site fermé — festival sur une plaine, fête de village — n'a
+          pas de parcours du tout. L'interrupteur existe déjà dans
+          Réglages → Dispositif ; ce sélecteur ne doit pas imposer un
+          choix que le module rend sans objet. */}
+      {evenement.modules?.parcours ? (
+          <>
       <label htmlFor="mode-parcours" style={{ marginTop: 14 }}>
-        Suivi du parcours {modeEnregistre && <span className="jeton">enregistré ✓</span>}
-      </label>
-      <select
-        id="mode-parcours"
-        value={modeParcours}
-        disabled={occupeMode}
-        onChange={(e) => enregistrerMode(e.target.value)}
-      >
-        <option value="groupes">Groupes encadrés — on suit qui est où</option>
-        <option value="individuels">Individus isolés — on compte les passages</option>
-      </select>
-      <p className="aide">
-        <strong>Groupes encadrés</strong> : des groupes nommés, un accompagnateur joignable,
-        un effectif connu. On sait lequel n'a pas pointé depuis trop longtemps.
-        <br />
-        <strong>Individus isolés</strong> : marche Adeps, rando VTT. Personne ne peut nommer
-        six cents marcheurs — on compte les passages à chaque borne, et l'écart entre deux
-        bornes dit combien de personnes sont encore sur le tronçon.
-      </p>
+          Suivi du parcours {modeEnregistre && <span className="jeton">enregistré ✓</span>}
+        </label>
+        <select
+          id="mode-parcours"
+          value={modeParcours}
+          disabled={occupeMode}
+          onChange={(e) => enregistrerMode(e.target.value)}
+        >
+          <option value="groupes">Groupes encadrés — on suit qui est où</option>
+          <option value="individuels">Individus isolés — on compte les passages</option>
+        </select>
+        <p className="aide">
+          <strong>Groupes encadrés</strong> : des groupes nommés, un accompagnateur joignable,
+          un effectif connu. On sait lequel n'a pas pointé depuis trop longtemps.
+          <br />
+          <strong>Individus isolés</strong> : marche Adeps, rando VTT. Personne ne peut nommer
+          six cents marcheurs — on compte les passages à chaque borne, et l'écart entre deux
+          bornes dit combien de personnes sont encore sur le tronçon.
+        </p>
+          </>
+      ) : (
+        <p className="aide" style={{ marginTop: 14 }}>
+          <span className="etiquette">Suivi du parcours</span> Le module Parcours est
+          désactivé — rien à régler ici. C'est le cas d'un site fermé : une plaine, une
+          salle, une fête de village. Pour l'activer, Réglages → Dispositif → Modules.
+        </p>
+      )}
     </section>
   )
 }

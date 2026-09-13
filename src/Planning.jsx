@@ -64,7 +64,11 @@ export default function Planning({ evenement, peut, toutPouvoir }) {
         .from('jalons')
         .select('*')
         .eq('evenement_id', evenement.id)
-        .is('deleted_at', null),
+        .is('deleted_at', null)
+        // Une action de préparation sans échéance n'a pas sa place sur une
+        // ligne de temps : new Date(null) vaut 1970, elle s'afficherait tout
+        // au début de la frise.
+        .not('echeance', 'is', null),
       supabase
         .from('transports')
         .select('*, chauffeur:chauffeur_id(nom_affiche)')
@@ -359,7 +363,7 @@ function Jalons({ evenement, setMessage }) {
       ) : (
         lignes.map((j) => {
           const depasse =
-            j.statut === 'a_venir' && new Date(j.echeance).getTime() < maintenant
+            j.echeance && j.statut === 'a_venir' && new Date(j.echeance).getTime() < maintenant
           return (
             <div className={`carte ${depasse || j.statut === 'rate' ? 'urgent' : ''}`} key={j.id}>
               <div className="titre">
@@ -367,7 +371,9 @@ function Jalons({ evenement, setMessage }) {
                 {j.critique && <span className="jeton alerte-texte"> critique</span>}
               </div>
               <div className="meta">
-                <span className={depasse ? 'alerte-texte' : ''}>{heure(j.echeance)}</span>
+                <span className={depasse ? 'alerte-texte' : ''}>
+                  {j.echeance ? heure(j.echeance) : 'sans échéance'}
+                </span>
                 {j.responsable && <span>{j.responsable}</span>}
                 {j.categorie && <span>{j.categorie}</span>}
                 {depasse && <span className="alerte-texte">échéance dépassée</span>}

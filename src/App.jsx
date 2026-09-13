@@ -19,6 +19,7 @@ import Situation from './Situation'
 import AccesAutorite from './AccesAutorite'
 import Plateforme from './Plateforme'
 import Planning from './Planning'
+import Preparation from './Preparation'
 import LogoEvenement from './LogoEvenement'
 import Point0 from './Point0'
 import Diffusion from './Diffusion'
@@ -73,6 +74,7 @@ const ECRANS = [
   // les deux.
   { clef: 'accueil',    libelle: 'Mon poste',    module: null,                besoin: null },
   { clef: 'memento',    libelle: 'Mémento',      module: null,                besoin: null },
+    { clef: 'preparation', libelle: 'Préparation', module: null,              besoin: ['rh', 'lire'] },
   { clef: 'planning',   libelle: 'Planning',     module: null,                besoin: null },
   { clef: 'securite',   libelle: 'Sécurité',     module: 'securite',          besoin: ['missions', 'creer'] },
   { clef: 'logistique', libelle: 'Logistique',   module: 'logistique',        besoin: ['logistique', 'lire'] },
@@ -477,6 +479,16 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
       )
     case 'memento':
       return <Memento evenement={evenement} />
+    case 'preparation':
+      return (
+        <Preparation
+          evenement={evenement}
+          membre={membre}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+          setMessage={setMessage}
+        />
+      )
     case 'planning':
       return <Planning evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} />
     case 'securite':
