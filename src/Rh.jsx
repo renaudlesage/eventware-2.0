@@ -514,7 +514,14 @@ function Equipe({ evenement, setMessage }) {
         .select('*')
         .eq('evenement_id', evenement.id)
         .order('role'),
-      supabase.from('equipes').select('id, code, nom').eq('evenement_id', evenement.id)
+      supabase
+        .from('equipes')
+        .select('id, code, nom')
+        .eq('evenement_id', evenement.id)
+        // Une équipe supprimée continuait d'apparaître dans le menu de
+        // rattachement, et pouvait donc encore être attribuée.
+        .is('deleted_at', null)
+        .order('code')
     ])
     if (m.error) setMessage({ type: 'erreur', texte: m.error.message })
     else setMembres(m.data ?? [])

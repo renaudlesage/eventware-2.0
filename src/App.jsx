@@ -666,6 +666,8 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
           evenement={evenement}
           session={session}
           exploitant={exploitant}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
           onRecharger={onRecharger}
           setMessage={setMessage}
         />
@@ -697,7 +699,7 @@ const PANNEAUX = [
   ['compte', 'Mon compte']
 ]
 
-function Reglages({ evenement, membre, session, exploitant, onRecharger, setMessage }) {
+function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, onRecharger, setMessage }) {
   const [panneau, setPanneau] = useState('dispositif')
   const [occupe, setOccupe] = useState(false)
   const [compteur, setCompteur] = useState(0)
@@ -807,6 +809,9 @@ function Reglages({ evenement, membre, session, exploitant, onRecharger, setMess
             <Compteurs evenementId={evenement.id} cle={compteur} />
             <ImportCsv
               evenementId={evenement.id}
+              phase={evenement.phase}
+              peut={peut}
+              toutPouvoir={toutPouvoir}
               onFait={() => setCompteur((c) => c + 1)}
             />
           </section>
@@ -848,6 +853,9 @@ function Compteurs({ evenementId, cle }) {
           .from(r.table)
           .select('id', { count: 'exact', head: true })
           .eq('evenement_id', evenementId)
+          // Les entrées supprimées ne sont plus comptées : le compteur
+          // annonçait un référentiel plus fourni que l'écran ne le montre.
+          .is('deleted_at', null)
         return [r.libelle, count ?? 0]
       })
     ).then((e) => vivant && setComptes(e))

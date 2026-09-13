@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Papa from 'papaparse'
 import { supabase } from './supabaseClient'
 import { libelleStatut } from './libelles'
@@ -10,7 +10,7 @@ const MODES = [
   ['ignorer', 'Simulation', "Rien n'est écrit. Sert à vérifier le fichier avant de l'appliquer."]
 ]
 
-export default function ImportCsv({ evenementId, onFait }) {
+export default function ImportCsv({ evenementId, phase, peut, toutPouvoir, onFait }) {
   const [clef, setClef] = useState('lieux')
   const [mode, setMode] = useState('ajouter')
   const [analyse, setAnalyse] = useState(null)
@@ -18,6 +18,25 @@ export default function ImportCsv({ evenementId, onFait }) {
   const [bilan, setBilan] = useState(null)
   const [erreur, setErreur] = useState(null)
   const [nomFichier, setNomFichier] = useState(null)
+
+  /*
+   * Les droits dépendent du rôle ET de la phase : un coordinateur écrit
+   * les référentiels jusqu'au démontage, plus en clôture. L'import doit
+   * le dire avant de lancer l'opération — sinon RLS refuse en silence
+   * et le bilan annonce des lignes modifiées qui ne le sont pas.
+   */
+  const ressource = RESSOURCES[clef]
+  const peutCreer = toutPouvoir || peut?.(ressource.permission, 'creer')
+  const peutModifier = toutPouvoir || peut?.(ressource.permission, 'modifier')
+  const lectureSeule = !peutCreer && !peutModifier
+
+  useEffect(() => {
+    if (lectureSeule) setMode('ignorer')
+  }, [lectureSeule, clef])
+
+  const modeImpossible =
+    (mode === 'ajouter' && !peutCreer) ||
+    (mode === 'mettre_a_jour' && !peutModifier)
 
   function reinitialiser() {
     setAnalyse(null)
@@ -44,12 +63,15 @@ export default function ImportCsv({ evenementId, onFait }) {
 
         const codes = lignes.filter((l) => l.valeurs.code).map((l) => l.valeurs.code)
 
-        // Codes déjà présents en base, pour cet événement uniquement
-        let existants = new Set()
+        // Codes déjà présents en base, pour cet événement uniquement.
+        // Les entrées supprimées comptent : la contrainte d'unicité
+        // (evenement_id, code) les retient toujours, donc réinsérer le
+        // même code échouerait sur une erreur de contrainte.
+        let existants = new Map()
         if (codes.length) {
           const { data, error } = await supabase
             .from(RESSOURCES[clef].table)
-            .select('code')
+            .select('code, deleted_at')
             .eq('evenement_id', evenementId)
             .in('code', codes)
           if (error) {
@@ -57,7 +79,7 @@ export default function ImportCsv({ evenementId, onFait }) {
             setOccupe(false)
             return
           }
-          existants = new Set((data ?? []).map((d) => d.code))
+          existants = new Map((data ?? []).map((d) => [d.code, !!d.deleted_at]))
         }
 
         // Doublons internes au fichier lui-même
@@ -70,7 +92,12 @@ export default function ImportCsv({ evenementId, onFait }) {
 
         for (const l of lignes) {
           l.existant = existants.has(l.valeurs.code)
+          l.supprime = existants.get(l.valeurs.code) === true
           l.statut = l.erreurs.length ? 'rejete' : l.existant ? 'existant' : 'nouveau'
+          if (l.supprime) {
+            l.note =
+              'code occupé par une entrée supprimée — « Mettre à jour » la réactive'
+          }
         }
 
         setAnalyse({ lignes, colonnesFichier: res.meta.fields ?? [] })
@@ -95,6 +122,7 @@ export default function ImportCsv({ evenementId, onFait }) {
 
     let creees = 0
     let modifiees = 0
+    let refusees = 0
 
     try {
       if (mode !== 'ignorer' && nouveaux.length) {
@@ -110,13 +138,20 @@ export default function ImportCsv({ evenementId, onFait }) {
       if (mode === 'mettre_a_jour') {
         for (const l of existants) {
           const { code, ...reste } = l.valeurs
-          const { error } = await supabase
+          // Une entrée supprimée que le fichier réaffirme est réactivée
+          // plutôt que dupliquée : le code lui appartient toujours.
+          const champs = l.supprime ? { ...reste, deleted_at: null } : reste
+          const { error, count } = await supabase
             .from(RESSOURCES[clef].table)
-            .update(reste)
+            .update(champs, { count: 'exact' })
             .eq('evenement_id', evenementId)
             .eq('code', code)
           if (error) throw error
-          modifiees++
+          // count === 0 : RLS a refusé la ligne sans lever d'erreur.
+          // Sans ce test, le bilan annonçait des modifications qui
+          // n'avaient pas eu lieu.
+          if (count === 0) refusees++
+          else modifiees++
         }
       }
 
@@ -147,6 +182,11 @@ export default function ImportCsv({ evenementId, onFait }) {
       })
 
       setBilan(resultat)
+      if (refusees) {
+        setErreur(
+          `${refusees} ligne(s) refusée(s) : vos droits ne permettent pas de modifier ce référentiel en phase ${phase ?? 'courante'}.`
+        )
+      }
       setAnalyse(null)
       onFait?.()
     } catch (e) {
@@ -170,6 +210,13 @@ export default function ImportCsv({ evenementId, onFait }) {
       <h2>Importer un référentiel</h2>
 
       {erreur && <div className="message erreur">{erreur}</div>}
+
+      {lectureSeule && (
+        <div className="message">
+          En phase {phase ?? 'courante'}, ce référentiel est en lecture seule pour vous.
+          La simulation reste possible : elle vérifie le fichier sans rien écrire.
+        </div>
+      )}
 
       {bilan && (
         <div className="message">
@@ -237,7 +284,7 @@ export default function ImportCsv({ evenementId, onFait }) {
                   <td>{l.numero}</td>
                   <td className="mono">{l.valeurs.code ?? '—'}</td>
                   <td>{libelleStatut(l.statut)}</td>
-                  <td>{l.erreurs.join(' · ')}</td>
+                  <td>{l.erreurs.length ? l.erreurs.join(' · ') : (l.note ?? '')}</td>
                 </tr>
               ))}
             </tbody>
@@ -248,16 +295,25 @@ export default function ImportCsv({ evenementId, onFait }) {
 
           <label htmlFor="mode">Que faire des codes déjà présents ?</label>
           <select id="mode" value={mode} onChange={(e) => setMode(e.target.value)}>
-            {MODES.map(([v, l]) => (
+            {MODES.filter(
+              ([v]) =>
+                v === 'ignorer' ||
+                (v === 'ajouter' && peutCreer) ||
+                (v === 'mettre_a_jour' && peutModifier)
+            ).map(([v, l]) => (
               <option key={v} value={v}>
                 {l}
               </option>
             ))}
           </select>
-          <p className="aide">{MODES.find((m) => m[0] === mode)[2]}</p>
+          <p className="aide">
+            {MODES.find((m) => m[0] === mode)[2]}
+            {' '}Un import n&rsquo;efface jamais ce qui existe : les entrées absentes du
+            fichier sont laissées telles quelles.
+          </p>
 
           <div className="ligne-boutons">
-            <button disabled={occupe} onClick={appliquer}>
+            <button disabled={occupe || modeImpossible} onClick={appliquer}>
               {mode === 'ignorer' ? 'Lancer la simulation' : "Appliquer l'import"}
             </button>
             <button className="discret" disabled={occupe} onClick={reinitialiser}>

@@ -21,13 +21,15 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
   const [groupes, setGroupes] = useState(null)
   const [actions, setActions] = useState([])
   const [membres, setMembres] = useState([])
+  const [equipes, setEquipes] = useState([])
   const [ouvert, setOuvert] = useState(null)
   const [creerGroupe, setCreerGroupe] = useState(false)
 
   const peutGerer = toutPouvoir || peut?.('rh', 'creer')
+  const peutEquipes = toutPouvoir || peut?.('equipes', 'creer')
 
   async function charger() {
-    const [g, a, mb] = await Promise.all([
+    const [g, a, mb, eq] = await Promise.all([
       supabase
         .from('groupes_travail')
         .select('*, pilote:pilote_membre_id(nom_affiche)')
@@ -46,12 +48,49 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
         .select('id, nom_affiche, role')
         .eq('evenement_id', evenement.id)
         .is('deleted_at', null)
-        .order('nom_affiche', { nullsFirst: false })
+        .order('nom_affiche', { nullsFirst: false }),
+      supabase
+        .from('equipes')
+        .select('id, code, nom')
+        .eq('evenement_id', evenement.id)
+        .is('deleted_at', null)
     ])
     if (g.error) setMessage({ type: 'erreur', texte: g.error.message })
     else setGroupes(g.data ?? [])
     setActions(a.data ?? [])
     setMembres(mb.data ?? [])
+    setEquipes(eq.data ?? [])
+  }
+
+  /**
+   * Reprendre un groupe de travail comme équipe opérationnelle.
+   *
+   * Les deux objets restent distincts — le groupe porte la préparation,
+   * l'équipe porte le terrain — mais dans la plupart des cas ce sont les
+   * mêmes périmètres : celui qui a préparé le bar tient le bar. Recopier
+   * les neuf noms à la main dans un second écran est une corvée dont on
+   * sort avec des libellés qui divergent.
+   *
+   * Copie explicite, pas lien vivant : renommer le groupe plus tard ne
+   * renomme pas l'équipe. C'est voulu — une équipe engagée le jour J ne
+   * doit pas changer de nom parce que quelqu'un retouche la préparation.
+   */
+  async function reprendreCommeEquipe(g) {
+    const { error } = await supabase.from('equipes').insert({
+      evenement_id: evenement.id,
+      code: codeLibre(g.nom, equipes),
+      nom: g.nom,
+      description: g.objet ?? null,
+      responsable_id: g.pilote_membre_id ?? null
+    })
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else {
+      setMessage({
+        type: 'succes',
+        texte: `Équipe « ${g.nom} » créée — attribuable dans Bénévoles.`
+      })
+      charger()
+    }
   }
 
   useEffect(() => {
@@ -120,6 +159,19 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
               <button onClick={() => setOuvert(ouvert === g.id ? null : g.id)}>
                 {ouvert === g.id ? 'Fermer' : `Ses actions (${siennes.length})`}
               </button>
+              {equipeDe(g, equipes) ? (
+                <span className="jeton">équipe {equipeDe(g, equipes).code}</span>
+              ) : (
+                peutEquipes && (
+                  <button
+                    className="discret"
+                    onClick={() => reprendreCommeEquipe(g)}
+                    title="Créer l'équipe opérationnelle correspondante"
+                  >
+                    Reprendre comme équipe
+                  </button>
+                )
+              )}
             </div>
 
             {ouvert === g.id && (
@@ -403,4 +455,35 @@ function FormGroupeTravail({ evenement, setMessage, onFait }) {
       </p>
     </div>
   )
+}
+
+/* ------------------------------------------------------------------ */
+
+/** Le groupe a-t-il déjà son équipe ? Rapprochement par le nom. */
+function equipeDe(groupe, equipes) {
+  const n = groupe.nom.trim().toLowerCase()
+  return equipes.find((e) => e.nom.trim().toLowerCase() === n)
+}
+
+/**
+ * Un code d'équipe court, tiré du nom du groupe, libre dans
+ * l'événement. `equipes.code` est unique par événement : sans contrôle
+ * ici, « Bar » et « Barrières » se disputeraient BAR et la seconde
+ * reprise échouerait sur une erreur de contrainte incompréhensible.
+ */
+function codeLibre(nom, equipes) {
+  const base =
+    nom
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 6) || 'GRP'
+  const pris = new Set(equipes.map((e) => e.code?.toUpperCase()))
+  if (!pris.has(base)) return base
+  for (let i = 2; i < 100; i++) {
+    const essai = `${base.slice(0, 5)}${i}`
+    if (!pris.has(essai)) return essai
+  }
+  return `${base.slice(0, 3)}${Date.now().toString().slice(-3)}`
 }
