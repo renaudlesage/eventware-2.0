@@ -20,6 +20,7 @@ import AccesAutorite from './AccesAutorite'
 import Plateforme from './Plateforme'
 import Planning from './Planning'
 import Preparation from './Preparation'
+import Invitations, { RejoindreParCode } from './Invitations'
 import LogoEvenement from './LogoEvenement'
 import Point0 from './Point0'
 import Diffusion from './Diffusion'
@@ -249,8 +250,25 @@ function Poste({ session, theme, setTheme }) {
     if (courantId) localStorage.setItem('eventware.evenement', courantId)
   }, [courantId])
 
-  const courant = evenements.find((e) => e.id === courantId) ?? evenements[0] ?? null
+  // Un identifiant demandé mais introuvable ne doit PAS basculer en
+  // silence sur un autre événement : c'est ce repli qui faisait
+  // « ouvrir le mauvais » quand la liste était périmée. On ne retombe
+  // sur le premier que si rien n'a été demandé.
+  const trouve = evenements.find((e) => e.id === courantId)
+  const courant = trouve ?? (courantId ? null : evenements[0]) ?? null
   const moi = courant?.membres_evenement.find((m) => m.user_id === session.user.id)
+
+  // Filet de sécurité du point précédent : sans repli silencieux, un
+  // identifiant périmé dans le stockage local (événement supprimé, ou
+  // accès retiré) laisserait l'utilisateur devant « créer votre premier
+  // événement » alors qu'il en a cinq. On l'oublie et on repart sur le
+  // premier disponible.
+  useEffect(() => {
+    if (chargement || !courantId || trouve) return
+    if (evenements.length === 0) return
+    localStorage.removeItem('eventware.evenement')
+    setCourantId(null)
+  }, [chargement, courantId, trouve, evenements.length])
 
   useEffect(() => {
     if (courant) appliquerIconeEvenement(courant.nom, courant.logo_url)
@@ -335,7 +353,10 @@ function Poste({ session, theme, setTheme }) {
       )}
 
       {!courant ? (
-        <PremierEvenement session={session} onFait={charger} setMessage={setMessage} />
+        <>
+          <RejoindreParCode onRejoint={async (id) => { await charger(); if (id) setCourantId(id) }} />
+          <PremierEvenement session={session} onFait={charger} setMessage={setMessage} />
+        </>
       ) : !moi ? (
         <div className="corps">
           <main className="travail">
@@ -391,7 +412,10 @@ function Poste({ session, theme, setTheme }) {
               peut={peut}
               toutPouvoir={toutPouvoir}
               onAller={aller}
-              onOuvrirEvenement={(id) => {
+              onOuvrirEvenement={async (id) => {
+                // La liste date de la connexion ; l'événement vient peut-être
+                // d'être créé. Sans ce rechargement, il reste introuvable.
+                await charger()
                 setCourantId(id)
                 setEcran('situation')
               }}
@@ -650,6 +674,7 @@ function Reglages({ evenement, session, exploitant, onRecharger, setMessage }) {
 
       {panneau === 'equipe' && (
         <>
+            <Invitations evenement={evenement} setMessage={setMessage} />
           <section className="bloc">
             <h2>Ajouter un membre</h2>
             <AjoutMembre

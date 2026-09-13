@@ -42,6 +42,7 @@
   --dom-azur:     #1f6ba8;
   --dom-prune:    #8c3f7a;
   --dom-ardoise:  #4a6572;
+  --dom-tilleul:  #6d7a1c;
   --dom-gris:     #5d6874;
 
   --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
@@ -78,6 +79,7 @@
     --dom-azur:     #5ea8e0;
     --dom-prune:    #d07cba;
     --dom-ardoise:  #8fa8b8;
+    --dom-tilleul:  #b8c95c;
     --dom-gris:     #8d99a6;
   }
 }
@@ -108,6 +110,7 @@
     --dom-azur:     #5ea8e0;
     --dom-prune:    #d07cba;
     --dom-ardoise:  #8fa8b8;
+    --dom-tilleul:  #b8c95c;
     --dom-gris:     #8d99a6;
 }
 
@@ -404,6 +407,7 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
 .dom-azur     { --teinte: var(--dom-azur); }
 .dom-prune    { --teinte: var(--dom-prune); }
 .dom-ardoise  { --teinte: var(--dom-ardoise); }
+.dom-tilleul  { --teinte: var(--dom-tilleul); }
 .dom-gris     { --teinte: var(--dom-gris); }
 
 @media (min-width: 940px) {
@@ -1085,7 +1089,7 @@ button.grand-lien:hover .grand { text-decoration-color: currentColor; }
 .dom-indigo .carte, .dom-violet .carte, .dom-sarcelle .carte,
 .dom-grenat .carte, .dom-orange .carte, .dom-bronze .carte,
 .dom-mousse .carte, .dom-azur .carte, .dom-prune .carte,
-.dom-ardoise .carte, .dom-gris .carte {
+.dom-ardoise .carte, .dom-tilleul .carte, .dom-gris .carte {
   border-left: 3px solid color-mix(in srgb, var(--teinte) 35%, transparent);
 }
 
@@ -1133,6 +1137,7 @@ button.grand-lien:hover .grand { text-decoration-color: currentColor; }
 .dom-mousse button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet):not(.colonne-tete),
 .dom-azur button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet):not(.colonne-tete),
 .dom-prune button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet):not(.colonne-tete),
+.dom-tilleul button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet):not(.colonne-tete),
 .dom-ardoise button:not(.discret):not(.module):not(.lien):not(.plaque-nav):not(.case):not(.tuile):not(.pave-lien):not(.grand-lien):not(.pastille):not(.ligne-mission-resume):not(.moniteur-lien):not(.pave-lien-ligne):not(.jour-onglet):not(.colonne-tete) {
   background: var(--teinte);
   border-color: var(--teinte);

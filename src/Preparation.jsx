@@ -55,7 +55,7 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
   const orphelines = actions.filter((a) => !a.groupe_travail_id)
 
   return (
-    <div className="bloc dom-azur">
+    <div className="bloc dom-tilleul">
       <div className="entete-dashboard">
         <h2>Préparation</h2>
         {peutGerer && (

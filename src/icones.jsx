@@ -13,6 +13,7 @@ import {
   SlidersHorizontal,
   Building2,
   ClipboardList,
+  ListChecks,
   Radio,
   KeyRound,
   Truck,
@@ -42,6 +43,9 @@ import {
 export const DOMAINES = {
   situation:  { icone: LayoutDashboard,      teinte: 'indigo' },
   planning:   { icone: CalendarPlanning,      teinte: 'azur' },
+  // Teinte propre : la préparation est un domaine à part entière, et
+  // la règle du dépôt veut qu'une teinte désigne un seul domaine.
+  preparation:{ icone: ListChecks,           teinte: 'tilleul' },
   accueil:    { icone: UserCircle,           teinte: 'violet' },
   memento:    { icone: BookOpenCheck,        teinte: 'sarcelle' },
   securite:   { icone: ShieldAlert,          teinte: 'grenat' },
