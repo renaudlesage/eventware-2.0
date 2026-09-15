@@ -178,7 +178,13 @@ export default function Planning({ evenement, peut, toutPouvoir }) {
         </div>
       )}
 
-      {onglet === 'jalons' && <Jalons evenement={evenement} setMessage={setMessage} />}
+      {onglet === 'jalons' && (
+        <Jalons
+          evenement={evenement}
+          peutGerer={toutPouvoir || peut?.('rh', 'modifier')}
+          setMessage={setMessage}
+        />
+      )}
 
       {onglet === 'frise' && (
         <>
@@ -290,7 +296,7 @@ const STATUTS_JALON = [
   ['annule', 'Annulé']
 ]
 
-function Jalons({ evenement, setMessage }) {
+function Jalons({ evenement, peutGerer, setMessage }) {
   const [lignes, setLignes] = useState([])
   const [f, setF] = useState({ code: '', libelle: '', echeance: '', responsable: '' })
 
@@ -299,6 +305,7 @@ function Jalons({ evenement, setMessage }) {
       .from('jalons')
       .select('*')
       .eq('evenement_id', evenement.id)
+      .is('deleted_at', null)
       .order('echeance')
     if (error) setMessage({ type: 'erreur', texte: error.message })
     else setLignes(data ?? [])
@@ -325,6 +332,25 @@ function Jalons({ evenement, setMessage }) {
   async function changer(id, statut) {
     const { error } = await supabase.from('jalons').update({ statut }).eq('id', id)
     if (error) setMessage({ type: 'erreur', texte: error.message })
+    else charger()
+  }
+
+  // Suppression logique, comme en Préparation : la ligne sort de
+  // l'écran sans sortir de la base. « Annulé » reste le bon choix pour
+  // ce qui a existé et qu'on assume.
+  async function supprimer(j) {
+    const ok = window.confirm(
+      `Supprimer le jalon « ${j.libelle} » ?\n\n` +
+        'Pour garder la trace de quelque chose d\u2019abandonné, le statut ' +
+        '« Annulé » est plus juste.'
+    )
+    if (!ok) return
+    const { error, count } = await supabase
+      .from('jalons')
+      .update({ deleted_at: new Date().toISOString() }, { count: 'exact' })
+      .eq('id', j.id)
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else if (count === 0) setMessage({ type: 'erreur', texte: 'Suppression refusée.' })
     else charger()
   }
 
@@ -390,6 +416,11 @@ function Jalons({ evenement, setMessage }) {
                     </option>
                   ))}
                 </select>
+                {peutGerer && (
+                  <button className="discret" onClick={() => supprimer(j)}>
+                    Supprimer
+                  </button>
+                )}
               </div>
             </div>
           )

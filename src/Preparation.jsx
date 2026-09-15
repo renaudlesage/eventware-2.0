@@ -256,6 +256,26 @@ function Actions({ evenement, groupe, actions, membres, peutGerer, groupesDispon
     else onFait()
   }
 
+  /**
+   * Suppression logique : la ligne reste en base, l'écran ne la montre
+   * plus. C'est la convention du projet, et ici elle a une raison de
+   * plus — une action supprimée par erreur en préparation se retrouve,
+   * alors qu'une ligne effacée pour de bon ne se retrouve pas.
+   *
+   * À ne pas confondre avec le statut « Annulé », qui garde l'action
+   * visible : on annule ce qui a existé et qu'on assume, on supprime ce
+   * qui n'aurait pas dû être encodé.
+   */
+  async function supprimer(a) {
+    const ok = window.confirm(
+      `Supprimer l'action « ${a.libelle} » ?\n\n` +
+        'Pour garder la trace de quelque chose d\u2019abandonné, le statut ' +
+        '« Annulé » est plus juste : l\u2019action reste lisible.'
+    )
+    if (!ok) return
+    modifier(a.id, { deleted_at: new Date().toISOString() })
+  }
+
   return (
     <div style={{ marginTop: 8 }}>
       {actions.length === 0 ? (
@@ -351,6 +371,10 @@ function Actions({ evenement, groupe, actions, membres, peutGerer, groupesDispon
                       ))}
                     </select>
                   )}
+
+                  <button className="discret" onClick={() => supprimer(a)}>
+                    Supprimer
+                  </button>
                 </div>
               )}
             </div>

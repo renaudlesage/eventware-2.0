@@ -30,8 +30,12 @@ import { ChevronDown } from 'lucide-react'
  * suivent le rôle.
  */
 const COLONNES_PAR_PHASE = {
-  // Des échéances et des trous. Rien de temps réel n'existe encore.
-  preparation:  ['preparation', 'rh', 'securite'],
+  // Des échéances et des trous. Rien de temps réel n'existe encore —
+  // et la colonne Sécurité, qui ne compte que des signalements et des
+  // missions, n'affichait donc qu'un mur de zéros : exactement le
+  // défaut que cette table de composition est là pour corriger. Elle
+  // reprend au montage, quand l'installation crée de vrais risques.
+  preparation:  ['preparation', 'rh'],
   // Une installation et ses risques. La météo compte ici plus que
   // partout ailleurs : le vent décide du montage d'un chapiteau.
   montage:      ['preparation', 'securite', 'logistique', 'rh'],
