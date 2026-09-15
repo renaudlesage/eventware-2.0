@@ -345,12 +345,15 @@ function Jalons({ evenement, peutGerer, setMessage }) {
         '« Annulé » est plus juste.'
     )
     if (!ok) return
-    const { error, count } = await supabase
-      .from('jalons')
-      .update({ deleted_at: new Date().toISOString() }, { count: 'exact' })
-      .eq('id', j.id)
+    // Voir 040 : un `update` direct sur `deleted_at` est refusé par RLS,
+    // la nouvelle ligne n'étant plus visible de son auteur.
+    const { data, error } = await supabase.rpc('supprimer_logiquement', {
+      p_table: 'jalons',
+      p_id: j.id
+    })
     if (error) setMessage({ type: 'erreur', texte: error.message })
-    else if (count === 0) setMessage({ type: 'erreur', texte: 'Suppression refusée.' })
+    else if (data === false)
+      setMessage({ type: 'erreur', texte: 'Jalon introuvable ou déjà supprimé.' })
     else charger()
   }
 

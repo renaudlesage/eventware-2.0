@@ -273,7 +273,19 @@ function Actions({ evenement, groupe, actions, membres, peutGerer, groupesDispon
         '« Annulé » est plus juste : l\u2019action reste lisible.'
     )
     if (!ok) return
-    modifier(a.id, { deleted_at: new Date().toISOString() })
+
+    // Pas un `update` direct : poser `deleted_at` rend la ligne
+    // invisible au regard de la policy de lecture, et PostgreSQL
+    // refuse alors l'écriture. La fonction 040 vérifie les droits
+    // elle-même et écrit au-dessus de RLS.
+    const { data, error } = await supabase.rpc('supprimer_logiquement', {
+      p_table: 'jalons',
+      p_id: a.id
+    })
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else if (data === false)
+      setMessage({ type: 'erreur', texte: 'Action introuvable ou déjà supprimée.' })
+    else onFait()
   }
 
   return (
