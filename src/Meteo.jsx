@@ -259,6 +259,16 @@ export default function Meteo({
   const maintenant = evaluees[0]
   const peutAlerter = toutPouvoir || peut?.('alertes', 'creer')
 
+  // Le badge porte le pire niveau des 36 heures à venir : c'est le
+  // propre d'une veille, voir arriver plutôt que constater. Mais lu
+  // seul, il se confond avec l'instant présent — d'où un bloc qui
+  // « reste jaune » sous une ligne de résumé qui annonce 12 km/h et
+  // ciel dégagé. On dit donc QUAND, et le doute tombe.
+  const echeancePire =
+    pire.niveau === 'vert'
+      ? null
+      : evaluees.find((h) => h.niveau === pire.niveau)?.heure
+
   return (
     <section className={`bloc meteo meteo-${pire.niveau} ${compact ? 'meteo-compact' : ''}`}>
       <div className="entete-dashboard">
@@ -269,6 +279,7 @@ export default function Meteo({
           <span className={`badge-vigilance niv-${pire.niveau}`}>
             {LIBELLE_NIVEAU[pire.niveau]}
           </span>
+          {echeancePire && <span className="aide">{quand(echeancePire)}</span>}
           <button className="lien" onClick={() => setDetailsOuverts(!detailsOuverts)}>
             {detailsOuverts ? 'Réduire' : 'Détails'}
           </button>
