@@ -22,6 +22,7 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
   const [actions, setActions] = useState([])
   const [membres, setMembres] = useState([])
   const [equipes, setEquipes] = useState([])
+  const [compositions, setCompositions] = useState([])
   const [ouvert, setOuvert] = useState(null)
   const [creerGroupe, setCreerGroupe] = useState(false)
 
@@ -60,6 +61,42 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
     setActions(a.data ?? [])
     setMembres(mb.data ?? [])
     setEquipes(eq.data ?? [])
+
+    // Composition des groupes de travail. Requête séparée : elle a
+    // besoin des identifiants de groupes que la précédente vient de
+    // ramener, et RLS ne filtre que par événement — sans le `in`, on
+    // récupérerait les groupes des autres événements où l'on siège.
+    const ids = (g.data ?? []).map((x) => x.id)
+    if (ids.length) {
+      const { data: c } = await supabase
+        .from('membres_groupe_travail')
+        .select('groupe_id, membre_id')
+        .in('groupe_id', ids)
+      setCompositions(c ?? [])
+    } else {
+      setCompositions([])
+    }
+  }
+
+  async function ajouterAuGroupe(groupeId, membreId) {
+    const { error } = await supabase
+      .from('membres_groupe_travail')
+      .insert({ groupe_id: groupeId, membre_id: membreId })
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else charger()
+  }
+
+  async function retirerDuGroupe(groupeId, membreId) {
+    // Table de liaison sans suppression logique : retirer quelqu'un d'un
+    // groupe de travail n'est pas un fait à conserver, c'est une
+    // correction. La ligne part pour de bon.
+    const { error } = await supabase
+      .from('membres_groupe_travail')
+      .delete()
+      .eq('groupe_id', groupeId)
+      .eq('membre_id', membreId)
+    if (error) setMessage({ type: 'erreur', texte: error.message })
+    else charger()
   }
 
   /**
@@ -143,6 +180,12 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
           (a) => a.echeance && a.statut === 'a_venir' && new Date(a.echeance) < new Date()
         ).length
 
+        const siens = compositions
+          .filter((c) => c.groupe_id === g.id)
+          .map((c) => membres.find((m) => m.id === c.membre_id))
+          .filter(Boolean)
+        const dispo = membres.filter((m) => !siens.some((x) => x.id === m.id))
+
         return (
           <div className={`carte ${enRetard ? 'urgent' : ''}`} key={g.id}>
             <div className="titre">{g.nom}</div>
@@ -154,6 +197,47 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
               </span>
               {enRetard > 0 && <span className="alerte-texte">{enRetard} en retard</span>}
             </div>
+
+            {/* Qui compose le groupe. Le pilote répond du groupe ; ceux-ci
+                y travaillent. Sans cette liste, « le groupe bar » ne
+                désigne personne et les actions se rattachent à un nom
+                plutôt qu'à une équipe. */}
+            <div className="meta" style={{ marginTop: 4 }}>
+              {siens.length === 0 ? (
+                <span className="aide">Personne n&rsquo;y est encore rattaché.</span>
+              ) : (
+                siens.map((m) => (
+                  <span className="jeton" key={m.id}>
+                    {m.nom_affiche ?? 'sans nom'}
+                    {peutGerer && (
+                      <button
+                        className="lien"
+                        style={{ marginLeft: 6 }}
+                        onClick={() => retirerDuGroupe(g.id, m.id)}
+                        title="Retirer du groupe"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </span>
+                ))
+              )}
+            </div>
+
+            {peutGerer && dispo.length > 0 && (
+              <select
+                value=""
+                onChange={(e) => e.target.value && ajouterAuGroupe(g.id, e.target.value)}
+                style={{ width: 'auto', marginTop: 6, marginBottom: 0 }}
+              >
+                <option value="">— rattacher quelqu&rsquo;un —</option>
+                {dispo.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.nom_affiche ?? 'sans nom'}
+                  </option>
+                ))}
+              </select>
+            )}
 
             <div className="ligne-boutons" style={{ marginTop: 8 }}>
               <button onClick={() => setOuvert(ouvert === g.id ? null : g.id)}>
