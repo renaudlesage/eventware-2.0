@@ -717,13 +717,33 @@ function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, o
   }
 
   async function changerPhase(phase) {
+    const avant = evenement.phase
     const { error, count } = await supabase
       .from('evenements')
       .update({ phase }, { count: 'exact' })
       .eq('id', evenement.id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
-    else if (count === 0) setMessage({ type: 'erreur', texte: 'Changement refusé.' })
-    else onRecharger()
+    if (error) return setMessage({ type: 'erreur', texte: error.message })
+    if (count === 0) return setMessage({ type: 'erreur', texte: 'Changement refusé.' })
+
+    // L'entrée et la sortie d'exploitation recomposent le « Mon poste »
+    // de tout le monde, sans prévenir personne : les blocs de terrain
+    // redeviennent obligatoires, ou cessent de l'être. Quelqu'un qui
+    // avait tout décoché en préparation les voit réapparaître le jour J.
+    // Autant l'annoncer ici plutôt que de le laisser découvrir.
+    if (phase === 'exploitation' && avant !== 'exploitation') {
+      setMessage({
+        type: 'succes',
+        texte:
+          'Exploitation — Mes missions, Alertes et Signalements redeviennent obligatoires sur le « Mon poste » de chacun.'
+      })
+    } else if (avant === 'exploitation' && phase !== 'exploitation') {
+      setMessage({
+        type: 'succes',
+        texte:
+          'Sortie d’exploitation — chacun peut de nouveau retirer les blocs de terrain de son « Mon poste ».'
+      })
+    }
+    onRecharger()
   }
 
   return (
@@ -760,8 +780,11 @@ function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, o
               ))}
             </div>
             <p className="aide">
-              La phase ouvre et ferme des droits d'écriture. Elle est réversible : on
+              La phase ouvre et ferme des droits d&rsquo;écriture. Elle est réversible : on
               repasse en montage le vendredi soir sans que ce soit un incident.
+              <br />
+              L&rsquo;exploitation a un effet de plus : elle rend obligatoires, pour tout le
+              monde, les blocs de terrain de « Mon poste ».
             </p>
           </section>
 

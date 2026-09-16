@@ -52,7 +52,7 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
         .order('nom_affiche', { nullsFirst: false }),
       supabase
         .from('equipes')
-        .select('id, code, nom')
+        .select('id, code, nom, groupe_travail_id')
         .eq('evenement_id', evenement.id)
         .is('deleted_at', null)
     ])
@@ -108,15 +108,17 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
    * les neuf noms à la main dans un second écran est une corvée dont on
    * sort avec des libellés qui divergent.
    *
-   * Copie explicite, pas lien vivant : renommer le groupe plus tard ne
-   * renomme pas l'équipe. C'est voulu — une équipe engagée le jour J ne
-   * doit pas changer de nom parce que quelqu'un retouche la préparation.
+   * Lien vivant depuis la 043 : l'équipe garde l'identifiant de son
+   * groupe, et son nom suit celui du groupe. Un renommage en
+   * préparation se propage donc à l'équipe, y compris le jour J — c'est
+   * le prix assumé de n'avoir qu'un seul nom pour une seule chose.
    */
   async function reprendreCommeEquipe(g) {
     const { error } = await supabase.from('equipes').insert({
       evenement_id: evenement.id,
       code: codeLibre(g.nom, equipes),
       nom: g.nom,
+      groupe_travail_id: g.id,
       description: g.objet ?? null,
       responsable_id: g.pilote_membre_id ?? null
     })
@@ -579,10 +581,13 @@ function FormGroupeTravail({ evenement, setMessage, onFait }) {
 
 /* ------------------------------------------------------------------ */
 
-/** Le groupe a-t-il déjà son équipe ? Rapprochement par le nom. */
+/**
+ * Le groupe a-t-il déjà son équipe ? Par la liaison depuis la 043 — le
+ * rapprochement par le nom se cassait au premier renommage et laissait
+ * réapparaître le bouton « Reprendre », prêt à créer un doublon.
+ */
 function equipeDe(groupe, equipes) {
-  const n = groupe.nom.trim().toLowerCase()
-  return equipes.find((e) => e.nom.trim().toLowerCase() === n)
+  return equipes.find((e) => e.groupe_travail_id === groupe.id)
 }
 
 /**
