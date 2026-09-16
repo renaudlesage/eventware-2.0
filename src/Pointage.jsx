@@ -38,9 +38,22 @@ export default function Pointage({ jeton, codeLieu, nomLieu }) {
   const [message, setMessage] = useState(null)
   const [enAttente, setEnAttente] = useState(lireFile().length)
 
-  // À chaque ouverture, on tente de vider ce qui n'est pas parti.
+  // À chaque ouverture, on tente de vider ce qui n'est pas parti — et
+  // aussi au retour du réseau et au retour de l'écran au premier plan.
+  // Sans ces deux-là, un pointage fait sous les arbres restait bloqué
+  // jusqu'au scan suivant : celui qui pointe puis remet son téléphone
+  // en poche n'a aucune raison de rouvrir l'écran.
   useEffect(() => {
     viderFile()
+    const auPremierPlan = () => {
+      if (!document.hidden) viderFile()
+    }
+    window.addEventListener('online', viderFile)
+    document.addEventListener('visibilitychange', auPremierPlan)
+    return () => {
+      window.removeEventListener('online', viderFile)
+      document.removeEventListener('visibilitychange', auPremierPlan)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
