@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
-import { empiler } from './fileEcritures'
+import { ecrireOuEmpiler } from './fileEcritures'
 import Sitrep from './Sitrep'
 import { libelleStatut, DOMAINES } from './libelles'
 import { detecterDoublons } from './doublons'
@@ -370,32 +370,36 @@ export function Missions({ evenement, membre, setMessage, module = 'securite', l
   }, [evenement.id, module])
 
   async function modifier(id, champs) {
-    // Hors réseau, l'écriture part en file et la vue avance quand même :
-    // sur le terrain, on change un statut en marchant, et attendre une
-    // confirmation qui ne viendra pas bloquerait la main courante. La
-    // barre du haut dit ce qui reste à envoyer.
-    if (!navigator.onLine) {
-      const cible = missions.find((m) => m.id === id)
-      empiler({
-        nature: 'update',
-        table: 'missions',
-        id,
-        champs,
-        libelle: `${cible?.reference ?? 'Mission'} — ${Object.keys(champs).join(', ')}`
-      })
-      setMessage({ type: 'info', texte: 'Hors réseau : la modification partira au retour du signal.' })
-      return
-    }
+    // On tente, et c'est l'échec qui décide : `navigator.onLine` ne dit
+    // pas si le réseau fonctionne, seulement si une interface est
+    // active — un wifi de camping sans route vers Internet se déclare
+    // en ligne. Si l'écriture ne passe pas, elle part en file et la vue
+    // avance quand même : sur le terrain on change un statut en
+    // marchant, et la barre du haut dit ce qui reste à envoyer.
+    const cible = missions.find((m) => m.id === id)
+    const r = await ecrireOuEmpiler({
+      nature: 'update',
+      table: 'missions',
+      id,
+      champs,
+      libelle: `${cible?.reference ?? 'Mission'} — ${Object.keys(champs).join(', ')}`
+    })
 
-    const { error, count } = await supabase
-      .from('missions')
-      .update(champs, { count: 'exact' })
-      .eq('id', id)
-    // RLS filtre silencieusement : zéro ligne touchée = refus, pas succès
-    if (error) setMessage({ type: 'erreur', texte: error.message })
-    else if (count === 0)
-      setMessage({ type: 'erreur', texte: 'Modification refusée : droits insuffisants.' })
-    else {
+    if (r.statut === 'enfile') {
+      return setMessage({
+        type: 'info',
+        texte: 'Réseau indisponible : la modification partira au retour du signal.'
+      })
+    }
+    if (r.statut === 'refus') {
+      return setMessage({
+        type: 'erreur',
+        texte: r.message === 'Écriture refusée'
+          ? 'Modification refusée : droits insuffisants.'
+          : r.message
+      })
+    }
+    {
       // Changer le module fait sortir la demande de cet écran : sans le
       // dire, elle semble disparaître. On nomme sa nouvelle destination.
       if (champs.module && champs.module !== module) {

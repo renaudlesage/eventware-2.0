@@ -125,6 +125,55 @@ export function vider() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Écriture directe, avec repli en file                                */
+
+/**
+ * `navigator.onLine` ne dit pas si le réseau fonctionne, seulement si
+ * une interface est active. Un téléphone accroché au wifi d'un camping
+ * sans route vers Internet se déclare en ligne ; un autre en 4G faible
+ * se déclare en ligne et voit ses requêtes expirer. Sur un site de
+ * festival, c'est la règle plutôt que l'exception.
+ *
+ * On ne s'y fie donc plus pour décider : on tente l'écriture, et c'est
+ * l'échec qui décide. Le drapeau ne sert qu'à éviter une tentative
+ * manifestement vouée à l'échec, en mode avion assumé.
+ */
+export function estErreurReseau(e) {
+  if (!e) return false
+  if (e.definitif) return false
+  const m = `${e.name ?? ''} ${e.message ?? ''}`.toLowerCase()
+  return (
+    e instanceof TypeError ||
+    m.includes('fetch') ||
+    m.includes('network') ||
+    m.includes('load failed') ||
+    m.includes('timeout') ||
+    m.includes('abort')
+  )
+}
+
+/**
+ * Tente l'écriture ; met en file si le réseau lâche.
+ * Retourne 'ok', 'enfile', ou 'refus' avec le message à afficher.
+ */
+export async function ecrireOuEmpiler(operation) {
+  if (!navigator.onLine) {
+    empiler(operation)
+    return { statut: 'enfile' }
+  }
+  try {
+    await envoyer(operation)
+    return { statut: 'ok' }
+  } catch (e) {
+    if (estErreurReseau(e)) {
+      empiler(operation)
+      return { statut: 'enfile' }
+    }
+    return { statut: 'refus', message: e.message }
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Rejeu                                                               */
 
 let enCours = false
@@ -157,7 +206,11 @@ async function envoyer(op) {
  * n'est pas la même chose que l'inverse.
  */
 export async function rejouer() {
-  if (enCours || !navigator.onLine) return
+  // Pas de garde sur navigator.onLine : il ment dans les deux sens, et
+  // une tentative qui échoue ne coûte rien puisque la ligne reste en
+  // file. Se fier au drapeau, c'est risquer une file qui ne repart
+  // jamais parce que le téléphone se croit hors ligne.
+  if (enCours) return
   enCours = true
 
   try {
