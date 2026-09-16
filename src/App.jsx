@@ -28,6 +28,7 @@ import Point0 from './Point0'
 import Diffusion from './Diffusion'
 import VitrineAdmin from './VitrineAdmin'
 import { appliquerIconeEvenement } from './logoPwa'
+import { demarrer, surChangement, enAttente, refusees, rejouer, retirer } from './fileEcritures'
 import BoutonsFlottants from './BoutonsFlottants'
 import BarreOnglets from './BarreOnglets'
 import { RESSOURCES } from './colonnesImport'
@@ -564,25 +565,55 @@ function Poste({ session, theme, setTheme }) {
 /* ================================================================== */
 
 /* Témoin de réseau : sa place est dans la barre, pas parmi les
-   compteurs — ce n'est pas une charge de travail, c'est un état. */
+   compteurs — ce n'est pas une charge de travail, c'est un état.
+   Il porte aussi le compte des écritures en attente : hors réseau,
+   savoir qu'on est coupé ne suffit pas, il faut savoir ce qui n'est
+   pas encore parti. */
 function Reseau() {
   const [enLigne, setEnLigne] = useState(navigator.onLine)
+  const [attente, setAttente] = useState(0)
+  const [bloquees, setBloquees] = useState([])
 
   useEffect(() => {
     const on = () => setEnLigne(true)
     const off = () => setEnLigne(false)
     window.addEventListener('online', on)
     window.addEventListener('offline', off)
+
+    demarrer()
+    const rafraichir = () => {
+      setAttente(enAttente().length)
+      setBloquees(refusees())
+    }
+    rafraichir()
+    const desabonner = surChangement(rafraichir)
+
     return () => {
       window.removeEventListener('online', on)
       window.removeEventListener('offline', off)
+      desabonner()
     }
   }, [])
 
   return (
-    <span className={`temoin ${enLigne ? '' : 'coupe'}`}>
-      {enLigne ? 'en ligne' : 'hors réseau'}
-    </span>
+    <>
+      <span className={`temoin ${enLigne ? '' : 'coupe'}`}>
+        {enLigne ? 'en ligne' : 'hors réseau'}
+      </span>
+      {attente > 0 && (
+        <button className="temoin attente" onClick={rejouer} title="Renvoyer maintenant">
+          {attente} en attente
+        </button>
+      )}
+      {bloquees.length > 0 && (
+        <span className="temoin coupe" title={bloquees.map((o) => o.libelle).join(' · ')}>
+          {bloquees.length} refusée(s)
+          <button className="lien" style={{ marginLeft: 6 }} onClick={() => bloquees.forEach((o) => retirer(o.cle))}>
+            ×
+          </button>
+        </span>
+      )}
+    </>
   )
 }
 

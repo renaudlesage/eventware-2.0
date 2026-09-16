@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { empiler } from './fileEcritures'
 import { Missions, Journal } from './Securite'
 import Radio from './Radio'
 
@@ -637,6 +638,21 @@ function Transports({ evenement, setMessage }) {
   }, [evenement.id])
 
   async function changer(id, champs) {
+    // Même règle qu'en Sécurité : hors réseau, on met en file plutôt
+    // que d'échouer en silence. Un transport attribué depuis le parking
+    // doit tenir, même sans barre de signal.
+    if (!navigator.onLine) {
+      empiler({
+        nature: 'update',
+        table: 'transports',
+        id,
+        champs,
+        libelle: `Transport — ${Object.keys(champs).join(', ')}`
+      })
+      setMessage({ type: 'info', texte: 'Hors réseau : la modification partira au retour du signal.' })
+      return
+    }
+
     const { error, count } = await supabase
       .from('transports')
       .update(champs, { count: 'exact' })

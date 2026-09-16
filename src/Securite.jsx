@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { empiler } from './fileEcritures'
 import Sitrep from './Sitrep'
 import { libelleStatut, DOMAINES } from './libelles'
 import { detecterDoublons } from './doublons'
@@ -369,6 +370,23 @@ export function Missions({ evenement, membre, setMessage, module = 'securite', l
   }, [evenement.id, module])
 
   async function modifier(id, champs) {
+    // Hors réseau, l'écriture part en file et la vue avance quand même :
+    // sur le terrain, on change un statut en marchant, et attendre une
+    // confirmation qui ne viendra pas bloquerait la main courante. La
+    // barre du haut dit ce qui reste à envoyer.
+    if (!navigator.onLine) {
+      const cible = missions.find((m) => m.id === id)
+      empiler({
+        nature: 'update',
+        table: 'missions',
+        id,
+        champs,
+        libelle: `${cible?.reference ?? 'Mission'} — ${Object.keys(champs).join(', ')}`
+      })
+      setMessage({ type: 'info', texte: 'Hors réseau : la modification partira au retour du signal.' })
+      return
+    }
+
     const { error, count } = await supabase
       .from('missions')
       .update(champs, { count: 'exact' })

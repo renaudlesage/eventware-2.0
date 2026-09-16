@@ -265,6 +265,18 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
   color: var(--etat-chaud);
   font-weight: 700;
 }
+/* Écritures en attente d'envoi : cliquable, parce que la première
+   réaction de quelqu'un qui voit « 3 en attente » est d'essayer de les
+   pousser lui-même. */
+.temoin.attente {
+  background: none;
+  border: 1px solid var(--etat-veille);
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: var(--etat-veille);
+  font-weight: 700;
+  cursor: pointer;
+}
 
 /* Plaques : étiquettes d'état, inspirées des plaques de signalisation */
 
