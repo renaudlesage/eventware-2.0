@@ -322,7 +322,12 @@ function Poste({ session, theme, setTheme }) {
     const { data, error } = await supabase
       .from('evenements')
       .select(
-        'id, nom, slug, geometrie, phase, jeton_public, point_0_lat, point_0_lon, province, commune, organisation_id, mode_parcours, modules, logo_url, membres_evenement(id, role, user_id, nom_affiche, perimetre, paves, equipe_id)'
+        // Les colonnes sont énumérées, pas prises en bloc : ce qui
+        // manque ici est invisible partout dans l'application, même
+        // correctement enregistré en base. `date_debut`, `date_fin` et
+        // la fréquentation manquaient — d'où des champs qui
+        // s'affichaient vides et un avertissement qui ne partait jamais.
+        'id, nom, slug, geometrie, phase, jeton_public, point_0_lat, point_0_lon, province, commune, organisation_id, mode_parcours, modules, logo_url, date_debut, date_fin, frequentation_min, frequentation_max, membres_evenement(id, role, user_id, nom_affiche, perimetre, paves, equipe_id)'
       )
       .order('nom')
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
@@ -1014,17 +1019,27 @@ function Completude({ evenement }) {
 function DatesEvenement({ evenement, onFait, setMessage }) {
   const [debut, setDebut] = useState(evenement.date_debut ?? '')
   const [fin, setFin] = useState(evenement.date_fin ?? '')
+
+  // L'état initial est figé au premier rendu : sans cette
+  // resynchronisation, changer d'événement dans le menu du haut
+  // laisserait les dates du précédent dans les champs.
+  useEffect(() => {
+    setDebut(evenement.date_debut ?? '')
+    setFin(evenement.date_fin ?? '')
+  }, [evenement.id, evenement.date_debut, evenement.date_fin])
   const [occupe, setOccupe] = useState(false)
   const [enregistre, setEnregistre] = useState(false)
 
   async function enregistrer() {
     setOccupe(true)
-    const { error } = await supabase
+    const { error, count } = await supabase
       .from('evenements')
-      .update({ date_debut: debut || null, date_fin: fin || null })
+      .update({ date_debut: debut || null, date_fin: fin || null }, { count: 'exact' })
       .eq('id', evenement.id)
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
-    else {
+    else if (count === 0) {
+      setMessage({ type: 'erreur', texte: 'Enregistrement refusé : droits insuffisants.' })
+    } else {
       onFait?.()
       setEnregistre(true)
       setTimeout(() => setEnregistre(false), 2500)
