@@ -139,7 +139,13 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
       )}
       {onglet === 'fiches' && <Fiches evenement={evenement} />}
       {onglet === 'conformite' && (
-        <Conformite evenement={evenement} exploitant={exploitant} setMessage={setMessage} />
+        <Conformite
+          evenement={evenement}
+          exploitant={exploitant}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+          setMessage={setMessage}
+        />
       )}
       {onglet === 'dossier' && (
         <DossierSecurite evenement={evenement} setMessage={setMessage} />

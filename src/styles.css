@@ -2342,3 +2342,15 @@ input:disabled {
   color: var(--sourdine);
   margin: 0;
 }
+
+/* Complément local à un item de référentiel : ce que la zone de secours
+   ou la commune ajoute au texte national. Décalé et souligné à gauche
+   pour qu'on voie d'un coup d'œil ce qui ne vient pas du texte. */
+.bloc-local {
+  margin-top: 8px;
+  padding: 6px 0 6px 10px;
+  border-left: 2px solid var(--etat-info);
+}
+.bloc-local textarea {
+  margin-bottom: 6px;
+}

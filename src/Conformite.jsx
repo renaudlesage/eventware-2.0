@@ -146,7 +146,7 @@ export async function resoudreDispositionsApplicables(evenement) {
   return { zone, applicables }
 }
 
-export default function Conformite({ evenement, exploitant, setMessage }) {
+export default function Conformite({ evenement, exploitant, peut, toutPouvoir, setMessage }) {
   const [vue, setVue] = useState('questionnaire')
 
   return (
@@ -171,7 +171,14 @@ export default function Conformite({ evenement, exploitant, setMessage }) {
       {vue === 'questionnaire' && (
         <Questionnaire evenement={evenement} setMessage={setMessage} />
       )}
-      {vue === 'bilan' && <Bilan evenement={evenement} setMessage={setMessage} />}
+      {vue === 'bilan' && (
+        <Bilan
+          evenement={evenement}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+          setMessage={setMessage}
+        />
+      )}
       {vue === 'referentiels' && (
         <Referentiels evenement={evenement} exploitant={exploitant} setMessage={setMessage} />
       )}
@@ -272,18 +279,54 @@ function Questionnaire({ evenement, setMessage }) {
 /* Bilan — jamais stocké, recalculé à chaque lecture                    */
 /* ------------------------------------------------------------------ */
 
-function Bilan({ evenement, setMessage }) {
+function Bilan({ evenement, peut, toutPouvoir, setMessage }) {
   const [items, setItems] = useState(null)
   const [zone, setZone] = useState(undefined) // undefined = pas encore chargé, null = commune inconnue de la bibliothèque
+  const [locaux, setLocaux] = useState([])
+  const [saisie, setSaisie] = useState(null) // id de l'item en cours de complément
+
+  const peutCompleter = toutPouvoir || peut?.('referentiels', 'creer')
 
   async function charger() {
     try {
       const { zone, applicables } = await resoudreDispositionsApplicables(evenement)
       setZone(zone)
       setItems(applicables)
+
+      // Compléments locaux : ce que la zone de secours ou la commune
+      // ajoute au texte national. C'est la partie que personne ne
+      // trouve dans un référentiel générique, et celle qu'un
+      // organisateur se fait rappeler en réunion de sécurité.
+      if (evenement.organisation_id && applicables.length) {
+        const { data } = await supabase
+          .from('referentiel_locaux')
+          .select('*')
+          .eq('organisation_id', evenement.organisation_id)
+          .in('referentiel_item_id', applicables.map((it) => it.id))
+        setLocaux(data ?? [])
+      }
     } catch (e) {
       setMessage({ type: 'erreur', texte: texteErreur(e) })
     }
+  }
+
+  async function ajouterComplement(itemId, champs) {
+    const { error } = await supabase.from('referentiel_locaux').insert({
+      organisation_id: evenement.organisation_id,
+      referentiel_item_id: itemId,
+      ...champs
+    })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    else {
+      setSaisie(null)
+      charger()
+    }
+  }
+
+  async function retirerComplement(id) {
+    const { error } = await supabase.from('referentiel_locaux').delete().eq('id', id)
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    else charger()
   }
 
   useEffect(() => {
@@ -295,23 +338,59 @@ function Bilan({ evenement, setMessage }) {
   const obligatoires = items.filter((it) => it.caractere === 'obligatoire')
   const recommandes = items.filter((it) => it.caractere === 'recommande')
 
-  const carte = (it) => (
-    <div className="carte" key={it.id}>
-      <div className="titre">
-        <span className="mono">{it.code}</span> — {it.titre}
+  const carte = (it) => {
+    const siens = locaux.filter((l) => l.referentiel_item_id === it.id)
+    return (
+      <div className="carte" key={it.id}>
+        <div className="titre">
+          <span className="mono">{it.code}</span> — {it.titre}
+        </div>
+        <div className="meta">
+          <span>{it.referentiels?.nom}</span>
+          {it.toujours_applicable && <span className="jeton">toujours applicable</span>}
+          {siens.some((l) => l.renforce) && (
+            <span className="jeton alerte-texte">renforcé localement</span>
+          )}
+        </div>
+        <p style={{ margin: '8px 0 0', fontSize: 13 }}>{it.dispositions}</p>
+        {it.seuils && (
+          <p className="aide" style={{ marginTop: 6 }}>
+            Seuil chiffré : <span className="mono">{JSON.stringify(it.seuils)}</span>
+          </p>
+        )}
+
+        {siens.map((l) => (
+          <div key={l.id} className="bloc-local">
+            <div className="meta">
+              <span className="jeton">
+                {l.zone_secours || l.zone_police || 'complément local'}
+              </span>
+              {l.renforce && <span className="alerte-texte">plus strict que le texte</span>}
+              {peutCompleter && (
+                <button className="lien" onClick={() => retirerComplement(l.id)}>
+                  retirer
+                </button>
+              )}
+            </div>
+            <p style={{ margin: '4px 0 0', fontSize: 13 }}>{l.complement}</p>
+          </div>
+        ))}
+
+        {peutCompleter &&
+          (saisie === it.id ? (
+            <FormComplement
+              zone={zone}
+              onAnnuler={() => setSaisie(null)}
+              onValider={(champs) => ajouterComplement(it.id, champs)}
+            />
+          ) : (
+            <button className="discret" style={{ marginTop: 8 }} onClick={() => setSaisie(it.id)}>
+              + Complément local
+            </button>
+          ))}
       </div>
-      <div className="meta">
-        <span>{it.referentiels?.nom}</span>
-        {it.toujours_applicable && <span className="jeton">toujours applicable</span>}
-      </div>
-      <p style={{ margin: '8px 0 0', fontSize: 13 }}>{it.dispositions}</p>
-      {it.seuils && (
-        <p className="aide" style={{ marginTop: 6 }}>
-          Seuil chiffré : <span className="mono">{JSON.stringify(it.seuils)}</span>
-        </p>
-      )}
-    </div>
-  )
+    )
+  }
 
   return (
     <>
@@ -360,6 +439,63 @@ function Bilan({ evenement, setMessage }) {
         </>
       )}
     </>
+  )
+}
+
+/**
+ * Saisie d'un complément local.
+ *
+ * `renforce` n'est pas cosmétique : un complément qui durcit le texte
+ * national change ce qu'on doit faire, alors qu'une simple précision
+ * ne fait que l'expliciter. Le premier mérite d'être vu de loin dans
+ * le bilan, le second non.
+ */
+function FormComplement({ zone, onAnnuler, onValider }) {
+  const [texte, setTexte] = useState('')
+  const [origine, setOrigine] = useState(zone?.zone_secours ? 'secours' : 'police')
+  const [renforce, setRenforce] = useState(false)
+
+  return (
+    <div className="bloc-local" style={{ marginTop: 8 }}>
+      <textarea
+        rows={3}
+        value={texte}
+        placeholder="Ce que la zone ou la commune ajoute au texte national"
+        onChange={(e) => setTexte(e.target.value)}
+      />
+      <div className="ligne-boutons">
+        <select
+          value={origine}
+          onChange={(e) => setOrigine(e.target.value)}
+          style={{ width: 'auto', marginBottom: 0 }}
+        >
+          <option value="secours">Zone de secours{zone?.zone_secours ? ` — ${zone.zone_secours}` : ''}</option>
+          <option value="police">Zone de police{zone?.zone_police ? ` — ${zone.zone_police}` : ''}</option>
+        </select>
+        <label className="case-confirme" style={{ margin: 0 }}>
+          <input type="checkbox" checked={renforce} onChange={() => setRenforce(!renforce)} />
+          <span>plus strict que le texte</span>
+        </label>
+      </div>
+      <div className="ligne-boutons" style={{ marginTop: 6 }}>
+        <button
+          disabled={!texte.trim()}
+          onClick={() =>
+            onValider({
+              complement: texte.trim(),
+              renforce,
+              zone_secours: origine === 'secours' ? (zone?.zone_secours ?? 'zone de secours') : null,
+              zone_police: origine === 'police' ? (zone?.zone_police ?? 'zone de police') : null
+            })
+          }
+        >
+          Enregistrer
+        </button>
+        <button className="discret" onClick={onAnnuler}>
+          Annuler
+        </button>
+      </div>
+    </div>
   )
 }
 
