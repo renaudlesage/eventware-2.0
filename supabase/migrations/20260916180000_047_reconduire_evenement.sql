@@ -115,14 +115,23 @@ declare
   v_quota    integer;
   v_utilises integer;
   v_decalage interval;
+  v_datee    boolean;
 begin
   if not (est_exploitant() or a_permission(p_source, 'referentiels', 'creer')) then
     raise exception 'Reconduction refusée : vous ne pilotez pas cet événement.'
       using errcode = '42501';
   end if;
 
-  select organisation_id, (p_date_debut - date_debut) * interval '1 day'
-    into v_org, v_decalage
+  -- Le décalage suppose que l'édition précédente soit datée. Beaucoup
+  -- d'événements ne le sont pas — la date se renseigne au Point zéro et
+  -- rien ne l'exige. Sans garde, `debut + null` vidait la colonne et
+  -- l'insertion partait en erreur de contrainte, loin de la cause.
+  -- Faute de date source, on reprend les horaires tels quels : c'est
+  -- visible et corrigeable, contrairement à un créneau sans heure.
+  select organisation_id,
+         coalesce((p_date_debut - date_debut) * interval '1 day', interval '0 day'),
+         date_debut is not null
+    into v_org, v_decalage, v_datee
   from evenements where id = p_source;
 
   if v_org is null then
@@ -296,7 +305,13 @@ begin
 
   perform journaliser(
     v_cible, 'noyau', 'reconduction',
-    format('Événement reconduit depuis « %s »', (select nom from evenements where id = p_source)),
+    format(
+      'Événement reconduit depuis « %s »%s',
+      (select nom from evenements where id = p_source),
+      case when v_datee then ''
+           else ' — édition précédente non datée : horaires des créneaux et échéances des jalons repris sans décalage, à revoir'
+      end
+    ),
     'important'
   );
 
