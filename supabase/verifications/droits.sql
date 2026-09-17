@@ -44,6 +44,7 @@ declare
   v_autre      uuid;   -- événement dont v_ren n'est pas membre
   v_fete       uuid;   -- événement où v_ren est observateur
   v_jalon      uuid;
+  v_equipe     uuid;
   v_chef       uuid;   -- chef d'équipe : un rôle SANS tout_pouvoir
   v_rando      uuid;
   v_n          integer;
@@ -334,6 +335,28 @@ begin
     end;
 
     begin
+      select id into v_equipe from equipes
+      where evenement_id = v_bfmf and deleted_at is null limit 1;
+      if v_equipe is null then
+        insert into verif (bloc, intitule, resultat)
+          values ('E. Suppression', 'Suppression logique d''une équipe', 'IGNORÉ : aucune équipe');
+      else
+        perform set_config('request.jwt.claims',
+          json_build_object('sub', v_ren, 'role', 'authenticated')::text, true);
+        execute 'set local role authenticated';
+        select supprimer_logiquement('equipes', v_equipe) into v_bool;
+        execute 'reset role';
+        insert into verif (bloc, intitule, resultat) values
+          ('E. Suppression', 'Une équipe aussi peut être supprimée logiquement',
+           case when v_bool then 'OK' else 'ÉCHEC' end);
+      end if;
+    exception when others then
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat)
+        values ('E. Suppression', 'Suppression d''une équipe', 'ERREUR : ' || sqlerrm);
+    end;
+
+    begin
       perform set_config('request.jwt.claims',
         json_build_object('sub', v_ren, 'role', 'authenticated')::text, true);
       execute 'set local role authenticated';
@@ -392,6 +415,63 @@ begin
         values ('F. Journal', 'Garde-fou du journal', 'ERREUR : ' || sqlerrm);
     end;
   end if;
+
+
+  -- ------------------------------------------------------------------
+  -- BLOC H — stockage (041)
+  -- ------------------------------------------------------------------
+  begin
+    -- Une policy de lecture qui ne mentionne ni événement ni membre est
+    -- une lecture large : c'est par là que les documents réglementaires
+    -- d'un client fuyaient vers un autre.
+    select count(*) into v_n
+    from pg_policy
+    where polrelid = 'storage.objects'::regclass
+      and polcmd = 'r'
+      and pg_get_expr(polqual, polrelid) not like '%evenement%'
+      and pg_get_expr(polqual, polrelid) not like '%membre%';
+    insert into verif (bloc, intitule, resultat) values
+      ('H. Stockage', 'Aucune policy de lecture large sur le stockage',
+       case when v_n = 0 then 'OK' else 'ÉCHEC : ' || v_n || ' policy(ies)' end);
+  exception when others then
+    insert into verif (bloc, intitule, resultat)
+      values ('H. Stockage', 'Lecture du stockage', 'ERREUR : ' || sqlerrm);
+  end;
+
+  begin
+    select count(*) into v_n
+    from information_schema.role_routine_grants
+    where routine_schema = 'public'
+      and routine_name in ('supprimer_logiquement', 'appartient_organisation')
+      and grantee = 'anon';
+    insert into verif (bloc, intitule, resultat) values
+      ('H. Stockage', 'Les fonctions de service restent fermées à anon',
+       case when v_n = 0 then 'OK' else 'ÉCHEC : ' || v_n || ' ouverture(s)' end);
+  exception when others then
+    insert into verif (bloc, intitule, resultat)
+      values ('H. Stockage', 'Fonctions de service', 'ERREUR : ' || sqlerrm);
+  end;
+
+  -- ------------------------------------------------------------------
+  -- BLOC I — lien groupe de travail / équipe (043)
+  -- ------------------------------------------------------------------
+  begin
+    select count(*) into v_n from pg_indexes
+    where indexname = 'equipes_groupe_travail_unique';
+    insert into verif (bloc, intitule, resultat) values
+      ('I. Liens', 'Une seule équipe par groupe de travail',
+       case when v_n = 1 then 'OK' else 'ÉCHEC : index unique absent' end);
+
+    select count(*) into v_n from pg_trigger
+    where tgrelid = 'public.groupes_travail'::regclass
+      and tgname = 'nom_groupe_vers_equipe' and not tgisinternal;
+    insert into verif (bloc, intitule, resultat) values
+      ('I. Liens', 'Le nom du groupe se propage à son équipe',
+       case when v_n = 1 then 'OK' else 'ÉCHEC : trigger absent' end);
+  exception when others then
+    insert into verif (bloc, intitule, resultat)
+      values ('I. Liens', 'Lien groupe / équipe', 'ERREUR : ' || sqlerrm);
+  end;
 
   -- ------------------------------------------------------------------
   -- BLOC G — dotation d'un événement (le défaut météo du 15/09)
