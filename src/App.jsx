@@ -810,6 +810,8 @@ function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, o
 
           <Point0 evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
 
+          <DatesEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
+
           <section className="bloc">
             <h2>Phase</h2>
             <div className="plaques">
@@ -919,6 +921,70 @@ function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, o
  * trois remises à zéro, parce que ce sont les seules surprises
  * possibles — le reste est une copie fidèle.
  */
+/**
+ * Les dates de l'événement.
+ *
+ * Les colonnes existaient depuis la première migration, mais aucun
+ * écran ne les écrivait : quatre événements sur six n'en avaient donc
+ * aucune. Ça s'est vu au premier usage qui en dépendait vraiment — la
+ * reconduction, qui décale les créneaux du nombre de jours séparant
+ * deux éditions et n'avait rien à décaler.
+ *
+ * Ce n'est pas qu'un confort : le dossier de sécurité annonce ces
+ * dates à la commune, et le planning place les jalons par rapport à
+ * elles.
+ */
+function DatesEvenement({ evenement, onFait, setMessage }) {
+  const [debut, setDebut] = useState(evenement.date_debut ?? '')
+  const [fin, setFin] = useState(evenement.date_fin ?? '')
+  const [occupe, setOccupe] = useState(false)
+  const [enregistre, setEnregistre] = useState(false)
+
+  async function enregistrer() {
+    setOccupe(true)
+    const { error } = await supabase
+      .from('evenements')
+      .update({ date_debut: debut || null, date_fin: fin || null })
+      .eq('id', evenement.id)
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    else {
+      onFait?.()
+      setEnregistre(true)
+      setTimeout(() => setEnregistre(false), 2500)
+    }
+    setOccupe(false)
+  }
+
+  // Une fin antérieure au début n'est pas une faute de frappe rare :
+  // c'est ce qu'on tape quand on remplit le second champ avant le
+  // premier. Autant le dire avant l'enregistrement.
+  const incoherent = debut && fin && fin < debut
+
+  return (
+    <section className="bloc">
+      <h2>Dates</h2>
+      <p className="aide" style={{ marginTop: 0 }}>
+        Le premier et le dernier jour de l&rsquo;événement, montage et démontage exclus. Elles
+        servent au dossier de sécurité, au placement des jalons, et au décalage des créneaux
+        lors d&rsquo;une reconduction.
+      </p>
+
+      <div className="saisie-rapide">
+        <input type="date" value={debut} onChange={(e) => setDebut(e.target.value)} />
+        <input type="date" value={fin} onChange={(e) => setFin(e.target.value)} />
+      </div>
+
+      {incoherent && (
+        <p className="alerte-texte">Le dernier jour précède le premier.</p>
+      )}
+
+      <button disabled={occupe || incoherent} onClick={enregistrer}>
+        {enregistre ? 'Enregistré ✓' : 'Enregistrer les dates'}
+      </button>
+    </section>
+  )
+}
+
 function Reconduire({ evenement, onFait, setMessage }) {
   const [ouvert, setOuvert] = useState(false)
   const [nom, setNom] = useState('')
