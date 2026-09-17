@@ -73,7 +73,12 @@ begin
     p_table, v_filtre
   ) using p_source;
 
-  execute format('update cp set id = gen_random_uuid(), evenement_id = $1') using p_cible;
+  -- `where id is not null` n'est pas décoratif : l'éditeur SQL de
+  -- Supabase charge pg_safeupdate, qui refuse tout UPDATE sans clause
+  -- WHERE — y compris à l'intérieur d'une fonction, et y compris sur
+  -- une table temporaire dont on veut justement toucher chaque ligne.
+  execute format('update cp set id = gen_random_uuid(), evenement_id = $1 where id is not null')
+    using p_cible;
 
   execute 'create temp table mapping on commit drop as select ancien, id as nouveau from cp';
   execute 'alter table cp drop column ancien';
