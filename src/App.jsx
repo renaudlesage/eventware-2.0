@@ -853,6 +853,8 @@ function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, o
                 : "Les modules relèvent de la souscription : leur activation se règle avec l'éditeur, pas depuis l'événement."}
             </p>
           </section>
+
+          <Reconduire evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
         </>
       )}
 
@@ -906,6 +908,105 @@ function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, o
         />
       )}
     </>
+  )
+}
+
+/**
+ * Reconduire un événement d'une année sur l'autre.
+ *
+ * Ce que ça reprend est décidé en base (migration 047) et pas ici :
+ * l'écran ne doit pas laisser croire qu'il choisit. Il annonce les
+ * trois remises à zéro, parce que ce sont les seules surprises
+ * possibles — le reste est une copie fidèle.
+ */
+function Reconduire({ evenement, onFait, setMessage }) {
+  const [ouvert, setOuvert] = useState(false)
+  const [nom, setNom] = useState('')
+  const [debut, setDebut] = useState('')
+  const [fin, setFin] = useState('')
+  const [occupe, setOccupe] = useState(false)
+
+  // Un slug se devine bien : c'est le nom, sans accent ni espace. Le
+  // laisser saisir à la main n'apporterait qu'une occasion de le rater.
+  const slug = nom
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+
+  async function reconduire() {
+    setOccupe(true)
+    const { data, error } = await supabase.rpc('dupliquer_evenement', {
+      p_source: evenement.id,
+      p_nom: nom.trim(),
+      p_slug: slug,
+      p_date_debut: debut,
+      p_date_fin: fin
+    })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    else {
+      setMessage({
+        type: 'succes',
+        texte: `« ${nom.trim()} » est créé en préparation — sélectionnez-le dans le menu en haut de l'écran.`
+      })
+      setOuvert(false)
+      setNom('')
+      onFait?.()
+    }
+    setOccupe(false)
+  }
+
+  return (
+    <section className="bloc">
+      <h2>Reconduire</h2>
+      {!ouvert ? (
+        <>
+          <p className="aide" style={{ marginTop: 0 }}>
+            Crée l&rsquo;édition suivante à partir de celle-ci : rôles et capacités, lieux,
+            équipes, groupes de travail et jalons, contacts, matériel, radio, fiches réflexe,
+            créneaux, implantation, seuils météo et questionnaire de conformité.
+            <br />
+            Rien de l&rsquo;opérationnel ne suit — ni missions, ni signalements, ni journal, ni
+            REX. Ce sont les traces d&rsquo;un événement qui a eu lieu.
+          </p>
+          <button onClick={() => setOuvert(true)}>Reconduire cet événement</button>
+        </>
+      ) : (
+        <>
+          <label htmlFor="rec-nom">Nom de la nouvelle édition</label>
+          <input
+            id="rec-nom"
+            value={nom}
+            onChange={(e) => setNom(e.target.value)}
+            placeholder={evenement.nom.replace(/\d{4}/, (a) => Number(a) + 1)}
+          />
+          {slug && <p className="aide">Adresse : {slug}</p>}
+
+          <label htmlFor="rec-debut">Premier jour</label>
+          <input id="rec-debut" type="date" value={debut} onChange={(e) => setDebut(e.target.value)} />
+
+          <label htmlFor="rec-fin">Dernier jour</label>
+          <input id="rec-fin" type="date" value={fin} onChange={(e) => setFin(e.target.value)} />
+
+          <p className="aide">
+            Trois choses repartent à zéro, volontairement : l&rsquo;implantation est reprise mais
+            dé-confirmée — la haie a poussé, le chapiteau a bougé ; les jalons repassent « à
+            faire » avec leurs échéances décalées d&rsquo;autant de jours que l&rsquo;événement ;
+            le matériel garde son catalogue et ses seuils, mais pas ses quantités.
+          </p>
+
+          <div className="ligne-boutons">
+            <button disabled={occupe || !nom.trim() || !debut || !fin} onClick={reconduire}>
+              {occupe ? 'Reconduction…' : 'Créer l’édition'}
+            </button>
+            <button className="discret" onClick={() => setOuvert(false)}>
+              Annuler
+            </button>
+          </div>
+        </>
+      )}
+    </section>
   )
 }
 
