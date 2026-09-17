@@ -92,6 +92,10 @@ function Organisations({ setMessage }) {
 
   useEffect(() => {
     charger()
+    // Les 261 communes wallonnes : la saisie libre produisait des noms
+    // qui ne correspondaient à aucune fiche, donc aucune zone.
+    supabase.from('communes').select('nom').order('nom')
+      .then(({ data }) => setCommunes(data ?? []))
   }, [])
 
   async function creer() {
@@ -296,7 +300,11 @@ function FicheClient({ organisation, onMaj }) {
 function Evenements({ setMessage, onOuvrir }) {
   const [evenements, setEvenements] = useState([])
   const [orgs, setOrgs] = useState([])
-  const [f, setF] = useState({ nom: '', organisation_id: '', geometrie: 'site_ferme' })
+  const [f, setF] = useState({
+    nom: '', organisation_id: '', geometrie: 'site_ferme',
+    commune: '', date_debut: '', date_fin: ''
+  })
+  const [communes, setCommunes] = useState([])
 
   async function charger() {
     const [e, o] = await Promise.all([
@@ -315,6 +323,10 @@ function Evenements({ setMessage, onOuvrir }) {
 
   useEffect(() => {
     charger()
+    // Les 261 communes wallonnes : la saisie libre produisait des noms
+    // qui ne correspondaient à aucune fiche, donc aucune zone.
+    supabase.from('communes').select('nom').order('nom')
+      .then(({ data }) => setCommunes(data ?? []))
   }, [])
 
   async function creer() {
@@ -325,10 +337,19 @@ function Evenements({ setMessage, onOuvrir }) {
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
-    const { error } = await supabase.from('evenements').insert({ ...f, slug })
+    // Les champs vides partent en `null` plutôt qu'en chaîne vide : une
+    // date vide n'est pas une date, et une commune vide ne doit pas
+    // ressembler à une commune renseignée.
+    const { error } = await supabase.from('evenements').insert({
+      ...f,
+      slug,
+      commune: f.commune.trim() || null,
+      date_debut: f.date_debut || null,
+      date_fin: f.date_fin || null
+    })
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
-      setF({ ...f, nom: '' })
+      setF({ ...f, nom: '', commune: '', date_debut: '', date_fin: '' })
       charger()
     }
   }
@@ -376,10 +397,38 @@ function Evenements({ setMessage, onOuvrir }) {
           <option value="parcours">Parcours</option>
           <option value="hybride">Hybride</option>
         </select>
+        <input
+          list="communes-connues"
+          value={f.commune}
+          onChange={(e) => setF({ ...f, commune: e.target.value })}
+          placeholder="Commune"
+        />
+        <datalist id="communes-connues">
+          {communes.map((c) => (
+            <option key={c.nom} value={c.nom} />
+          ))}
+        </datalist>
+        <input
+          type="date"
+          value={f.date_debut}
+          onChange={(e) => setF({ ...f, date_debut: e.target.value })}
+          title="Premier jour"
+        />
+        <input
+          type="date"
+          value={f.date_fin}
+          onChange={(e) => setF({ ...f, date_fin: e.target.value })}
+          title="Dernier jour"
+        />
         <button disabled={!f.nom.trim()} onClick={creer}>
           Ouvrir
         </button>
       </div>
+      <p className="aide">
+        Seul le nom est exigé : commune et dates se renseignent plus tard si elles ne sont
+        pas encore arrêtées. L&rsquo;écran Réglages du nouvel événement rappellera ce qui
+        manque, et ce que ça bloque.
+      </p>
       <p className="aide">
         Tu deviens coordinateur de l'événement que tu crées. Pour un client, transfère
         ensuite ce rôle à son responsable et retire-toi : l'éditeur n'a pas vocation à
@@ -441,6 +490,10 @@ function Comptes({ setMessage }) {
 
   useEffect(() => {
     charger()
+    // Les 261 communes wallonnes : la saisie libre produisait des noms
+    // qui ne correspondaient à aucune fiche, donc aucune zone.
+    supabase.from('communes').select('nom').order('nom')
+      .then(({ data }) => setCommunes(data ?? []))
   }, [])
 
   async function ajouter() {

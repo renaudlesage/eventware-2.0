@@ -810,6 +810,8 @@ function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, o
 
           <Point0 evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
 
+          <Completude evenement={evenement} />
+
           <DatesEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
 
           <section className="bloc">
@@ -934,6 +936,81 @@ function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, o
  * dates à la commune, et le planning place les jalons par rapport à
  * elles.
  */
+/**
+ * Ce qui manque au dispositif, et ce que ça bloque.
+ *
+ * Le défaut que ce bloc corrige n'est pas l'absence de données : c'est
+ * leur absence SILENCIEUSE. Quatre événements sur six n'avaient pas de
+ * dates, personne ne l'a vu, et ça n'est apparu qu'au premier usage qui
+ * en dépendait vraiment. Une case vide ne se signale pas toute seule.
+ *
+ * Chaque ligne dit la conséquence, pas seulement le manque. « Pas de
+ * commune » n'incite personne à agir ; « la conformité ne sait pas
+ * quelle zone de secours s'applique » oui.
+ *
+ * Volontairement sans bouton « ignorer » : un dispositif incomplet le
+ * reste jusqu'à ce qu'on le complète, et masquer l'avertissement ne
+ * remplirait pas le dossier de sécurité.
+ */
+function Completude({ evenement }) {
+  const manques = [
+    {
+      absent: !evenement.date_debut || !evenement.date_fin,
+      quoi: 'Dates de l’événement',
+      bloque: 'le dossier de sécurité annonce des dates vides à la commune, et une reconduction ne sait pas de combien décaler les créneaux.',
+      ou: 'ci-dessous'
+    },
+    {
+      absent: !evenement.commune,
+      quoi: 'Commune d’accueil',
+      bloque: 'la conformité ne sait pas quelle zone de secours ni quelle zone de police s’appliquent — donc à qui adresser le dossier.',
+      ou: 'Dispositif → Point 0'
+    },
+    {
+      absent: evenement.point_0_lat == null || evenement.point_0_lon == null,
+      quoi: 'Point 0',
+      bloque: 'la veille météo ne sait pas où regarder, et les distances du plan d’implantation ne se calculent pas.',
+      ou: 'Dispositif → Point 0'
+    },
+    {
+      absent: evenement.frequentation_max == null,
+      quoi: 'Fréquentation attendue',
+      bloque: 'le dossier de sécurité laisse en blanc le chiffre dont dépend le dimensionnement des secours.',
+      ou: 'Plan → Effectifs'
+    }
+  ].filter((m) => m.absent)
+
+  if (!manques.length) {
+    return (
+      <section className="bloc">
+        <h2>Dispositif</h2>
+        <p className="aide" style={{ marginTop: 0 }}>
+          Rien ne manque au socle : dates, commune, point 0 et fréquentation sont renseignés.
+        </p>
+      </section>
+    )
+  }
+
+  return (
+    <section className="bloc">
+      <h2>Dispositif incomplet</h2>
+      <p className="aide" style={{ marginTop: 0 }}>
+        {manques.length} élément(s) manquant(s). Aucun n’empêche de travailler aujourd’hui —
+        ils manqueront le jour où quelque chose en dépendra.
+      </p>
+      {manques.map((m) => (
+        <div className="carte" key={m.quoi}>
+          <div className="titre">{m.quoi}</div>
+          <p style={{ margin: '4px 0 0', fontSize: 13 }}>{m.bloque}</p>
+          <div className="meta">
+            <span className="jeton">{m.ou}</span>
+          </div>
+        </div>
+      ))}
+    </section>
+  )
+}
+
 function DatesEvenement({ evenement, onFait, setMessage }) {
   const [debut, setDebut] = useState(evenement.date_debut ?? '')
   const [fin, setFin] = useState(evenement.date_fin ?? '')
