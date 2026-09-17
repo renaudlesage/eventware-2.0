@@ -173,14 +173,48 @@ let enCours = false
 
 async function envoyer(op) {
   if (op.nature === 'update') {
-    const { error, count } = await supabase
+    let requete = supabase
       .from(op.table)
       .update(op.champs, { count: 'exact' })
       .eq('id', op.id)
+
+    // Garde anti-écrasement, sur les seules écritures différées.
+    //
+    // Une modification faite hors réseau à 14h et rejouée à 16h ne doit
+    // pas effacer ce qu'un autre a décidé à 15h, en connaissance de
+    // cause et avec du réseau. La ligne n'est donc écrite que si
+    // personne n'y a touché depuis qu'on l'a quittée.
+    //
+    // Le dernier qui écrit ne gagne pas : c'est le dernier qui SAVAIT
+    // qui gagne. Sur un terrain, celui qui a l'information la plus
+    // fraîche est rarement celui dont le téléphone repasse en ligne le
+    // plus tard.
+    if (op.cree_le) requete = requete.lt('updated_at', op.cree_le)
+
+    const { error, count } = await requete
     if (error) throw error
-    // count === 0 : la ligne n'existe plus, ou RLS refuse. Réessayer
-    // n'y changera rien — on sort de la file avec un message.
-    if (count === 0) throw Object.assign(new Error('Écriture refusée'), { definitif: true })
+
+    if (count === 0) {
+      if (!op.cree_le) {
+        throw Object.assign(new Error('Écriture refusée'), { definitif: true })
+      }
+      // Zéro ligne touchée : soit les droits manquent, soit quelqu'un
+      // est passé avant. Les deux appellent une réaction très
+      // différente, donc on va voir.
+      const { data } = await supabase
+        .from(op.table)
+        .select('updated_at')
+        .eq('id', op.id)
+        .maybeSingle()
+
+      if (data && data.updated_at >= op.cree_le) {
+        throw Object.assign(
+          new Error('Quelqu’un a modifié cette ligne entre-temps — votre version n’a pas été appliquée.'),
+          { definitif: true, conflit: true }
+        )
+      }
+      throw Object.assign(new Error('Écriture refusée'), { definitif: true })
+    }
     return
   }
 
@@ -215,7 +249,7 @@ export async function rejouer() {
         const definitif = e.definitif || op.essais + 1 >= MAX_ESSAIS
         const file = lireFile().map((o) =>
           o.cle === op.cle
-            ? { ...o, essais: o.essais + 1, message: e.message, definitif }
+            ? { ...o, essais: o.essais + 1, message: e.message, definitif, conflit: !!e.conflit }
             : o
         )
         ecrireFile(file)

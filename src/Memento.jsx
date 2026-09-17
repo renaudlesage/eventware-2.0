@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { lireCache, ecrireCache, ageCache } from './horsLigne'
+import { surRetourReseau } from './reessai'
 
 export default function Memento({ evenement }) {
   const [donnees, setDonnees] = useState(() => lireCache(evenement.id))
@@ -43,18 +44,20 @@ export default function Memento({ evenement }) {
   }
 
   useEffect(() => {
-    if (navigator.onLine) rafraichir()
-    const on = () => {
-      setEnLigne(true)
-      rafraichir()
-    }
     const off = () => setEnLigne(false)
-    window.addEventListener('online', on)
     window.addEventListener('offline', off)
+    // Mêmes déclencheurs que les files d'écriture : le retour au
+    // premier plan compte autant ici, puisqu'on ouvre le mémento en
+    // sortant le téléphone de sa poche.
+    const desinstaller = surRetourReseau(() => {
+      setEnLigne(navigator.onLine)
+      if (navigator.onLine) rafraichir()
+    }, 120000)
     return () => {
-      window.removeEventListener('online', on)
       window.removeEventListener('offline', off)
+      desinstaller()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evenement.id])
 
   if (!donnees) {

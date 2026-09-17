@@ -607,9 +607,21 @@ function Reseau() {
         </button>
       )}
       {bloquees.length > 0 && (
-        <span className="temoin coupe" title={bloquees.map((o) => o.libelle).join(' · ')}>
-          {bloquees.length} refusée(s)
-          <button className="lien" style={{ marginLeft: 6 }} onClick={() => bloquees.forEach((o) => retirer(o.cle))}>
+        <span
+          className="temoin coupe"
+          // Le détail au survol : un conflit et un refus de droits
+          // demandent deux réactions opposées — refaire le geste en
+          // connaissance de cause, ou aller voir quelqu'un.
+          title={bloquees.map((o) => `${o.libelle} — ${o.message ?? 'refusée'}`).join('\n')}
+        >
+          {bloquees.some((o) => o.conflit)
+            ? `${bloquees.length} non appliquée(s)`
+            : `${bloquees.length} refusée(s)`}
+          <button
+            className="lien"
+            style={{ marginLeft: 6 }}
+            onClick={() => bloquees.forEach((o) => retirer(o.cle))}
+          >
             ×
           </button>
         </span>
