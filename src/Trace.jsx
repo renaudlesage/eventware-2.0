@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { MapContainer, TileLayer, Polyline, CircleMarker, Popup, useMap } from 'react-leaflet'
 import { supabase } from './supabaseClient'
 import { lireTrace, mesurer, simplifier, profil } from './gpx'
+import { texteErreur } from './erreurs'
 
 export default function Trace({ evenement, setMessage }) {
   const [traces, setTraces] = useState([])
@@ -20,7 +21,7 @@ export default function Trace({ evenement, setMessage }) {
         .select('id, code, nom, latitude, longitude, pk_km, type')
         .eq('evenement_id', evenement.id)
     ])
-    if (t.error) setMessage({ type: 'erreur', texte: t.error.message })
+    if (t.error) setMessage({ type: 'erreur', texte: texteErreur(t.error) })
     else {
       setTraces(t.data ?? [])
       setActive((a) => a ?? t.data?.[0] ?? null)
@@ -43,7 +44,7 @@ export default function Trace({ evenement, setMessage }) {
       if (!nom) setNom(fichier.name.replace(/\.(gpx|kml)$/i, ''))
       if (!code) setCode('TRC')
     } catch (e) {
-      setMessage({ type: 'erreur', texte: e.message })
+      setMessage({ type: 'erreur', texte: texteErreur(e) })
       setApercu(null)
     }
   }
@@ -61,7 +62,7 @@ export default function Trace({ evenement, setMessage }) {
       source: apercu.source,
       origine: 'import'
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setApercu(null)
       setNom('')

@@ -34,6 +34,7 @@ import BarreOnglets from './BarreOnglets'
 import { RESSOURCES } from './colonnesImport'
 import { useCapacites } from './capacites'
 import { Icone, DOMAINES } from './icones'
+import { texteErreur } from './erreurs'
 
 const PHASES = ['preparation', 'montage', 'exploitation', 'demontage', 'cloture']
 
@@ -214,7 +215,7 @@ function Connexion({ theme, setTheme }) {
               options: { data: { nom: nom.trim() } }
             })
         : await supabase.auth.signInWithPassword({ email, password: motDePasse })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (mode === 'creer' && !data.session)
       setMessage({
         type: 'info',
@@ -324,7 +325,7 @@ function Poste({ session, theme, setTheme }) {
         'id, nom, slug, geometrie, phase, jeton_public, point_0_lat, point_0_lon, province, commune, organisation_id, mode_parcours, modules, logo_url, membres_evenement(id, role, user_id, nom_affiche, perimetre, paves, equipe_id)'
       )
       .order('nom')
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setEvenements(data ?? [])
     setChargement(false)
   }
@@ -742,7 +743,7 @@ function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, o
       .from('evenements')
       .update({ modules })
       .eq('id', evenement.id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else onRecharger()
     setOccupe(false)
   }
@@ -753,7 +754,7 @@ function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, o
       .from('evenements')
       .update({ phase }, { count: 'exact' })
       .eq('id', evenement.id)
-    if (error) return setMessage({ type: 'erreur', texte: error.message })
+    if (error) return setMessage({ type: 'erreur', texte: texteErreur(error) })
     if (count === 0) return setMessage({ type: 'erreur', texte: 'Changement refusé.' })
 
     // L'entrée et la sortie d'exploitation recomposent le « Mon poste »
@@ -940,7 +941,7 @@ function CreationEvenement({ onFait, setMessage }) {
   async function creer() {
     setOccupe(true)
     const { error } = await supabase.from('evenements').insert({ nom, slug, geometrie })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setNom('')
       setSlug('')
@@ -1029,7 +1030,7 @@ function RejoindreEvenement({ evenement, onFait, setMessage }) {
       p_evenement: evenement.id,
       p_role_code: role
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else onFait()
     setOccupe(false)
   }

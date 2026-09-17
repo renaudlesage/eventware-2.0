@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 
 /**
  * Invitations — administration.
@@ -33,7 +34,7 @@ export default function Invitations({ evenement, setMessage }) {
         .eq('evenement_id', evenement.id)
         .order('libelle')
     ])
-    if (i.error) setMessage({ type: 'erreur', texte: i.error.message })
+    if (i.error) setMessage({ type: 'erreur', texte: texteErreur(i.error) })
     else setLiens(i.data ?? [])
     setRoles(r.data ?? [])
     if (!f.role_id && r.data?.length) {
@@ -54,7 +55,7 @@ export default function Invitations({ evenement, setMessage }) {
       role_id: f.role_id || null,
       usages_max: f.usages_max ? Number(f.usages_max) : null
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setF({ ...f, libelle: '', usages_max: '' })
       setOuvrir(false)
@@ -64,7 +65,7 @@ export default function Invitations({ evenement, setMessage }) {
 
   async function basculer(id, actif) {
     const { error } = await supabase.from('invitations').update({ actif }).eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else charger()
   }
 

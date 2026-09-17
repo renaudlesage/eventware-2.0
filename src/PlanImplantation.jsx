@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Polyline, Polygon, CircleMarker, Popup, useMap } from 'react-leaflet'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 
 const CATEGORIES = [
   // Dispositif de secours — vocabulaire de la doctrine belge
@@ -80,7 +81,7 @@ export default function PlanImplantation({ evenement, membre }) {
       .select('*')
       .eq('evenement_id', evenement.id)
       .order('code')
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setElements(data ?? [])
   }
 
@@ -108,7 +109,7 @@ export default function PlanImplantation({ evenement, membre }) {
       .from('elements_plan')
       .update(champs, { count: 'exact' })
       .eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) setMessage({ type: 'erreur', texte: 'Modification refusée.' })
     else charger()
   }
@@ -415,7 +416,7 @@ function Ajout({ evenement, position, onFait, setMessage }) {
       precision_m: position?.precision ?? null,
       confirme: !!position
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else onFait()
   }
 
@@ -572,7 +573,7 @@ function Effectifs({ evenement, setMessage }) {
         frequentation_max: max ? Number(max) : null
       })
       .eq('id', evenement.id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setEnregistre(true)
       setTimeout(() => setEnregistre(false), 2500)

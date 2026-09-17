@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 
 /**
  * Ce que voit le public — administration.
@@ -77,7 +78,7 @@ function Publiables({ evenement, setMessage, table, libelle, detail, ordre, aver
       .eq('evenement_id', evenement.id)
       .is('deleted_at', null)
       .order(ordre)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setLignes(data ?? [])
   }
 
@@ -91,7 +92,7 @@ function Publiables({ evenement, setMessage, table, libelle, detail, ordre, aver
       .from(table)
       .update({ public: valeur }, { count: 'exact' })
       .eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) setMessage({ type: 'erreur', texte: 'Modification refusée.' })
     else charger()
   }
@@ -143,7 +144,7 @@ function Communications({ evenement, setMessage }) {
       .eq('evenement_id', evenement.id)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setLignes(data ?? [])
   }
 
@@ -161,7 +162,7 @@ function Communications({ evenement, setMessage }) {
       lien_url: f.lien_url.trim() || null,
       lien_libelle: f.lien_libelle.trim() || null
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setF({ titre: '', corps: '', lien_url: '', lien_libelle: '' })
       setOuvrir(false)
@@ -174,7 +175,7 @@ function Communications({ evenement, setMessage }) {
       .from('communications')
       .update({ publie_le: publie ? new Date().toISOString() : null })
       .eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else charger()
   }
 

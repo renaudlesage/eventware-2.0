@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { diffuserAlerte } from './diffusion'
+import { texteErreur } from './erreurs'
 
 const NIVEAUX = [
   ['information', 'Information'],
@@ -88,7 +89,7 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
       .eq('evenement_id', evenement.id)
       .order('emise_le', { ascending: false })
       .limit(20)
-    if (error) setMessage?.({ type: 'erreur', texte: error.message })
+    if (error) setMessage?.({ type: 'erreur', texte: texteErreur(error) })
     else setAlertes(data ?? [])
   }
 
@@ -103,7 +104,7 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
       .insert({ evenement_id: evenement.id, ...f })
       .select('id')
       .single()
-    if (error) setMessage?.({ type: 'erreur', texte: error.message })
+    if (error) setMessage?.({ type: 'erreur', texte: texteErreur(error) })
     else {
       setF({ niveau: 'vigilance', titre: '', message: '', consigne: '' })
       setOuvrir(false)
@@ -119,7 +120,7 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
       .from('alertes')
       .update({ active: false, motif_levee: motif }, { count: 'exact' })
       .eq('id', id)
-    if (error) setMessage?.({ type: 'erreur', texte: error.message })
+    if (error) setMessage?.({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) setMessage?.({ type: 'erreur', texte: 'Levée refusée.' })
     else charger()
   }

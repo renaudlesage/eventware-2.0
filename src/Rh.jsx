@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { libelleStatut, heure } from './libelles'
+import { texteErreur } from './erreurs'
 
 /*
  * `besoin` : capacité d'encadrement requise.
@@ -73,7 +74,7 @@ function Couverture({ evenement, setMessage }) {
         .select('id, nom_affiche, role')
         .eq('evenement_id', evenement.id)
     ])
-    if (c.error) setMessage({ type: 'erreur', texte: c.error.message })
+    if (c.error) setMessage({ type: 'erreur', texte: texteErreur(c.error) })
     else setLignes(c.data ?? [])
     supabase
       .from('fiches_poste')
@@ -102,7 +103,7 @@ function Couverture({ evenement, setMessage }) {
       fin: new Date(f.fin).toISOString(),
       phase: evenement.phase
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setF({ code: '', poste: '', besoin: 2, debut: '', fin: '' })
       setOuvrir(false)
@@ -127,7 +128,7 @@ function Couverture({ evenement, setMessage }) {
         { count: 'exact' }
       )
       .eq('id', creneauId)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) setMessage({ type: 'erreur', texte: 'Envoi refusé : droits insuffisants.' })
     else {
       setRappelPour(null)
@@ -140,7 +141,7 @@ function Couverture({ evenement, setMessage }) {
       .from('creneaux')
       .update({ fiche_id: ficheId }, { count: 'exact' })
       .eq('id', creneauId)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) setMessage({ type: 'erreur', texte: 'Modification refusée.' })
     else charger()
   }
@@ -152,7 +153,7 @@ function Couverture({ evenement, setMessage }) {
       membre_id: membreId,
       statut: 'propose'
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else charger()
   }
 
@@ -362,7 +363,7 @@ export function MesCreneaux({ evenement, membre, setMessage, onCompteurs }) {
       .select('*, creneaux(code, poste, debut, fin, consignes, rappel, rappel_envoye_le, lieux:lieu_id(nom), fiches_poste:fiche_id(intitule, mission, taches, materiel, a_signaler, contact))')
       .eq('evenement_id', evenement.id)
       .eq('membre_id', membre.id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setLignes(data ?? [])
   }
 
@@ -385,7 +386,7 @@ export function MesCreneaux({ evenement, membre, setMessage, onCompteurs }) {
       .from('affectations')
       .update({ statut }, { count: 'exact' })
       .eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0)
       setMessage({ type: 'erreur', texte: 'Modification refusée.' })
     else charger()
@@ -523,7 +524,7 @@ function Equipe({ evenement, setMessage }) {
         .is('deleted_at', null)
         .order('code')
     ])
-    if (m.error) setMessage({ type: 'erreur', texte: m.error.message })
+    if (m.error) setMessage({ type: 'erreur', texte: texteErreur(m.error) })
     else setMembres(m.data ?? [])
     setEquipes(e.data ?? [])
   }
@@ -533,7 +534,7 @@ function Equipe({ evenement, setMessage }) {
       .from('membres_evenement')
       .update({ est_chauffeur: !actuel }, { count: 'exact' })
       .eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) setMessage({ type: 'erreur', texte: 'Modification refusée.' })
     else charger()
   }
@@ -552,7 +553,7 @@ function Equipe({ evenement, setMessage }) {
       .from('membres_evenement')
       .update({ equipe_id: equipeId || null }, { count: 'exact' })
       .eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) setMessage({ type: 'erreur', texte: 'Modification refusée.' })
     else charger()
   }
@@ -664,7 +665,7 @@ function FichesPoste({ evenement, setMessage }) {
       .eq('evenement_id', evenement.id)
       .is('deleted_at', null)
       .order('intitule')
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setFiches(data ?? [])
   }
 
@@ -686,7 +687,7 @@ function FichesPoste({ evenement, setMessage }) {
       ? supabase.from('fiches_poste').update(charge).eq('id', fiche.id)
       : supabase.from('fiches_poste').insert(charge)
     const { error } = await requete
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setOuvert(null)
       charger()

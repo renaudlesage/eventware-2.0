@@ -4,6 +4,7 @@ import Trace from './Trace'
 import Flux from './Flux'
 import { libelleStatut } from './libelles'
 import LigneParcours from './LigneParcours'
+import { texteErreur } from './erreurs'
 
 const STATUTS = [
   ['inscrit', 'Inscrit'],
@@ -109,7 +110,7 @@ function SuiviQg({ evenement, setMessage }) {
         .eq('actif', true)
         .limit(1)
     ])
-    if (g.error) setMessage({ type: 'erreur', texte: g.error.message })
+    if (g.error) setMessage({ type: 'erreur', texte: texteErreur(g.error) })
     else setGroupes(g.data ?? [])
     if (!r.error) setRetards(r.data ?? [])
     setTrace(t.data?.[0] ?? null)
@@ -129,7 +130,7 @@ function SuiviQg({ evenement, setMessage }) {
       .from('groupes')
       .update(champs, { count: 'exact' })
       .eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0)
       setMessage({ type: 'erreur', texte: 'Modification refusée : droits insuffisants.' })
     else charger()
@@ -288,7 +289,7 @@ function FormGroupe({ evenement, onFait, setMessage }) {
       effectif_prevu: f.effectif_prevu ? Number(f.effectif_prevu) : null,
       ratio_encadrement: f.ratio_encadrement ? Number(f.ratio_encadrement) : null
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else onFait()
   }
 
@@ -397,7 +398,7 @@ function Pointage({ evenement, membre, setMessage }) {
       membre_id: membre.id,
       ...(position ?? {})
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       const g = tousGroupes.find((x) => x.id === groupeId)
       setDernier({ nom: g?.nom, heure: new Date() })
@@ -413,7 +414,7 @@ function Pointage({ evenement, membre, setMessage }) {
       .from('groupes')
       .update({ statut: 'arrive', arrivee_reelle: new Date().toISOString() })
       .eq('id', groupeId)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else charger()
     setOccupe(false)
   }
@@ -661,7 +662,7 @@ function Segments({ evenement, setMessage }) {
       composition,
       distance_totale_m: distance_totale_m || null
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setF({ libelle: '', depart_lieu_id: '', arrivee_lieu_id: '', brancardage_max_m: '', composition: [{ type: 'chemin_forestier', distance_m: '' }] })
       setOuvrir(false)

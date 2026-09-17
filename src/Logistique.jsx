@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import { ecrireOuEmpiler } from './fileEcritures'
 import { Missions, Journal } from './Securite'
 import Radio from './Radio'
+import { texteErreur } from './erreurs'
 
 const ONGLETS = [
   ['interventions', 'Demandes'],
@@ -89,7 +90,7 @@ function Stocks({ evenement, membre, setMessage }) {
         .order('nom'),
       supabase.from('lieux').select('id, code, nom').eq('evenement_id', evenement.id)
     ])
-    if (m.error) setMessage({ type: 'erreur', texte: m.error.message })
+    if (m.error) setMessage({ type: 'erreur', texte: texteErreur(m.error) })
     else setArticles(m.data ?? [])
     setLieux(l.data ?? [])
   }
@@ -112,7 +113,7 @@ function Stocks({ evenement, membre, setMessage }) {
       lieu_id: lieuId || null,
       membre_id: membre.id
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setOuvert(null)
       charger()
@@ -275,7 +276,7 @@ function FormArticle({ evenement, lieux, setMessage, onFait }) {
       seuil_alerte: seuilAlerte.trim() ? Number(seuilAlerte) : null,
       lieu_id: lieuId || null
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else onFait()
     setOccupe(false)
   }
@@ -355,7 +356,7 @@ function Attributions({ evenement, setMessage }) {
       .select('*')
       .eq('evenement_id', evenement.id)
       .order('created_at', { ascending: false })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setLignes(data ?? [])
   }
 
@@ -370,7 +371,7 @@ function Attributions({ evenement, setMessage }) {
       ...f,
       remis_le: new Date().toISOString()
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setF({ nature: 'cle', code: '', libelle: '', detail: '', porteur_libre: '' })
       charger()
@@ -382,7 +383,7 @@ function Attributions({ evenement, setMessage }) {
       .from('attributions')
       .update({ rendu_le: new Date().toISOString() })
       .eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else charger()
   }
 
@@ -526,7 +527,7 @@ function Jauge({ evenement, membre, setMessage }) {
       lieu_id: lieu || null,
       membre_id: membre.id
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else charger()
   }
 
@@ -625,7 +626,7 @@ function Transports({ evenement, setMessage }) {
       supabase.from('lieux').select('id, code, nom').eq('evenement_id', evenement.id),
       supabase.rpc('chauffeurs_disponibles', { p_evenement: evenement.id })
     ])
-    if (t.error) setMessage({ type: 'erreur', texte: t.error.message })
+    if (t.error) setMessage({ type: 'erreur', texte: texteErreur(t.error) })
     else setLignes(t.data ?? [])
     setLieux(l.data ?? [])
     if (!c.error) setChauffeurs(c.data ?? [])
@@ -912,7 +913,7 @@ function FormTransport({ evenement, lieux, onFait, onAnnuler, setMessage }) {
       contact: contact.trim() || null,
       priorite
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else onFait()
     setOccupe(false)
   }

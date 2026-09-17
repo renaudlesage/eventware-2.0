@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Footprints, Mic2, PartyPopper, Flag, Wrench, Car } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { heure } from './libelles'
+import { texteErreur } from './erreurs'
 
 /**
  * Planning.
@@ -77,7 +78,7 @@ export default function Planning({ evenement, peut, toutPouvoir }) {
         .not('souhaite_pour', 'is', null)
         .not('statut', 'in', '("annulee")')
     ])
-    if (p.error) setMessage({ type: 'erreur', texte: p.error.message })
+    if (p.error) setMessage({ type: 'erreur', texte: texteErreur(p.error) })
     setProgramme(p.data ?? [])
     setJalons(j.data ?? [])
     setTransports(t.data ?? [])
@@ -307,7 +308,7 @@ function Jalons({ evenement, peutGerer, setMessage }) {
       .eq('evenement_id', evenement.id)
       .is('deleted_at', null)
       .order('echeance')
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setLignes(data ?? [])
   }
 
@@ -322,7 +323,7 @@ function Jalons({ evenement, peutGerer, setMessage }) {
       ...f,
       echeance: new Date(f.echeance).toISOString()
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setF({ code: '', libelle: '', echeance: '', responsable: '' })
       charger()
@@ -331,7 +332,7 @@ function Jalons({ evenement, peutGerer, setMessage }) {
 
   async function changer(id, statut) {
     const { error } = await supabase.from('jalons').update({ statut }).eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else charger()
   }
 
@@ -351,7 +352,7 @@ function Jalons({ evenement, peutGerer, setMessage }) {
       p_table: 'jalons',
       p_id: j.id
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (data === false)
       setMessage({ type: 'erreur', texte: 'Jalon introuvable ou déjà supprimé.' })
     else charger()
@@ -466,7 +467,7 @@ function FormProgramme({ evenement, onFait, onAnnuler, setMessage }) {
       duree_min: dureeMin ? Number(dureeMin) : null,
       lieu_libre: lieuLibre.trim() || null
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else onFait()
     setOccupe(false)
   }

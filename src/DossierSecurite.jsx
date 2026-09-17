@@ -5,6 +5,7 @@ import {
 } from 'docx'
 import { supabase } from './supabaseClient'
 import { resoudreDispositionsApplicables } from './Conformite'
+import { texteErreur } from './erreurs'
 
 /*
  * Dossier de sécurité — généré depuis les données structurées
@@ -41,7 +42,7 @@ export default function DossierSecurite({ evenement, setMessage }) {
       a.click()
       URL.revokeObjectURL(url)
     } catch (e) {
-      setMessage({ type: 'erreur', texte: `Génération impossible : ${e.message}` })
+      setMessage({ type: 'erreur', texte: `Génération impossible : ${texteErreur(e)}` })
     }
     setEnCours(false)
   }

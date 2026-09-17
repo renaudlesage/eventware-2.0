@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 
 const NIVEAUX = [
   ['information', 'Information'],
@@ -63,7 +64,7 @@ export default function Diffusion({ evenement, setMessage }) {
       secret_entete: f.secret_entete.trim() || null,
       niveaux_declencheurs: f.niveaux_declencheurs
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setF({ libelle: '', url: '', secret_entete: '', niveaux_declencheurs: ['urgence', 'evacuation'] })
       setOuvrir(false)

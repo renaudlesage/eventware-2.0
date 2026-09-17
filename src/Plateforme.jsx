@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { libelleStatut } from './libelles'
+import { texteErreur } from './erreurs'
 
 /**
  * Console plateforme — vue de l'éditeur.
@@ -85,7 +86,7 @@ function Organisations({ setMessage }) {
       .select('*, evenements(id, nom, phase)')
       .is('deleted_at', null)
       .order('nom')
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setOrgs(data ?? [])
   }
 
@@ -102,7 +103,7 @@ function Organisations({ setMessage }) {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
     const { error } = await supabase.from('organisations').insert({ ...f, slug })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setF({ nom: '', contact_nom: '', contact_email: '' })
       charger()
@@ -114,7 +115,7 @@ function Organisations({ setMessage }) {
       .from('organisations')
       .update(champs, { count: 'exact' })
       .eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) setMessage({ type: 'erreur', texte: 'Modification refusée.' })
     else charger()
   }
@@ -306,7 +307,7 @@ function Evenements({ setMessage, onOuvrir }) {
         .order('nom'),
       supabase.from('organisations').select('id, nom').is('deleted_at', null).order('nom')
     ])
-    if (e.error) setMessage({ type: 'erreur', texte: e.error.message })
+    if (e.error) setMessage({ type: 'erreur', texte: texteErreur(e.error) })
     else setEvenements(e.data ?? [])
     setOrgs(o.data ?? [])
     if (!f.organisation_id && o.data?.[0]) setF((x) => ({ ...x, organisation_id: o.data[0].id }))
@@ -325,7 +326,7 @@ function Evenements({ setMessage, onOuvrir }) {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
     const { error } = await supabase.from('evenements').insert({ ...f, slug })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setF({ ...f, nom: '' })
       charger()
@@ -337,7 +338,7 @@ function Evenements({ setMessage, onOuvrir }) {
       .from('evenements')
       .update({ organisation_id: organisationId }, { count: 'exact' })
       .eq('id', evenementId)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0)
       setMessage({
         type: 'erreur',
@@ -434,7 +435,7 @@ function Comptes({ setMessage }) {
 
   async function charger() {
     const { data, error } = await supabase.from('membres_plateforme').select('*')
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setMembres(data ?? [])
   }
 
@@ -447,7 +448,7 @@ function Comptes({ setMessage }) {
     const { error } = await supabase
       .from('membres_plateforme')
       .insert({ ...f, user_id: f.user_id.trim() })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setF({ user_id: '', nom: '', niveau: 'support' })
       charger()
@@ -459,7 +460,7 @@ function Comptes({ setMessage }) {
       .from('membres_plateforme')
       .update({ actif })
       .eq('user_id', userId)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else charger()
   }
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 
 /*
  * Conformité et contrôles préalables.
@@ -228,7 +229,7 @@ function Questionnaire({ evenement, setMessage }) {
     const { error } = await supabase
       .from('conformite_reponses')
       .upsert({ evenement_id: evenement.id, reponses })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setEnregistre(true)
       setTimeout(() => setEnregistre(false), 2500)
@@ -281,7 +282,7 @@ function Bilan({ evenement, setMessage }) {
       setZone(zone)
       setItems(applicables)
     } catch (e) {
-      setMessage({ type: 'erreur', texte: e.message })
+      setMessage({ type: 'erreur', texte: texteErreur(e) })
     }
   }
 
@@ -403,7 +404,7 @@ function Controles({ evenement, setMessage }) {
       p_modele_code: nouveauModele,
       p_sequence: sequence.trim() || null
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setSequence('')
       await charger()
@@ -521,7 +522,7 @@ function SessionControle({ sessionId, onFermer, setMessage }) {
         heure_fin: new Date().toISOString()
       })
       .eq('id', sessionId)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else onFermer()
   }
 
@@ -627,7 +628,7 @@ function Referentiels({ evenement, exploitant, setMessage }) {
         : Promise.resolve({ data: null })
     ])
     if (r.error) {
-      setMessage({ type: 'erreur', texte: r.error.message })
+      setMessage({ type: 'erreur', texte: texteErreur(r.error) })
       return
     }
     setZone(z.data ?? null)
@@ -758,7 +759,7 @@ function NouveauReferentiel({ evenement, setMessage, onFait }) {
         .from('referentiels')
         .upload(chemin, fichier)
       if (erreurUpload) {
-        setMessage({ type: 'erreur', texte: erreurUpload.message })
+        setMessage({ type: 'erreur', texte: texteErreur(erreurUpload) })
         setOccupe(false)
         return
       }
@@ -773,7 +774,7 @@ function NouveauReferentiel({ evenement, setMessage, onFait }) {
       organisation_id: evenement.organisation_id,
       fichier_source_url: fichierUrl
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else onFait()
     setOccupe(false)
   }
@@ -829,7 +830,7 @@ function DetailReferentiel({ referentiel, exploitant, onFermer, setMessage }) {
       .from('referentiels')
       .update({ organisation_id: null, derniere_verification: new Date().toISOString().slice(0, 10) })
       .eq('id', referentiel.id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else onFermer()
     setOccupePromotion(false)
   }
@@ -840,7 +841,7 @@ function DetailReferentiel({ referentiel, exploitant, onFermer, setMessage }) {
       .select('*')
       .eq('referentiel_id', referentiel.id)
       .order('code')
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setItems(data ?? [])
   }
 
@@ -861,7 +862,7 @@ function DetailReferentiel({ referentiel, exploitant, onFermer, setMessage }) {
       dispositions: f.dispositions.trim(),
       caractere: f.caractere
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setF({ code: '', titre: '', categorie: 'generale', toujours: true, condition_cle: '', dispositions: '', caractere: 'obligatoire' })
       setOuvrirItem(false)

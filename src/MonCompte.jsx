@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 
 /**
  * Mon compte — ce que l'utilisateur peut changer lui-même.
@@ -38,7 +39,7 @@ export default function MonCompte({ session, membre, evenement, setMessage, onRe
         .eq('id', membre.id)
       e2 = r.error
     }
-    if (e1 || e2) setMessage({ type: 'erreur', texte: (e1 ?? e2).message })
+    if (e1 || e2) setMessage({ type: 'erreur', texte: texteErreur(e1 ?? e2) })
     else {
       setInfo('Noms enregistrés.')
       onRecharger?.()
@@ -51,7 +52,7 @@ export default function MonCompte({ session, membre, evenement, setMessage, onRe
     setOccupe('email')
     setInfo(null)
     const { error } = await supabase.auth.updateUser({ email: email.trim() })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else
       setInfo(
         `Un lien de confirmation vient d'être envoyé à ${email.trim()}. Tant que tu ne l'as pas suivi, connecte-toi avec ton ancienne adresse.`
@@ -64,7 +65,7 @@ export default function MonCompte({ session, membre, evenement, setMessage, onRe
     setOccupe('mdp')
     setInfo(null)
     const { error } = await supabase.auth.updateUser({ password: mdp })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setMdp('')
       setInfo('Mot de passe modifié.')

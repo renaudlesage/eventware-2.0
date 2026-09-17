@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 
 /**
  * Point 0 — la coordonnée de référence de l'événement.
@@ -46,7 +47,7 @@ export default function Point0({ evenement, onFait, setMessage }) {
       .from('evenements')
       .update({ mode_parcours: valeur })
       .eq('id', evenement.id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       onFait()
       setModeEnregistre(true)
@@ -61,7 +62,7 @@ export default function Point0({ evenement, onFait, setMessage }) {
       .from('evenements')
       .update({ commune: commune.trim() || null })
       .eq('id', evenement.id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       onFait()
       setCommuneEnregistree(true)
@@ -76,7 +77,7 @@ export default function Point0({ evenement, onFait, setMessage }) {
       .from('evenements')
       .update({ province: province || null })
       .eq('id', evenement.id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       onFait()
       setProvinceEnregistree(true)
@@ -111,7 +112,7 @@ export default function Point0({ evenement, onFait, setMessage }) {
       .from('evenements')
       .update({ point_0_lat: la, point_0_lon: lo })
       .eq('id', evenement.id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else onFait()
     setOccupe(false)
   }

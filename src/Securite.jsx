@@ -9,6 +9,7 @@ import Meteo from './Meteo'
 import PcOps from './PcOps'
 import Conformite from './Conformite'
 import DossierSecurite from './DossierSecurite'
+import { texteErreur } from './erreurs'
 
 /*
  * Deux familles distinctes, pas sept onglets à plat :
@@ -194,7 +195,7 @@ export function Journal({ evenement, setMessage, moduleParDefaut = 'securite' })
       .eq('evenement_id', evenement.id)
       .order('horodatage', { ascending: false })
       .limit(200)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setLignes(data ?? [])
   }
 
@@ -215,7 +216,7 @@ export function Journal({ evenement, setMessage, moduleParDefaut = 'securite' })
       texte: texte.trim(),
       phase: evenement.phase
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setTexte('')
       charger()
@@ -356,7 +357,7 @@ export function Missions({ evenement, membre, setMessage, module = 'securite', l
       supabase.from('lieux').select('id, code, nom').eq('evenement_id', evenement.id).is('deleted_at', null),
       supabase.from('membres_evenement').select('user_id, nom_affiche').eq('evenement_id', evenement.id)
     ])
-    if (m.error) setMessage({ type: 'erreur', texte: m.error.message })
+    if (m.error) setMessage({ type: 'erreur', texte: texteErreur(m.error) })
     else setMissions(m.data ?? [])
     setEquipes(e.data ?? [])
     setLieux(l.data ?? [])
@@ -728,7 +729,7 @@ function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessa
       bloquant: urgent ? false : bloquant,
       echeance: urgent ? null : echeanceDepuisDelai(delaiSouhaite)
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else onFait()
     setOccupe(false)
   }
@@ -946,7 +947,7 @@ function Recherches({ evenement, setMessage }) {
       .select('*')
       .eq('evenement_id', evenement.id)
       .order('created_at', { ascending: false })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setLignes(data ?? [])
   }
 
@@ -965,7 +966,7 @@ function Recherches({ evenement, setMessage }) {
       ...f,
       age_approx: f.age_approx ? Number(f.age_approx) : null
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setF({
         nom: '',
@@ -987,7 +988,7 @@ function Recherches({ evenement, setMessage }) {
       .from('recherches')
       .update({ statut: 'retrouve', retrouve_le: new Date().toISOString(), circonstances })
       .eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else charger()
   }
 
@@ -1428,7 +1429,7 @@ function FilCommentaires({ mission, membre, membres, setMessage }) {
       .select('*')
       .eq('mission_id', mission.id)
       .order('created_at')
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setFil(data ?? [])
   }
 
@@ -1446,7 +1447,7 @@ function FilCommentaires({ mission, membre, membres, setMessage }) {
       auteur_id: membre.user_id,
       texte: texte.trim()
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setTexte('')
       charger()

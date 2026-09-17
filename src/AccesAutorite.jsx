@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 
 export default function AccesAutorite({ evenement, setMessage }) {
   const [acces, setAcces] = useState([])
@@ -17,7 +18,7 @@ export default function AccesAutorite({ evenement, setMessage }) {
       .eq('evenement_id', evenement.id)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setAcces(data ?? [])
   }
 
@@ -34,7 +35,7 @@ export default function AccesAutorite({ evenement, setMessage }) {
       organisation: f.organisation.trim() || null,
       contact: f.contact.trim() || null
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setF({ libelle: '', organisation: '', contact: '' })
       charger()
@@ -47,7 +48,7 @@ export default function AccesAutorite({ evenement, setMessage }) {
       .from('acces_autorite')
       .update({ actif: false }, { count: 'exact' })
       .eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) setMessage({ type: 'erreur', texte: 'Révocation refusée.' })
     else charger()
   }

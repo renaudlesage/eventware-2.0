@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from './supabaseClient'
 import { lireKml, codeDepuis } from './kml'
 import { mesurer, simplifier } from './gpx'
+import { texteErreur } from './erreurs'
 
 /*
  * Destinations possibles pour un calque.
@@ -70,7 +71,7 @@ export default function ImportKml({ evenement, setMessage }) {
       })
       setAffectations(a)
     } catch (e) {
-      setMessage({ type: 'erreur', texte: e.message })
+      setMessage({ type: 'erreur', texte: texteErreur(e) })
       setLecture(null)
     }
   }
@@ -167,7 +168,7 @@ export default function ImportKml({ evenement, setMessage }) {
       setBilan(res)
       setLecture(null)
     } catch (e) {
-      setMessage({ type: 'erreur', texte: e.message ?? String(e) })
+      setMessage({ type: 'erreur', texte: texteErreur(e) ?? String(e) })
     }
     setOccupe(false)
   }

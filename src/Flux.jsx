@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 
 /**
  * Suivi de parcours en mode INDIVIDUS ISOLÉS — marche Adeps, rando VTT.
@@ -21,7 +22,7 @@ export default function Flux({ evenement, membre, setMessage }) {
 
   async function charger() {
     const { data, error } = await supabase.rpc('flux_parcours', { p_evenement: evenement.id })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setBornes(data ?? [])
   }
 
@@ -138,7 +139,7 @@ function Compteur({ evenement, membre, borne, setMessage, onFait }) {
       nombre: valeur,
       membre_id: membre.id
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setTampon(0)
       onFait()

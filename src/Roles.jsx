@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 
 /**
  * Gestion des rôles.
@@ -44,7 +45,7 @@ export default function Roles({ evenement, setMessage }) {
       .eq('evenement_id', evenement.id)
       .is('deleted_at', null)
       .order('ordre')
-    if (error) return setMessage({ type: 'erreur', texte: error.message })
+    if (error) return setMessage({ type: 'erreur', texte: texteErreur(error) })
     setRoles(r ?? [])
 
     const ids = (r ?? []).map((x) => x.id)
@@ -83,7 +84,7 @@ export default function Roles({ evenement, setMessage }) {
       description: nouveau.description.trim() || null,
       ordre: 60
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setNouveau({ code: '', libelle: '', description: '' })
       charger()
@@ -96,7 +97,7 @@ export default function Roles({ evenement, setMessage }) {
       .from('roles')
       .update({ libelle }, { count: 'exact' })
       .eq('id', role.id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) setMessage({ type: 'erreur', texte: 'Modification refusée.' })
     else charger()
   }
@@ -112,7 +113,7 @@ export default function Roles({ evenement, setMessage }) {
         .eq('ressource', ressource)
         .eq('action', action)
         .in('phase', phases)
-      if (error) return setMessage({ type: 'erreur', texte: error.message })
+      if (error) return setMessage({ type: 'erreur', texte: texteErreur(error) })
       // RLS filtre sans lever d'erreur : sans ce test, retirer un droit
       // qu'on n'a pas le pouvoir de retirer passait pour un succès.
       if (count === 0) {
@@ -137,7 +138,7 @@ export default function Roles({ evenement, setMessage }) {
           onConflict: 'role_id,ressource,action,phase',
           ignoreDuplicates: true
         })
-      if (error) return setMessage({ type: 'erreur', texte: error.message })
+      if (error) return setMessage({ type: 'erreur', texte: texteErreur(error) })
     }
     charger()
   }

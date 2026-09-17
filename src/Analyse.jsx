@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { DOMAINES } from './libelles'
+import { texteErreur } from './erreurs'
 
 const NATURES = [
   ['dysfonctionnement', 'Dysfonctionnement'],
@@ -72,7 +73,7 @@ function Synthese({ evenement, setMessage }) {
     const { data, error } = await supabase.rpc('rex_synthese', {
       p_evenement: evenement.id
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setS(data)
   }
 
@@ -257,7 +258,7 @@ export function Constats({ evenement, membre, setMessage, compact }) {
       .select('*')
       .eq('evenement_id', evenement.id)
       .order('created_at', { ascending: false })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setLignes(data ?? [])
   }
 
@@ -273,7 +274,7 @@ export function Constats({ evenement, membre, setMessage, compact }) {
       phase: evenement.phase,
       membre_id: membre.id
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setF({ ...f, constat: '', proposition: '' })
       charger()
@@ -282,7 +283,7 @@ export function Constats({ evenement, membre, setMessage, compact }) {
 
   async function arbitrer(id, champs) {
     const { error } = await supabase.from('rex_entrees').update(champs).eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else charger()
   }
 

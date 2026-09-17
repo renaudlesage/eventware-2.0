@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import PiecesJointes from './PiecesJointes'
+import { texteErreur } from './erreurs'
 
 /**
  * Préparation — l'avant-événement.
@@ -56,7 +57,7 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
         .eq('evenement_id', evenement.id)
         .is('deleted_at', null)
     ])
-    if (g.error) setMessage({ type: 'erreur', texte: g.error.message })
+    if (g.error) setMessage({ type: 'erreur', texte: texteErreur(g.error) })
     else setGroupes(g.data ?? [])
     setActions(a.data ?? [])
     setMembres(mb.data ?? [])
@@ -82,7 +83,7 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
     const { error } = await supabase
       .from('membres_groupe_travail')
       .insert({ groupe_id: groupeId, membre_id: membreId })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else charger()
   }
 
@@ -95,7 +96,7 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
       .delete()
       .eq('groupe_id', groupeId)
       .eq('membre_id', membreId)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else charger()
   }
 
@@ -122,7 +123,7 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
       description: g.objet ?? null,
       responsable_id: g.pilote_membre_id ?? null
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setMessage({
         type: 'succes',
@@ -324,7 +325,7 @@ function Actions({ evenement, groupe, actions, membres, peutGerer, groupesDispon
       responsable_membre_id: f.responsable_membre_id || null,
       groupe_travail_id: groupe?.id ?? null
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setF({ code: '', libelle: '', echeance: '', responsable_membre_id: '' })
       setOuvrir(false)
@@ -337,7 +338,7 @@ function Actions({ evenement, groupe, actions, membres, peutGerer, groupesDispon
       .from('jalons')
       .update(champs, { count: 'exact' })
       .eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) setMessage({ type: 'erreur', texte: 'Modification refusée.' })
     else onFait()
   }
@@ -368,7 +369,7 @@ function Actions({ evenement, groupe, actions, membres, peutGerer, groupesDispon
       p_table: 'jalons',
       p_id: a.id
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (data === false)
       setMessage({ type: 'erreur', texte: 'Action introuvable ou déjà supprimée.' })
     else onFait()
@@ -549,7 +550,7 @@ function FormGroupeTravail({ evenement, setMessage, onFait }) {
       nom: f.nom.trim(),
       objet: f.objet.trim() || null
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else onFait()
   }
 

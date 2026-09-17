@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { libelleStatut } from './libelles'
+import { texteErreur } from './erreurs'
 
 /**
  * Traitement des Mayday.
@@ -28,7 +29,7 @@ export default function Maydays({ evenement, compact, setMessage }) {
       .select('*')
       .eq('evenement_id', evenement.id)
       .order('emis_le', { ascending: false })
-    if (error) setMessage?.({ type: 'erreur', texte: error.message })
+    if (error) setMessage?.({ type: 'erreur', texte: texteErreur(error) })
     else setLignes(data ?? [])
   }
 
@@ -45,7 +46,7 @@ export default function Maydays({ evenement, compact, setMessage }) {
       .from('maydays')
       .update(champs, { count: 'exact' })
       .eq('id', m.id)
-    if (error) setMessage?.({ type: 'erreur', texte: error.message })
+    if (error) setMessage?.({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0)
       setMessage?.({ type: 'erreur', texte: 'Traitement refusé : droits insuffisants.' })
     else charger()

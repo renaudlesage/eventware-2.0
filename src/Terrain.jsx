@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { libelleStatut } from './libelles'
+import { texteErreur } from './erreurs'
 
 /**
  * Mes missions.
@@ -21,7 +22,7 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
     const { data, error } = await supabase.rpc('mon_terrain', {
       p_evenement: evenement.id
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setLignes(data ?? [])
   }
 
@@ -42,7 +43,7 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
         .from('jalons')
         .update({ statut: cible }, { count: 'exact' })
         .eq('id', l.id)
-      if (error) setMessage({ type: 'erreur', texte: error.message })
+      if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
       else if (count === 0)
         setMessage({ type: 'erreur', texte: 'Modification refusée : droits insuffisants.' })
       else charger()
@@ -58,7 +59,7 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
       .from(table)
       .update(champs, { count: 'exact' })
       .eq('id', l.id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0)
       setMessage({ type: 'erreur', texte: 'Modification refusée : droits insuffisants.' })
     else charger()

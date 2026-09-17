@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 
 /**
  * Matrice radio.
@@ -52,7 +53,7 @@ export default function Radio({ evenement, setMessage }) {
         .order('code'),
       supabase.from('equipes').select('id, code, nom').eq('evenement_id', evenement.id)
     ])
-    if (c.error) setMessage({ type: 'erreur', texte: c.error.message })
+    if (c.error) setMessage({ type: 'erreur', texte: texteErreur(c.error) })
     else setCanaux(c.data ?? [])
     setPostes(a.data ?? [])
     setEquipes(e.data ?? [])
@@ -72,7 +73,7 @@ export default function Radio({ evenement, setMessage }) {
       usage_prevu: f.usage_prevu || null,
       ordre: 100 + canaux.length
     })
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setF({ ...f, numero: '', libelle: '', frequence_mhz: '', sous_ton: '', usage_prevu: '' })
       charger()
@@ -84,7 +85,7 @@ export default function Radio({ evenement, setMessage }) {
       .from('canaux_radio')
       .update(champs, { count: 'exact' })
       .eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) setMessage({ type: 'erreur', texte: 'Modification refusée.' })
     else {
       setEdite(null)
@@ -94,7 +95,7 @@ export default function Radio({ evenement, setMessage }) {
 
   async function majPoste(id, champs) {
     const { error } = await supabase.from('attributions').update(champs).eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else charger()
   }
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 
 /**
  * Membres de l'événement, et leur rôle.
@@ -35,7 +36,7 @@ export default function Membres({ evenement, membre, setMessage, onRecharger }) 
         .eq('evenement_id', evenement.id)
         .order('libelle')
     ])
-    if (m.error) setMessage({ type: 'erreur', texte: m.error.message })
+    if (m.error) setMessage({ type: 'erreur', texte: texteErreur(m.error) })
     else setMembres(m.data ?? [])
     setRoles(r.data ?? [])
   }
@@ -79,7 +80,7 @@ export default function Membres({ evenement, membre, setMessage, onRecharger }) 
       .update({ role_id: choisi.id, role: legacy }, { count: 'exact' })
       .eq('id', m.id)
 
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0)
       setMessage({ type: 'erreur', texte: 'Modification refusée : droits insuffisants.' })
     else {
@@ -114,7 +115,7 @@ export default function Membres({ evenement, membre, setMessage, onRecharger }) 
       .from('membres_evenement')
       .update({ deleted_at: new Date().toISOString() }, { count: 'exact' })
       .eq('id', m.id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0)
       setMessage({ type: 'erreur', texte: 'Retrait refusé : droits insuffisants.' })
     else charger()

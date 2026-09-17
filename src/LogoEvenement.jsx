@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 
 /**
  * Logo de l'événement.
@@ -33,7 +34,7 @@ export default function LogoEvenement({ evenement, onFait, setMessage }) {
       .upload(chemin, fichier, { upsert: true, cacheControl: '3600' })
 
     if (erreurEnvoi) {
-      setMessage({ type: 'erreur', texte: erreurEnvoi.message })
+      setMessage({ type: 'erreur', texte: texteErreur(erreurEnvoi) })
       setOccupe(false)
       return
     }
@@ -46,7 +47,7 @@ export default function LogoEvenement({ evenement, onFait, setMessage }) {
       .update({ logo_url: urlSansCache })
       .eq('id', evenement.id)
 
-    if (erreurMaj) setMessage({ type: 'erreur', texte: erreurMaj.message })
+    if (erreurMaj) setMessage({ type: 'erreur', texte: texteErreur(erreurMaj) })
     else onFait()
     setOccupe(false)
   }
@@ -56,7 +57,7 @@ export default function LogoEvenement({ evenement, onFait, setMessage }) {
       .from('evenements')
       .update({ logo_url: null })
       .eq('id', evenement.id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else onFait()
   }
 

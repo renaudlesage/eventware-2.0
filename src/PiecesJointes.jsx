@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 
 /**
  * Pièces jointes d'un objet — un jalon aujourd'hui, une demande demain.
@@ -21,7 +22,7 @@ export default function PiecesJointes({ evenement, objetType, objetId, peutGerer
       .eq('objet_id', objetId)
       .is('deleted_at', null)
       .order('created_at')
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setPieces(data ?? [])
   }
 
@@ -45,7 +46,7 @@ export default function PiecesJointes({ evenement, objetType, objetId, peutGerer
 
     const { error: e1 } = await supabase.storage.from('pieces').upload(chemin, fichier)
     if (e1) {
-      setMessage({ type: 'erreur', texte: e1.message })
+      setMessage({ type: 'erreur', texte: texteErreur(e1) })
       setOccupe(false)
       return
     }
@@ -63,7 +64,7 @@ export default function PiecesJointes({ evenement, objetType, objetId, peutGerer
       // La ligne n'a pas été écrite : on retire le fichier, sinon il
       // resterait dans le stockage sans que rien n'y renvoie.
       await supabase.storage.from('pieces').remove([chemin])
-      setMessage({ type: 'erreur', texte: e2.message })
+      setMessage({ type: 'erreur', texte: texteErreur(e2) })
     } else charger()
     setOccupe(false)
   }
@@ -72,7 +73,7 @@ export default function PiecesJointes({ evenement, objetType, objetId, peutGerer
     const { data, error } = await supabase.storage
       .from('pieces')
       .createSignedUrl(p.chemin, 60)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else window.open(data.signedUrl, '_blank', 'noopener')
   }
 
@@ -82,7 +83,7 @@ export default function PiecesJointes({ evenement, objetType, objetId, peutGerer
       .from('pieces_jointes')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', p.id)
-    if (error) setMessage({ type: 'erreur', texte: error.message })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       await supabase.storage.from('pieces').remove([p.chemin])
       charger()
