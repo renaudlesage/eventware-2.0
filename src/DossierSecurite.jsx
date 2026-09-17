@@ -84,6 +84,25 @@ async function construireDocument(evenement) {
     supabase.from('groupes').select('*').eq('evenement_id', evenement.id).is('deleted_at', null)
   ])
 
+  // Autorités compétentes : la fiche de la commune donne la zone de
+  // secours et la zone de police, depuis le découpage officiel. Sans
+  // elle, l'organisateur devait aller chercher lui-même à qui adresser
+  // son dossier — et se trompait une fois sur deux, les deux
+  // découpages n'ayant rien à voir l'un avec l'autre.
+  const { data: fiche } = evenement.commune
+    ? await supabase.from('communes').select('*').eq('nom', evenement.commune).maybeSingle()
+    : { data: null }
+
+  // Compléments locaux : ce que la zone ajoute au texte national. C'est
+  // la partie du dossier qu'un fonctionnaire de zone lit en premier,
+  // parce que c'est la sienne.
+  const { data: locaux } = evenement.organisation_id
+    ? await supabase
+        .from('referentiel_locaux')
+        .select('*')
+        .eq('organisation_id', evenement.organisation_id)
+    : { data: [] }
+
   // Même résolution que l'écran Bilan — organisation, zone géographique
   // et questionnaire. Un point unique partagé, pour ne plus jamais
   // laisser les deux logiques diverger comme elles l'avaient fait.
@@ -124,6 +143,13 @@ async function construireDocument(evenement) {
     }),
     new Paragraph({
       children: [new TextRun({
+        text: evenement.commune ? `Commune de ${evenement.commune}` : '',
+        size: 24
+      })],
+      alignment: AlignmentType.CENTER, spacing: { after: 60 }
+    }),
+    new Paragraph({
+      children: [new TextRun({
         text: `Généré depuis Eventware le ${new Date().toLocaleDateString('fr-BE')}`,
         italics: true, color: '888888'
       })],
@@ -138,12 +164,43 @@ async function construireDocument(evenement) {
     `en vue de l'autorisation communale et de la validation par les services de secours et de police.`
   ))
 
-  // §2 Concept — narratif, non modélisé
-  enfants.push(titre('2. Concept de l\'événement'))
+  // §2 Autorités compétentes
+  enfants.push(titre('2. Autorités compétentes'))
+  if (!evenement.commune) {
+    enfants.push(aCompleter('commune d\u2019accueil non renseignée — Plan → Point zéro.'))
+  } else if (!fiche) {
+    enfants.push(texte(`Commune : ${evenement.commune}.`))
+    enfants.push(aCompleter(
+      `la commune « ${evenement.commune} » ne figure pas au référentiel : zone de secours et ` +
+      'zone de police à renseigner à la main. Vérifiez l\u2019orthographe exacte du nom.'
+    ))
+  } else {
+    enfants.push(tableau(
+      ['Niveau', 'Autorité'],
+      [
+        ['Commune', fiche.nom],
+        ['Province', fiche.province],
+        ['Zone de secours', fiche.zone_secours ?? 'non renseignée'],
+        ['Zone de police', fiche.zone_police ?? 'non renseignée']
+      ]
+    ))
+    // La date de vérification n'est pas de la coquetterie : un
+    // découpage de zone change, et un dossier adressé à la mauvaise
+    // autorité revient sans avoir été lu.
+    if (fiche.derniere_verification) {
+      enfants.push(texte(
+        `Découpage vérifié le ${new Date(fiche.derniere_verification).toLocaleDateString('fr-BE')}, ` +
+        'sur la base du découpage officiel des zones (arrêté royal).'
+      ))
+    }
+  }
+
+  // §3 Concept — narratif, non modélisé
+  enfants.push(titre('3. Concept de l\'événement'))
   enfants.push(aCompleter('description narrative du concept, du format et des dates — à rédiger à la main.'))
 
   // §3 Programme
-  enfants.push(titre('3. Programme opérationnel'))
+  enfants.push(titre('4. Programme opérationnel'))
   if (!programme?.length) {
     enfants.push(aCompleter('aucun créneau encodé dans Planning.'))
   } else {
@@ -157,14 +214,14 @@ async function construireDocument(evenement) {
   }
 
   // §4 Fréquentation et encadrement
-  enfants.push(titre('4. Fréquentation et encadrement'))
-  sousTitre('4.1 Fréquentation')
+  enfants.push(titre('5. Fréquentation et encadrement'))
+  enfants.push(sousTitre('5.1 Fréquentation'))
   if (evenement.frequentation_min == null && evenement.frequentation_max == null) {
     enfants.push(aCompleter('fréquentation attendue non renseignée — Plan → Effectifs.'))
   } else {
     enfants.push(texte(`Site principal : ${evenement.frequentation_min ?? '?'} à ${evenement.frequentation_max ?? '?'} personnes.`))
   }
-  sousTitre('4.2 Encadrement des groupes')
+  enfants.push(sousTitre('5.2 Encadrement des groupes'))
   if (!groupes?.length) {
     enfants.push(aCompleter('aucun groupe encodé dans Parcours.'))
   } else {
@@ -175,7 +232,7 @@ async function construireDocument(evenement) {
   }
 
   // §5 Radio
-  enfants.push(titre('5. Moyens de communication interne'))
+  enfants.push(titre('6. Moyens de communication interne'))
   if (!canaux?.length) {
     enfants.push(aCompleter('aucun canal radio encodé dans Logistique → Matrice radio.'))
   } else {
@@ -186,7 +243,7 @@ async function construireDocument(evenement) {
   }
 
   // §6 Implantation générale
-  enfants.push(titre('6. Implantation générale'))
+  enfants.push(titre('7. Implantation générale'))
   if (!elementsPlan?.length) {
     enfants.push(aCompleter('aucun élément encodé dans Plan → Ajouter.'))
   } else {
@@ -204,7 +261,7 @@ async function construireDocument(evenement) {
   }
 
   // §9 Découpage opérationnel et distance de brancardage
-  enfants.push(titre('9. Découpage opérationnel et distance de brancardage'))
+  enfants.push(titre('8. Découpage opérationnel et distance de brancardage'))
   if (!segments?.length) {
     enfants.push(aCompleter('aucun segment encodé dans Parcours → Segments.'))
   } else {
@@ -220,7 +277,7 @@ async function construireDocument(evenement) {
   }
 
   // §10 Moyens de première intervention
-  enfants.push(titre('10. Moyens de première intervention'))
+  enfants.push(titre('9. Moyens de première intervention'))
   if (!moyens?.length) {
     enfants.push(aCompleter('aucun moyen dénombré dans Plan → Effectifs.'))
   } else {
@@ -228,22 +285,50 @@ async function construireDocument(evenement) {
   }
 
   // §11 Contrôles préalables — exigences applicables du référentiel
-  enfants.push(titre('11. Contrôles préalables'))
+  enfants.push(titre('10. Contrôles préalables'))
   const obligatoires = dispositionsApplicables.filter((d) => d.caractere === 'obligatoire')
   const recommandes = dispositionsApplicables.filter((d) => d.caractere === 'recommande')
 
   function listerDispositions(liste) {
     for (const d of liste) {
+      const siens = (locaux ?? []).filter((l) => l.referentiel_item_id === d.id)
+      const renforce = siens.some((l) => l.renforce)
+
       enfants.push(new Paragraph({
         children: [
-          new TextRun({ text: `${d.code} — ${d.titre}`, bold: true })
+          new TextRun({ text: `${d.code} — ${d.titre}`, bold: true }),
+          // Un complément qui durcit le texte national se signale dans
+          // le titre : c'est celui qui surprend en réunion de sécurité,
+          // et celui qu'on ne doit pas découvrir en lisant le corps.
+          ...(renforce
+            ? [new TextRun({ text: '  — renforcé localement', bold: true, color: 'B3311D' })]
+            : [])
         ], spacing: { before: 100 }
       }))
       enfants.push(texte(d.dispositions))
+
+      for (const l of siens) {
+        const origine = l.zone_secours || l.zone_police || 'complément local'
+        enfants.push(new Paragraph({
+          children: [
+            new TextRun({ text: `${origine} : `, bold: true }),
+            new TextRun({ text: l.complement })
+          ],
+          indent: { left: 400 },
+          spacing: { after: 80 }
+        }))
+      }
     }
   }
 
-  enfants.push(sousTitre('11.1 Exigé aujourd\u2019hui'))
+  if ((locaux ?? []).length) {
+    enfants.push(texte(
+      `${locaux.length} complément(s) local(aux) de la zone ou de la commune sont intégrés ` +
+      'sous les exigences concernées, et signalés comme tels.'
+    ))
+  }
+
+  enfants.push(sousTitre('10.1 Exigé aujourd\u2019hui'))
   if (!obligatoires.length) {
     enfants.push(aCompleter('aucune exigence résolue — vérifie Sécurité → Conformité → Questionnaire.'))
   } else {
@@ -252,7 +337,7 @@ async function construireDocument(evenement) {
   }
 
   if (recommandes.length) {
-    enfants.push(sousTitre('11.2 Recommandé — pas encore imposé partout'))
+    enfants.push(sousTitre('10.2 Recommandé — pas encore imposé partout'))
     enfants.push(texte(
       `${recommandes.length} bonne(s) pratique(s) en cours de généralisation (RezonWal), à titre indicatif — ` +
       `ne remplace pas ce qui est exigé aujourd'hui par la commune ou la zone :`
@@ -261,7 +346,7 @@ async function construireDocument(evenement) {
   }
 
   // §12 Contacts
-  enfants.push(titre('12. Points de contact opérationnels'))
+  enfants.push(titre('11. Points de contact opérationnels'))
   if (!contacts?.length) {
     enfants.push(aCompleter('aucun contact encodé dans Mémento → Contacts.'))
   } else {
