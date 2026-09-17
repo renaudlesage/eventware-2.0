@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { nouvelleCle } from './fileSos'
+import { surRetourReseau } from './reessai'
 
 /**
  * Pointage par QR, scanné par le participant lui-même.
@@ -44,16 +45,7 @@ export default function Pointage({ jeton, codeLieu, nomLieu }) {
   // jusqu'au scan suivant : celui qui pointe puis remet son téléphone
   // en poche n'a aucune raison de rouvrir l'écran.
   useEffect(() => {
-    viderFile()
-    const auPremierPlan = () => {
-      if (!document.hidden) viderFile()
-    }
-    window.addEventListener('online', viderFile)
-    document.addEventListener('visibilitychange', auPremierPlan)
-    return () => {
-      window.removeEventListener('online', viderFile)
-      document.removeEventListener('visibilitychange', auPremierPlan)
-    }
+    return surRetourReseau(viderFile, 30000)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

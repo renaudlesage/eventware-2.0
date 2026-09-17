@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import Vitrine from './Vitrine'
 import { appliquerIconeEvenement } from './logoPwa'
 import { lireFile, ajouter, majSignalement, retirer, nouvelleCle, ETATS } from './fileSos'
+import { surRetourReseau } from './reessai'
 
 const TYPES = [
   ['malaise', 'Malaise'],
@@ -39,7 +40,6 @@ export default function Participant({ jeton, codeLieu }) {
   const [etatGeo, setEtatGeo] = useState('inactif')
   const [enLigne, setEnLigne] = useState(navigator.onLine)
   const [envoiEnCours, setEnvoiEnCours] = useState(false)
-  const minuteur = useRef(null)
 
   useEffect(() => {
     supabase
@@ -77,19 +77,21 @@ export default function Participant({ jeton, codeLieu }) {
 
   /* --- Réseau et renvoi automatique --- */
   useEffect(() => {
-    const online = () => {
-      setEnLigne(true)
-      viderFile()
-    }
     const offline = () => setEnLigne(false)
-    window.addEventListener('online', online)
     window.addEventListener('offline', offline)
-    minuteur.current = setInterval(viderFile, 15000)
-    viderFile()
+
+    // Intervalle court ici, contrairement aux autres files : un
+    // participant qui vient de signaler un malaise regarde son écran
+    // en attendant la confirmation. Une minute d'attente serait vécue
+    // comme une panne.
+    const desinstaller = surRetourReseau(() => {
+      setEnLigne(navigator.onLine)
+      viderFile()
+    }, 15000)
+
     return () => {
-      window.removeEventListener('online', online)
       window.removeEventListener('offline', offline)
-      clearInterval(minuteur.current)
+      desinstaller()
     }
   }, [])
 

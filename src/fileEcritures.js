@@ -31,6 +31,7 @@
  */
 
 import { supabase } from './supabaseClient'
+import { surRetourReseau, nouvelleCle } from './reessai'
 
 const CLEF = 'eventware.ecritures.file'
 const MAX_ESSAIS = 8
@@ -78,14 +79,6 @@ function prevenir() {
 
 /* ------------------------------------------------------------------ */
 /* Mise en file                                                        */
-
-function nouvelleCle() {
-  if (crypto?.randomUUID) return crypto.randomUUID()
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0
-    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
-  })
-}
 
 /**
  * Empile une écriture et tente de l'envoyer tout de suite.
@@ -255,16 +248,10 @@ let installe = false
 export function demarrer() {
   if (installe) return
   installe = true
-  window.addEventListener('online', rejouer)
-  // Le retour de l'onglet au premier plan : sur un téléphone en poche,
-  // c'est le moment où le réseau est réellement revenu, bien plus
-  // souvent que l'événement `online` lui-même.
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) rejouer()
-  })
-  // Filet : une tentative par minute tant qu'il reste quelque chose.
-  setInterval(() => {
+  // Déclencheurs partagés avec les deux files publiques : même moment,
+  // mêmes réglages. Le filet ne tente rien si la file est vide.
+  surRetourReseau(() => {
     if (enAttente().length) rejouer()
-  }, 60000)
+  })
   rejouer()
 }

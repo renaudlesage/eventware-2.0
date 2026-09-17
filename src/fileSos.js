@@ -49,14 +49,10 @@ export function retirer(cleClient) {
   return file
 }
 
-export function nouvelleCle() {
-  if (crypto?.randomUUID) return crypto.randomUUID()
-  // Repli pour les contextes non sécurisés (http://)
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0
-    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
-  })
-}
+// La clé d'idempotence vient du module partagé : trois définitions
+// identiques pour une garantie aussi centrale, c'était trois occasions
+// de diverger.
+export { nouvelleCle } from './reessai'
 
 export const ETATS = {
   en_attente: "En attente d'envoi",
