@@ -45,6 +45,8 @@ declare
   v_fete       uuid;   -- événement où v_ren est observateur
   v_jalon      uuid;
   v_equipe     uuid;
+  v_texte      text;   -- libellé interne d'un jalon, pour vérifier qu'il ne sort pas
+  v_json       jsonb;  -- ce que la vitrine publique renvoie réellement
   v_chef       uuid;   -- chef d'équipe : un rôle SANS tout_pouvoir
   v_rando      uuid;
   v_n          integer;
@@ -471,6 +473,62 @@ begin
   exception when others then
     insert into verif (bloc, intitule, resultat)
       values ('I. Liens', 'Lien groupe / équipe', 'ERREUR : ' || sqlerrm);
+  end;
+
+  -- ------------------------------------------------------------------
+  -- BLOC J — visibilité des jalons (048)
+  --
+  -- Ces deux-là gardent la porte du public. La première vérifie qu'on
+  -- ne peut pas publier un jalon sous son libellé interne ; la seconde,
+  -- qu'un jalon réservé à la coordination ne fuit pas dans la vitrine.
+  -- ------------------------------------------------------------------
+  begin
+    select count(*) into v_n from pg_constraint
+    where conrelid = 'public.jalons'::regclass
+      and conname = 'jalons_public_exige_libelle';
+    insert into verif (bloc, intitule, resultat) values
+      ('J. Jalons', 'Publier un jalon exige un libellé public',
+       case when v_n = 1 then 'OK' else 'ÉCHEC : contrainte absente' end);
+
+    -- Éprouvé par le comportement, pas en relisant le source : une
+    -- assertion qui cherche un motif dans le texte de la fonction passe
+    -- au vert pour une virgule et au rouge pour un espace. On publie
+    -- donc réellement un jalon, on appelle la vitrine, et on vérifie
+    -- que le libellé interne n'en sort pas. La transaction est annulée
+    -- à la fin du fichier : rien ne reste.
+    if v_bfmf is null then
+      insert into verif (bloc, intitule, resultat)
+        values ('J. Jalons', 'La vitrine ne sert que le libellé public', 'IGNORÉ : jeu de test incomplet');
+    else
+      select id, libelle into v_jalon, v_texte from jalons
+      where evenement_id = v_bfmf and deleted_at is null limit 1;
+
+      if v_jalon is null then
+        insert into verif (bloc, intitule, resultat)
+          values ('J. Jalons', 'La vitrine ne sert que le libellé public', 'IGNORÉ : aucun jalon');
+      else
+        update jalons
+           set visibilite = 'public', libelle_public = 'Ouverture du site'
+         where id = v_jalon;
+
+        select contenu_public(jeton_public) into v_json
+        from evenements where id = v_bfmf;
+
+        insert into verif (bloc, intitule, resultat) values
+          ('J. Jalons', 'La vitrine ne sert que le libellé public',
+           case
+             when v_json->'jalons' @> jsonb_build_array(jsonb_build_object('libelle', 'Ouverture du site'))
+              and not (v_json::text like '%' || v_texte || '%')
+             then 'OK'
+             when v_json::text like '%' || v_texte || '%'
+             then 'ÉCHEC : le libellé interne est parti au public'
+             else 'ÉCHEC : le jalon public n''apparaît pas'
+           end);
+      end if;
+    end if;
+  exception when others then
+    insert into verif (bloc, intitule, resultat)
+      values ('J. Jalons', 'Visibilité des jalons', 'ERREUR : ' || sqlerrm);
   end;
 
   -- ------------------------------------------------------------------
