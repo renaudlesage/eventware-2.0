@@ -41,13 +41,33 @@ export default function Vitrine({ jeton, codeLieu }) {
   if (erreur) return <div className="message erreur">{erreur}</div>
   if (!contenu) return <p className="vide">…</p>
 
-  const { alertes = [], lieux = [], programme = [], communications = [] } = contenu
+  const { alertes = [], lieux = [], programme = [], communications = [], jalons = [] } = contenu
   const heure = (d) =>
     new Date(d).toLocaleString('fr-BE', {
       weekday: 'short',
       hour: '2-digit',
       minute: '2-digit'
     })
+
+  /*
+   * Les jalons publics rejoignent l'horaire au lieu d'avoir leur propre
+   * onglet. Un participant ne fait pas la différence entre « le concert
+   * commence » et « la rue ferme » : les deux sont des choses qui
+   * arrivent à une heure, et il les veut dans le même ordre. Un onglet
+   * séparé l'obligerait à lire deux listes et à les recouper lui-même.
+   *
+   * Ils restent reconnaissables — une mention, et l'état « c'est fait »
+   * que le programme n'a pas : une route rouverte est une information
+   * plus utile qu'une route qui devait rouvrir.
+   */
+  const horaire = [
+    ...programme.map((p) => ({ type: 'programme', quand: p.debut, ...p })),
+    ...jalons.map((j) => ({ type: 'jalon', quand: j.echeance, ...j }))
+  ].sort((a, b) => {
+    if (!a.quand) return 1
+    if (!b.quand) return -1
+    return new Date(a.quand) - new Date(b.quand)
+  })
 
   return (
     <>
@@ -71,7 +91,7 @@ export default function Vitrine({ jeton, codeLieu }) {
       <div className="onglets">
         {[
           ['infos', 'Infos'],
-          ['programme', `Horaire${programme.length ? ` (${programme.length})` : ''}`],
+          ['programme', `Horaire${horaire.length ? ` (${horaire.length})` : ''}`],
           ['plan', `Plan${lieux.length ? ` (${lieux.length})` : ''}`]
         ].map(([k, l]) => (
           <button
@@ -108,21 +128,33 @@ export default function Vitrine({ jeton, codeLieu }) {
 
       {vue === 'programme' && (
         <>
-          {programme.length === 0 ? (
+          {horaire.length === 0 ? (
             <p className="vide">L'horaire n'est pas encore publié.</p>
           ) : (
-            programme.map((p, i) => (
-              <div className="carte" key={i}>
-                <div className="titre">
-                  <span className="mono">{heure(p.debut)}</span> {p.titre}
+            horaire.map((x, i) =>
+              x.type === 'jalon' ? (
+                <div className="carte" key={i}>
+                  <div className="titre" style={x.fait ? { opacity: 0.6 } : undefined}>
+                    <span className="mono">{x.quand ? heure(x.quand) : '—'}</span> {x.libelle}
+                  </div>
+                  <div className="meta">
+                    <span>info pratique</span>
+                    {x.fait && <span>c'est fait</span>}
+                  </div>
                 </div>
-                <div className="meta">
-                  {p.lieu && <span>{p.lieu}</span>}
-                  {p.intervenant && <span>{p.intervenant}</span>}
-                  {p.duree_min && <span>{p.duree_min} min</span>}
+              ) : (
+                <div className="carte" key={i}>
+                  <div className="titre">
+                    <span className="mono">{heure(x.debut)}</span> {x.titre}
+                  </div>
+                  <div className="meta">
+                    {x.lieu && <span>{x.lieu}</span>}
+                    {x.intervenant && <span>{x.intervenant}</span>}
+                    {x.duree_min && <span>{x.duree_min} min</span>}
+                  </div>
                 </div>
-              </div>
-            ))
+              )
+            )
           )}
         </>
       )}

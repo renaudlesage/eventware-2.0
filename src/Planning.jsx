@@ -3,6 +3,7 @@ import { Footprints, Mic2, PartyPopper, Flag, Wrench, Car } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { heure } from './libelles'
 import { texteErreur } from './erreurs'
+import VisibiliteJalon from './VisibiliteJalon'
 
 /**
  * Planning.
@@ -330,8 +331,8 @@ function Jalons({ evenement, peutGerer, setMessage }) {
     }
   }
 
-  async function changer(id, statut) {
-    const { error } = await supabase.from('jalons').update({ statut }).eq('id', id)
+  async function modifier(id, champs) {
+    const { error } = await supabase.from('jalons').update(champs).eq('id', id)
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else charger()
   }
@@ -406,12 +407,17 @@ function Jalons({ evenement, peutGerer, setMessage }) {
                 </span>
                 {j.responsable && <span>{j.responsable}</span>}
                 {j.categorie && <span>{j.categorie}</span>}
+                {/* Lisible sans ouvrir le sélecteur : sur une liste de
+                    quarante jalons, savoir lesquels sortent au public
+                    est une relecture, pas quarante clics. */}
+                {j.visibilite === 'public' && <span>public : {j.libelle_public}</span>}
+                {j.visibilite === 'coordination' && <span>coordination</span>}
                 {depasse && <span className="alerte-texte">échéance dépassée</span>}
               </div>
               <div className="ligne-boutons" style={{ marginTop: 10 }}>
                 <select
                   value={j.statut}
-                  onChange={(e) => changer(j.id, e.target.value)}
+                  onChange={(e) => modifier(j.id, { statut: e.target.value })}
                   style={{ width: 'auto', marginBottom: 0 }}
                 >
                   {STATUTS_JALON.map(([v, l]) => (
@@ -421,9 +427,18 @@ function Jalons({ evenement, peutGerer, setMessage }) {
                   ))}
                 </select>
                 {peutGerer && (
-                  <button className="discret" onClick={() => supprimer(j)}>
-                    Supprimer
-                  </button>
+                  <>
+                    {/* Un jalon public affiche ici son état sur la
+                        vitrine : « Fait » y devient « c'est fait »,
+                        ce qui n'est pas anodin pour une route rouverte. */}
+                    <VisibiliteJalon
+                      jalon={j}
+                      modifier={(champs) => modifier(j.id, champs)}
+                    />
+                    <button className="discret" onClick={() => supprimer(j)}>
+                      Supprimer
+                    </button>
+                  </>
                 )}
               </div>
             </div>

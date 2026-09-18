@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import PiecesJointes from './PiecesJointes'
+import VisibiliteJalon from './VisibiliteJalon'
 import { texteErreur } from './erreurs'
 
 /**
@@ -401,6 +402,8 @@ function Actions({ evenement, groupe, actions, membres, peutGerer, groupesDispon
                   </span>
                 )}
                 {a.responsable && <span>{a.responsable}</span>}
+                {a.visibilite === 'public' && <span>public : {a.libelle_public}</span>}
+                {a.visibilite === 'coordination' && <span>coordination</span>}
                 {a.critique && <span className="alerte-texte">critique</span>}
               </div>
 
@@ -470,6 +473,14 @@ function Actions({ evenement, groupe, actions, membres, peutGerer, groupesDispon
                       ))}
                     </select>
                   )}
+
+                  {/* Qui voit cette action. En préparation, la plupart
+                      des jalons restent internes : c'est ici qu'on
+                      décide des rares qui intéressent le public. */}
+                  <VisibiliteJalon
+                    jalon={a}
+                    modifier={(champs) => modifier(a.id, champs)}
+                  />
 
                   <button className="discret" onClick={() => supprimer(a)}>
                     Supprimer
