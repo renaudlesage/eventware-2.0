@@ -172,6 +172,19 @@ export default function Autorite({ jeton }) {
               </div>
             </div>
           )}
+          {/* Le fait, jamais la personne : depuis la 106, l'alerte
+              nominative d'un MAYDAY ne sort pas sur ce lien, seul son
+              compte arrive. L'autorité sait qu'un intervenant est en
+              difficulté ; qui et où restent au PC. */}
+          {a.maydays_en_cours > 0 && (
+            <div className="pave">
+              <div className="pave-titre">Intervenant en difficulté</div>
+              <div className="grand alerte-texte">{a.maydays_en_cours}</div>
+              <div className="detail-metrique">
+                <span>MAYDAY en cours, pris en charge par le PC</span>
+              </div>
+            </div>
+          )}
         </div>
         <p className="aide">
           Volumes uniquement. Le détail des signalements et l'identité des personnes

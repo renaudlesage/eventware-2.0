@@ -30,11 +30,12 @@ pour 87 numéros :
 | `20260909040017` | `060_typage_quantite_transport` |
 | `20260909040125` | `061_permissions_transports` |
 
-### 088 → 099 : appliquées à la main, non enregistrées
+### 088 → 099 : appliquées à la main, enregistrées après coup
 
 Ces douze migrations ont été exécutées via l'éditeur SQL du tableau de
-bord entre le 15 et le 18 septembre 2026. Elles sont **en vigueur dans
-la base** mais **absentes de `schema_migrations`**. Leur horodatage
+bord entre le 15 et le 18 septembre 2026, puis enregistrées dans
+`schema_migrations` le 19/09 avec le bloc ci-dessous (à conserver :
+il est rejouable sans effet). Leur horodatage
 dans le nom de fichier est celui de leur écriture, pas celui d'un
 enregistrement Supabase.
 
@@ -79,36 +80,36 @@ values
 on conflict (version) do nothing;
 ```
 
-### 100 à 103 : à appliquer
+### 100 à 103 : appliquées le 19/09 (éditeur SQL, enregistrées)
 
-Quatre fichiers issus de l'audit du 18/09, à exécuter dans l'éditeur
-SQL, dans l'ordre, puis à enregistrer sur le même modèle que ci-dessus :
+Les quatre correctifs de l'audit du 18/09 — retrait d'un membre (100),
+reconduction (101), bucket `referentiels` (102), ressource `lieux`
+inexistante (103). Leurs lignes d'historique ont été insérées à la
+main ; l'historique est continu de 001 à 103.
+
+### 104 à 106 : à appliquer — lot 9
 
 | Fichier | Corrige |
 |---|---|
-| `20260918220000_100_retrait_membre_logique.sql` | « Retirer » un membre et retirer une fiche réflexe échouaient (RLS), comme les jalons avant la 091 |
-| `20260918223000_101_reconduction_corrigee.sql` | La reconduction d'un événement (098) ne pouvait jamais aboutir : deux valeurs d'enum inexistantes et une collision d'index sur les équipes |
-| `20260918230000_102_bucket_referentiels.sql` | Crée le bucket `referentiels` (ouvert à la main jusqu'ici, donc absent de toute reconstruction) ; sans effet sur le projet actuel |
-| `20260919063000_103_ressource_lieux_inexistante.sql` | Deux policies (055) testaient la ressource `lieux`, qui n'existe pas : segments de parcours et moyens de secours n'étaient modifiables que par un coordinateur |
+| `20260919090000_104_rpc_sous_controle.sql` | Six RPC `security definer` exécutables par tout compte connecté sans vérifier l'appartenance à l'événement ; quatre fonctions jamais appelées par l'application révoquées |
+| `20260919091000_105_prise_de_mission.sql` | Un bénévole ne pouvait pas prendre une mission sans titulaire (« Je prends » → droits insuffisants) ; la policy ne parle plus de rôles, seulement de capacités |
+| `20260919092000_106_autorite_sans_nominatif.sql` | Le lien autorité, consulté sans compte, montrait l'alerte nominative d'un MAYDAY (nom, position) ; il ne reçoit plus qu'un compte. `groupes_sans_nouvelles` et `jauge_courante` sont dédoublées en version interne (sans contrôle, pour ce lien) et publique (vérifiée) |
 
-Les 100 et 101 ont été éprouvées dans une transaction annulée avant livraison ;
-`../verifications/droits.sql` (bloc K) rejoue la reconduction à chaque
-passage.
+Éprouvées ensemble dans une transaction annulée : `droits.sql` complet,
+39 lignes OK, blocs L, M, N compris.
 
 ```sql
 insert into supabase_migrations.schema_migrations (version, name, statements)
 values
-  ('20260918220000', '100_retrait_membre_logique', array['-- appliquée manuellement via l''éditeur SQL']),
-  ('20260918223000', '101_reconduction_corrigee',  array['-- appliquée manuellement via l''éditeur SQL']),
-  ('20260918230000', '102_bucket_referentiels',    array['-- appliquée manuellement via l''éditeur SQL']),
-  ('20260919063000', '103_ressource_lieux_inexistante', array['-- appliquée manuellement via l''éditeur SQL'])
+  ('20260919090000', '104_rpc_sous_controle',        array['-- appliquée manuellement via l''éditeur SQL']),
+  ('20260919091000', '105_prise_de_mission',         array['-- appliquée manuellement via l''éditeur SQL']),
+  ('20260919092000', '106_autorite_sans_nominatif',  array['-- appliquée manuellement via l''éditeur SQL'])
 on conflict (version) do nothing;
 ```
 
-Une fois ces lignes en place, la série est continue de 001 à 103 et
-`supabase db push` ne tentera rien de plus.
+Une fois ces lignes en place, la série est continue de 001 à 106.
 
-## Ne jamais rejouer 088 → 103 par `db push` sans les lignes ci-dessus
+## Ne jamais rejouer 088 → 106 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

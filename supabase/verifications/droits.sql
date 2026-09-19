@@ -48,6 +48,11 @@ declare
   v_texte      text;   -- libellé interne d'un jalon, pour vérifier qu'il ne sort pas
   v_json       jsonb;  -- ce que la vitrine publique renvoie réellement
   v_copie      uuid;   -- l'événement produit par la reconduction (bloc K)
+  v_membre_ben uuid;   -- ligne membres_evenement du bénévole de Rando VTT (bloc M)
+  v_autre_memb uuid;   -- un autre membre de Rando VTT (bloc M)
+  v_mission    uuid;
+  v_jeton      uuid;   -- lien autorité créé pour le bloc N
+  v_etat       text;
   v_chef       uuid;   -- chef d'équipe : un rôle SANS tout_pouvoir
   v_rando      uuid;
   v_n          integer;
@@ -68,6 +73,11 @@ begin
 
   select id into v_bfmf from evenements where nom = 'BFMF2027' limit 1;
   select id into v_rando from evenements where nom = 'Rando VTT' limit 1;
+
+  select m.id into v_membre_ben from membres_evenement m
+  where m.evenement_id = v_rando and m.user_id = v_benevole and m.deleted_at is null limit 1;
+  select m.id into v_autre_memb from membres_evenement m
+  where m.evenement_id = v_rando and m.id <> v_membre_ben and m.deleted_at is null limit 1;
 
   select m.user_id into v_chef
   from membres_evenement m
@@ -601,6 +611,169 @@ begin
         values ('K. Reconduction', 'Reconduire un événement',
                 case when sqlstate = '23514' then 'IGNORÉ : quota de licence atteint'
                      else 'ERREUR : ' || sqlerrm end);
+    end;
+  end if;
+
+  -- ------------------------------------------------------------------
+  -- BLOC L — les RPC authentifiées vérifient l'appartenance (104, 106)
+  --
+  -- Un bénévole de Rando VTT interroge BFMF2027, dont il n'est pas
+  -- membre : chaque fonction doit refuser (42501). Le coordinateur de
+  -- BFMF2027, lui, obtient ses données — la vérification ne doit pas
+  -- gêner l'usage normal, ni la création d'un événement, dont le
+  -- trigger appelle une fonction désormais révoquée.
+  -- ------------------------------------------------------------------
+  if v_benevole is null or v_bfmf is null or v_ren is null then
+    insert into verif (bloc, intitule, resultat)
+      values ('L. RPC', 'Contrôle d''appartenance', 'IGNORÉ : jeu de test incomplet');
+  else
+    perform set_config('request.jwt.claims',
+      json_build_object('sub', v_benevole, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+
+    v_etat := '';
+    begin
+      perform * from chauffeurs_disponibles(v_bfmf);
+      v_etat := v_etat || 'chauffeurs_disponibles ';
+    exception when others then if sqlstate <> '42501' then v_etat := v_etat || 'chauffeurs_disponibles(' || sqlstate || ') '; end if; end;
+    begin
+      perform * from groupes_sans_nouvelles(v_bfmf);
+      v_etat := v_etat || 'groupes_sans_nouvelles ';
+    exception when others then if sqlstate <> '42501' then v_etat := v_etat || 'groupes_sans_nouvelles(' || sqlstate || ') '; end if; end;
+    begin
+      perform jauge_courante(v_bfmf);
+      v_etat := v_etat || 'jauge_courante ';
+    exception when others then if sqlstate <> '42501' then v_etat := v_etat || 'jauge_courante(' || sqlstate || ') '; end if; end;
+    begin
+      perform * from couverture_creneaux(v_bfmf);
+      v_etat := v_etat || 'couverture_creneaux ';
+    exception when others then if sqlstate <> '42501' then v_etat := v_etat || 'couverture_creneaux(' || sqlstate || ') '; end if; end;
+    begin
+      perform * from flux_parcours(v_bfmf);
+      v_etat := v_etat || 'flux_parcours ';
+    exception when others then if sqlstate <> '42501' then v_etat := v_etat || 'flux_parcours(' || sqlstate || ') '; end if; end;
+    begin
+      perform demarrer_controle(v_bfmf, 'x');
+      v_etat := v_etat || 'demarrer_controle ';
+    exception when others then if sqlstate <> '42501' then v_etat := v_etat || 'demarrer_controle(' || sqlstate || ') '; end if; end;
+    execute 'reset role';
+
+    insert into verif (bloc, intitule, resultat) values
+      ('L. RPC', 'Un non-membre est refusé par les six RPC (42501)',
+       case when v_etat = '' then 'OK' else 'ÉCHEC : ' || v_etat end);
+
+    begin
+      perform set_config('request.jwt.claims',
+        json_build_object('sub', v_ren, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      perform * from chauffeurs_disponibles(v_bfmf);
+      perform * from groupes_sans_nouvelles(v_bfmf);
+      perform jauge_courante(v_bfmf);
+      perform situation(v_bfmf);
+      insert into evenements (nom, slug)
+        values ('Vérification 104', 'verif-104-' || substr(gen_random_uuid()::text, 1, 8))
+        returning id into v_copie;
+      select count(*) into v_n from roles where evenement_id = v_copie;
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat) values
+        ('L. RPC', 'Le coordinateur garde ses RPC, et créer un événement installe toujours ses rôles',
+         case when v_n > 0 then 'OK' else 'ÉCHEC : aucun rôle installé' end);
+    exception when others then
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat)
+        values ('L. RPC', 'Usage normal par un membre', 'ERREUR : ' || sqlerrm);
+    end;
+  end if;
+
+  -- ------------------------------------------------------------------
+  -- BLOC M — un bénévole prend une mission ouverte (105)
+  -- ------------------------------------------------------------------
+  if v_benevole is null or v_membre_ben is null or v_rando is null then
+    insert into verif (bloc, intitule, resultat)
+      values ('M. Missions', 'Prise de mission', 'IGNORÉ : jeu de test incomplet');
+  else
+    begin
+      insert into missions (evenement_id, reference, titre, statut)
+        values (v_rando, 'VERIF-' || substr(gen_random_uuid()::text, 1, 6), 'Mission de vérification', 'a_traiter')
+        returning id into v_mission;
+
+      perform set_config('request.jwt.claims',
+        json_build_object('sub', v_benevole, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+
+      update missions set statut = 'attribuee', membre_id = v_membre_ben where id = v_mission;
+      get diagnostics v_n = row_count;
+      insert into verif (bloc, intitule, resultat) values
+        ('M. Missions', 'Un bénévole peut prendre une mission sans titulaire',
+         case when v_n = 1 then 'OK' else 'ÉCHEC : ' || v_n || ' ligne(s) modifiée(s)' end);
+
+      v_etat := 'passée';
+      begin
+        update missions set membre_id = v_autre_memb where id = v_mission;
+        get diagnostics v_n = row_count;
+        if v_n = 0 then v_etat := 'refusée'; end if;
+      exception when others then
+        if sqlstate = '42501' then v_etat := 'refusée'; else v_etat := sqlstate; end if;
+      end;
+      insert into verif (bloc, intitule, resultat) values
+        ('M. Missions', 'Il ne peut pas la donner à quelqu''un d''autre',
+         case when v_etat = 'refusée' then 'OK' else 'ÉCHEC : réattribution ' || v_etat end);
+
+      update missions set statut = 'resolue' where id = v_mission;
+      get diagnostics v_n = row_count;
+      insert into verif (bloc, intitule, resultat) values
+        ('M. Missions', 'Il peut clôturer la sienne',
+         case when v_n = 1 then 'OK' else 'ÉCHEC : ' || v_n || ' ligne(s)' end);
+
+      execute 'reset role';
+    exception when others then
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat)
+        values ('M. Missions', 'Prise de mission', 'ERREUR : ' || sqlerrm);
+    end;
+  end if;
+
+  -- ------------------------------------------------------------------
+  -- BLOC N — le lien autorité ne nomme personne (106)
+  --
+  -- Le coordinateur émet un MAYDAY ; la page autorité, consultée sans
+  -- compte, ne doit pas en montrer l'alerte (nom et position de
+  -- l'intervenant) mais doit compter un intervenant en difficulté.
+  -- ------------------------------------------------------------------
+  if v_ren is null or v_bfmf is null then
+    insert into verif (bloc, intitule, resultat)
+      values ('N. Autorité', 'Mayday et lien autorité', 'IGNORÉ : jeu de test incomplet');
+  else
+    begin
+      perform set_config('request.jwt.claims',
+        json_build_object('sub', v_ren, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      perform emettre_mayday(v_bfmf, 'vérification', 50.4, 5.6, 10);
+      execute 'reset role';
+
+      insert into acces_autorite (evenement_id, libelle)
+        values (v_bfmf, 'Vérification') returning jeton into v_jeton;
+
+      perform set_config('request.jwt.claims', json_build_object('role', 'anon')::text, true);
+      execute 'set local role anon';
+      select situation_autorite(v_jeton) into v_json;
+      execute 'reset role';
+
+      insert into verif (bloc, intitule, resultat) values
+        ('N. Autorité', 'L''alerte MAYDAY ne sort pas sur le lien autorité',
+         case when (v_json->'alertes')::text ilike '%mayday%'
+              then 'ÉCHEC : le MAYDAY est dans les alertes' else 'OK' end);
+      insert into verif (bloc, intitule, resultat) values
+        ('N. Autorité', 'Mais l''autorité sait qu''un intervenant est en difficulté',
+         case when (v_json->'activite'->>'maydays_en_cours')::int >= 1
+              then 'OK' else 'ÉCHEC : maydays_en_cours = ' || coalesce(v_json->'activite'->>'maydays_en_cours', 'absent') end);
+      insert into verif (bloc, intitule, resultat) values
+        ('N. Autorité', 'Le lien autorité fonctionne sans compte après la 106',
+         case when v_json ? 'public' and v_json->'public' ? 'jauge' then 'OK' else 'ÉCHEC : bloc public absent' end);
+    exception when others then
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat)
+        values ('N. Autorité', 'Mayday et lien autorité', 'ERREUR : ' || sqlerrm);
     end;
   end if;
 
