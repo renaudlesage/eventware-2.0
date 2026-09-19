@@ -1155,11 +1155,15 @@ function Fiches({ evenement }) {
 
   async function supprimer(fiche) {
     if (!confirm(`Retirer la fiche « ${fiche.titre} » ?`)) return
-    const { error } = await supabase
-      .from('fiches_reflexe')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', fiche.id)
-    if (error) setNote(error.message)
+    // Suppression logique par la fonction 091 : un `update` direct de
+    // `deleted_at` est refusé par RLS, la ligne n'étant plus visible de
+    // son auteur au moment où elle est écrite.
+    const { data, error } = await supabase.rpc('supprimer_logiquement', {
+      p_table: 'fiches_reflexe',
+      p_id: fiche.id
+    })
+    if (error) setNote(texteErreur(error))
+    else if (data === false) setNote('Fiche introuvable ou déjà retirée.')
     else charger()
   }
 

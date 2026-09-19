@@ -1,4 +1,3 @@
--- ============ 025_roles_personnalisables ============
 -- =====================================================================
 -- Migration 025 : rôles personnalisables
 -- ---------------------------------------------------------------------
@@ -157,4 +156,4 @@ where r.evenement_id = m.evenement_id
   and r.code = m.role::text
   and m.role_id is null;
 
-commit;;
+commit;

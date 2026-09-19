@@ -110,7 +110,7 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
    * les neuf noms à la main dans un second écran est une corvée dont on
    * sort avec des libellés qui divergent.
    *
-   * Lien vivant depuis la 043 : l'équipe garde l'identifiant de son
+   * Lien vivant depuis la 094 : l'équipe garde l'identifiant de son
    * groupe, et son nom suit celui du groupe. Un renommage en
    * préparation se propage donc à l'équipe, y compris le jour J — c'est
    * le prix assumé de n'avoir qu'un seul nom pour une seule chose.
@@ -364,7 +364,7 @@ function Actions({ evenement, groupe, actions, membres, peutGerer, groupesDispon
 
     // Pas un `update` direct : poser `deleted_at` rend la ligne
     // invisible au regard de la policy de lecture, et PostgreSQL
-    // refuse alors l'écriture. La fonction 040 vérifie les droits
+    // refuse alors l'écriture. La fonction 091 vérifie les droits
     // elle-même et écrit au-dessus de RLS.
     const { data, error } = await supabase.rpc('supprimer_logiquement', {
       p_table: 'jalons',
@@ -594,7 +594,7 @@ function FormGroupeTravail({ evenement, setMessage, onFait }) {
 /* ------------------------------------------------------------------ */
 
 /**
- * Le groupe a-t-il déjà son équipe ? Par la liaison depuis la 043 — le
+ * Le groupe a-t-il déjà son équipe ? Par la liaison depuis la 094 — le
  * rapprochement par le nom se cassait au premier renommage et laissait
  * réapparaître le bouton « Reprendre », prêt à créer un doublon.
  */

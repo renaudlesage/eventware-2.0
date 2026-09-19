@@ -1,4 +1,3 @@
--- ============ 015_delai_reel_et_overload_unique ============
 -- =====================================================================
 -- Migration 015
 --   1. delai_reel_min sur missions — mesure absente de l'export BFMF 2026
@@ -58,4 +57,4 @@ drop function if exists creer_signalement(
   uuid, uuid, text, text, text, double precision, double precision, double precision, timestamptz
 );
 
-commit;;
+commit;

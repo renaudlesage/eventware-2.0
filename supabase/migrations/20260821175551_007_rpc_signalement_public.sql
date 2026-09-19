@@ -9,8 +9,7 @@ begin;
 
 -- ---------------------------------------------------------------------
 -- Référence courte, lisible à la radio : SOS-K7M2
--- Alphabet sans I, O, 0, 1 — une confusion à l'oral coûte cher quand
--- une équipe cherche un blessé.
+-- Alphabet sans I, O, 0, 1 pour éviter les confusions à l'oral.
 -- ---------------------------------------------------------------------
 create or replace function generer_reference_sos(p_evenement uuid)
 returns text
@@ -49,8 +48,7 @@ $$;
 --
 -- Idempotente : deux appels avec la même cle_client renvoient le même
 -- signalement sans en créer un second. C'est ce qui rend la file
--- d'attente hors réseau sûre — un renvoi ne duplique jamais, et un
--- doublon au PC pendant un incident envoie deux équipes au même endroit.
+-- d'attente hors réseau sûre — un renvoi ne duplique jamais.
 --
 -- Refuse explicitement plutôt que d'accepter en silence : le participant
 -- doit savoir si son signalement est parti ou non.

@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react'
 
 const LIBELLE = { vert: 'Vert', jaune: 'Jaune', orange: 'Orange', rouge: 'Rouge' }
 
-const URL_FONCTION =
-  'https://kunvnnfejhnuhflycyfz.supabase.co/functions/v1/irm-vigilance'
+// Dérivée de la variable d'environnement, comme le client Supabase :
+// une URL de projet en dur casserait toute branche ou projet de test,
+// silencieusement — le pavé afficherait « injoignable » sans dire
+// pourquoi.
+const URL_FONCTION = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/irm-vigilance`
 const URL_PORTAIL = 'https://meteoalarm.org/en/live/country/belgium'
 
 /**

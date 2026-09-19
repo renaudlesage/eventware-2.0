@@ -1,4 +1,3 @@
--- ============ 009_module_securite ============
 -- =====================================================================
 -- Migration 009 : socle du module SÉCURITÉ
 --   1. journal      — main courante, alimentée automatiquement
@@ -260,4 +259,4 @@ create policy fiches_modification on fiches_reflexe for update to authenticated
   using (a_permission(evenement_id,'referentiels','modifier'))
   with check (a_permission(evenement_id,'referentiels','modifier'));
 
-commit;;
+commit;

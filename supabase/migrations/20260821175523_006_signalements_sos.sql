@@ -2,7 +2,7 @@
 -- Migration 006 : signalements SOS participants
 -- ---------------------------------------------------------------------
 -- Seul endroit du système où du public écrit dans la base.
--- L'écriture passe exclusivement par creer_signalement() (migration 007) :
+-- L'écriture passe exclusivement par la fonction creer_signalement() :
 -- le rôle anon n'a AUCUN droit sur la table elle-même.
 -- =====================================================================
 
@@ -27,41 +27,42 @@ create type statut_signalement as enum (
 create type gravite_signalement as enum ('mineur','modere','grave','critique');
 
 create table signalements (
-  id                uuid primary key default gen_random_uuid(),
-  evenement_id      uuid not null references evenements(id) on delete cascade,
+  id              uuid primary key default gen_random_uuid(),
+  evenement_id    uuid not null references evenements(id) on delete cascade,
 
   -- Référence courte et lisible, à annoncer à la radio
-  reference         text not null,
+  reference       text not null,
 
   -- Clé générée par le téléphone AVANT envoi.
   -- Garantit qu'un renvoi après coupure réseau ne crée pas de doublon.
-  cle_client        uuid not null,
+  cle_client      uuid not null,
 
-  type              type_signalement not null default 'autre',
-  description       text,
-  contact           text,
+  type            type_signalement not null default 'autre',
+  description     text,
+  contact         text,
 
-  latitude          double precision,
-  longitude         double precision,
-  precision_m       double precision,
-  lieu_id           uuid references lieux(id) on delete set null,
+  latitude        double precision,
+  longitude       double precision,
+  precision_m     double precision,
+  lieu_id         uuid references lieux(id) on delete set null,
 
-  statut            statut_signalement not null default 'recu',
-  gravite           gravite_signalement,
+  statut          statut_signalement not null default 'recu',
+  gravite         gravite_signalement,
 
-  emis_le           timestamptz,   -- heure du téléphone
-  recu_le           timestamptz not null default clock_timestamp(),
+  -- Horodatages du cycle de vie
+  emis_le         timestamptz,          -- heure du téléphone, peut précéder la réception
+  recu_le         timestamptz not null default clock_timestamp(),
   pris_en_charge_le timestamptz,
-  clos_le           timestamptz,
+  clos_le         timestamptz,
 
-  traite_par        uuid references auth.users(id),
-  commentaire       text,
+  traite_par      uuid references auth.users(id),
+  commentaire     text,
 
-  created_at        timestamptz not null default now(),
-  updated_at        timestamptz not null default now(),
-  created_by        uuid references auth.users(id),
-  updated_by        uuid references auth.users(id),
-  deleted_at        timestamptz,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+  created_by      uuid references auth.users(id),
+  updated_by      uuid references auth.users(id),
+  deleted_at      timestamptz,
 
   unique (evenement_id, cle_client),
   unique (evenement_id, reference)
@@ -103,8 +104,8 @@ create trigger statut_signalement before update on signalements
 -- ---------------------------------------------------------------------
 -- RLS : lecture et traitement par les membres, selon la matrice.
 -- Rappel règle R2 : la lecture du SOS est toujours ouverte aux membres,
--- quelle que soit la phase. Aucune policy d'insertion pour anon :
--- le dépôt passe uniquement par la fonction de la migration 007.
+-- quelle que soit la phase. Aucune policy d'insertion : le dépôt passe
+-- uniquement par la fonction ci-dessous.
 -- ---------------------------------------------------------------------
 alter table signalements enable row level security;
 

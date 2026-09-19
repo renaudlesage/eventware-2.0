@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import MoniteurIrm from './MoniteurIrm'
-import { diffuserAlerte } from './diffusion'
+import { diffuserAlerte } from './diffuserAlerte'
 
 /**
  * Veille météo.

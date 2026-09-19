@@ -347,7 +347,7 @@ function Jalons({ evenement, peutGerer, setMessage }) {
         '« Annulé » est plus juste.'
     )
     if (!ok) return
-    // Voir 040 : un `update` direct sur `deleted_at` est refusé par RLS,
+    // Voir 091 : un `update` direct sur `deleted_at` est refusé par RLS,
     // la nouvelle ligne n'étant plus visible de son auteur.
     const { data, error } = await supabase.rpc('supprimer_logiquement', {
       p_table: 'jalons',

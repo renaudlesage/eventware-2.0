@@ -1,4 +1,3 @@
--- ============ 023_alertes_et_terrain ============
 -- =====================================================================
 -- Migration 023 : alertes transverses + rattachement d'équipe + vue terrain
 -- ---------------------------------------------------------------------
@@ -160,4 +159,4 @@ $$;
 
 grant execute on function mon_terrain(uuid) to authenticated;
 
-commit;;
+commit;

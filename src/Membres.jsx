@@ -111,13 +111,17 @@ export default function Membres({ evenement, membre, setMessage, onRecharger }) 
     }
     if (!window.confirm(`Retirer ${m.nom_affiche ?? 'ce membre'} de l'événement ?`)) return
 
-    const { error, count } = await supabase
-      .from('membres_evenement')
-      .update({ deleted_at: new Date().toISOString() }, { count: 'exact' })
-      .eq('id', m.id)
+    // Pas un `update` direct sur `deleted_at` : la ligne sortirait du
+    // champ de la policy de lecture et PostgreSQL refuserait l'écriture
+    // — même cause que pour les jalons. La fonction 100 vérifie les
+    // droits elle-même (ressource « membres ») et écrit au-dessus de RLS.
+    const { data, error } = await supabase.rpc('supprimer_logiquement', {
+      p_table: 'membres_evenement',
+      p_id: m.id
+    })
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
-    else if (count === 0)
-      setMessage({ type: 'erreur', texte: 'Retrait refusé : droits insuffisants.' })
+    else if (data === false)
+      setMessage({ type: 'erreur', texte: 'Membre introuvable ou déjà retiré.' })
     else charger()
   }
 

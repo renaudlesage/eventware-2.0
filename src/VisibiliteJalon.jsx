@@ -10,7 +10,7 @@ import { LIBELLES_PUBLICS, TOUS_LIBELLES_PUBLICS, VISIBILITES } from './jalonsPu
  * d'écran. Dupliquée, elle aurait divergé au premier correctif.
  *
  * LE PASSAGE EN « PUBLIC » NE S'ÉCRIT PAS TOUT DE SUITE. La base refuse
- * `visibilite = 'public'` sans `libelle_public` (contrainte de la 048),
+ * `visibilite = 'public'` sans `libelle_public` (contrainte de la 099),
  * et c'est voulu : un jalon publié sans libellé sortirait sous son nom
  * interne. Écrire la visibilité dès le choix ferait donc remonter une
  * violation de contrainte à quelqu'un qui n'a rien fait de faux — il

@@ -923,7 +923,7 @@ function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, o
 /**
  * Reconduire un événement d'une année sur l'autre.
  *
- * Ce que ça reprend est décidé en base (migration 047) et pas ici :
+ * Ce que ça reprend est décidé en base (migration 098) et pas ici :
  * l'écran ne doit pas laisser croire qu'il choisit. Il annonce les
  * trois remises à zéro, parce que ce sont les seules surprises
  * possibles — le reste est une copie fidèle.

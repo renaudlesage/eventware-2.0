@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Siren, MessageSquareWarning, X, TriangleAlert } from 'lucide-react'
 import { supabase } from './supabaseClient'
-import { diffuserAlerte } from './diffusion'
+import { diffuserAlerte } from './diffuserAlerte'
 import { DOMAINES } from './libelles'
 import { detecterDoublons } from './doublons'
 

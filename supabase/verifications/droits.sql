@@ -47,6 +47,7 @@ declare
   v_equipe     uuid;
   v_texte      text;   -- libellé interne d'un jalon, pour vérifier qu'il ne sort pas
   v_json       jsonb;  -- ce que la vitrine publique renvoie réellement
+  v_copie      uuid;   -- l'événement produit par la reconduction (bloc K)
   v_chef       uuid;   -- chef d'équipe : un rôle SANS tout_pouvoir
   v_rando      uuid;
   v_n          integer;
@@ -136,6 +137,24 @@ begin
   exception when others then
     insert into verif (bloc, intitule, resultat)
       values ('A. Socle', 'Surface anonyme', 'ERREUR : ' || sqlerrm);
+  end;
+
+  -- Une policy qui teste une ressource inconnue de la matrice répond
+  -- toujours faux, sauf pour un rôle tout_pouvoir : le défaut est
+  -- invisible en coordinateur et bloquant pour tous les autres (103).
+  begin
+    select count(*) into v_n
+    from pg_policies p,
+         regexp_matches(coalesce(p.qual, '') || ' ' || coalesce(p.with_check, ''),
+                        'a_permission\([^,]+, ''([a-z_]+)''', 'g') m
+    where p.schemaname = 'public'
+      and m[1] not in (select distinct ressource from role_capacites);
+    insert into verif (bloc, intitule, resultat) values
+      ('A. Socle', 'Toute policy ne cite que des ressources de la matrice',
+       case when v_n = 0 then 'OK' else 'ÉCHEC : ' || v_n || ' occurrence(s) d''une ressource inconnue' end);
+  exception when others then
+    insert into verif (bloc, intitule, resultat)
+      values ('A. Socle', 'Ressources des policies', 'ERREUR : ' || sqlerrm);
   end;
 
   -- ------------------------------------------------------------------
@@ -379,7 +398,7 @@ begin
   end if;
 
   -- ------------------------------------------------------------------
-  -- BLOC F — journal (le durcissement 037)
+  -- BLOC F — journal (le durcissement 088)
   -- ------------------------------------------------------------------
   if v_bfmf is null then
     insert into verif (bloc, intitule, resultat)
@@ -420,7 +439,7 @@ begin
 
 
   -- ------------------------------------------------------------------
-  -- BLOC H — stockage (041)
+  -- BLOC H — stockage (092)
   -- ------------------------------------------------------------------
   begin
     -- Une policy de lecture qui ne mentionne ni événement ni membre est
@@ -455,7 +474,7 @@ begin
   end;
 
   -- ------------------------------------------------------------------
-  -- BLOC I — lien groupe de travail / équipe (043)
+  -- BLOC I — lien groupe de travail / équipe (094)
   -- ------------------------------------------------------------------
   begin
     select count(*) into v_n from pg_indexes
@@ -476,7 +495,7 @@ begin
   end;
 
   -- ------------------------------------------------------------------
-  -- BLOC J — visibilité des jalons (048)
+  -- BLOC J — visibilité des jalons (099)
   --
   -- Ces deux-là gardent la porte du public. La première vérifie qu'on
   -- ne peut pas publier un jalon sous son libellé interne ; la seconde,
@@ -530,6 +549,60 @@ begin
     insert into verif (bloc, intitule, resultat)
       values ('J. Jalons', 'Visibilité des jalons', 'ERREUR : ' || sqlerrm);
   end;
+
+  -- ------------------------------------------------------------------
+  -- BLOC K — la reconduction va jusqu'au bout (101)
+  --
+  -- PL/pgSQL ne vérifie ni les littéraux d'enum ni les colonnes à la
+  -- création : une fonction qui traverse quinze tables ne se valide
+  -- qu'en la faisant tourner. On reconduit donc réellement BFMF2027,
+  -- sous l'identité de son coordinateur, et on regarde ce qui en sort.
+  -- Tout est annulé à la fin du fichier.
+  -- ------------------------------------------------------------------
+  if v_ren is null or v_bfmf is null then
+    insert into verif (bloc, intitule, resultat)
+      values ('K. Reconduction', 'Reconduire un événement', 'IGNORÉ : jeu de test incomplet');
+  else
+    begin
+      perform set_config('request.jwt.claims',
+        json_build_object('sub', v_ren, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+
+      select dupliquer_evenement(
+        v_bfmf, 'Vérification reconduction',
+        'verif-reconduction-' || substr(gen_random_uuid()::text, 1, 8),
+        current_date + 300, current_date + 302
+      ) into v_copie;
+
+      execute 'reset role';
+
+      insert into verif (bloc, intitule, resultat) values
+        ('K. Reconduction', 'La reconduction aboutit et laisse une trace au journal',
+         case when exists (select 1 from journal
+                           where evenement_id = v_copie and categorie = 'reconduction')
+              then 'OK' else 'ÉCHEC : pas de ligne « reconduction » au journal' end);
+
+      select count(*) into v_n from equipes
+      where evenement_id = v_bfmf and deleted_at is null;
+      select v_n - count(*) into v_n from equipes
+      where evenement_id = v_copie and deleted_at is null;
+      insert into verif (bloc, intitule, resultat) values
+        ('K. Reconduction', 'Toutes les équipes sont reprises, y compris celles liées à un groupe',
+         case when v_n = 0 then 'OK' else 'ÉCHEC : ' || v_n || ' équipe(s) manquante(s)' end);
+
+      select count(*) into v_n from jalons
+      where evenement_id = v_copie and deleted_at is null and statut <> 'a_venir';
+      insert into verif (bloc, intitule, resultat) values
+        ('K. Reconduction', 'Les jalons repartent tous « à venir »',
+         case when v_n = 0 then 'OK' else 'ÉCHEC : ' || v_n || ' jalon(s) dans un autre statut' end);
+    exception when others then
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat)
+        values ('K. Reconduction', 'Reconduire un événement',
+                case when sqlstate = '23514' then 'IGNORÉ : quota de licence atteint'
+                     else 'ERREUR : ' || sqlerrm end);
+    end;
+  end if;
 
   -- ------------------------------------------------------------------
   -- BLOC G — dotation d'un événement (le défaut météo du 15/09)
