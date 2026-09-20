@@ -3,6 +3,10 @@ import { supabase } from './supabaseClient'
 import { libelleStatut } from './libelles'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
+// La liste des modules est celle du produit, partagée avec les Réglages :
+// la copie locale oubliait `preparation`, que la console ne pouvait donc
+// ni accorder ni retirer alors que le déclencheur de licence le contrôle.
+import { MODULES } from './referentielsProduit'
 
 /**
  * Console plateforme — vue de l'éditeur.
@@ -12,16 +16,6 @@ import { modifierOuRefuser } from './ecriture'
  * règle ce qui est souscrit, on y crée des événements et on y gère les
  * accès. Le coordinateur fait le reste, chez lui.
  */
-
-const MODULES = [
-  ['securite', 'Sécurité'],
-  ['logistique', 'Logistique'],
-  ['rh', 'Bénévoles'],
-  ['parcours', 'Parcours'],
-  ['sos_participants', 'SOS participants'],
-  ['plan_implantation', "Plan d'implantation"],
-  ['analyse', 'Analyse / REX']
-]
 
 const STATUTS = [
   ['essai', 'Essai'],

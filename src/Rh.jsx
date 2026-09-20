@@ -9,7 +9,7 @@ import Invitations from './Invitations'
 /*
  * Bénévoles — tout ce qui concerne les personnes, à un seul endroit.
  *
- * L'écran s'ouvre dès `rh:lire` (App.jsx) : un bénévole y lit la
+ * L'écran s'ouvre dès `rh:lire` (Poste.jsx) : un bénévole y lit la
  * couverture, sa fiche de poste et la liste des membres avec leur
  * équipe. Chaque onglet garde ses propres commandes derrière la
  * capacité que la policy exige. Deux onglets viennent de Réglages

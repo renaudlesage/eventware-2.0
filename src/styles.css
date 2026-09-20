@@ -309,18 +309,24 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
 /* ---------------- Bandeau d'état ---------------- */
 
 /* Quatre cadrans, donc 2×2 sur mobile et 4 colonnes au-delà :
-   jamais de case vide en fin de grille. */
+   jamais de case vide en fin de grille. Au mur (≥ 2200 px), le bandeau
+   en porte huit — `etat-mur` n'est posé que dans ce cas, pour ne pas
+   étirer quatre cadrans sur huit colonnes. */
 .etat {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1px;
   background: var(--trait);
   border: 1px solid var(--trait);
+  margin-bottom: 18px;
 }
 
 @media (min-width: 620px) {
   .etat { grid-template-columns: repeat(4, 1fr); }
 }
+
+.cadran:disabled { cursor: default; }
+.cadran:disabled:hover { background: var(--surface); }
 
 .cadran {
   all: unset;
@@ -431,11 +437,122 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
 .dom-tilleul  { --teinte: var(--dom-tilleul); }
 .dom-gris     { --teinte: var(--dom-gris); }
 
+/* ---------------- Rail compact (refonte du 20/09) ----------------
+   À partir de 940 px le rail passe en icônes seules, 56 px, les
+   domaines rangés en familles séparées d'un filet — c'est déjà ainsi
+   que le bandeau d'état sépare ses cadrans. Au survol, un panneau de
+   200 px se déplie à droite, hors du flux. Épinglé, le rail devient
+   lui-même ce panneau (`rail-groupe`), dans le flux, 200 px. */
+
 @media (min-width: 940px) {
-  .corps { display: grid; grid-template-columns: 176px 1fr; gap: 26px; align-items: start; }
+  .corps { display: grid; grid-template-columns: 56px 1fr; gap: 26px; align-items: start; position: relative; }
+  .corps.rail-epingle { grid-template-columns: 200px 1fr; }
+  /* Sans rail (Mon compte, « pas membre », nom manquant, premier
+     événement), le travail prend toute la largeur au lieu de tomber
+     dans la colonne du rail. */
+  .corps > .travail:only-child { grid-column: 1 / -1; }
   .plaques { flex-direction: column; position: sticky; top: 16px; }
   .plaque-nav { text-align: left; }
 }
+
+/* Le rail reste collant (sticky = positionné : le panneau déplié, en
+   absolu, s'y accroche sans qu'on perde le collage). */
+.rail-compact { gap: 0; }
+.rail-compact .plaque-nav { justify-content: center; padding: 11px 0; gap: 0; }
+.rail-compact .plaque-nav span { display: none; }
+
+.rail-famille {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--trait);
+}
+.rail-famille:first-child { padding-top: 0; }
+.rail-famille:last-of-type { padding-bottom: 0; border-bottom: none; }
+
+.rail-groupe { gap: 0; }
+.rail-groupe .plaque-nav { width: 100%; box-sizing: border-box; }
+.rail-groupe .famille-titre { margin: 0 0 6px; }
+.rail-groupe .rail-famille:first-child .famille-titre { margin-top: 0; }
+
+.rail-deploye {
+  position: absolute;
+  left: 56px;
+  top: 0;
+  width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--trait-fort);
+  box-shadow: var(--ombre-flottant);
+  padding: 8px 10px 12px;
+  z-index: 5;
+  box-sizing: border-box;
+}
+.rail-deploye .plaque-nav { width: 100%; box-sizing: border-box; margin-bottom: 6px; }
+.rail-deploye .famille-titre { margin: 14px 0 6px; }
+.rail-deploye > div:first-of-type .famille-titre { margin-top: 8px; }
+
+.survol-note {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sourdine);
+  padding: 2px 0 6px;
+  display: block;
+  border-bottom: 1px solid var(--trait);
+}
+
+/* L'épingle : un bouton discret au pied du rail, jamais un domaine. */
+.rail-epingle {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 14px;
+  padding: 8px 0;
+  color: var(--sourdine);
+  border-top: 1px solid var(--trait);
+}
+.rail-epingle:hover { color: var(--encre); }
+.rail-epingle:focus-visible { outline: 2px solid var(--etat-info); outline-offset: 2px; }
+.rail-groupe .rail-epingle { justify-content: flex-start; padding-left: 13px; }
+
+/* ---------------- Paliers de largeur ----------------
+   La résolution supplémentaire achète de l'information, jamais du
+   blanc. Trois paliers : 1180 (rail + travail), 1640 (+ colonne de
+   veille : alertes, journal, météo), 2480 (+ seconde colonne de
+   travail, veille à 440). Les seuils attrapent des écrans réels :
+   1440 un portable 16 pouces et un moniteur 1680 ; 2200 un 2560. */
+
+@media (min-width: 1440px) {
+  .poste { max-width: 1640px; }
+  .corps { grid-template-columns: 56px minmax(0, 1fr) 380px; }
+  .corps.rail-epingle { grid-template-columns: 200px minmax(0, 1fr) 380px; }
+  /* La veille porte déjà la météo compacte : Situation et Sécurité ne
+     la répètent pas à côté. (Les classes palier-* viennent de Poste.) */
+  .corps.palier-veille .travail .meteo-compact,
+  .corps.palier-mur .travail .meteo-compact { display: none; }
+}
+
+@media (min-width: 2200px) {
+  .poste { max-width: 2480px; }
+  .corps { grid-template-columns: 56px minmax(0, 1fr) 440px; }
+  .corps.rail-epingle { grid-template-columns: 200px minmax(0, 1fr) 440px; }
+  .corps.avec-mur { grid-template-columns: 56px minmax(0, 1.1fr) minmax(0, 1fr) 440px; }
+  .corps.avec-mur.rail-epingle { grid-template-columns: 200px minmax(0, 1.1fr) minmax(0, 1fr) 440px; }
+  .etat.etat-mur { grid-template-columns: repeat(8, 1fr); }
+}
+
+.veille { display: flex; flex-direction: column; gap: 18px; min-width: 0; position: sticky; top: 16px; }
+.veille .chrono { margin-bottom: 0; }
+.veille .bandeaux { margin: 0; }
+.veille .meteo { margin-bottom: 0; }
+
+.colonne-mur { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.colonne-mur .bloc-mur > h2 { margin-bottom: 12px; }
+.colonne-mur .apercu { margin-bottom: 0; }
 
 .travail { min-width: 0; }
 
@@ -957,7 +1074,9 @@ dl.fiche dd { margin: 1px 0 0; }
   body { background: #fff; font-size: 11pt; }
   .barre, .etat, .plaques, .onglets, .ligne-boutons, .geo, .aide,
   .dashboard, .compteurs, .bandeaux, button, input, select,
+  .veille, .colonne-mur, .rail-deploye,
   .carte-conteneur, .travail > * > h2 { display: none !important; }
+  .corps { display: block !important; }
   .imprimable { display: block !important; }
   .imprimable .carte { border: 1px solid #000; break-inside: avoid; margin-bottom: 6mm; padding: 4mm; }
   .titre-impression { display: block !important; font-size: 15px; margin: 0 0 10px; }

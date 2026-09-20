@@ -59,6 +59,30 @@ export const DOMAINES = {
   plateforme: { icone: Building2,            teinte: 'gris' }
 }
 
+/**
+ * Les quatre familles du rail de navigation (refonte du 20/09).
+ *
+ * L'ordre des familles et celui des domaines dans chaque famille sont
+ * significatifs : ils fixent la position verticale de chaque icône, et
+ * c'est cette position que la main mémorise. Une famille dont aucun
+ * module n'est visible disparaît entièrement, filet compris.
+ */
+export const FAMILLES = [
+  ['Commandement', ['situation', 'planning', 'preparation']],
+  ['Terrain',      ['securite', 'sos', 'parcours', 'memento']],
+  ['Ressources',   ['logistique', 'rh', 'plan', 'accueil']],
+  ['Pilotage',     ['analyse', 'reglages', 'plateforme']]
+]
+
+/**
+ * Sous ce nombre de modules visibles, le groupement saute : avec les
+ * cinq écrans d'un bénévole, deux familles tombaient à une icône et les
+ * filets découpaient des groupes d'un seul élément — ça se lit comme
+ * des trous, pas comme un classement. Huit est un choix, pas une loi :
+ * le nombre en dessous duquel une pile se parcourt d'un regard.
+ */
+export const SEUIL_GROUPEMENT = 8
+
 /** Icônes de section, à l'intérieur des modules. */
 export const ICONES = {
   journal: ScrollText,

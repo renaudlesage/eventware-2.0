@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
+import { PHASES } from './referentielsProduit'
 
 /**
  * Gestion des rôles.
@@ -28,7 +29,6 @@ const RESSOURCES = [
 ]
 
 const ACTIONS = ['lire', 'creer', 'modifier', 'supprimer']
-const PHASES = ['preparation', 'montage', 'exploitation', 'demontage', 'cloture']
 const TERRAIN = ['montage', 'exploitation', 'demontage']
 
 export default function Roles({ evenement, setMessage }) {
