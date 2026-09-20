@@ -145,7 +145,6 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
           ['carte', 'Carte'],
           ['secours', `Accès secours (${secours.length})`],
           ['risques', `Risques (${risques.length})`],
-          ['effectifs', 'Effectifs'],
           ['ajout', 'Ajouter']
         ]
           .filter(([k]) => k !== 'ajout' || peutCreer)
@@ -356,15 +355,6 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
         </>
       )}
 
-      {vue === 'effectifs' && (
-        <Effectifs
-          evenement={evenement}
-          peut={peut}
-          toutPouvoir={toutPouvoir}
-          setMessage={setMessage}
-        />
-      )}
-
       {peutCreer && vue === 'ajout' && (
         <Ajout
           evenement={evenement}
@@ -563,7 +553,7 @@ const TYPES_MOYENS = [
   ['extincteur', 'Extincteurs']
 ]
 
-function Effectifs({ evenement, peut, toutPouvoir, setMessage }) {
+export function Effectifs({ evenement, peut, toutPouvoir, setMessage }) {
   const [min, setMin] = useState(evenement.frequentation_min ?? '')
   const [max, setMax] = useState(evenement.frequentation_max ?? '')
   const [enregistre, setEnregistre] = useState(false)
@@ -626,23 +616,34 @@ function Effectifs({ evenement, peut, toutPouvoir, setMessage }) {
         Distincte des effectifs de balade, déjà suivis groupe par groupe dans Parcours —
         celle-ci porte sur le public général du site.
       </p>
-      <div className="saisie-rapide">
-        <input
-          type="number"
-          value={min}
-          onChange={(e) => setMin(e.target.value)}
-          placeholder="Minimum"
-        />
-        <input
-          type="number"
-          value={max}
-          onChange={(e) => setMax(e.target.value)}
-          placeholder="Maximum"
-        />
-        <button onClick={enregistrerFrequentation}>
-          {enregistre ? 'Enregistré ✓' : 'Enregistrer'}
-        </button>
-      </div>
+      {/* L'onglet vit dans Sécurité, ouvert à tout membre : la
+          fréquentation se lit partout, ne se saisit qu'avec le droit
+          d'écrire le dispositif (même garde que les moyens). */}
+      {peutMoyens ? (
+        <div className="saisie-rapide">
+          <input
+            type="number"
+            value={min}
+            onChange={(e) => setMin(e.target.value)}
+            placeholder="Minimum"
+          />
+          <input
+            type="number"
+            value={max}
+            onChange={(e) => setMax(e.target.value)}
+            placeholder="Maximum"
+          />
+          <button onClick={enregistrerFrequentation}>
+            {enregistre ? 'Enregistré ✓' : 'Enregistrer'}
+          </button>
+        </div>
+      ) : (
+        <p className="mono">
+          {evenement.frequentation_min || evenement.frequentation_max
+            ? `${evenement.frequentation_min ?? '?'} à ${evenement.frequentation_max ?? '?'} personnes`
+            : 'Non renseignée.'}
+        </p>
+      )}
 
       <div className="pave-titre" style={{ marginTop: 18 }}>Moyens de première intervention</div>
       <p className="aide" style={{ marginTop: -2 }}>

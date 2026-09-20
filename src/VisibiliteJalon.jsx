@@ -18,8 +18,14 @@ import { LIBELLES_PUBLICS, TOUS_LIBELLES_PUBLICS, VISIBILITES } from './jalonsPu
  * la liste des libellés, et les deux colonnes partent dans le même
  * UPDATE une fois le libellé choisi.
  */
-export default function VisibiliteJalon({ jalon, modifier }) {
+export default function VisibiliteJalon({ jalon, modifier, toutPouvoir = false }) {
   const [enAttente, setEnAttente] = useState(false)
+
+  // « Coordination » n'est lisible que des rôles à tout pouvoir (107).
+  // Quelqu'un qui n'en est pas ne se voit pas proposer de rendre une
+  // ligne invisible à lui-même — sauf si elle l'est déjà, auquel cas il
+  // ne la voit pas de toute façon.
+  const choix = VISIBILITES.filter(([v]) => toutPouvoir || v !== 'coordination')
 
   const visibilite = enAttente ? 'public' : jalon.visibilite ?? 'membres'
   const libelle = jalon.libelle_public ?? ''
@@ -59,7 +65,7 @@ export default function VisibiliteJalon({ jalon, modifier }) {
         style={{ width: 'auto', marginBottom: 0 }}
         title={aide}
       >
-        {VISIBILITES.map(([v, l, a]) => (
+        {choix.map(([v, l, a]) => (
           <option key={v} value={v} title={a}>
             {l}
           </option>

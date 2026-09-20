@@ -52,7 +52,14 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
 
     const table = l.genre === 'transport' ? 'transports' : 'missions'
     const champs = { statut }
-    if (statut === 'attribuee') {
+    // Avancer une ligne que personne ne tient, c'est la prendre — quel
+    // que soit le bouton. Une mission attribuée à MON ÉQUIPE sans
+    // titulaire arrive ici avec « Je démarre » : si l'on ne posait que
+    // le statut, la ligne resterait sans titulaire et la policy 105
+    // (« la mienne, ou j'encadre ») la refuserait — c'est exactement
+    // ce qui s'est passé à la campagne du 20/09. Le PC voit ainsi qui
+    // s'en occupe dès le premier geste, ce qui est le but de l'écran.
+    if (!l.pour_moi) {
       champs[l.genre === 'transport' ? 'chauffeur_id' : 'membre_id'] = membre.id
     }
     const { error, count } = await supabase
@@ -139,6 +146,10 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
               <span>{l.genre}</span>
               <span>{libelleStatut(l.statut)}</span>
               {l.pour_moi && <span className="jeton">à moi</span>}
+              {/* Tenue par un collègue de l'équipe : on le dit, et
+                  aucun bouton ne s'affiche plus bas — la policy
+                  refuserait de toute façon, autant ne pas proposer. */}
+              {!l.pour_moi && l.titulaire && <span>pris par {l.titulaire}</span>}
               {l.latitude && (
                 <a
                   className="lien-externe"
@@ -151,23 +162,27 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
               )}
             </div>
 
-            <div className="ligne-boutons" style={{ marginTop: 10 }}>
-              {l.statut === 'a_traiter' && (
-                <button onClick={() => avancer(l, 'attribuee')}>Je prends</button>
-              )}
-              {/* Un jalon arrive déjà attribué : on ne « le prend » pas,
-                  on le démarre. Sans cette branche il n'aurait aucun
-                  bouton, son statut « a_venir » n'étant prévu nulle part. */}
-              {l.statut === 'a_venir' && (
-                <button onClick={() => avancer(l, 'en_cours')}>Je démarre</button>
-              )}
-              {l.statut === 'attribuee' && (
-                <button onClick={() => avancer(l, 'en_cours')}>Je démarre</button>
-              )}
-              {l.statut === 'en_cours' && (
-                <button onClick={() => avancer(l, 'resolue')}>Terminé</button>
-              )}
-            </div>
+            {(l.pour_moi || !l.titulaire) && (
+              <div className="ligne-boutons" style={{ marginTop: 10 }}>
+                {l.statut === 'a_traiter' && (
+                  <button onClick={() => avancer(l, 'attribuee')}>Je prends</button>
+                )}
+                {/* Un jalon arrive déjà attribué : on ne « le prend » pas,
+                    on le démarre. Sans cette branche il n'aurait aucun
+                    bouton, son statut « a_venir » n'étant prévu nulle part. */}
+                {l.statut === 'a_venir' && (
+                  <button onClick={() => avancer(l, 'en_cours')}>Je démarre</button>
+                )}
+                {l.statut === 'attribuee' && (
+                  <button onClick={() => avancer(l, 'en_cours')}>
+                    {l.pour_moi ? 'Je démarre' : 'Je prends et je démarre'}
+                  </button>
+                )}
+                {l.statut === 'en_cours' && (
+                  <button onClick={() => avancer(l, 'resolue')}>Terminé</button>
+                )}
+              </div>
+            )}
           </div>
         ))
       )}

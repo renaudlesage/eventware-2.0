@@ -153,6 +153,8 @@ function Contenu({ clef, ...p }) {
       return <PaveListe clef="equipes" table="equipes" champ="nom" second="code" {...p} />
     case 'materiel':
       return <PaveMateriel {...p} />
+    case 'mes_constats':
+      return <PaveMesConstats {...p} />
     default:
       return null
   }
@@ -351,6 +353,76 @@ function PaveMesDemandes({ evenement, membre, onAller }) {
             </div>
           )
         })
+      )}
+    </Bloc>
+  )
+}
+
+const STATUTS_REX = {
+  a_arbitrer: 'à arbitrer',
+  retenu: 'retenu',
+  rejete: 'rejeté',
+  realise: 'réalisé'
+}
+
+/**
+ * Mes constats : ce que j'ai consigné en REX, et la suite qu'on lui a
+ * donnée. Lecture seule — l'arbitrage se fait dans Analyse. Un constat
+ * sans suite visible est un constat qu'on re-signale ; ici, chacun voit
+ * qu'il a été lu.
+ */
+function PaveMesConstats({ evenement, membre, onAller }) {
+  const [lignes, setLignes] = useState(null)
+
+  useEffect(() => {
+    let vivant = true
+    supabase
+      .from('rex_entrees')
+      .select('id, constat, nature, impact, statut, porteur, echeance, created_at')
+      .eq('evenement_id', evenement.id)
+      .eq('membre_id', membre.id)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(8)
+      .then(({ data }) => {
+        if (vivant) setLignes(data ?? [])
+      })
+    return () => {
+      vivant = false
+    }
+  }, [evenement.id, membre.id])
+
+  const arbitres = lignes?.filter((r) => r.statut && r.statut !== 'a_arbitrer').length ?? null
+
+  return (
+    <Bloc
+      clef="mes_constats"
+      onAller={onAller}
+      compteurs={[
+        { libelle: 'consignés', valeur: lignes?.length ?? null, etat: 'ok' },
+        { libelle: 'arbitrés', valeur: arbitres, etat: arbitres ? 'cours' : 'ok' }
+      ]}
+    >
+      {lignes === null ? (
+        <p className="moniteur-vide">…</p>
+      ) : lignes.length === 0 ? (
+        <p className="moniteur-vide">
+          Aucun constat consigné. Le bouton REX, en bas de l'écran, sert à ça — pendant, pas après.
+        </p>
+      ) : (
+        lignes.map((r) => (
+          <div
+            className={`moniteur-ligne ${['bloquant', 'dangereux'].includes(r.impact) ? 'urgent' : ''}`}
+            key={r.id}
+          >
+            <strong>{r.constat}</strong>
+            <span>
+              {STATUTS_REX[r.statut] ?? 'à arbitrer'}
+              {r.porteur ? ` · porté par ${r.porteur}` : ''}
+              {r.echeance ? ` · pour le ${new Date(r.echeance).toLocaleDateString('fr-BE')}` : ''}
+            </span>
+          </div>
+        ))
       )}
     </Bloc>
   )

@@ -57,6 +57,13 @@ declare
   v_rando      uuid;
   v_n          integer;
   v_bool       boolean;
+  v_exploitant uuid;   -- un compte plateforme de niveau exploitant (bloc P)
+  v_membre_ex  uuid;   -- sa ligne membres_evenement sur BFMF2027 (bloc P)
+  v_code_inv   text;   -- code d'invitation créé pour le bloc P
+  v_transport  uuid;   -- transports du bloc R
+  v_transport2 uuid;
+  v_groupe     uuid;   -- groupe de travail du bloc S
+  v_membre_gt  uuid;   -- un membre rattaché à ce groupe (bloc S)
   -- Prend l'identité d'un utilisateur applicatif : rôle `authenticated`
   -- et claims JWT, exactement ce que PostgREST installe.
   v_phase      phase_evenement;
@@ -92,6 +99,9 @@ begin
     where m.evenement_id = e.id and m.user_id = v_ren and m.deleted_at is null
   )
   limit 1;
+
+  select user_id into v_exploitant from membres_plateforme
+  where actif and niveau = 'exploitant' limit 1;
 
   -- ------------------------------------------------------------------
   -- BLOC A — socle
@@ -774,6 +784,312 @@ begin
       execute 'reset role';
       insert into verif (bloc, intitule, resultat)
         values ('N. Autorité', 'Mayday et lien autorité', 'ERREUR : ' || sqlerrm);
+    end;
+  end if;
+
+  -- ------------------------------------------------------------------
+  -- BLOC O — un logo existant se remplace (107.1)
+  --
+  -- `upsert` sur le stockage = INSERT … ON CONFLICT DO UPDATE : la
+  -- ligne existante doit être VISIBLE de celui qui remplace. Sans
+  -- policy de lecture sur le bucket, le premier envoi passait et le
+  -- second échouait (42501). On envoie donc deux fois le même chemin.
+  -- ------------------------------------------------------------------
+  if v_ren is null or v_bfmf is null then
+    insert into verif (bloc, intitule, resultat)
+      values ('O. Logo', 'Remplacement d''un logo', 'IGNORÉ : jeu de test incomplet');
+  else
+    begin
+      perform set_config('request.jwt.claims',
+        json_build_object('sub', v_ren, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      insert into storage.objects (bucket_id, name, owner, owner_id, metadata)
+        values ('logos', v_bfmf || '/verif-107.png', v_ren, v_ren::text, '{"v":1}'::jsonb);
+      insert into storage.objects (bucket_id, name, owner, owner_id, metadata)
+        values ('logos', v_bfmf || '/verif-107.png', v_ren, v_ren::text, '{"v":2}'::jsonb)
+        on conflict (name, bucket_id) do update set metadata = excluded.metadata;
+      execute 'reset role';
+      select count(*) into v_n from storage.objects
+      where bucket_id = 'logos' and name = v_bfmf || '/verif-107.png' and metadata->>'v' = '2';
+      insert into verif (bloc, intitule, resultat) values
+        ('O. Logo', 'Le coordinateur remplace un logo déjà en place (upsert)',
+         case when v_n = 1 then 'OK' else 'ÉCHEC : l''objet n''a pas été remplacé' end);
+    exception when others then
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat)
+        values ('O. Logo', 'Remplacement d''un logo', 'ERREUR : ' || sqlerrm);
+    end;
+  end if;
+
+  -- ------------------------------------------------------------------
+  -- BLOC P — retiré, on peut revenir (107.2)
+  --
+  -- Deux chemins : l'exploitant se rattache lui-même après avoir été
+  -- retiré ; un membre retiré revient par un code d'invitation. Dans
+  -- les deux cas la ligne retirée doit revivre, pas être doublée.
+  -- ------------------------------------------------------------------
+  if v_exploitant is null or v_bfmf is null then
+    insert into verif (bloc, intitule, resultat)
+      values ('P. Retour', 'Retour de l''exploitant', 'IGNORÉ : aucun exploitant');
+  else
+    begin
+      select id into v_membre_ex from membres_evenement
+      where evenement_id = v_bfmf and user_id = v_exploitant and deleted_at is null;
+      if v_membre_ex is null then
+        insert into verif (bloc, intitule, resultat)
+          values ('P. Retour', 'Retour de l''exploitant', 'IGNORÉ : l''exploitant n''est pas membre de BFMF2027');
+      else
+        update membres_evenement set deleted_at = now() where id = v_membre_ex;
+
+        perform set_config('request.jwt.claims',
+          json_build_object('sub', v_exploitant, 'role', 'authenticated')::text, true);
+        execute 'set local role authenticated';
+        perform rejoindre_evenement(v_bfmf, 'coordinateur');
+        execute 'reset role';
+
+        select count(*) into v_n from membres_evenement
+        where evenement_id = v_bfmf and user_id = v_exploitant and deleted_at is null and actif;
+        insert into verif (bloc, intitule, resultat) values
+          ('P. Retour', 'L''exploitant retiré revient, sur sa ligne d''origine, sans doublon',
+           case when v_n = 1 then 'OK' else 'ÉCHEC : ' || v_n || ' ligne(s) vivante(s)' end);
+      end if;
+    exception when others then
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat)
+        values ('P. Retour', 'Retour de l''exploitant', 'ERREUR : ' || sqlerrm);
+    end;
+  end if;
+
+  if v_benevole is null or v_membre_ben is null or v_rando is null then
+    insert into verif (bloc, intitule, resultat)
+      values ('P. Retour', 'Retour par code d''invitation', 'IGNORÉ : jeu de test incomplet');
+  else
+    begin
+      update membres_evenement set deleted_at = now() where id = v_membre_ben;
+      v_code_inv := 'VERIF' || substr(gen_random_uuid()::text, 1, 5);
+      insert into invitations (evenement_id, code, libelle, role_id)
+        values (v_rando, v_code_inv, 'Vérification 107',
+                (select id from roles where evenement_id = v_rando and code = 'benevole' and deleted_at is null limit 1));
+
+      perform set_config('request.jwt.claims',
+        json_build_object('sub', v_benevole, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      select deja_membre into v_bool from rejoindre_evenement(v_code_inv);
+      execute 'reset role';
+
+      select count(*) into v_n from membres_evenement
+      where evenement_id = v_rando and user_id = v_benevole and deleted_at is null and actif;
+      insert into verif (bloc, intitule, resultat) values
+        ('P. Retour', 'Un membre retiré revient par un code d''invitation',
+         case when v_n = 1 and v_bool = false then 'OK'
+              else 'ÉCHEC : ' || v_n || ' ligne(s) vivante(s), deja_membre = ' || coalesce(v_bool::text, 'null') end);
+    exception when others then
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat)
+        values ('P. Retour', 'Retour par code d''invitation', 'ERREUR : ' || sqlerrm);
+    end;
+  end if;
+
+  -- ------------------------------------------------------------------
+  -- BLOC Q — « coordination » est réservée à l'encadrement (107.3)
+  -- ------------------------------------------------------------------
+  if v_chef is null or v_rando is null then
+    insert into verif (bloc, intitule, resultat)
+      values ('Q. Coordination', 'Visibilité coordination', 'IGNORÉ : pas de chef d''équipe sur Rando VTT');
+  else
+    begin
+      insert into jalons (evenement_id, code, libelle, visibilite)
+        values (v_rando, 'VERIF-' || substr(gen_random_uuid()::text, 1, 6), 'Action réservée', 'coordination')
+        returning id into v_jalon;
+
+      perform set_config('request.jwt.claims',
+        json_build_object('sub', v_chef, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      select count(*) into v_n from jalons where id = v_jalon;
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat) values
+        ('Q. Coordination', 'Un chef d''équipe (rh:modifier, sans tout pouvoir) ne voit pas une action « coordination »',
+         case when v_n = 0 then 'OK' else 'ÉCHEC : l''action est visible' end);
+
+      perform set_config('request.jwt.claims',
+        json_build_object('sub', (select user_id from membres_evenement
+                                  where evenement_id = v_rando and role = 'coordinateur'
+                                    and deleted_at is null limit 1),
+                          'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      select count(*) into v_n from jalons where id = v_jalon;
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat) values
+        ('Q. Coordination', 'Le coordinateur la voit',
+         case when v_n = 1 then 'OK' else 'ÉCHEC : invisible du coordinateur' end);
+    exception when others then
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat)
+        values ('Q. Coordination', 'Visibilité coordination', 'ERREUR : ' || sqlerrm);
+    end;
+  end if;
+
+  -- ------------------------------------------------------------------
+  -- BLOC R — un chauffeur bénévole prend un transport (107.5) et
+  --          mon_terrain dit qui tient chaque ligne (107.4)
+  -- ------------------------------------------------------------------
+  if v_benevole is null or v_membre_ben is null or v_rando is null or v_autre_memb is null then
+    insert into verif (bloc, intitule, resultat)
+      values ('R. Transports', 'Prise d''un transport', 'IGNORÉ : jeu de test incomplet');
+  else
+    begin
+      insert into transports (evenement_id, reference, nb_personnes, statut)
+        values (v_rando, 'VERIF-' || substr(gen_random_uuid()::text, 1, 6), 2, 'a_traiter')
+        returning id into v_transport;
+      insert into transports (evenement_id, reference, nb_personnes, statut, chauffeur_id)
+        values (v_rando, 'VERIF-' || substr(gen_random_uuid()::text, 1, 6), 2, 'attribuee', v_autre_memb)
+        returning id into v_transport2;
+      insert into missions (evenement_id, reference, titre, statut, membre_id)
+        values (v_rando, 'VERIF-' || substr(gen_random_uuid()::text, 1, 6), 'Mission tenue', 'attribuee', v_membre_ben)
+        returning id into v_mission;
+
+      perform set_config('request.jwt.claims',
+        json_build_object('sub', v_benevole, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+
+      update transports set statut = 'attribuee', chauffeur_id = v_membre_ben where id = v_transport;
+      get diagnostics v_n = row_count;
+      insert into verif (bloc, intitule, resultat) values
+        ('R. Transports', 'Un bénévole (missions:modifier) prend un transport sans chauffeur',
+         case when v_n = 1 then 'OK' else 'ÉCHEC : ' || v_n || ' ligne(s)' end);
+
+      v_etat := 'passée';
+      begin
+        update transports set chauffeur_id = v_membre_ben where id = v_transport2;
+        get diagnostics v_n = row_count;
+        if v_n = 0 then v_etat := 'refusée'; end if;
+      exception when others then
+        if sqlstate = '42501' then v_etat := 'refusée'; else v_etat := sqlstate; end if;
+      end;
+      -- Avec `logistique:modifier` (matrice standard actuelle du
+      -- bénévole) la réattribution passe par le premier chemin de la
+      -- policy : le refus n'est attendu qu'une fois la 108 appliquée.
+      select a_permission(v_rando, 'logistique', 'modifier') into v_bool;
+      insert into verif (bloc, intitule, resultat) values
+        ('R. Transports', 'Il ne reprend pas le transport d''un autre chauffeur',
+         case when v_etat = 'refusée' then 'OK'
+              when v_bool then 'IGNORÉ : ce bénévole détient logistique:modifier (matrice de l''événement)'
+              else 'ÉCHEC : réattribution ' || v_etat end);
+
+      select titulaire into v_texte from mon_terrain(v_rando) where id = v_mission;
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat) values
+        ('R. Transports', 'mon_terrain renvoie le titulaire d''une ligne tenue',
+         case when v_texte is not null then 'OK' else 'ÉCHEC : titulaire null' end);
+    exception when others then
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat)
+        values ('R. Transports', 'Prise d''un transport', 'ERREUR : ' || sqlerrm);
+    end;
+  end if;
+
+  -- ------------------------------------------------------------------
+  -- BLOC S — reprendre un groupe de travail comme équipe (107.8)
+  -- ------------------------------------------------------------------
+  if v_ren is null or v_bfmf is null then
+    insert into verif (bloc, intitule, resultat)
+      values ('S. Groupe → équipe', 'Reprise d''un groupe', 'IGNORÉ : jeu de test incomplet');
+  else
+    begin
+      insert into groupes_travail (evenement_id, nom, objet, ordre)
+        values (v_bfmf, 'Vérification bar & co', 'Vérification 107', 99)
+        returning id into v_groupe;
+      select id into v_membre_gt from membres_evenement
+      where evenement_id = v_bfmf and deleted_at is null and equipe_id is null limit 1;
+      if v_membre_gt is not null then
+        insert into membres_groupe_travail (groupe_id, membre_id) values (v_groupe, v_membre_gt);
+      end if;
+
+      perform set_config('request.jwt.claims',
+        json_build_object('sub', v_ren, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      select reprendre_groupe_comme_equipe(v_groupe) into v_json;
+      execute 'reset role';
+
+      select count(*) into v_n from equipes
+      where groupe_travail_id = v_groupe and deleted_at is null and nom = 'Vérification bar & co';
+      insert into verif (bloc, intitule, resultat) values
+        ('S. Groupe → équipe', 'L''équipe est créée, liée au groupe, avec son nom',
+         case when v_n = 1 then 'OK' else 'ÉCHEC : ' || v_n || ' équipe(s)' end);
+
+      insert into verif (bloc, intitule, resultat) values
+        ('S. Groupe → équipe', 'Les membres du groupe sans équipe y sont affectés',
+         case when v_membre_gt is null then 'IGNORÉ : aucun membre libre pour le test'
+              when (v_json->>'membres_affectes')::int >= 1
+                   and exists (select 1 from membres_evenement
+                               where id = v_membre_gt and equipe_id = (v_json->>'equipe_id')::uuid)
+                then 'OK'
+              else 'ÉCHEC : ' || v_json::text end);
+
+      -- Idempotence : une seconde reprise rend l'équipe existante.
+      perform set_config('request.jwt.claims',
+        json_build_object('sub', v_ren, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      select reprendre_groupe_comme_equipe(v_groupe) into v_json;
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat) values
+        ('S. Groupe → équipe', 'Reprendre deux fois ne crée pas deux équipes',
+         case when (v_json->>'existait')::boolean then 'OK' else 'ÉCHEC : ' || v_json::text end);
+    exception when others then
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat)
+        values ('S. Groupe → équipe', 'Reprise d''un groupe', 'ERREUR : ' || sqlerrm);
+    end;
+  end if;
+
+  -- ------------------------------------------------------------------
+  -- BLOC T — le responsable d'une action la fait avancer (107.3)
+  --
+  -- Sans `rh:modifier` (retiré au bénévole standard par la 108), un
+  -- bénévole doit encore pouvoir passer « fait » l'action dont il
+  -- répond — et pas celle d'un autre.
+  -- ------------------------------------------------------------------
+  if v_benevole is null or v_membre_ben is null or v_rando is null or v_autre_memb is null then
+    insert into verif (bloc, intitule, resultat)
+      values ('T. Actions', 'Avancement par le responsable', 'IGNORÉ : jeu de test incomplet');
+  else
+    begin
+      insert into jalons (evenement_id, code, libelle, responsable_membre_id)
+        values (v_rando, 'VERIF-' || substr(gen_random_uuid()::text, 1, 6), 'Mon action', v_membre_ben)
+        returning id into v_jalon;
+      insert into jalons (evenement_id, code, libelle, responsable_membre_id)
+        values (v_rando, 'VERIF-' || substr(gen_random_uuid()::text, 1, 6), 'L''action d''un autre', v_autre_memb)
+        returning id into v_equipe;   -- variable réemployée : un simple uuid
+
+      perform set_config('request.jwt.claims',
+        json_build_object('sub', v_benevole, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+
+      update jalons set statut = 'fait' where id = v_jalon;
+      get diagnostics v_n = row_count;
+      insert into verif (bloc, intitule, resultat) values
+        ('T. Actions', 'Le responsable passe son action « fait »',
+         case when v_n = 1 then 'OK' else 'ÉCHEC : ' || v_n || ' ligne(s)' end);
+
+      v_etat := 'passée';
+      begin
+        update jalons set statut = 'fait' where id = v_equipe;
+        get diagnostics v_n = row_count;
+        if v_n = 0 then v_etat := 'refusée'; end if;
+      exception when others then
+        if sqlstate = '42501' then v_etat := 'refusée'; else v_etat := sqlstate; end if;
+      end;
+      select a_permission(v_rando, 'rh', 'modifier') into v_bool;
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat) values
+        ('T. Actions', 'Il ne touche pas à l''action d''un autre',
+         case when v_etat = 'refusée' then 'OK'
+              when v_bool then 'IGNORÉ : ce bénévole détient rh:modifier (matrice de l''événement)'
+              else 'ÉCHEC : modification ' || v_etat end);
+    exception when others then
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat)
+        values ('T. Actions', 'Avancement par le responsable', 'ERREUR : ' || sqlerrm);
     end;
   end if;
 

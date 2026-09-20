@@ -109,7 +109,29 @@ on conflict (version) do nothing;
 
 Une fois ces lignes en place, la série est continue de 001 à 106.
 
-## Ne jamais rejouer 088 → 106 par `db push` sans les lignes ci-dessus
+### 107 et 108 : à appliquer — lot 11 (campagne de tests du 20/09)
+
+| Fichier | Corrige |
+|---|---|
+| `20260920100000_107_campagne_tests.sql` | Logo irremplaçable (pas de policy SELECT sur le bucket) ; retour impossible d'un membre retiré (exploitant et code d'invitation) ; « coordination » lisible par tout `rh:modifier` ; le responsable d'une action peut la faire avancer ; `mon_terrain` renvoie le titulaire ; un chauffeur bénévole prend un transport ; les traces sont un référentiel ; `evenement_public` dit si le SOS est actif ; `reprendre_groupe_comme_equipe` |
+| `20260920101000_108_matrice_resserree.sql` | Matrice standard : chef d'équipe sans `referentiels:creer/modifier`, bénévole sans `logistique:creer/modifier` ni `rh:modifier`, ressource fantôme `transports` retirée — **et réalignement des événements existants sur ces quatre points**. À lire avant d'appliquer : c'est une décision de produit, pas un correctif |
+
+Éprouvées ensemble dans une transaction annulée : `droits.sql` complet,
+51 lignes OK (une IGNORÉ faute de jalon vivant sur BFMF2027), blocs O à
+T compris. Appliquer la 107 **avant** de déployer l'application : la page
+participant et Mon terrain lisent des colonnes qu'elle ajoute.
+
+```sql
+insert into supabase_migrations.schema_migrations (version, name, statements)
+values
+  ('20260920100000', '107_campagne_tests',     array['-- appliquée manuellement via l''éditeur SQL']),
+  ('20260920101000', '108_matrice_resserree',  array['-- appliquée manuellement via l''éditeur SQL'])
+on conflict (version) do nothing;
+```
+
+Une fois ces lignes en place, la série est continue de 001 à 108.
+
+## Ne jamais rejouer 088 → 108 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

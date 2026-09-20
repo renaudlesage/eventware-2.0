@@ -4,8 +4,13 @@ import { supabase } from './supabaseClient'
 import { lireTrace, mesurer, simplifier, profil } from './gpx'
 import { texteErreur } from './erreurs'
 
-export default function Trace({ evenement, setMessage }) {
+export default function Trace({ evenement, peut, toutPouvoir, setMessage }) {
   const [traces, setTraces] = useState([])
+  // Une trace est un référentiel, comme un lieu : l'import exige
+  // `referentiels:creer` (policy traces_creation, 107). Le bénévole
+  // qui pointe des groupes (`parcours:creer`) n'a pas à en importer —
+  // la campagne du 20/09 lui montrait le champ (3e-07).
+  const peutImporter = toutPouvoir || peut?.('referentiels', 'creer')
   const [active, setActive] = useState(null)
   const [lieux, setLieux] = useState([])
   const [apercu, setApercu] = useState(null)
@@ -103,13 +108,17 @@ export default function Trace({ evenement, setMessage }) {
         </div>
       )}
 
-      <label htmlFor="gpx">Importer une trace GPX ou KML</label>
-      <input
-        id="gpx"
-        type="file"
-        accept=".gpx,.kml,application/gpx+xml,application/vnd.google-earth.kml+xml"
-        onChange={(e) => e.target.files?.[0] && lireFichier(e.target.files[0])}
-      />
+      {peutImporter && (
+        <>
+          <label htmlFor="gpx">Importer une trace GPX ou KML</label>
+          <input
+            id="gpx"
+            type="file"
+            accept=".gpx,.kml,application/gpx+xml,application/vnd.google-earth.kml+xml"
+            onChange={(e) => e.target.files?.[0] && lireFichier(e.target.files[0])}
+          />
+        </>
+      )}
 
       {apercu && (
         <div className="formulaire">
@@ -201,7 +210,11 @@ export default function Trace({ evenement, setMessage }) {
         </>
       )}
 
-      {!affichee && <p className="vide">Aucune trace. Importe un GPX ou un KML.</p>}
+      {!affichee && (
+        <p className="vide">
+          {peutImporter ? 'Aucune trace. Importe un GPX ou un KML.' : 'Aucune trace enregistrée.'}
+        </p>
+      )}
     </>
   )
 }

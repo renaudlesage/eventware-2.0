@@ -113,6 +113,20 @@ export const PAVES = {
     module: 'logistique',
     besoin: ['missions', 'creer'],
     obligatoire: []
+  },
+  mes_constats: {
+    libelle: 'Mes constats',
+    teinte: 'ardoise',
+    icone: '✎',
+    // Pas de lien : l'écran Analyse est celui de l'arbitrage
+    // (`analyse:modifier`). Qui consigne sans arbitrer n'y a pas accès,
+    // et c'est précisément pour lui que ce pavé existe — il retrouve
+    // ici ce qu'il a écrit, et la suite que la coordination lui a
+    // donnée (campagne du 20/09, 2d-08, 3d-12, 3e-08).
+    lien: null,
+    module: 'analyse',
+    besoin: ['analyse', 'lire'],
+    obligatoire: []
   }
 }
 
@@ -124,8 +138,8 @@ export const PAVES = {
 const DEFAUTS = {
   coordinateur: ['mes_missions', 'alertes', 'sos', 'mes_demandes', 'planning', 'contacts', 'equipes', 'materiel'],
   admin: ['mes_missions', 'alertes', 'sos', 'mes_demandes', 'planning', 'contacts', 'equipes', 'materiel'],
-  chef_equipe: ['mes_missions', 'mes_creneaux', 'alertes', 'sos', 'mes_demandes', 'planning', 'equipes', 'materiel'],
-  benevole: ['mes_missions', 'mes_creneaux', 'mes_demandes', 'planning', 'equipes'],
+  chef_equipe: ['mes_missions', 'mes_creneaux', 'alertes', 'sos', 'mes_demandes', 'planning', 'equipes', 'materiel', 'mes_constats'],
+  benevole: ['mes_missions', 'mes_creneaux', 'mes_demandes', 'planning', 'equipes', 'mes_constats'],
   observateur: ['planning']
 }
 

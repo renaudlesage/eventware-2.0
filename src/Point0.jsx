@@ -35,10 +35,18 @@ export default function Point0({ evenement, onFait, setMessage }) {
   useEffect(() => {
     supabase
       .from('communes')
-      .select('nom')
+      .select('nom, province')
       .order('nom')
       .then(({ data }) => setCommunesConnues(data ?? []))
   }, [])
+
+  // La liste se restreint à la province choisie : 261 communes à
+  // dérouler, c'est une bibliothèque ; 20 à 80, c'est un choix. Une
+  // commune déjà enregistrée reste proposée même si elle n'est pas de
+  // la province — pour qu'on la voie, et qu'on corrige l'une ou l'autre.
+  const communesProposees = communesConnues.filter(
+    (c) => !province || c.province === province || c.nom === commune
+  )
 
   async function enregistrerMode(valeur) {
     setOccupeMode(true)
@@ -180,21 +188,33 @@ export default function Point0({ evenement, onFait, setMessage }) {
 
       <label htmlFor="commune" style={{ marginTop: 14 }}>
         Commune — pour résoudre automatiquement la zone de police et la zone de secours
+        {province && communesProposees.length > 0 && (
+          <span className="aide"> · {communesProposees.length} dans la province</span>
+        )}
       </label>
       <div className="saisie-rapide">
-        <input
+        <select
           id="commune"
-          list="communes-connues"
           value={commune}
           onChange={(e) => setCommune(e.target.value)}
-          placeholder="ex. Ferrières"
           style={{ flex: 1 }}
-        />
-        <datalist id="communes-connues">
-          {communesConnues.map((c) => (
-            <option key={c.nom} value={c.nom} />
+        >
+          <option value="">
+            {province ? `— commune de la province de ${province} —` : '— toutes les communes —'}
+          </option>
+          {/* Une commune enregistrée hors bibliothèque (saisie libre
+              d'avant) reste sélectionnable, sinon le champ afficherait
+              vide alors que la base porte une valeur. */}
+          {commune && !communesConnues.some((c) => c.nom === commune) && (
+            <option value={commune}>{commune} (hors bibliothèque)</option>
+          )}
+          {communesProposees.map((c) => (
+            <option key={c.nom} value={c.nom}>
+              {c.nom}
+              {province && c.province !== province ? ` (${c.province})` : ''}
+            </option>
           ))}
-        </datalist>
+        </select>
         <button
           disabled={occupeCommune || commune === (evenement.commune ?? '')}
           onClick={enregistrerCommune}
@@ -203,9 +223,9 @@ export default function Point0({ evenement, onFait, setMessage }) {
         </button>
       </div>
       <p className="aide">
-        Si la commune ne figure pas encore dans la bibliothèque, l'onglet Conformité →
-        Référentiels le signale clairement plutôt que de laisser croire à une couverture qui
-        n'existe pas.
+        Choisir d'abord la province raccourcit la liste. Si la commune ne figure pas dans la
+        bibliothèque, Réglages › Conformité › Référentiels le signale clairement plutôt que de
+        laisser croire à une couverture qui n'existe pas.
       </p>
 
       {/* Un site fermé — festival sur une plaine, fête de village — n'a

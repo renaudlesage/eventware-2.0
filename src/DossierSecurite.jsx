@@ -330,7 +330,7 @@ async function construireDocument(evenement) {
 
   enfants.push(sousTitre('10.1 Exigé aujourd\u2019hui'))
   if (!obligatoires.length) {
-    enfants.push(aCompleter('aucune exigence résolue — vérifie Sécurité → Conformité → Questionnaire.'))
+    enfants.push(aCompleter('aucune exigence résolue — vérifie Réglages → Conformité → Questionnaire.'))
   } else {
     enfants.push(texte(`${obligatoires.length} exigence(s) contraignante(s) sur ce territoire :`))
     listerDispositions(obligatoires)

@@ -51,6 +51,7 @@ const COLONNES_PAR_PHASE = {
 export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
   const [s, setS] = useState(null)
   const [signalementsRecents, setSignalementsRecents] = useState([])
+  const [demandesLogistique, setDemandesLogistique] = useState([])
   const [erreur, setErreur] = useState(null)
   const [maj, setMaj] = useState(null)
   const [sonActif, setSonActif] = useState(false)
@@ -93,7 +94,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
   }
 
   async function charger() {
-    const [{ data, error }, sig] = await Promise.all([
+    const [{ data, error }, sig, logi] = await Promise.all([
       supabase.rpc('situation', { p_evenement: evenement.id }),
       // Requête directe plutôt que de dépendre du sous-objet exposé
       // par situation() : le moniteur affichait la référence et le
@@ -106,7 +107,21 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
         .select('id, reference, type, description, statut')
         .eq('evenement_id', evenement.id)
         .order('recu_le', { ascending: false })
-        .limit(5)
+        .limit(5),
+      // Les demandes logistiques ouvertes, pour le moniteur de la
+      // colonne Logistique : son compteur les comptait, son moniteur
+      // ne montrait que le matériel sous seuil — « 3 demandes » sans
+      // aucune demande visible (campagne du 20/09, 3a-01).
+      supabase
+        .from('missions')
+        .select('id, reference, titre, statut, priorite')
+        .eq('evenement_id', evenement.id)
+        .eq('module', 'logistique')
+        .is('deleted_at', null)
+        .not('statut', 'in', '("resolue","annulee")')
+        .order('priorite')
+        .order('created_at', { ascending: false })
+        .limit(6)
     ])
     if (error) setErreur(texteErreur(error))
     else {
@@ -117,6 +132,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
 
       setS(data)
       setSignalementsRecents(sig.data ?? [])
+      setDemandesLogistique(logi.data ?? [])
       setMaj(new Date())
       setErreur(null)
     }
@@ -303,9 +319,15 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
           lien="securite"
           onAller={onAller}
           compteurs={[
-            { libelle: 'P1', valeur: secu.p1, etat: 'urgent' },
+            // Les signalements (SOS) et les demandes sécurité sont deux
+            // files distinctes : le moniteur montre les premiers, les
+            // deux compteurs suivants comptent les secondes. Sans ce
+            // compteur, un SOS apparaissait dans le moniteur sans que
+            // rien ne bouge en tête de colonne (3a-01).
+            { libelle: 'SOS à traiter', valeur: s.signalements?.non_pris_en_charge ?? 0, etat: 'urgent' },
+            { libelle: 'Demandes P1', valeur: secu.p1, etat: 'urgent' },
             {
-              libelle: 'Ouvertes',
+              libelle: 'Demandes',
               valeur: Math.max(0, (secu.ouvertes ?? 0) - (secu.p1 ?? 0)),
               etat: 'attente'
             }
@@ -366,17 +388,32 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
               { libelle: 'Non rendus', valeur: s.logistique?.biens_non_rendus, etat: 'attente' }
             ]}
           >
-            {(s.logistique?.sous_seuil ?? []).length === 0 ? (
-              <p className="moniteur-vide">Aucune anomalie matérielle.</p>
+            {demandesLogistique.length === 0 && (s.logistique?.sous_seuil ?? []).length === 0 ? (
+              <p className="moniteur-vide">Aucune demande ouverte, aucune anomalie matérielle.</p>
             ) : (
-              s.logistique.sous_seuil.map((a, i) => (
-                <div className="moniteur-ligne urgent" key={i}>
-                  <strong>{a.nom}</strong>
-                  <span>
-                    {Number(a.quantite)} {a.unite ?? ''} (seuil {Number(a.seuil)})
-                  </span>
-                </div>
-              ))
+              <>
+                {demandesLogistique.map((d) => (
+                  <div
+                    className={`moniteur-ligne ${d.priorite === 'P1' ? 'urgent' : ''}`}
+                    key={d.id}
+                  >
+                    <strong>
+                      {d.priorite} — {d.titre}
+                    </strong>
+                    <span>
+                      {libelleStatut(d.statut)} <span className="mono">· {d.reference}</span>
+                    </span>
+                  </div>
+                ))}
+                {(s.logistique?.sous_seuil ?? []).map((a, i) => (
+                  <div className="moniteur-ligne urgent" key={'s' + i}>
+                    <strong>{a.nom}</strong>
+                    <span>
+                      {Number(a.quantite)} {a.unite ?? ''} (seuil {Number(a.seuil)})
+                    </span>
+                  </div>
+                ))}
+              </>
             )}
           </ColonneDomaine>
         )}

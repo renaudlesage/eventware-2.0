@@ -184,7 +184,13 @@ export default function Planning({ evenement, peut, toutPouvoir }) {
       {onglet === 'jalons' && (
         <Jalons
           evenement={evenement}
+          // Créer un jalon : `rh:creer` (policy jalons_creation) ; le
+          // modifier ou le supprimer : `rh:modifier`. Deux gardes, parce
+          // que la campagne du 20/09 a vu un bénévole devant le
+          // formulaire d'ajout (2d-04) — il l'aurait envoyé pour rien.
+          peutCreer={toutPouvoir || peut?.('rh', 'creer')}
           peutGerer={toutPouvoir || peut?.('rh', 'modifier')}
+          toutPouvoir={toutPouvoir}
           setMessage={setMessage}
         />
       )}
@@ -299,7 +305,15 @@ const STATUTS_JALON = [
   ['annule', 'Annulé']
 ]
 
-function Jalons({ evenement, peutGerer, setMessage }) {
+/**
+ * Les JALONS de l'événement — pas les actions des groupes de travail.
+ * Les deux vivent dans la même table ; ce qui les distingue est le
+ * groupe : une ligne sans groupe est une échéance de l'événement, une
+ * ligne dans un groupe est une action de ce groupe, qui se gère dans
+ * Préparation. Ici, on ne liste et on ne crée que des jalons — ajouter
+ * une ligne « sans groupe » depuis cet écran, c'est poser un jalon.
+ */
+function Jalons({ evenement, peutCreer, peutGerer, toutPouvoir, setMessage }) {
   const [lignes, setLignes] = useState([])
   const [f, setF] = useState({ code: '', libelle: '', echeance: '', responsable: '' })
 
@@ -309,6 +323,7 @@ function Jalons({ evenement, peutGerer, setMessage }) {
       .select('*')
       .eq('evenement_id', evenement.id)
       .is('deleted_at', null)
+      .is('groupe_travail_id', null)
       .order('echeance')
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setLignes(data ?? [])
@@ -364,31 +379,33 @@ function Jalons({ evenement, peutGerer, setMessage }) {
 
   return (
     <>
-      <div className="saisie-rapide">
-        <input
-          value={f.code}
-          onChange={(e) => setF({ ...f, code: e.target.value })}
-          placeholder="Code"
-          style={{ flex: '0 1 90px' }}
-        />
-        <input
-          value={f.libelle}
-          onChange={(e) => setF({ ...f, libelle: e.target.value })}
-          placeholder="Libellé"
-        />
-        <input
-          type="datetime-local"
-          value={f.echeance}
-          onChange={(e) => setF({ ...f, echeance: e.target.value })}
-        />
-        <input
-          value={f.responsable}
-          onChange={(e) => setF({ ...f, responsable: e.target.value })}
-          placeholder="Responsable"
-          style={{ flex: '0 1 140px' }}
-        />
-        <button onClick={creer}>Ajouter</button>
-      </div>
+      {peutCreer && (
+        <div className="saisie-rapide">
+          <input
+            value={f.code}
+            onChange={(e) => setF({ ...f, code: e.target.value })}
+            placeholder="Code"
+            style={{ flex: '0 1 90px' }}
+          />
+          <input
+            value={f.libelle}
+            onChange={(e) => setF({ ...f, libelle: e.target.value })}
+            placeholder="Libellé"
+          />
+          <input
+            type="datetime-local"
+            value={f.echeance}
+            onChange={(e) => setF({ ...f, echeance: e.target.value })}
+          />
+          <input
+            value={f.responsable}
+            onChange={(e) => setF({ ...f, responsable: e.target.value })}
+            placeholder="Responsable"
+            style={{ flex: '0 1 140px' }}
+          />
+          <button onClick={creer}>Ajouter</button>
+        </div>
+      )}
 
       {lignes.length === 0 ? (
         <p className="vide">Aucun jalon.</p>
@@ -415,33 +432,36 @@ function Jalons({ evenement, peutGerer, setMessage }) {
                 {j.visibilite === 'coordination' && <span>coordination</span>}
                 {depasse && <span className="alerte-texte">échéance dépassée</span>}
               </div>
-              <div className="ligne-boutons" style={{ marginTop: 10 }}>
-                <select
-                  value={j.statut}
-                  onChange={(e) => modifier(j.id, { statut: e.target.value })}
-                  style={{ width: 'auto', marginBottom: 0 }}
-                >
-                  {STATUTS_JALON.map(([v, l]) => (
-                    <option key={v} value={v}>
-                      {l}
-                    </option>
-                  ))}
-                </select>
-                {peutGerer && (
-                  <>
-                    {/* Un jalon public affiche ici son état sur la
-                        vitrine : « Fait » y devient « c'est fait »,
-                        ce qui n'est pas anodin pour une route rouverte. */}
-                    <VisibiliteJalon
-                      jalon={j}
-                      modifier={(champs) => modifier(j.id, champs)}
-                    />
-                    <button className="discret" onClick={() => supprimer(j)}>
-                      Supprimer
-                    </button>
-                  </>
-                )}
-              </div>
+              {peutGerer ? (
+                <div className="ligne-boutons" style={{ marginTop: 10 }}>
+                  <select
+                    value={j.statut}
+                    onChange={(e) => modifier(j.id, { statut: e.target.value })}
+                    style={{ width: 'auto', marginBottom: 0 }}
+                  >
+                    {STATUTS_JALON.map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                  {/* Un jalon public affiche ici son état sur la
+                      vitrine : « Fait » y devient « c'est fait »,
+                      ce qui n'est pas anodin pour une route rouverte. */}
+                  <VisibiliteJalon
+                    jalon={j}
+                    toutPouvoir={toutPouvoir}
+                    modifier={(champs) => modifier(j.id, champs)}
+                  />
+                  <button className="discret" onClick={() => supprimer(j)}>
+                    Supprimer
+                  </button>
+                </div>
+              ) : (
+                <div className="meta" style={{ marginTop: 6 }}>
+                  <span>{STATUTS_JALON.find(([v]) => v === j.statut)?.[1] ?? j.statut}</span>
+                </div>
+              )}
             </div>
           )
         })

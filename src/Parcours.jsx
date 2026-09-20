@@ -89,7 +89,9 @@ export default function Parcours({ evenement, membre, peut, toutPouvoir }) {
       {vue === 'flux' && (
         <Flux evenement={evenement} membre={membre} setMessage={setMessage} />
       )}
-      {vue === 'trace' && <Trace evenement={evenement} setMessage={setMessage} />}
+      {vue === 'trace' && (
+        <Trace evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} />
+      )}
       {vue === 'segments' && (
         <Segments
           evenement={evenement}

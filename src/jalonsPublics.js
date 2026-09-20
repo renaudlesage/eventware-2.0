@@ -72,7 +72,7 @@ export const VISIBILITES = [
   [
     'coordination',
     'Coordination',
-    'Ce qui ne regarde pas l’ensemble des bénévoles : une négociation en cours, un point de friction, une échéance qu’on n’annonce pas avant qu’elle soit tenue.'
+    'Réservé à la coordination — les rôles à tout pouvoir. Une négociation en cours, un point de friction, une échéance qu’on n’annonce pas avant qu’elle soit tenue.'
   ],
   [
     'membres',

@@ -54,7 +54,10 @@ export default function Participant({ jeton, codeLieu }) {
   }, [jeton])
 
   /* --- Position --- */
+  // Demandée seulement si un signalement est possible : une vitrine
+  // sans SOS n'a aucune raison de réclamer la position du téléphone.
   useEffect(() => {
+    if (evt == null || evt.sos_actif === false) return
     if (!navigator.geolocation) {
       setEtatGeo('indisponible')
       return
@@ -73,7 +76,7 @@ export default function Participant({ jeton, codeLieu }) {
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
     )
     return () => navigator.geolocation.clearWatch(id)
-  }, [])
+  }, [evt?.sos_actif])
 
   /* --- Réseau et renvoi automatique --- */
   useEffect(() => {
@@ -180,14 +183,24 @@ export default function Participant({ jeton, codeLieu }) {
 
   /* --- Rendu --- */
 
+  // Tant que l'événement n'est pas connu, on ne promet rien : ni
+  // formulaire, ni « Signaler un problème ». Une fois connu, le SOS ne
+  // s'affiche que si le module est actif — sinon la page est la vitrine,
+  // sous le nom de l'événement (107, evenement_public.sos_actif).
+  // `sos_actif` absent (fonction serveur d'avant la 107) : on garde le
+  // comportement d'avant, le formulaire s'affiche.
+  const sos = evt != null && evt.sos_actif !== false
+
   return (
     <div className="enveloppe participant">
       <div className="bandeau">
         <div className="bandeau-titre">
           {evt?.logo_url && <img src={evt.logo_url} alt="" className="logo-participant" />}
           <div>
-            <h1>Signaler un problème{codeLieu ? ` — ${codeLieu}` : ''}</h1>
-            {evt?.nom && <p className="acces-role" style={{ margin: '2px 0 0' }}>{evt.nom}</p>}
+            <h1>
+              {sos ? `Signaler un problème${codeLieu ? ` — ${codeLieu}` : ''}` : evt?.nom ?? '…'}
+            </h1>
+            {sos && evt?.nom && <p className="acces-role" style={{ margin: '2px 0 0' }}>{evt.nom}</p>}
           </div>
         </div>
         <span className={`session ${enLigne ? '' : 'hors-ligne'}`}>
@@ -197,7 +210,7 @@ export default function Participant({ jeton, codeLieu }) {
 
       <Vitrine jeton={jeton} codeLieu={codeLieu} />
 
-      {file.length > 0 && (
+      {sos && file.length > 0 && (
         <section>
           <h2>Mes signalements</h2>
           {file.map((s) => (
@@ -228,6 +241,7 @@ export default function Participant({ jeton, codeLieu }) {
         </section>
       )}
 
+      {sos && (
       <section>
         <h2>Nouveau signalement</h2>
 
@@ -282,6 +296,7 @@ export default function Participant({ jeton, codeLieu }) {
           En cas d'urgence vitale, appelle le 112 en premier.
         </p>
       </section>
+      )}
     </div>
   )
 }

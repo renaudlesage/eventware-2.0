@@ -91,6 +91,63 @@ export function modeleCsv(clef) {
 }
 
 /**
+ * Autres noms acceptés pour une colonne. Un fichier sorti d'un tableur
+ * ou d'un GPS ne dit pas « latitude » : il dit Lat, LAT, ou « Latitude
+ * (°) ». Le refuser ligne par ligne avec « code manquant » faisait
+ * croire à un problème de contenu quand c'était un problème d'en-tête
+ * (campagne du 20/09, 2a-14 : deux lignes, deux rejets).
+ */
+const SYNONYMES = {
+  lat: 'latitude',
+  lon: 'longitude',
+  lng: 'longitude',
+  long: 'longitude',
+  alt: 'altitude_m',
+  altitude: 'altitude_m',
+  pk: 'pk_km',
+  km: 'pk_km',
+  name: 'nom',
+  libelle: 'libelle',
+  desc: 'description',
+  tel: 'telephone',
+  telephone: 'telephone',
+  gsm: 'telephone',
+  mail: 'email',
+  courriel: 'email',
+  quantite: 'quantite',
+  qte: 'quantite',
+  seuil: 'seuil_alerte'
+}
+
+/** Sans accent, en minuscules, sans BOM ni ponctuation : la forme sous
+ *  laquelle une en-tête ou une valeur de liste se compare. */
+export function normaliser(texte) {
+  return String(texte ?? '')
+    .replace(/^\ufeff/, '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s*\(.*?\)\s*$/, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '')
+}
+
+/** Une en-tête de fichier → le nom de colonne attendu, ou tel quel. */
+export function normaliserEntete(entete) {
+  const n = normaliser(entete)
+  return SYNONYMES[n] ?? n
+}
+
+/** Les colonnes obligatoires absentes des en-têtes lues. */
+export function colonnesManquantes(clef, entetes) {
+  const lues = new Set(entetes.map(normaliserEntete))
+  return RESSOURCES[clef].colonnes
+    .filter((c) => c.obligatoire && !lues.has(c.champ))
+    .map((c) => c.champ)
+}
+
+/**
  * Valide et convertit une ligne brute du CSV.
  * Retourne { valeurs, erreurs[] } — jamais d'exception : une ligne
  * fautive doit être signalée, pas faire échouer l'import entier.
@@ -119,8 +176,16 @@ export function validerLigne(clef, brute) {
       continue
     }
 
-    if (col.valeurs && !col.valeurs.includes(v)) {
-      erreurs.push(`${col.champ} : « ${v} » hors liste`)
+    if (col.valeurs) {
+      // « Poste secours », « poste_secours » et « POSTE-SECOURS » sont
+      // la même valeur : on compare sous forme normalisée et on stocke
+      // la forme canonique de la liste.
+      const canon = col.valeurs.find((x) => normaliser(x) === normaliser(v))
+      if (!canon) {
+        erreurs.push(`${col.champ} : « ${v} » hors liste (${col.valeurs.join(', ')})`)
+        continue
+      }
+      valeurs[col.champ] = canon
       continue
     }
 

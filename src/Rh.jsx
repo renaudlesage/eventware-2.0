@@ -3,19 +3,29 @@ import { supabase } from './supabaseClient'
 import { libelleStatut, heure } from './libelles'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
+import Membres from './Membres'
+import Invitations from './Invitations'
 
 /*
- * `besoin` : capacité d'encadrement requise.
- * Un bénévole ne voit que ses propres créneaux — la couverture globale
- * et la liste de l'équipe ne le concernent pas.
+ * Bénévoles — tout ce qui concerne les personnes, à un seul endroit.
+ *
+ * L'écran s'ouvre dès `rh:lire` (App.jsx) : un bénévole y lit la
+ * couverture, sa fiche de poste et la liste des membres avec leur
+ * équipe. Chaque onglet garde ses propres commandes derrière la
+ * capacité que la policy exige. Deux onglets viennent de Réglages
+ * (campagne du 20/09) : Membres — rôle, équipe, chauffeur, retrait — et
+ * Invitations, qui ne s'affiche qu'à qui peut créer des membres.
  */
-const ONGLETS = [
-  ['couverture', 'Couverture', true],
-  ['equipe', 'Bénévoles', true],
-  ['fiches', 'Fiches de poste', true]
-]
+function ongletsPour(peut, toutPouvoir) {
+  return [
+    ['couverture', 'Couverture'],
+    ['membres', 'Membres'],
+    ...(toutPouvoir || peut?.('membres', 'creer') ? [['invitations', 'Invitations']] : []),
+    ['fiches', 'Fiches de poste']
+  ]
+}
 
-export default function Rh({ evenement, membre, peut, toutPouvoir }) {
+export default function Rh({ evenement, membre, peut, toutPouvoir, onRecharger }) {
   const [onglet, setOnglet] = useState('couverture')
   const [message, setMessage] = useState(null)
 
@@ -24,7 +34,7 @@ export default function Rh({ evenement, membre, peut, toutPouvoir }) {
       <h2>Bénévoles</h2>
 
       <div className="onglets">
-          {ONGLETS.map(([k, l]) => (
+          {ongletsPour(peut, toutPouvoir).map(([k, l]) => (
             <button
               key={k}
               className={`module ${onglet === k ? 'actif' : ''}`}
@@ -49,14 +59,18 @@ export default function Rh({ evenement, membre, peut, toutPouvoir }) {
           setMessage={setMessage}
         />
       )}
-      {onglet === 'equipe' && (
-        <Equipe
+      {onglet === 'membres' && (
+        <Membres
           evenement={evenement}
           membre={membre}
           peut={peut}
           toutPouvoir={toutPouvoir}
           setMessage={setMessage}
+          onRecharger={onRecharger}
         />
+      )}
+      {onglet === 'invitations' && (
+        <Invitations evenement={evenement} setMessage={setMessage} />
       )}
       {onglet === 'fiches' && (
         <FichesPoste
@@ -533,162 +547,6 @@ function FichePoste({ fiche }) {
         </div>
       )}
     </div>
-  )
-}
-
-/* ================================================================== */
-/* Bénévoles                                                           */
-/* ================================================================== */
-
-function Equipe({ evenement, membre, peut, toutPouvoir, setMessage }) {
-  const [membres, setMembres] = useState([])
-  const [equipes, setEquipes] = useState([])
-  const [recherche, setRecherche] = useState('')
-
-  // Policy `membres_modification` : `membres:modifier`, ou sa propre
-  // ligne — chacun peut renseigner son véhicule sans encadrer personne.
-  const peutGererMembres = toutPouvoir || peut?.('membres', 'modifier')
-  const peutModifier = (m) => peutGererMembres || m.user_id === membre?.user_id
-
-  async function charger() {
-    const [m, e] = await Promise.all([
-      supabase
-        .from('membres_evenement')
-        .select('*')
-        .eq('evenement_id', evenement.id)
-        .order('role'),
-      supabase
-        .from('equipes')
-        .select('id, code, nom')
-        .eq('evenement_id', evenement.id)
-        // Une équipe supprimée continuait d'apparaître dans le menu de
-        // rattachement, et pouvait donc encore être attribuée.
-        .is('deleted_at', null)
-        .order('code')
-    ])
-    if (m.error) setMessage({ type: 'erreur', texte: texteErreur(m.error) })
-    else setMembres(m.data ?? [])
-    setEquipes(e.data ?? [])
-  }
-
-  async function basculerChauffeur(id, actuel) {
-    const { error, count } = await supabase
-      .from('membres_evenement')
-      .update({ est_chauffeur: !actuel }, { count: 'exact' })
-      .eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
-    else if (count === 0) setMessage({ type: 'erreur', texte: 'Modification refusée.' })
-    else charger()
-  }
-
-  async function majVehicule(id, type_vehicule) {
-    const refus = await modifierOuRefuser('membres_evenement', { type_vehicule }, { id })
-    if (refus) setMessage({ type: 'erreur', texte: refus })
-    else charger()
-  }
-
-  useEffect(() => {
-    charger()
-  }, [evenement.id])
-
-  async function rattacher(id, equipeId) {
-    const { error, count } = await supabase
-      .from('membres_evenement')
-      .update({ equipe_id: equipeId || null }, { count: 'exact' })
-      .eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
-    else if (count === 0) setMessage({ type: 'erreur', texte: 'Modification refusée.' })
-    else charger()
-  }
-
-  if (!membres.length) return <p className="vide">Aucun membre.</p>
-
-  const q = recherche.trim().toLowerCase()
-  const visibles = q
-    ? membres.filter((m) =>
-        [m.nom_affiche, m.perimetre, m.role, m.telephone]
-          .filter(Boolean)
-          .some((x) => x.toLowerCase().includes(q))
-      )
-    : membres
-
-  return (
-    <>
-      <div className="compteurs">
-        <span>
-          Membres <strong>{membres.length}</strong>
-        </span>
-        <span>
-          Actifs <strong>{membres.filter((m) => m.actif).length}</strong>
-        </span>
-      </div>
-
-      <input
-        value={recherche}
-        onChange={(e) => setRecherche(e.target.value)}
-        placeholder="Rechercher un bénévole, un poste, un rôle…"
-      />
-
-      {visibles.length === 0 && (
-        <p className="vide">Aucun membre ne correspond à « {recherche} ».</p>
-      )}
-
-      {visibles.map((m) => (
-        <div className="carte" key={m.id}>
-          <div className="titre">{m.nom_affiche ?? '(sans nom)'}</div>
-          <div className="meta">
-            <span className={`jeton ${m.role}`}>{m.role}</span>
-            {m.perimetre && <span>{m.perimetre}</span>}
-            {m.telephone && <span className="mono">{m.telephone}</span>}
-            {!m.actif && <span className="alerte-texte">inactif</span>}
-            {/* Sans droit d'écriture, l'équipe et le véhicule restent
-                lisibles — ils ne s'affichaient que dans les commandes. */}
-            {!peutModifier(m) && m.equipe_id && (
-              <span>{equipes.find((eq) => eq.id === m.equipe_id)?.code ?? 'équipe'}</span>
-            )}
-            {!peutModifier(m) && m.est_chauffeur && (
-              <span>chauffeur{m.type_vehicule ? ` · ${m.type_vehicule}` : ''}</span>
-            )}
-          </div>
-          {peutModifier(m) && (
-            <div className="ligne-boutons" style={{ marginTop: 10 }}>
-              <select
-                value={m.equipe_id ?? ''}
-                onChange={(e) => rattacher(m.id, e.target.value)}
-                style={{ width: 'auto', marginBottom: 0 }}
-              >
-                <option value="">— sans équipe —</option>
-                {equipes.map((eq) => (
-                  <option key={eq.id} value={eq.id}>
-                    {eq.code} · {eq.nom}
-                  </option>
-                ))}
-              </select>
-              <button
-                className={`module ${m.est_chauffeur ? 'actif' : ''}`}
-                onClick={() => basculerChauffeur(m.id, m.est_chauffeur)}
-              >
-                {m.est_chauffeur ? 'Chauffeur ✓' : 'Marquer chauffeur'}
-              </button>
-            </div>
-          )}
-          {peutModifier(m) && m.est_chauffeur && (
-            <input
-              defaultValue={m.type_vehicule ?? ''}
-              placeholder="Véhicule habituel — utilitaire, 7 places…"
-              onBlur={(e) => majVehicule(m.id, e.target.value || null)}
-              style={{ marginTop: 8, marginBottom: 0 }}
-            />
-          )}
-        </div>
-      ))}
-      <p className="aide">
-        L'équipe de rattachement détermine les missions qui apparaissent dans « Mon terrain ».
-        « Chauffeur » n'est pas un rôle : c'est une catégorie en plus, qui rend la personne
-        disponible pour une attribution dans Logistique → Transports. Elle garde ses
-        capacités habituelles.
-      </p>
-    </>
   )
 }
 

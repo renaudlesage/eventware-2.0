@@ -3,7 +3,7 @@ import Papa from 'papaparse'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { libelleStatut } from './libelles'
-import { RESSOURCES, validerLigne, modeleCsv } from './colonnesImport'
+import { RESSOURCES, validerLigne, modeleCsv, normaliserEntete, colonnesManquantes } from './colonnesImport'
 
 const MODES = [
   ['ajouter', 'Ajouter seulement', "Les codes déjà présents sont laissés intacts."],
@@ -56,7 +56,25 @@ export default function ImportCsv({ evenementId, phase, peut, toutPouvoir, onFai
       header: true,
       skipEmptyLines: true,
       delimiter: '',
+      // Les en-têtes sont ramenées aux noms attendus : sans BOM, sans
+      // accent, sans majuscule, synonymes compris (« Lat » → latitude).
+      transformHeader: normaliserEntete,
       complete: async (res) => {
+        const entetes = res.meta.fields ?? []
+        const manquantes = colonnesManquantes(clef, entetes)
+        if (manquantes.length) {
+          // Un problème d'en-tête se dit une fois, au niveau du fichier —
+          // pas « code manquant » répété sur chaque ligne, qui fait
+          // chercher l'erreur dans les données.
+          setErreur(
+            `Colonne(s) obligatoire(s) absente(s) du fichier : ${manquantes.join(', ')}. ` +
+              `En-têtes lues : ${entetes.join(' ; ') || 'aucune'}. ` +
+              `Attendu : ${RESSOURCES[clef].colonnes.map((c) => c.champ).join(' ; ')}.`
+          )
+          setOccupe(false)
+          return
+        }
+
         const lignes = res.data.map((brute, i) => {
           const { valeurs, erreurs } = validerLigne(clef, brute)
           return { numero: i + 2, valeurs, erreurs }
@@ -101,7 +119,11 @@ export default function ImportCsv({ evenementId, phase, peut, toutPouvoir, onFai
           }
         }
 
-        setAnalyse({ lignes, colonnesFichier: res.meta.fields ?? [] })
+        setAnalyse({
+          lignes,
+          colonnesFichier: entetes,
+          ignorees: entetes.filter((e) => !RESSOURCES[clef].colonnes.some((c) => c.champ === e))
+        })
         setOccupe(false)
       },
       error: (e) => {
@@ -269,6 +291,14 @@ export default function ImportCsv({ evenementId, phase, peut, toutPouvoir, onFai
             <span className="jeton existant">{compte.existant} déjà présent(s)</span>
             <span className="jeton rejete">{compte.rejete} rejeté(s)</span>
           </div>
+          <p className="aide">
+            Colonnes lues : <span className="mono">{analyse.colonnesFichier.join(' ; ')}</span>
+            {analyse.ignorees.length > 0 && (
+              <>
+                {' '}— ignorée(s) : <span className="mono">{analyse.ignorees.join(' ; ')}</span>
+              </>
+            )}
+          </p>
 
           <table className="apercu">
             <thead>

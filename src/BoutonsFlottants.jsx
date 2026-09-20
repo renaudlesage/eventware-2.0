@@ -127,6 +127,11 @@ function FormSos({ evenement, membre, onFini }) {
   const [position, setPosition] = useState(null)
   const [occupe, setOccupe] = useState(false)
   const [erreur, setErreur] = useState(null)
+  // Une clé par ouverture du formulaire, pas par envoi : si la réponse
+  // se perd et qu'on appuie une seconde fois, la base reconnaît le
+  // même signalement (unicité evenement + cle_client) au lieu d'en
+  // créer deux. Rouvrir le formulaire, c'est un nouveau signalement.
+  const [cle] = useState(nouvelleCle)
 
   function localiser() {
     navigator.geolocation?.getCurrentPosition(
@@ -153,13 +158,16 @@ function FormSos({ evenement, membre, onFini }) {
       // `nouvelleCle` et non `crypto.randomUUID` : ce dernier n'existe pas
       // en http://, et le SOS d'un membre sur le réseau du festival ne
       // doit pas planter pour ça.
-      cle_client: nouvelleCle(),
+      cle_client: cle,
       type,
       description: description.trim(),
       emis_le: new Date().toISOString(),
       ...(position ?? {})
     })
-    if (error) setErreur(texteErreur(error))
+    // 23505 sur la clé client : le premier envoi était bien arrivé, la
+    // réponse seule s'était perdue. C'est un succès, pas une erreur.
+    const dejaRecu = error?.code === '23505' && /cle_client/.test(error.message ?? '')
+    if (error && !dejaRecu) setErreur(texteErreur(error))
     else onFini()
     setOccupe(false)
   }

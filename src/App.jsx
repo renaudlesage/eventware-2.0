@@ -20,8 +20,9 @@ import AccesAutorite from './AccesAutorite'
 import Plateforme from './Plateforme'
 import Planning from './Planning'
 import Preparation from './Preparation'
-import Invitations, { RejoindreParCode } from './Invitations'
-import Membres from './Membres'
+import { RejoindreParCode } from './Invitations'
+import Conformite from './Conformite'
+import DossierSecurite from './DossierSecurite'
 import MonCompte from './MonCompte'
 import LogoEvenement from './LogoEvenement'
 import Point0 from './Point0'
@@ -81,13 +82,26 @@ const ECRANS = [
   // les deux.
   { clef: 'accueil',    libelle: 'Mon poste',    module: null,                besoin: null },
   { clef: 'memento',    libelle: 'Mémento',      module: null,                besoin: null },
-    { clef: 'preparation', libelle: 'Préparation', module: 'preparation',     besoin: ['rh', 'lire'] },
+  { clef: 'preparation', libelle: 'Préparation', module: 'preparation',       besoin: ['rh', 'lire'] },
   { clef: 'planning',   libelle: 'Planning',     module: null,                besoin: null },
-  { clef: 'securite',   libelle: 'Sécurité',     module: 'securite',          besoin: ['missions', 'creer'] },
+  // Sécurité s'ouvre à tout membre : la main courante, les alertes et
+  // les signalements se lisent de plein droit (règle R2 de la 025), et
+  // c'est là qu'un bénévole déclare une recherche ou lit une fiche
+  // réflexe. Ce qui s'y écrit reste gardé onglet par onglet. La
+  // campagne du 20/09 a montré qu'exiger `missions:creer` ici privait
+  // le bénévole de tout l'écran (3e-04) alors que le plan de tests —
+  // et la matrice — lui en donnaient la lecture.
+  { clef: 'securite',   libelle: 'Sécurité',     module: 'securite',          besoin: ['journal', 'lire'] },
   { clef: 'logistique', libelle: 'Logistique',   module: 'logistique',        besoin: ['logistique', 'lire'] },
   { clef: 'parcours',   libelle: 'Parcours',     module: 'parcours',          besoin: ['parcours', 'lire'] },
-  { clef: 'rh',         libelle: 'Bénévoles',    module: 'rh',                besoin: ['rh', 'creer'] },
+  // Bénévoles dès la lecture : ses créneaux, son équipe, les fiches de
+  // poste concernent chacun. Le pavé « Équipes » de Mon poste y menait
+  // déjà — un écran atteignable par un pavé mais absent du menu était
+  // une incohérence (2d-07).
+  { clef: 'rh',         libelle: 'Bénévoles',    module: 'rh',                besoin: ['rh', 'lire'] },
   { clef: 'plan',       libelle: 'Implantation', module: 'plan_implantation', besoin: ['plan_implantation', 'lire'] },
+  // Analyse reste l'écran de l'arbitrage. Qui consigne sans arbitrer
+  // retrouve ses constats dans le pavé « Mes constats » de Mon poste.
   { clef: 'analyse',    libelle: 'Analyse',      module: 'analyse',           besoin: ['analyse', 'modifier'] },
   { clef: 'reglages',   libelle: 'Réglages',     module: null,                besoin: 'tout_pouvoir' },
   // Console de l'éditeur : hors événement, réservée à l'exploitant.
@@ -684,7 +698,6 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
           session={session}
           peut={peut}
           toutPouvoir={toutPouvoir}
-          exploitant={exploitant}
           ongletCible={ongletCible}
         />
       )
@@ -695,7 +708,15 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
     case 'parcours':
       return <Parcours evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} />
     case 'rh':
-      return <Rh evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} />
+      return (
+        <Rh
+          evenement={evenement}
+          membre={membre}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+          onRecharger={onRecharger}
+        />
+      )
     case 'plan':
       return (
         <PlanImplantation evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} />
@@ -739,12 +760,18 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
  * dans le développement : sept sections empilées obligeaient à parcourir
  * tout l'écran pour trouver une case.
  *
- * « Rôles » a rejoint « Équipe » : composer un rôle et l'attribuer sont
- * la même tâche, séparée en deux écrans elle devenait pénible.
+ * Depuis la campagne du 20/09, Réglages ne garde de l'équipe que la
+ * COMPOSITION DES RÔLES : inviter quelqu'un et lui attribuer un rôle se
+ * font dans Bénévoles, avec le reste de la gestion des personnes. Et
+ * la conformité (questionnaire, contrôles, référentiels d'organisation,
+ * dossier de sécurité) arrive ici depuis Sécurité : ce sont des actes
+ * de la coordination, à froid — l'écran Sécurité, lui, s'ouvre
+ * maintenant à tout membre.
  */
 const PANNEAUX = [
   ['dispositif', 'Dispositif'],
-  ['equipe', 'Équipe'],
+  ['roles', 'Rôles'],
+  ['conformite', 'Conformité'],
   ['donnees', 'Données'],
   ['partage', 'Partage'],
   ['compte', 'Mon compte']
@@ -862,20 +889,31 @@ function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, o
             </p>
           </section>
 
-          <Reconduire evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
+          <Reconduire evenement={evenement} onFait={onRecharger} />
         </>
       )}
 
-      {panneau === 'equipe' && (
+      {panneau === 'roles' && (
         <>
-          <Invitations evenement={evenement} setMessage={setMessage} />
-          <Membres
-            evenement={evenement}
-            membre={membre}
-            setMessage={setMessage}
-            onRecharger={onRecharger}
-          />
+          <p className="aide" style={{ marginTop: 0 }}>
+            Ici se composent les rôles — ce que chacun peut lire et écrire, phase par phase.
+            Inviter quelqu&rsquo;un, lui donner un rôle ou le retirer se fait dans
+            Bénévoles › Membres.
+          </p>
           <Roles evenement={evenement} setMessage={setMessage} />
+        </>
+      )}
+
+      {panneau === 'conformite' && (
+        <>
+          <Conformite
+            evenement={evenement}
+            exploitant={exploitant}
+            peut={peut}
+            toutPouvoir={toutPouvoir}
+            setMessage={setMessage}
+          />
+          <DossierSecurite evenement={evenement} setMessage={setMessage} />
         </>
       )}
 
@@ -901,7 +939,11 @@ function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, o
         <>
           <AccesAutorite evenement={evenement} setMessage={setMessage} />
           <VitrineAdmin evenement={evenement} setMessage={setMessage} />
-          {evenement.modules?.sos_participants && <QrCodes evenement={evenement} />}
+          {/* Le lien participant existe pour tout événement : la
+              vitrine (infos, horaire, plan) ne dépend pas du module
+              SOS. Sans lui, Partage ne montrait aucun lien et le
+              coordinateur de BFMF2027 n'avait rien à ouvrir (2b-07). */}
+          <QrCodes evenement={evenement} />
           <Diffusion evenement={evenement} setMessage={setMessage} />
         </>
       )}
@@ -1076,12 +1118,16 @@ function DatesEvenement({ evenement, onFait, setMessage }) {
   )
 }
 
-function Reconduire({ evenement, onFait, setMessage }) {
+function Reconduire({ evenement, onFait }) {
   const [ouvert, setOuvert] = useState(false)
   const [nom, setNom] = useState('')
   const [debut, setDebut] = useState('')
   const [fin, setFin] = useState('')
   const [occupe, setOccupe] = useState(false)
+  // Le message vit dans le bloc, pas en haut de page : « Reconduire »
+  // est en bas des Réglages, et un refus de quota affiché à 1 500 px
+  // au-dessus n'était vu par personne (campagne du 20/09, 4a-03).
+  const [message, setMessage] = useState(null)
 
   // Un slug se devine bien : c'est le nom, sans accent ni espace. Le
   // laisser saisir à la main n'apporterait qu'une occasion de le rater.
@@ -1117,6 +1163,11 @@ function Reconduire({ evenement, onFait, setMessage }) {
   return (
     <section className="bloc">
       <h2>Reconduire</h2>
+      {message && (
+        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
+          {message.texte}
+        </div>
+      )}
       {!ouvert ? (
         <>
           <p className="aide" style={{ marginTop: 0 }}>

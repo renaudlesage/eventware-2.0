@@ -47,6 +47,8 @@ export default function Logistique({ evenement, membre, peut, toutPouvoir }) {
           key="logistique"
           evenement={evenement}
           membre={membre}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
           setMessage={setMessage}
           module="logistique"
           libelle="Demandes logistiques"

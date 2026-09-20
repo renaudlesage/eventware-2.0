@@ -7,22 +7,29 @@ import { detecterDoublons } from './doublons'
 import Maydays from './Maydays'
 import Meteo from './Meteo'
 import PcOps from './PcOps'
-import Conformite from './Conformite'
-import DossierSecurite from './DossierSecurite'
+import { Effectifs } from './PlanImplantation'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser, supprimerOuRefuser } from './ecriture'
 
 /*
- * Deux familles distinctes, pas sept onglets à plat :
+ * Deux familles distinctes, pas huit onglets à plat :
  *   OPÉRATIONNEL — ce qui se passe maintenant : signalements, Mayday,
- *   main courante, demandes, recherches, plus les suggestions d'alerte
- *   de la veille météo, poussables d'ici sans repasser par la Situation.
- *   ADMINISTRATIF — ce qui se prépare à froid ou se produit après
- *   coup : fiches réflexe, rapport.
+ *   main courante, demandes, recherches, effectifs présents et moyens
+ *   de secours, plus les suggestions d'alerte de la veille météo,
+ *   poussables d'ici sans repasser par la Situation.
+ *   DOCUMENTS — ce qu'on consulte ou qu'on produit : fiches réflexe,
+ *   rapport de situation.
  *
  * « Signalements » vivait comme écran séparé — regroupé ici parce que
  * c'est le même métier que la main courante et les demandes : réagir à
  * ce qui se passe, pas s'y préparer.
+ *
+ * La conformité et le dossier de sécurité ont quitté cet écran pour
+ * Réglages › Conformité (campagne du 20/09, 3d-13) : ce sont des actes
+ * de la coordination, à froid, et cet écran s'ouvre désormais à tout
+ * membre. Les effectifs, eux, arrivent du Plan d'implantation (3c-03) :
+ * combien de personnes sont attendues et quels moyens de secours sont
+ * dénombrés, c'est une question qu'on se pose au PC, pas devant un plan.
  */
 function groupesPour(modules) {
   return {
@@ -33,22 +40,21 @@ function groupesPour(modules) {
         ['mayday', 'Mayday'],
         ['journal', 'Main courante'],
         ['missions', 'Demandes'],
-        ['recherches', 'Recherches']
+        ['recherches', 'Recherches'],
+        ['effectifs', 'Effectifs']
       ]
     },
-    administratif: {
-      libelle: 'Administratif',
+    documents: {
+      libelle: 'Documents',
       onglets: [
         ['fiches', 'Fiches réflexe'],
-        ['conformite', 'Conformité'],
-        ['dossier', 'Dossier de sécurité'],
         ['sitrep', 'Rapport']
       ]
     }
   }
 }
 
-export default function Securite({ evenement, membre, session, peut, toutPouvoir, exploitant, ongletCible }) {
+export default function Securite({ evenement, membre, session, peut, toutPouvoir, ongletCible }) {
   const GROUPES = groupesPour(evenement.modules)
   const [groupe, setGroupe] = useState('operationnel')
   const [onglet, setOnglet] = useState(
@@ -137,6 +143,8 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
           key="securite"
           evenement={evenement}
           membre={membre}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
           setMessage={setMessage}
           module="securite"
           libelle="Demandes sécurité"
@@ -150,20 +158,16 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
           setMessage={setMessage}
         />
       )}
-      {onglet === 'fiches' && (
-        <Fiches evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} />
-      )}
-      {onglet === 'conformite' && (
-        <Conformite
+      {onglet === 'effectifs' && (
+        <Effectifs
           evenement={evenement}
-          exploitant={exploitant}
           peut={peut}
           toutPouvoir={toutPouvoir}
           setMessage={setMessage}
         />
       )}
-      {onglet === 'dossier' && (
-        <DossierSecurite evenement={evenement} setMessage={setMessage} />
+      {onglet === 'fiches' && (
+        <Fiches evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} />
       )}
       {onglet === 'sitrep' && (
         <Sitrep evenement={evenement} session={session} membre={membre} />
@@ -364,8 +368,15 @@ function emetteurDe(mission, membres) {
   return m?.nom_affiche ? `signalée par ${m.nom_affiche}` : 'émetteur inconnu'
 }
 
-export function Missions({ evenement, membre, setMessage, module = 'securite', libelle = 'Demandes' }) {
+export function Missions({ evenement, membre, peut, toutPouvoir, setMessage, module = 'securite', libelle = 'Demandes' }) {
   const [missions, setMissions] = useState([])
+  // Créer, attribuer, déplacer une demande : `missions:creer`, le droit
+  // d'encadrement (policies missions_creation et 105). Qui ne l'a pas
+  // lit la liste ; ses propres missions, il les fait avancer depuis
+  // Mon terrain. L'écran Sécurité s'ouvrant à tout membre depuis la
+  // campagne du 20/09, ces commandes ne peuvent plus être affichées à
+  // tout le monde.
+  const peutEncadrer = toutPouvoir || peut?.('missions', 'creer')
   const [equipes, setEquipes] = useState([])
   const [lieux, setLieux] = useState([])
   const [membres, setMembres] = useState([])
@@ -482,21 +493,25 @@ export function Missions({ evenement, membre, setMessage, module = 'securite', l
         <button className="discret" onClick={() => exporterMissions(missions, module)}>
           Export CSV
         </button>
-        <button
-          className="action-creer"
-          onClick={() => setCreer(creer === 'normal' ? null : 'normal')}
-        >
-          + Nouvelle demande
-        </button>
-        <button
-          className="action-urgente"
-          onClick={() => setCreer(creer === 'urgent' ? null : 'urgent')}
-        >
-          ⚠ Demande urgente
-        </button>
+        {peutEncadrer && (
+          <>
+            <button
+              className="action-creer"
+              onClick={() => setCreer(creer === 'normal' ? null : 'normal')}
+            >
+              + Nouvelle demande
+            </button>
+            <button
+              className="action-urgente"
+              onClick={() => setCreer(creer === 'urgent' ? null : 'urgent')}
+            >
+              ⚠ Demande urgente
+            </button>
+          </>
+        )}
       </div>
 
-      {creer && (
+      {peutEncadrer && creer && (
         <FormDemande
           mode={creer}
           evenement={evenement}
@@ -561,6 +576,7 @@ export function Missions({ evenement, membre, setMessage, module = 'securite', l
                     setMessage={setMessage}
                   />
 
+                  {peutEncadrer ? (
                   <div className="ligne-boutons" style={{ marginTop: 10 }}>
                     <select
                       value={m.statut}
@@ -603,6 +619,14 @@ export function Missions({ evenement, membre, setMessage, module = 'securite', l
                       </button>
                     )}
                   </div>
+                  ) : (
+                  <div className="meta" style={{ marginTop: 8 }}>
+                    <span>{libelleStatut(m.statut)}</span>
+                    {m.equipe_id && (
+                      <span>équipe {equipes.find((eq) => eq.id === m.equipe_id)?.code ?? ''}</span>
+                    )}
+                  </div>
+                  )}
                 </div>
               )}
             </div>
