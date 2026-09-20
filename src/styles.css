@@ -1193,6 +1193,24 @@ dl.fiche dd { margin: 1px 0 0; }
 
 .situation .grille-paves { margin-bottom: 20px; }
 
+/* Le titre à gauche, la météo compacte à droite — la météo est un
+   contexte permanent, pas un élément du fil de lecture (mayday,
+   alertes, domaines) sous elle. Sous 900 px, la météo n'a plus la
+   place à côté du titre et repasse dessous, pleine largeur. */
+.situation-tete {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 14px;
+}
+.situation-tete .entete-dashboard { flex: 1 1 auto; margin-bottom: 0; }
+.situation-tete .meteo { flex: 0 0 320px; margin-bottom: 0; min-width: 0; }
+
+@media (max-width: 900px) {
+  .situation-tete { flex-direction: column; }
+  .situation-tete .meteo { flex-basis: auto; width: 100%; }
+}
+
 button.grand-lien {
   all: unset;
   cursor: pointer;
