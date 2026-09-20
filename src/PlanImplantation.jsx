@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Polyline, Polygon, CircleMarker, Popup, useMap } from 'react-leaflet'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
+import { modifierOuRefuser } from './ecriture'
 
 const CATEGORIES = [
   // Dispositif de secours — vocabulaire de la doctrine belge
@@ -68,12 +69,15 @@ const ORDRE_SECOURS = [
 const COULEUR = (e) =>
   e.est_risque ? '#a3341f' : e.confirme ? '#1d5c4f' : '#6b6862'
 
-export default function PlanImplantation({ evenement, membre }) {
+export default function PlanImplantation({ evenement, membre, peut, toutPouvoir }) {
   const [elements, setElements] = useState([])
   const [message, setMessage] = useState(null)
   const [vue, setVue] = useState('tournee')
   const [position, setPosition] = useState(null)
   const [edite, setEdite] = useState(null)
+
+  const peutCreer = toutPouvoir || peut?.('plan_implantation', 'creer')
+  const peutModifier = toutPouvoir || peut?.('plan_implantation', 'modifier')
 
   async function charger() {
     const { data, error } = await supabase
@@ -143,15 +147,17 @@ export default function PlanImplantation({ evenement, membre }) {
           ['risques', `Risques (${risques.length})`],
           ['effectifs', 'Effectifs'],
           ['ajout', 'Ajouter']
-        ].map(([k, l]) => (
-          <button
-            key={k}
-            className={`module ${vue === k ? 'actif' : ''}`}
-            onClick={() => setVue(k)}
-          >
-            {l}
-          </button>
-        ))}
+        ]
+          .filter(([k]) => k !== 'ajout' || peutCreer)
+          .map(([k, l]) => (
+            <button
+              key={k}
+              className={`module ${vue === k ? 'actif' : ''}`}
+              onClick={() => setVue(k)}
+            >
+              {l}
+            </button>
+          ))}
       </div>
 
       {message && (
@@ -196,22 +202,28 @@ export default function PlanImplantation({ evenement, membre }) {
                   {e.est_risque && <span className="alerte-texte">à risque</span>}
                   {(e.geometrie ?? []).length === 0 && <span>sans position</span>}
                 </div>
-                <div className="ligne-boutons" style={{ marginTop: 10 }}>
-                  <button onClick={() => confirmerIci(e)}>
-                    Confirmer ici {position ? '(GPS)' : ''}
-                  </button>
-                  <button className="discret" onClick={() => setEdite(edite === e.id ? null : e.id)}>
-                    Détail
-                  </button>
-                </div>
-                {edite === e.id && <FicheRisque element={e} onMaj={maj} />}
+                {peutModifier && (
+                  <>
+                    <div className="ligne-boutons" style={{ marginTop: 10 }}>
+                      <button onClick={() => confirmerIci(e)}>
+                        Confirmer ici {position ? '(GPS)' : ''}
+                      </button>
+                      <button className="discret" onClick={() => setEdite(edite === e.id ? null : e.id)}>
+                        Détail
+                      </button>
+                    </div>
+                    {edite === e.id && <FicheRisque element={e} onMaj={maj} />}
+                  </>
+                )}
               </div>
             ))
           )}
-          <p className="aide">
-            Passe devant chaque implantation, confirme ou crée. Le risque naît de
-            l'implantation constatée, pas de la liste des exposants.
-          </p>
+          {(peutCreer || peutModifier) && (
+            <p className="aide">
+              Passe devant chaque implantation, confirme ou crée. Le risque naît de
+              l'implantation constatée, pas de la liste des exposants.
+            </p>
+          )}
         </>
       )}
 
@@ -345,10 +357,15 @@ export default function PlanImplantation({ evenement, membre }) {
       )}
 
       {vue === 'effectifs' && (
-        <Effectifs evenement={evenement} setMessage={setMessage} />
+        <Effectifs
+          evenement={evenement}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+          setMessage={setMessage}
+        />
       )}
 
-      {vue === 'ajout' && (
+      {peutCreer && vue === 'ajout' && (
         <Ajout
           evenement={evenement}
           position={position}
@@ -546,11 +563,13 @@ const TYPES_MOYENS = [
   ['extincteur', 'Extincteurs']
 ]
 
-function Effectifs({ evenement, setMessage }) {
+function Effectifs({ evenement, peut, toutPouvoir, setMessage }) {
   const [min, setMin] = useState(evenement.frequentation_min ?? '')
   const [max, setMax] = useState(evenement.frequentation_max ?? '')
   const [enregistre, setEnregistre] = useState(false)
   const [moyens, setMoyens] = useState([])
+
+  const peutMoyens = toutPouvoir || peut?.('plan_implantation', 'creer')
 
   async function charger() {
     const { data } = await supabase
@@ -566,14 +585,15 @@ function Effectifs({ evenement, setMessage }) {
   }, [evenement.id])
 
   async function enregistrerFrequentation() {
-    const { error } = await supabase
-      .from('evenements')
-      .update({
+    const refus = await modifierOuRefuser(
+      'evenements',
+      {
         frequentation_min: min ? Number(min) : null,
         frequentation_max: max ? Number(max) : null
-      })
-      .eq('id', evenement.id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+      },
+      { id: evenement.id }
+    )
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else {
       setEnregistre(true)
       setTimeout(() => setEnregistre(false), 2500)
@@ -583,11 +603,20 @@ function Effectifs({ evenement, setMessage }) {
   async function majQuantite(type, quantite) {
     const existant = moyens.find((m) => m.type === type)
     if (existant) {
-      await supabase.from('moyens_premiers_secours').update({ quantite }).eq('id', existant.id)
+      const refus = await modifierOuRefuser(
+        'moyens_premiers_secours',
+        { quantite },
+        { id: existant.id }
+      )
+      if (refus) setMessage({ type: 'erreur', texte: refus })
+      else charger()
     } else {
-      await supabase.from('moyens_premiers_secours').insert({ evenement_id: evenement.id, type, quantite })
+      const { error } = await supabase
+        .from('moyens_premiers_secours')
+        .insert({ evenement_id: evenement.id, type, quantite })
+      if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+      else charger()
     }
-    charger()
   }
 
   return (
@@ -620,15 +649,24 @@ function Effectifs({ evenement, setMessage }) {
         Un compte, pas une localisation — les DEA et extincteurs situés sur le plan restent
         des points sur la carte. Ici, combien il y en a au total.
       </p>
+      {/* Le compte se lit par tout membre ; seul le champ de saisie
+          dépend de `plan_implantation:creer`, la capacité que la policy
+          `moyens_secours_ecriture` exige (103). */}
       {TYPES_MOYENS.map(([type, libelle]) => (
         <div className="saisie-rapide" key={type}>
           <span style={{ flex: 1 }}>{libelle}</span>
-          <input
-            type="number"
-            defaultValue={moyens.find((m) => m.type === type)?.quantite ?? 0}
-            onBlur={(e) => majQuantite(type, Number(e.target.value) || 0)}
-            style={{ flex: '0 1 90px' }}
-          />
+          {peutMoyens ? (
+            <input
+              type="number"
+              defaultValue={moyens.find((m) => m.type === type)?.quantite ?? 0}
+              onBlur={(e) => majQuantite(type, Number(e.target.value) || 0)}
+              style={{ flex: '0 1 90px' }}
+            />
+          ) : (
+            <span className="mono" style={{ flex: '0 1 90px', textAlign: 'right' }}>
+              {moyens.find((m) => m.type === type)?.quantite ?? 0}
+            </span>
+          )}
         </div>
       ))}
     </>

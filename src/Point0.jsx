@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
-import { texteErreur } from './erreurs'
+import { modifierOuRefuser } from './ecriture'
 
 /**
  * Point 0 — la coordonnée de référence de l'événement.
@@ -43,11 +43,8 @@ export default function Point0({ evenement, onFait, setMessage }) {
   async function enregistrerMode(valeur) {
     setOccupeMode(true)
     setModeParcours(valeur)
-    const { error } = await supabase
-      .from('evenements')
-      .update({ mode_parcours: valeur })
-      .eq('id', evenement.id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const refus = await modifierOuRefuser('evenements', { mode_parcours: valeur }, { id: evenement.id })
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else {
       onFait()
       setModeEnregistre(true)
@@ -58,11 +55,12 @@ export default function Point0({ evenement, onFait, setMessage }) {
 
   async function enregistrerCommune() {
     setOccupeCommune(true)
-    const { error } = await supabase
-      .from('evenements')
-      .update({ commune: commune.trim() || null })
-      .eq('id', evenement.id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const refus = await modifierOuRefuser(
+      'evenements',
+      { commune: commune.trim() || null },
+      { id: evenement.id }
+    )
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else {
       onFait()
       setCommuneEnregistree(true)
@@ -73,11 +71,8 @@ export default function Point0({ evenement, onFait, setMessage }) {
 
   async function enregistrerProvince() {
     setOccupeProvince(true)
-    const { error } = await supabase
-      .from('evenements')
-      .update({ province: province || null })
-      .eq('id', evenement.id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const refus = await modifierOuRefuser('evenements', { province: province || null }, { id: evenement.id })
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else {
       onFait()
       setProvinceEnregistree(true)
@@ -108,11 +103,12 @@ export default function Point0({ evenement, onFait, setMessage }) {
       return
     }
     setOccupe(true)
-    const { error } = await supabase
-      .from('evenements')
-      .update({ point_0_lat: la, point_0_lon: lo })
-      .eq('id', evenement.id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const refus = await modifierOuRefuser(
+      'evenements',
+      { point_0_lat: la, point_0_lon: lo },
+      { id: evenement.id }
+    )
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else onFait()
     setOccupe(false)
   }

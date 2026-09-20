@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Papa from 'papaparse'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 import { libelleStatut } from './libelles'
 import { RESSOURCES, validerLigne, modeleCsv } from './colonnesImport'
 
@@ -75,7 +76,7 @@ export default function ImportCsv({ evenementId, phase, peut, toutPouvoir, onFai
             .eq('evenement_id', evenementId)
             .in('code', codes)
           if (error) {
-            setErreur(error.message)
+            setErreur(texteErreur(error))
             setOccupe(false)
             return
           }
@@ -104,7 +105,7 @@ export default function ImportCsv({ evenementId, phase, peut, toutPouvoir, onFai
         setOccupe(false)
       },
       error: (e) => {
-        setErreur(e.message)
+        setErreur(texteErreur(e))
         setOccupe(false)
       }
     })
@@ -190,7 +191,7 @@ export default function ImportCsv({ evenementId, phase, peut, toutPouvoir, onFai
       setAnalyse(null)
       onFait?.()
     } catch (e) {
-      setErreur(e.message ?? String(e))
+      setErreur(texteErreur(e))
     }
     setOccupe(false)
   }

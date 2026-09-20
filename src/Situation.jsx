@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 import Meteo from './Meteo'
 import Maydays from './Maydays'
 import { libelleStatut } from './libelles'
@@ -107,7 +108,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
         .order('recu_le', { ascending: false })
         .limit(5)
     ])
-    if (error) setErreur(error.message)
+    if (error) setErreur(texteErreur(error))
     else {
       const urgentAvant = urgencePrecedenteRef.current
       const urgentMaintenant = compterUrgent(data)

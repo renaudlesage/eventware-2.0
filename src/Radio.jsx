@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
+import { modifierOuRefuser } from './ecriture'
 
 /**
  * Matrice radio.
@@ -21,7 +22,12 @@ const BANDES = [
   ['autre', 'Autre']
 ]
 
-export default function Radio({ evenement, setMessage }) {
+export default function Radio({ evenement, setMessage, peut, toutPouvoir }) {
+  // Policies `canaux_*` et `attributions_*` : logistique:creer pour
+  // déclarer un canal, logistique:modifier pour le régler ou attribuer
+  // un poste. Lecture libre : la matrice radio se consulte au terrain.
+  const peutCreer = toutPouvoir || peut?.('logistique', 'creer')
+  const peutModifier = toutPouvoir || peut?.('logistique', 'modifier')
   const [canaux, setCanaux] = useState([])
   const [postes, setPostes] = useState([])
   const [equipes, setEquipes] = useState([])
@@ -94,8 +100,8 @@ export default function Radio({ evenement, setMessage }) {
   }
 
   async function majPoste(id, champs) {
-    const { error } = await supabase.from('attributions').update(champs).eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const refus = await modifierOuRefuser('attributions', champs, { id })
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else charger()
   }
 
@@ -130,6 +136,7 @@ export default function Radio({ evenement, setMessage }) {
 
       {vue === 'matrice' && (
         <>
+          {peutCreer && (
           <div className="saisie-rapide">
             <input
               value={f.numero}
@@ -169,6 +176,7 @@ export default function Radio({ evenement, setMessage }) {
               Ajouter
             </button>
           </div>
+          )}
 
           {canaux.length === 0 ? (
             <p className="vide">Aucun canal déclaré.</p>
@@ -189,6 +197,12 @@ export default function Radio({ evenement, setMessage }) {
                   {c.usage_prevu && <span>{c.usage_prevu}</span>}
                 </div>
 
+                {!peutModifier && c.equipe_id && (
+                  <div className="meta">
+                    <span>équipe {equipes.find((eq) => eq.id === c.equipe_id)?.code ?? ''}</span>
+                  </div>
+                )}
+                {peutModifier && (
                 <div className="ligne-boutons" style={{ marginTop: 10 }}>
                   <select
                     value={c.equipe_id ?? ''}
@@ -212,6 +226,7 @@ export default function Radio({ evenement, setMessage }) {
                     {c.actif ? 'Désactiver' : 'Réactiver'}
                   </button>
                 </div>
+                )}
               </div>
             ))
           )}
@@ -242,7 +257,14 @@ export default function Radio({ evenement, setMessage }) {
                 <div className="meta">
                   {p.porteur_libre && <span>chez {p.porteur_libre}</span>}
                   {p.rendu_le ? <span>rendu</span> : <span className="alerte-texte">en circulation</span>}
+                  {!peutModifier && p.indicatif && <span className="mono">{p.indicatif}</span>}
+                  {!peutModifier && p.canal_id && (
+                    <span className="mono">
+                      CH {canaux.find((c) => c.id === p.canal_id)?.numero ?? '?'}
+                    </span>
+                  )}
                 </div>
+                {peutModifier && (
                 <div className="saisie-rapide" style={{ marginTop: 10 }}>
                   <input
                     defaultValue={p.indicatif ?? ''}
@@ -263,6 +285,7 @@ export default function Radio({ evenement, setMessage }) {
                     ))}
                   </select>
                 </div>
+                )}
               </div>
             ))
           )}

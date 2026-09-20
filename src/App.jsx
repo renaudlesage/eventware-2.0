@@ -35,6 +35,7 @@ import { RESSOURCES } from './colonnesImport'
 import { useCapacites } from './capacites'
 import { Icone, DOMAINES } from './icones'
 import { texteErreur } from './erreurs'
+import { modifierOuRefuser } from './ecriture'
 
 const PHASES = ['preparation', 'montage', 'exploitation', 'demontage', 'cloture']
 
@@ -156,11 +157,8 @@ function NomManquant({ membre, session, onFait }) {
     // Sur le compte ET sur l'adhésion : le compte pour les prochains
     // événements, l'adhésion pour celui-ci.
     await supabase.auth.updateUser({ data: { nom: nom.trim() } })
-    const { error } = await supabase
-      .from('membres_evenement')
-      .update({ nom_affiche: nom.trim() })
-      .eq('id', membre.id)
-    if (error) setErreur(error.message)
+    const refus = await modifierOuRefuser('membres_evenement', { nom_affiche: nom.trim() }, { id: membre.id })
+    if (refus) setErreur(refus)
     else onFait()
     setOccupe(false)
   }
@@ -691,15 +689,19 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
         />
       )
     case 'logistique':
-      return <Logistique evenement={evenement} membre={membre} />
+      return (
+        <Logistique evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} />
+      )
     case 'parcours':
-      return <Parcours evenement={evenement} membre={membre} />
+      return <Parcours evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} />
     case 'rh':
-      return <Rh evenement={evenement} membre={membre} peut={peut} />
+      return <Rh evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} />
     case 'plan':
-      return <PlanImplantation evenement={evenement} membre={membre} />
+      return (
+        <PlanImplantation evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} />
+      )
     case 'analyse':
-      return <Analyse evenement={evenement} membre={membre} />
+      return <Analyse evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} />
     case 'plateforme':
       return (
         <Plateforme
@@ -756,11 +758,8 @@ function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, o
   async function basculerModule(clef) {
     setOccupe(true)
     const modules = { ...evenement.modules, [clef]: !evenement.modules?.[clef] }
-    const { error } = await supabase
-      .from('evenements')
-      .update({ modules })
-      .eq('id', evenement.id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const refus = await modifierOuRefuser('evenements', { modules }, { id: evenement.id })
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else onRecharger()
     setOccupe(false)
   }

@@ -5,6 +5,7 @@ import Flux from './Flux'
 import { libelleStatut } from './libelles'
 import LigneParcours from './LigneParcours'
 import { texteErreur } from './erreurs'
+import { modifierOuRefuser } from './ecriture'
 
 const STATUTS = [
   ['inscrit', 'Inscrit'],
@@ -14,7 +15,7 @@ const STATUTS = [
   ['abandon', 'Abandon']
 ]
 
-export default function Parcours({ evenement, membre }) {
+export default function Parcours({ evenement, membre, peut, toutPouvoir }) {
   // Deux modes : des groupes encadrés qu'on suit nommément, ou des
   // individus isolés qu'on ne peut que compter aux bornes. Le mode
   // choisit la vue d'entrée ; les deux jeux de données coexistent,
@@ -68,15 +69,35 @@ export default function Parcours({ evenement, membre }) {
         </div>
       )}
 
-      {vue === 'qg' && <SuiviQg evenement={evenement} setMessage={setMessage} />}
+      {vue === 'qg' && (
+        <SuiviQg
+          evenement={evenement}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+          setMessage={setMessage}
+        />
+      )}
       {vue === 'terrain' && (
-        <Pointage evenement={evenement} membre={membre} setMessage={setMessage} />
+        <Pointage
+          evenement={evenement}
+          membre={membre}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+          setMessage={setMessage}
+        />
       )}
       {vue === 'flux' && (
         <Flux evenement={evenement} membre={membre} setMessage={setMessage} />
       )}
       {vue === 'trace' && <Trace evenement={evenement} setMessage={setMessage} />}
-      {vue === 'segments' && <Segments evenement={evenement} setMessage={setMessage} />}
+      {vue === 'segments' && (
+        <Segments
+          evenement={evenement}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+          setMessage={setMessage}
+        />
+      )}
     </div>
   )
 }
@@ -85,12 +106,15 @@ export default function Parcours({ evenement, membre }) {
 /* Vue QG                                                              */
 /* ================================================================== */
 
-function SuiviQg({ evenement, setMessage }) {
+function SuiviQg({ evenement, peut, toutPouvoir, setMessage }) {
   const [groupes, setGroupes] = useState([])
   const [retards, setRetards] = useState([])
   const [seuil, setSeuil] = useState(45)
   const [trace, setTrace] = useState(null)
   const [ouvrir, setOuvrir] = useState(false)
+
+  const peutCreer = toutPouvoir || peut?.('parcours', 'creer')
+  const peutModifier = toutPouvoir || peut?.('parcours', 'modifier')
 
   async function charger() {
     const [g, r, t] = await Promise.all([
@@ -211,9 +235,11 @@ function SuiviQg({ evenement, setMessage }) {
             </option>
           ))}
         </select>
-        <button className="discret" onClick={() => setOuvrir(!ouvrir)}>
-          {ouvrir ? 'Fermer' : 'Nouveau groupe'}
-        </button>
+        {peutCreer && (
+          <button className="discret" onClick={() => setOuvrir(!ouvrir)}>
+            {ouvrir ? 'Fermer' : 'Nouveau groupe'}
+          </button>
+        )}
       </div>
 
       {ouvrir && <FormGroupe evenement={evenement} onFait={() => { setOuvrir(false); charger() }} setMessage={setMessage} />}
@@ -229,6 +255,8 @@ function SuiviQg({ evenement, setMessage }) {
                 <span className="mono">{g.code}</span> — {g.nom}
               </div>
               <div className="meta">
+                {/* Sans droit de modification, le statut se lit ici. */}
+                {!peutModifier && <span>{libelleStatut(g.statut)}</span>}
                 <span>{g.effectif_reel ?? g.effectif_prevu ?? '?'} pers.</span>
                 {g.lieux?.nom && (
                   <span>
@@ -250,19 +278,21 @@ function SuiviQg({ evenement, setMessage }) {
                   </span>
                 )}
               </div>
-              <div className="ligne-boutons" style={{ marginTop: 10 }}>
-                <select
-                  value={g.statut}
-                  onChange={(e) => changerStatut(g.id, e.target.value)}
-                  style={{ width: 'auto', marginBottom: 0 }}
-                >
-                  {STATUTS.map(([v, l]) => (
-                    <option key={v} value={v}>
-                      {l}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {peutModifier && (
+                <div className="ligne-boutons" style={{ marginTop: 10 }}>
+                  <select
+                    value={g.statut}
+                    onChange={(e) => changerStatut(g.id, e.target.value)}
+                    style={{ width: 'auto', marginBottom: 0 }}
+                  >
+                    {STATUTS.map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           )
         })
@@ -349,13 +379,17 @@ function FormGroupe({ evenement, onFait, setMessage }) {
 /* Pointage terrain — utilisable d'une main, en marchant                */
 /* ================================================================== */
 
-function Pointage({ evenement, membre, setMessage }) {
+function Pointage({ evenement, membre, peut, toutPouvoir, setMessage }) {
   const [tousGroupes, setTousGroupes] = useState([])
   const [lieux, setLieux] = useState([])
   const [position, setPosition] = useState(null)
   const [dernier, setDernier] = useState(null)
   const [occupe, setOccupe] = useState(false)
   const [formulaireOuvert, setFormulaireOuvert] = useState(false)
+
+  // Pointer insère un passage ; marquer l'arrivée modifie le groupe.
+  const peutPointer = toutPouvoir || peut?.('parcours', 'creer')
+  const peutModifier = toutPouvoir || peut?.('parcours', 'modifier')
 
   async function charger() {
     const [g, l] = await Promise.all([
@@ -410,11 +444,12 @@ function Pointage({ evenement, membre, setMessage }) {
 
   async function marquerArrive(groupeId) {
     setOccupe(true)
-    const { error } = await supabase
-      .from('groupes')
-      .update({ statut: 'arrive', arrivee_reelle: new Date().toISOString() })
-      .eq('id', groupeId)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const refus = await modifierOuRefuser(
+      'groupes',
+      { statut: 'arrive', arrivee_reelle: new Date().toISOString() },
+      { id: groupeId }
+    )
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else charger()
     setOccupe(false)
   }
@@ -445,23 +480,34 @@ function Pointage({ evenement, membre, setMessage }) {
               lieux={lieux}
               position={position}
               occupe={occupe}
+              peutPointer={peutPointer}
+              peutModifier={peutModifier}
               onPointer={pointer}
               onArrive={marquerArrive}
             />
           ))}
         </>
-      ) : (
+      ) : peutPointer ? (
         <p className="aide">
           Aucun groupe ne t'est officiellement rattaché comme accompagnateur — utilise le
           formulaire ci-dessous pour pointer n'importe quel groupe.
         </p>
+      ) : (
+        // Ni groupe confié, ni droit de pointer les autres : un onglet
+        // vide ferait croire à une panne. On dit ce qu'il en est.
+        <p className="vide">
+          Aucun groupe ne t'est confié pour l'instant. Le pointage des autres groupes est
+          réservé à qui gère le parcours.
+        </p>
       )}
 
-      <div className="ligne-boutons" style={{ margin: '14px 0' }}>
-        <button className="discret" onClick={() => setFormulaireOuvert(!formulaireOuvert)}>
-          {formulaireOuvert ? 'Fermer' : 'Pointer un autre groupe'}
-        </button>
-      </div>
+      {peutPointer && (
+        <div className="ligne-boutons" style={{ margin: '14px 0' }}>
+          <button className="discret" onClick={() => setFormulaireOuvert(!formulaireOuvert)}>
+            {formulaireOuvert ? 'Fermer' : 'Pointer un autre groupe'}
+          </button>
+        </div>
+      )}
 
       {formulaireOuvert && (
         <FormulaireGenerique
@@ -504,7 +550,7 @@ function Pointage({ evenement, membre, setMessage }) {
  * parcourir. Le bouton connaît déjà la prochaine étape — pas besoin de
  * la choisir dans un menu à chaque pointage.
  */
-function CarteMonGroupe({ groupe, lieux, position, occupe, onPointer, onArrive }) {
+function CarteMonGroupe({ groupe, lieux, position, occupe, peutPointer, peutModifier, onPointer, onArrive }) {
   const rang = lieux.findIndex((l) => l.id === groupe.dernier_lieu_id)
   const positionActuelle = rang >= 0 ? lieux[rang] : null
   const prochaine = rang >= 0 ? lieux[rang + 1] : lieux[0]
@@ -525,21 +571,27 @@ function CarteMonGroupe({ groupe, lieux, position, occupe, onPointer, onArrive }
       </div>
 
       {prochaine ? (
-        <button
-          className="bouton-terrain"
-          disabled={occupe}
-          onClick={() => onPointer(groupe.id, prochaine.id, null)}
-        >
-          {derniereEtape ? `Avancer — arrivée à ${prochaine.nom}` : `Avancer — ${prochaine.nom}`}
-        </button>
+        peutPointer && (
+          <button
+            className="bouton-terrain"
+            disabled={occupe}
+            onClick={() => onPointer(groupe.id, prochaine.id, null)}
+          >
+            {derniereEtape ? `Avancer — arrivée à ${prochaine.nom}` : `Avancer — ${prochaine.nom}`}
+          </button>
+        )
       ) : (
-        <button className="bouton-terrain bouton-arrivee" disabled={occupe} onClick={() => onArrive(groupe.id)}>
-          ✓ Groupe arrivé
-        </button>
+        peutModifier && (
+          <button className="bouton-terrain bouton-arrivee" disabled={occupe} onClick={() => onArrive(groupe.id)}>
+            ✓ Groupe arrivé
+          </button>
+        )
       )}
-      <p className="aide" style={{ marginTop: 8 }}>
-        Touche « Avancer » quand le groupe part vers l'étape suivante ou y arrive.
-      </p>
+      {peutPointer && (
+        <p className="aide" style={{ marginTop: 8 }}>
+          Touche « Avancer » quand le groupe part vers l'étape suivante ou y arrive.
+        </p>
+      )}
     </div>
   )
 }
@@ -612,7 +664,7 @@ const TYPES_CHEMIN = [
   ['voirie', 'Voirie']
 ]
 
-function Segments({ evenement, setMessage }) {
+function Segments({ evenement, peut, toutPouvoir, setMessage }) {
   const [lieux, setLieux] = useState([])
   const [segments, setSegments] = useState([])
   const [ouvrir, setOuvrir] = useState(false)
@@ -620,6 +672,8 @@ function Segments({ evenement, setMessage }) {
     libelle: '', depart_lieu_id: '', arrivee_lieu_id: '',
     brancardage_max_m: '', composition: [{ type: 'chemin_forestier', distance_m: '' }]
   })
+
+  const peutCreer = toutPouvoir || peut?.('parcours', 'creer')
 
   async function charger() {
     const [l, s] = await Promise.all([
@@ -705,11 +759,13 @@ function Segments({ evenement, setMessage }) {
         ))
       )}
 
-      <div className="ligne-boutons" style={{ marginTop: 12 }}>
-        <button onClick={() => setOuvrir(!ouvrir)}>
-          {ouvrir ? 'Fermer' : '+ Ajouter un segment'}
-        </button>
-      </div>
+      {peutCreer && (
+        <div className="ligne-boutons" style={{ marginTop: 12 }}>
+          <button onClick={() => setOuvrir(!ouvrir)}>
+            {ouvrir ? 'Fermer' : '+ Ajouter un segment'}
+          </button>
+        </div>
+      )}
 
       {ouvrir && (
         <div className="formulaire" style={{ marginTop: 10 }}>

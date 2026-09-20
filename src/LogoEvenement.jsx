@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
+import { modifierOuRefuser } from './ecriture'
 
 /**
  * Logo de l'événement.
@@ -42,22 +43,16 @@ export default function LogoEvenement({ evenement, onFait, setMessage }) {
     const { data } = supabase.storage.from('logos').getPublicUrl(chemin)
     const urlSansCache = `${data.publicUrl}?v=${Date.now()}`
 
-    const { error: erreurMaj } = await supabase
-      .from('evenements')
-      .update({ logo_url: urlSansCache })
-      .eq('id', evenement.id)
+    const refus = await modifierOuRefuser('evenements', { logo_url: urlSansCache }, { id: evenement.id })
 
-    if (erreurMaj) setMessage({ type: 'erreur', texte: texteErreur(erreurMaj) })
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else onFait()
     setOccupe(false)
   }
 
   async function retirer() {
-    const { error } = await supabase
-      .from('evenements')
-      .update({ logo_url: null })
-      .eq('id', evenement.id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const refus = await modifierOuRefuser('evenements', { logo_url: null }, { id: evenement.id })
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else onFait()
   }
 

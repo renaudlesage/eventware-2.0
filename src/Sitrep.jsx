@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 
 /**
  * SITREP — restitution de la main courante.
@@ -46,7 +47,7 @@ export default function Sitrep({ evenement, session, membre }) {
     if (debut) q = q.gte('horodatage', new Date(debut).toISOString())
     if (fin) q = q.lte('horodatage', new Date(fin).toISOString())
     const { data, error } = await q
-    if (error) setErreur(error.message)
+    if (error) setErreur(texteErreur(error))
     else {
       setLignes(data ?? [])
       setErreur(null)

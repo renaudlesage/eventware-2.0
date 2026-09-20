@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
+import { modifierOuRefuser } from './ecriture'
 
 /**
  * Ce que voit le public — administration.
@@ -171,11 +172,12 @@ function Communications({ evenement, setMessage }) {
   }
 
   async function publier(id, publie) {
-    const { error } = await supabase
-      .from('communications')
-      .update({ publie_le: publie ? new Date().toISOString() : null })
-      .eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const refus = await modifierOuRefuser(
+      'communications',
+      { publie_le: publie ? new Date().toISOString() : null },
+      { id }
+    )
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else charger()
   }
 

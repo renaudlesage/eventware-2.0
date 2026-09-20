@@ -10,6 +10,7 @@ import PcOps from './PcOps'
 import Conformite from './Conformite'
 import DossierSecurite from './DossierSecurite'
 import { texteErreur } from './erreurs'
+import { modifierOuRefuser, supprimerOuRefuser } from './ecriture'
 
 /*
  * Deux familles distinctes, pas sept onglets à plat :
@@ -123,7 +124,14 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
       {onglet === 'mayday' && (
         <Maydays evenement={evenement} setMessage={setMessage} />
       )}
-      {onglet === 'journal' && <Journal evenement={evenement} setMessage={setMessage} />}
+      {onglet === 'journal' && (
+        <Journal
+          evenement={evenement}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+          setMessage={setMessage}
+        />
+      )}
       {onglet === 'missions' && (
         <Missions
           key="securite"
@@ -135,9 +143,16 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
         />
       )}
       {onglet === 'recherches' && (
-        <Recherches evenement={evenement} setMessage={setMessage} />
+        <Recherches
+          evenement={evenement}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+          setMessage={setMessage}
+        />
       )}
-      {onglet === 'fiches' && <Fiches evenement={evenement} />}
+      {onglet === 'fiches' && (
+        <Fiches evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} />
+      )}
       {onglet === 'conformite' && (
         <Conformite
           evenement={evenement}
@@ -186,13 +201,18 @@ const MODULES_DEMANDE = [
   ['logistique', 'Logistique']
 ]
 
-export function Journal({ evenement, setMessage, moduleParDefaut = 'securite' }) {
+export function Journal({ evenement, setMessage, moduleParDefaut = 'securite', peut, toutPouvoir }) {
   const [lignes, setLignes] = useState([])
   const [texte, setTexte] = useState('')
   const [moduleSaisie, setModuleSaisie] = useState(moduleParDefaut)
   const [filtre, setFiltre] = useState('tout')
   const [filtreModule, setFiltreModule] = useState('tout')
   const [occupe, setOccupe] = useState(false)
+
+  // Policy `journal_creation` : `journal:creer` — chef d'équipe et
+  // bénévole n'ont que la lecture. Les deux écrans qui montent ce
+  // composant (Sécurité, Logistique) transmettent `peut`.
+  const peutInscrire = toutPouvoir || peut?.('journal', 'creer')
 
   async function charger() {
     const { data, error } = await supabase
@@ -238,26 +258,28 @@ export function Journal({ evenement, setMessage, moduleParDefaut = 'securite' })
 
   return (
     <>
-      <div className="saisie-rapide">
-        <select
-          value={moduleSaisie}
-          onChange={(e) => setModuleSaisie(e.target.value)}
-          style={{ flex: '0 1 150px' }}
-        >
-          {MODULES_SAISIE.map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </select>
-        <input
-          value={texte}
-          onChange={(e) => setTexte(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && ajouter()}
-          placeholder="Observation, décision, appel radio…"
-        />
-        <button disabled={occupe || !texte.trim()} onClick={ajouter}>
-          Inscrire
-        </button>
-      </div>
+      {peutInscrire && (
+        <div className="saisie-rapide">
+          <select
+            value={moduleSaisie}
+            onChange={(e) => setModuleSaisie(e.target.value)}
+            style={{ flex: '0 1 150px' }}
+          >
+            {MODULES_SAISIE.map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </select>
+          <input
+            value={texte}
+            onChange={(e) => setTexte(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && ajouter()}
+            placeholder="Observation, décision, appel radio…"
+          />
+          <button disabled={occupe || !texte.trim()} onClick={ajouter}>
+            Inscrire
+          </button>
+        </div>
+      )}
 
       <div className="ligne-boutons" style={{ marginBottom: 6 }}>
         {[
@@ -933,9 +955,14 @@ function exporterMissions(missions, module) {
   URL.revokeObjectURL(url)
 }
 
-function Recherches({ evenement, setMessage }) {
+function Recherches({ evenement, peut, toutPouvoir, setMessage }) {
   const [lignes, setLignes] = useState([])
   const [ouvrir, setOuvrir] = useState(false)
+
+  // Policies `recherches_creation` / `recherches_modification` : même
+  // ressource que le SOS.
+  const peutDeclarer = toutPouvoir || peut?.('sos', 'creer')
+  const peutCloturer = toutPouvoir || peut?.('sos', 'modifier')
   const [f, setF] = useState({
     nom: '',
     age_approx: '',
@@ -990,11 +1017,12 @@ function Recherches({ evenement, setMessage }) {
   }
 
   async function cloturer(id, circonstances) {
-    const { error } = await supabase
-      .from('recherches')
-      .update({ statut: 'retrouve', retrouve_le: new Date().toISOString(), circonstances })
-      .eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const refus = await modifierOuRefuser(
+      'recherches',
+      { statut: 'retrouve', retrouve_le: new Date().toISOString(), circonstances },
+      { id }
+    )
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else charger()
   }
 
@@ -1008,11 +1036,13 @@ function Recherches({ evenement, setMessage }) {
         </div>
       )}
 
-      <button className="discret" onClick={() => setOuvrir(!ouvrir)}>
-        {ouvrir ? 'Annuler' : 'Déclarer une recherche'}
-      </button>
+      {peutDeclarer && (
+        <button className="discret" onClick={() => setOuvrir(!ouvrir)}>
+          {ouvrir ? 'Annuler' : 'Déclarer une recherche'}
+        </button>
+      )}
 
-      {ouvrir && (
+      {peutDeclarer && ouvrir && (
         <div className="formulaire">
           {[
             ['nom', 'Nom / prénom'],
@@ -1058,7 +1088,7 @@ function Recherches({ evenement, setMessage }) {
               {l.accompagnant_tel && <span>{l.accompagnant_tel}</span>}
               <span className="jeton">{libelleStatut(l.statut)}</span>
             </div>
-            {l.statut === 'en_cours' && (
+            {peutCloturer && l.statut === 'en_cours' && (
               <div className="ligne-boutons" style={{ marginTop: 10 }}>
                 <button
                   onClick={() => {
@@ -1082,12 +1112,18 @@ function Recherches({ evenement, setMessage }) {
 /* Fiches réflexe                                                      */
 /* ================================================================== */
 
-function Fiches({ evenement }) {
+function Fiches({ evenement, peut, toutPouvoir }) {
   const [fiches, setFiches] = useState(null)
   const [ouverte, setOuverte] = useState(null)
   const [edite, setEdite] = useState(null)
   const [occupe, setOccupe] = useState(false)
   const [note, setNote] = useState(null)
+
+  // Policies `fiches_creation` / `fiches_modification` : créer une fiche
+  // ou installer le pack (RPC, même test) exige `referentiels:creer` ;
+  // modifier ou retirer (`supprimer_logiquement`) `referentiels:modifier`.
+  const peutCreer = toutPouvoir || peut?.('referentiels', 'creer')
+  const peutModifier = toutPouvoir || peut?.('referentiels', 'modifier')
 
   async function charger() {
     const { data } = await supabase
@@ -1110,7 +1146,7 @@ function Fiches({ evenement }) {
     })
     setNote(
       error
-        ? error.message
+        ? texteErreur(error)
         : `${data} fiche(s) installée(s). Adapte-les à ton site : une fiche générique ne vaut que comme point de départ.`
     )
     setOccupe(false)
@@ -1122,7 +1158,7 @@ function Fiches({ evenement }) {
       .from('fiches_reflexe')
       .update(champs, { count: 'exact' })
       .eq('id', fiche.id)
-    if (error) setNote(error.message)
+    if (error) setNote(texteErreur(error))
     else if (count === 0) setNote('Modification refusée : droits insuffisants.')
     else {
       setNote(null)
@@ -1145,7 +1181,7 @@ function Fiches({ evenement }) {
       })
       .select()
       .single()
-    if (error) setNote(error.message)
+    if (error) setNote(texteErreur(error))
     else {
       await charger()
       setEdite(data.id)
@@ -1155,15 +1191,10 @@ function Fiches({ evenement }) {
 
   async function supprimer(fiche) {
     if (!confirm(`Retirer la fiche « ${fiche.titre} » ?`)) return
-    // Suppression logique par la fonction 091 : un `update` direct de
-    // `deleted_at` est refusé par RLS, la ligne n'étant plus visible de
-    // son auteur au moment où elle est écrite.
-    const { data, error } = await supabase.rpc('supprimer_logiquement', {
-      p_table: 'fiches_reflexe',
-      p_id: fiche.id
-    })
-    if (error) setNote(texteErreur(error))
-    else if (data === false) setNote('Fiche introuvable ou déjà retirée.')
+    // Suppression logique par la fonction serveur (voir ecriture.js) :
+    // un `update` direct de `deleted_at` serait refusé par RLS.
+    const refus = await supprimerOuRefuser('fiches_reflexe', fiche.id)
+    if (refus) setNote(refus)
     else charger()
   }
 
@@ -1173,17 +1204,19 @@ function Fiches({ evenement }) {
     <>
       {note && <div className="message">{note}</div>}
 
-      <div className="ligne-boutons" style={{ marginBottom: 12 }}>
-        <button onClick={creer}>Nouvelle fiche</button>
-        <button className="discret" disabled={occupe} onClick={installerPack}>
-          Installer le pack standard
-        </button>
-      </div>
+      {peutCreer && (
+        <div className="ligne-boutons" style={{ marginBottom: 12 }}>
+          <button onClick={creer}>Nouvelle fiche</button>
+          <button className="discret" disabled={occupe} onClick={installerPack}>
+            Installer le pack standard
+          </button>
+        </div>
+      )}
 
       {fiches.length === 0 && (
         <p className="vide">
-          Aucune fiche réflexe. Les conduites à tenir doivent être disponibles avant
-          l'événement, pas pendant.
+          Aucune fiche réflexe.
+          {peutCreer && ' Les conduites à tenir doivent être disponibles avant l\u2019événement, pas pendant.'}
         </p>
       )}
 
@@ -1233,24 +1266,28 @@ function Fiches({ evenement }) {
                   </>
                 )}
                 {fi.contacts && <p className="aide">{fi.contacts}</p>}
-                <div className="ligne-boutons" style={{ marginTop: 10 }}>
-                  <button className="discret" onClick={() => setEdite(fi.id)}>
-                    Modifier
-                  </button>
-                  <button className="discret" onClick={() => supprimer(fi)}>
-                    Retirer
-                  </button>
-                </div>
+                {peutModifier && (
+                  <div className="ligne-boutons" style={{ marginTop: 10 }}>
+                    <button className="discret" onClick={() => setEdite(fi.id)}>
+                      Modifier
+                    </button>
+                    <button className="discret" onClick={() => supprimer(fi)}>
+                      Retirer
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
         )
       )}
 
-      <p className="aide">
-        Modifier une fiche standard la fait passer en fiche propre à l'événement : elle ne
-        sera plus écrasée si tu réinstalles le pack.
-      </p>
+      {peutModifier && (
+        <p className="aide">
+          Modifier une fiche standard la fait passer en fiche propre à l'événement : elle ne
+          sera plus écrasée si tu réinstalles le pack.
+        </p>
+      )}
     </>
   )
 }

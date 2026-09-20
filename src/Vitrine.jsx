@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 import Pointage from './Pointage'
 
 /**
@@ -23,7 +24,7 @@ export default function Vitrine({ jeton, codeLieu }) {
 
   async function charger() {
     const { data, error } = await supabase.rpc('contenu_public', { p_jeton: jeton })
-    if (error) setErreur(error.message)
+    if (error) setErreur(texteErreur(error))
     else {
       setContenu(data)
       setErreur(null)

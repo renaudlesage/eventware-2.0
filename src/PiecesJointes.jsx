@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
+import { modifierOuRefuser } from './ecriture'
 
 /**
  * Pièces jointes d'un objet — un jalon aujourd'hui, une demande demain.
@@ -79,11 +80,12 @@ export default function PiecesJointes({ evenement, objetType, objetId, peutGerer
 
   async function retirer(p) {
     if (!window.confirm(`Retirer « ${p.nom} » ?`)) return
-    const { error } = await supabase
-      .from('pieces_jointes')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', p.id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const refus = await modifierOuRefuser(
+      'pieces_jointes',
+      { deleted_at: new Date().toISOString() },
+      { id: p.id }
+    )
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else {
       await supabase.storage.from('pieces').remove([p.chemin])
       charger()

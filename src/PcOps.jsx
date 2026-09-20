@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
+import { modifierOuRefuser } from './ecriture'
 
 export const TYPES = {
   malaise: 'Malaise',
@@ -70,7 +72,7 @@ export default function PcOps({ evenement }) {
       .select('*')
       .eq('evenement_id', evenement.id)
       .order('recu_le', { ascending: false })
-    if (error) setErreur(error.message)
+    if (error) setErreur(texteErreur(error))
     else setSignalements(data ?? [])
   }
 
@@ -81,8 +83,8 @@ export default function PcOps({ evenement }) {
   }, [evenement.id])
 
   async function changerStatut(id, statut) {
-    const { error } = await supabase.from('signalements').update({ statut }).eq('id', id)
-    if (error) setErreur(error.message)
+    const refus = await modifierOuRefuser('signalements', { statut }, { id })
+    if (refus) setErreur(refus)
     else charger()
   }
 

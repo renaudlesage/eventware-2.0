@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
+import { modifierOuRefuser } from './ecriture'
 
 /*
  * Conformité et contrôles préalables.
@@ -182,7 +183,14 @@ export default function Conformite({ evenement, exploitant, peut, toutPouvoir, s
       {vue === 'referentiels' && (
         <Referentiels evenement={evenement} exploitant={exploitant} setMessage={setMessage} />
       )}
-      {vue === 'controles' && <Controles evenement={evenement} setMessage={setMessage} />}
+      {vue === 'controles' && (
+        <Controles
+          evenement={evenement}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+          setMessage={setMessage}
+        />
+      )}
     </>
   )
 }
@@ -509,12 +517,17 @@ const STATUTS = [
   ['bloquant', 'Bloquant']
 ]
 
-function Controles({ evenement, setMessage }) {
+function Controles({ evenement, peut, toutPouvoir, setMessage }) {
   const [modeles, setModeles] = useState([])
   const [sessions, setSessions] = useState([])
   const [sessionOuverte, setSessionOuverte] = useState(null)
   const [nouveauModele, setNouveauModele] = useState('')
   const [sequence, setSequence] = useState('')
+
+  // Démarrer (RPC `demarrer_controle`, migration 104), cocher une ligne
+  // et conclure (`controles_sessions`, `controles_lignes`) exigent tous
+  // `referentiels:creer`. Relire une session passée reste libre.
+  const peutControler = toutPouvoir || peut?.('referentiels', 'creer')
 
   async function charger() {
     const [m, s] = await Promise.all([
@@ -552,6 +565,7 @@ function Controles({ evenement, setMessage }) {
     return (
       <SessionControle
         sessionId={sessionOuverte}
+        peutControler={peutControler}
         onFermer={() => {
           setSessionOuverte(null)
           charger()
@@ -563,33 +577,35 @@ function Controles({ evenement, setMessage }) {
 
   return (
     <>
-      <div className="formulaire">
-        <label htmlFor="modele">Démarrer un contrôle</label>
-        <select
-          id="modele"
-          value={nouveauModele}
-          onChange={(e) => setNouveauModele(e.target.value)}
-        >
-          {modeles.map((m) => (
-            <option key={m.code} value={m.code}>
-              {m.libelle}
-            </option>
-          ))}
-        </select>
-        <input
-          value={sequence}
-          onChange={(e) => setSequence(e.target.value)}
-          placeholder="Séquence — ex. Jour 1, avant balade 13h"
-        />
-        <button onClick={demarrer}>Démarrer</button>
-        <p className="aide">
-          Les points fixes du modèle et les exigences légales actuellement applicables
-          sont copiés dans la session au moment où elle démarre. La check-list ne bouge
-          plus ensuite, même si le questionnaire change.
-        </p>
-      </div>
+      {peutControler && (
+        <div className="formulaire">
+          <label htmlFor="modele">Démarrer un contrôle</label>
+          <select
+            id="modele"
+            value={nouveauModele}
+            onChange={(e) => setNouveauModele(e.target.value)}
+          >
+            {modeles.map((m) => (
+              <option key={m.code} value={m.code}>
+                {m.libelle}
+              </option>
+            ))}
+          </select>
+          <input
+            value={sequence}
+            onChange={(e) => setSequence(e.target.value)}
+            placeholder="Séquence — ex. Jour 1, avant balade 13h"
+          />
+          <button onClick={demarrer}>Démarrer</button>
+          <p className="aide">
+            Les points fixes du modèle et les exigences légales actuellement applicables
+            sont copiés dans la session au moment où elle démarre. La check-list ne bouge
+            plus ensuite, même si le questionnaire change.
+          </p>
+        </div>
+      )}
 
-      <div className="pave-titre" style={{ marginTop: 16 }}>Sessions précédentes</div>
+      <div className="pave-titre" style={{ marginTop: peutControler ? 16 : 0 }}>Sessions précédentes</div>
       {sessions.length === 0 ? (
         <p className="vide">Aucun contrôle encore réalisé.</p>
       ) : (
@@ -610,7 +626,7 @@ function Controles({ evenement, setMessage }) {
             </div>
             <div className="ligne-boutons" style={{ marginTop: 8 }}>
               <button className="discret" onClick={() => setSessionOuverte(s.id)}>
-                {s.decision ? 'Revoir' : 'Reprendre'}
+                {s.decision || !peutControler ? 'Revoir' : 'Reprendre'}
               </button>
             </div>
           </div>
@@ -620,7 +636,7 @@ function Controles({ evenement, setMessage }) {
   )
 }
 
-function SessionControle({ sessionId, onFermer, setMessage }) {
+function SessionControle({ sessionId, peutControler, onFermer, setMessage }) {
   const [session, setSession] = useState(null)
   const [lignes, setLignes] = useState([])
   const [mesures, setMesures] = useState('')
@@ -645,20 +661,22 @@ function SessionControle({ sessionId, onFermer, setMessage }) {
   }, [sessionId])
 
   async function majLigne(id, champs) {
-    await supabase.from('controles_lignes').update(champs).eq('id', id)
-    charger()
+    const refus = await modifierOuRefuser('controles_lignes', champs, { id })
+    if (refus) setMessage({ type: 'erreur', texte: refus })
+    else charger()
   }
 
   async function conclure(decision) {
-    const { error } = await supabase
-      .from('controles_sessions')
-      .update({
+    const refus = await modifierOuRefuser(
+      'controles_sessions',
+      {
         decision,
         mesures_compensatoires: mesures.trim() || null,
         heure_fin: new Date().toISOString()
-      })
-      .eq('id', sessionId)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+      },
+      { id: sessionId }
+    )
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else onFermer()
   }
 
@@ -684,7 +702,12 @@ function SessionControle({ sessionId, onFermer, setMessage }) {
               <div className={`carte ${l.statut === 'bloquant' ? 'urgent' : ''}`} key={l.id}>
                 <div className="titre" style={{ fontSize: 13.5 }}>{l.libelle}</div>
                 <div className="ligne-boutons" style={{ marginTop: 6 }}>
-                  {STATUTS.map(([v, lib]) => (
+                  {!peutControler && (
+                    <span className={`jeton ${l.statut === 'bloquant' ? 'alerte-texte' : ''}`}>
+                      {STATUTS.find(([v]) => v === l.statut)?.[1] ?? 'À faire'}
+                    </span>
+                  )}
+                  {peutControler && STATUTS.map(([v, lib]) => (
                     <button
                       key={v}
                       className={`module ${l.statut === v ? 'actif' : ''}`}
@@ -694,7 +717,7 @@ function SessionControle({ sessionId, onFermer, setMessage }) {
                     </button>
                   ))}
                 </div>
-                {(l.statut === 'a_corriger' || l.statut === 'bloquant') && (
+                {peutControler && (l.statut === 'a_corriger' || l.statut === 'bloquant') && (
                   <input
                     defaultValue={l.observation ?? ''}
                     placeholder="Observation / responsable / heure"
@@ -702,12 +725,23 @@ function SessionControle({ sessionId, onFermer, setMessage }) {
                     style={{ marginTop: 8, marginBottom: 0 }}
                   />
                 )}
+                {!peutControler && l.observation && <p className="aide">{l.observation}</p>}
               </div>
             ))}
         </div>
       ))}
 
-      {!session.decision ? (
+      {/* Les compteurs se lisent par tous ; seule la décision est
+          réservée à qui peut contrôler. */}
+      {!session.decision && !peutControler && (
+        <div className="meta" style={{ marginTop: 16 }}>
+          <span>{nRestant} point(s) restant(s)</span>
+          <span className={nCorriger > 0 ? 'alerte-texte' : ''}>{nCorriger} à corriger</span>
+          <span className={nBloquant > 0 ? 'alerte-texte' : ''}>{nBloquant} bloquant(s)</span>
+          <span>contrôle en cours, sans décision</span>
+        </div>
+      )}
+      {!session.decision && peutControler && (
         <div className="formulaire" style={{ marginTop: 16 }}>
           <div className="pave-titre">Synthèse de fin de contrôle</div>
           <div className="meta" style={{ marginBottom: 10 }}>
@@ -729,7 +763,8 @@ function SessionControle({ sessionId, onFermer, setMessage }) {
             </button>
           </div>
         </div>
-      ) : (
+      )}
+      {session.decision && (
         <div className="message" style={{ marginTop: 16 }}>
           Décision : <strong>{session.decision.replace('_', ' ').toUpperCase()}</strong>
           {session.mesures_compensatoires && ` — ${session.mesures_compensatoires}`}
@@ -962,11 +997,12 @@ function DetailReferentiel({ referentiel, exploitant, onFermer, setMessage }) {
 
   async function promouvoir() {
     setOccupePromotion(true)
-    const { error } = await supabase
-      .from('referentiels')
-      .update({ organisation_id: null, derniere_verification: new Date().toISOString().slice(0, 10) })
-      .eq('id', referentiel.id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const refus = await modifierOuRefuser(
+      'referentiels',
+      { organisation_id: null, derniere_verification: new Date().toISOString().slice(0, 10) },
+      { id: referentiel.id }
+    )
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else onFermer()
     setOccupePromotion(false)
   }

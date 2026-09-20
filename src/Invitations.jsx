@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
+import { modifierOuRefuser } from './ecriture'
 
 /**
  * Invitations — administration.
@@ -64,8 +65,8 @@ export default function Invitations({ evenement, setMessage }) {
   }
 
   async function basculer(id, actif) {
-    const { error } = await supabase.from('invitations').update({ actif }).eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const refus = await modifierOuRefuser('invitations', { actif }, { id })
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else charger()
   }
 
@@ -182,7 +183,7 @@ export function RejoindreParCode({ onRejoint }) {
     setOccupe(true)
     setErreur(null)
     const { data, error } = await supabase.rpc('rejoindre_evenement', { p_code: code.trim() })
-    if (error) setErreur(error.message)
+    if (error) setErreur(texteErreur(error))
     else {
       const r = data?.[0]
       // Le lien arrive souvent avec ?code= : on le retire pour que le

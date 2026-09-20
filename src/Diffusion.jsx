@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
+import { modifierOuRefuser } from './ecriture'
 
 const NIVEAUX = [
   ['information', 'Information'],
@@ -73,8 +74,9 @@ export default function Diffusion({ evenement, setMessage }) {
   }
 
   async function basculerActif(canal) {
-    await supabase.from('canaux_diffusion').update({ actif: !canal.actif }).eq('id', canal.id)
-    charger()
+    const refus = await modifierOuRefuser('canaux_diffusion', { actif: !canal.actif }, { id: canal.id })
+    if (refus) setMessage({ type: 'erreur', texte: refus })
+    else charger()
   }
 
   function basculerNiveau(niveau) {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { DOMAINES } from './libelles'
 import { texteErreur } from './erreurs'
+import { modifierOuRefuser } from './ecriture'
 
 const NATURES = [
   ['dysfonctionnement', 'Dysfonctionnement'],
@@ -24,7 +25,7 @@ const STATUTS_REX = [
   ['realise', 'Réalisé']
 ]
 
-export default function Analyse({ evenement, membre }) {
+export default function Analyse({ evenement, membre, peut, toutPouvoir }) {
   const [onglet, setOnglet] = useState('synthese')
   const [message, setMessage] = useState(null)
 
@@ -56,7 +57,13 @@ export default function Analyse({ evenement, membre }) {
       {onglet === 'synthese' ? (
         <Synthese evenement={evenement} setMessage={setMessage} />
       ) : (
-        <Constats evenement={evenement} membre={membre} setMessage={setMessage} />
+        <Constats
+          evenement={evenement}
+          membre={membre}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+          setMessage={setMessage}
+        />
       )}
     </div>
   )
@@ -242,7 +249,7 @@ function exporter(evenement, s) {
 /* Constats                                                            */
 /* ================================================================== */
 
-export function Constats({ evenement, membre, setMessage, compact }) {
+export function Constats({ evenement, membre, peut, toutPouvoir, setMessage, compact }) {
   const [lignes, setLignes] = useState([])
   const [f, setF] = useState({
     nature: 'dysfonctionnement',
@@ -251,6 +258,10 @@ export function Constats({ evenement, membre, setMessage, compact }) {
     impact: 'gene',
     proposition: ''
   })
+
+  // Consigner insère un constat ; arbitrer (statut, porteur, échéance) le modifie.
+  const peutConsigner = toutPouvoir || peut?.('analyse', 'creer')
+  const peutArbitrer = toutPouvoir || peut?.('analyse', 'modifier')
 
   async function charger() {
     const { data, error } = await supabase
@@ -282,68 +293,70 @@ export function Constats({ evenement, membre, setMessage, compact }) {
   }
 
   async function arbitrer(id, champs) {
-    const { error } = await supabase.from('rex_entrees').update(champs).eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const refus = await modifierOuRefuser('rex_entrees', champs, { id })
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else charger()
   }
 
   return (
     <>
-      <div className="formulaire">
-        <div className="saisie-rapide">
-          <select
-            value={f.nature}
-            onChange={(e) => setF({ ...f, nature: e.target.value })}
-            style={{ width: 'auto', marginBottom: 0 }}
-          >
-            {NATURES.map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-          </select>
-          <select
-            value={f.module}
-            onChange={(e) => setF({ ...f, module: e.target.value })}
-            style={{ width: 'auto', marginBottom: 0 }}
-          >
-            {DOMAINES.map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-          </select>
-          <select
-            value={f.impact}
-            onChange={(e) => setF({ ...f, impact: e.target.value })}
-            style={{ width: 'auto', marginBottom: 0 }}
-          >
-            {IMPACTS.map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-          </select>
+      {peutConsigner && (
+        <div className="formulaire">
+          <div className="saisie-rapide">
+            <select
+              value={f.nature}
+              onChange={(e) => setF({ ...f, nature: e.target.value })}
+              style={{ width: 'auto', marginBottom: 0 }}
+            >
+              {NATURES.map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
+            </select>
+            <select
+              value={f.module}
+              onChange={(e) => setF({ ...f, module: e.target.value })}
+              style={{ width: 'auto', marginBottom: 0 }}
+            >
+              {DOMAINES.map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
+            </select>
+            <select
+              value={f.impact}
+              onChange={(e) => setF({ ...f, impact: e.target.value })}
+              style={{ width: 'auto', marginBottom: 0 }}
+            >
+              {IMPACTS.map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </div>
+          <input
+            value={f.constat}
+            onChange={(e) => setF({ ...f, constat: e.target.value })}
+            placeholder="Ce que tu constates, maintenant"
+          />
+          <input
+            value={f.proposition}
+            onChange={(e) => setF({ ...f, proposition: e.target.value })}
+            placeholder="Ce qu'il faudrait changer (facultatif)"
+          />
+          <button disabled={!f.constat.trim()} onClick={ajouter}>
+            Consigner
+          </button>
+          <p className="aide">
+            À remplir pendant, pas après. Un constat noté sur le moment vaut dix reconstitués
+            de mémoire trois semaines plus tard. Un constat bloquant ou dangereux remonte
+            aussitôt dans la main courante.
+          </p>
         </div>
-        <input
-          value={f.constat}
-          onChange={(e) => setF({ ...f, constat: e.target.value })}
-          placeholder="Ce que tu constates, maintenant"
-        />
-        <input
-          value={f.proposition}
-          onChange={(e) => setF({ ...f, proposition: e.target.value })}
-          placeholder="Ce qu'il faudrait changer (facultatif)"
-        />
-        <button disabled={!f.constat.trim()} onClick={ajouter}>
-          Consigner
-        </button>
-        <p className="aide">
-          À remplir pendant, pas après. Un constat noté sur le moment vaut dix reconstitués
-          de mémoire trois semaines plus tard. Un constat bloquant ou dangereux remonte
-          aussitôt dans la main courante.
-        </p>
-      </div>
+      )}
 
       {compact ? null : lignes.length === 0 ? (
         <p className="vide">Aucun constat.</p>
@@ -364,30 +377,49 @@ export function Constats({ evenement, membre, setMessage, compact }) {
             </div>
             {r.proposition && <p className="aide">→ {r.proposition}</p>}
 
-            <div className="ligne-boutons" style={{ marginTop: 8 }}>
-              {STATUTS_REX.map(([v, l]) => (
-                <button
-                  key={v}
-                  className={`module ${r.statut === v ? 'actif' : ''}`}
-                  onClick={() => arbitrer(r.id, { statut: v })}
-                >
-                  {l}
-                </button>
-              ))}
-            </div>
-            <div className="saisie-rapide" style={{ marginTop: 6 }}>
-              <input
-                defaultValue={r.porteur ?? ''}
-                placeholder="Porteur"
-                onBlur={(e) => arbitrer(r.id, { porteur: e.target.value.trim() || null })}
-              />
-              <input
-                type="date"
-                defaultValue={r.echeance ?? ''}
-                onBlur={(e) => arbitrer(r.id, { echeance: e.target.value || null })}
-                style={{ flex: '0 1 150px' }}
-              />
-            </div>
+            {/* Sans droit d'arbitrage, l'arbitrage se lit quand même :
+                statut, porteur, échéance — un constat sans suite visible
+                est un constat qu'on re-signale. */}
+            {!peutArbitrer && (r.statut || r.porteur || r.echeance) && (
+              <div className="meta" style={{ marginTop: 6 }}>
+                {r.statut && (
+                  <span>{STATUTS_REX.find(([v]) => v === r.statut)?.[1] ?? r.statut}</span>
+                )}
+                {r.porteur && <span>porté par {r.porteur}</span>}
+                {r.echeance && (
+                  <span>pour le {new Date(r.echeance).toLocaleDateString('fr-BE')}</span>
+                )}
+              </div>
+            )}
+
+            {peutArbitrer && (
+              <>
+                <div className="ligne-boutons" style={{ marginTop: 8 }}>
+                  {STATUTS_REX.map(([v, l]) => (
+                    <button
+                      key={v}
+                      className={`module ${r.statut === v ? 'actif' : ''}`}
+                      onClick={() => arbitrer(r.id, { statut: v })}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+                <div className="saisie-rapide" style={{ marginTop: 6 }}>
+                  <input
+                    defaultValue={r.porteur ?? ''}
+                    placeholder="Porteur"
+                    onBlur={(e) => arbitrer(r.id, { porteur: e.target.value.trim() || null })}
+                  />
+                  <input
+                    type="date"
+                    defaultValue={r.echeance ?? ''}
+                    onBlur={(e) => arbitrer(r.id, { echeance: e.target.value || null })}
+                    style={{ flex: '0 1 150px' }}
+                  />
+                </div>
+              </>
+            )}
           </div>
         ))
       )}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
+import { modifierOuRefuser } from './ecriture'
 
 /**
  * Mon compte — ce que l'utilisateur peut changer lui-même.
@@ -31,15 +32,16 @@ export default function MonCompte({ session, membre, evenement, setMessage, onRe
     setOccupe('noms')
     setInfo(null)
     const { error: e1 } = await supabase.auth.updateUser({ data: { nom: nomCompte.trim() } })
-    let e2 = null
+    let refus = null
     if (membre) {
-      const r = await supabase
-        .from('membres_evenement')
-        .update({ nom_affiche: nomAffiche.trim() || null })
-        .eq('id', membre.id)
-      e2 = r.error
+      refus = await modifierOuRefuser(
+        'membres_evenement',
+        { nom_affiche: nomAffiche.trim() || null },
+        { id: membre.id }
+      )
     }
-    if (e1 || e2) setMessage({ type: 'erreur', texte: texteErreur(e1 ?? e2) })
+    if (e1) setMessage({ type: 'erreur', texte: texteErreur(e1) })
+    else if (refus) setMessage({ type: 'erreur', texte: refus })
     else {
       setInfo('Noms enregistrés.')
       onRecharger?.()

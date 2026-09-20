@@ -38,7 +38,10 @@ const DROITS = [
   'droits insuffisants'
 ]
 
-const SESSION = ['jwt', 'token', 'invalid claim', 'session']
+// Motifs étroits à dessein : « session » seul attrapait le nom de la
+// table `controles_sessions` dans un refus RLS et annonçait « session
+// expirée » à quelqu'un qui manquait simplement de droits.
+const SESSION = ['jwt', 'invalid claim', 'auth session', 'session expired', 'refresh_token', 'not authenticated']
 
 function contient(texte, liste) {
   return liste.some((m) => texte.includes(m))
@@ -55,11 +58,13 @@ export function texteErreur(e) {
   if (contient(brut, RESEAU)) {
     return 'Réseau indisponible — rien n’est perdu, réessayez quand le signal revient.'
   }
-  if (contient(brut, SESSION)) {
-    return 'Session expirée — reconnectez-vous.'
-  }
+  // Les droits avant la session : un refus RLS cite le nom d'une table,
+  // qui peut contenir n'importe quel mot.
   if (contient(brut, DROITS)) {
     return 'Action refusée : vos droits ne le permettent pas dans cette phase.'
+  }
+  if (contient(brut, SESSION)) {
+    return 'Session expirée — reconnectez-vous.'
   }
   return e.message || 'Une erreur est survenue.'
 }

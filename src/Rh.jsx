@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { libelleStatut, heure } from './libelles'
 import { texteErreur } from './erreurs'
+import { modifierOuRefuser } from './ecriture'
 
 /*
  * `besoin` : capacité d'encadrement requise.
@@ -14,7 +15,7 @@ const ONGLETS = [
   ['fiches', 'Fiches de poste', true]
 ]
 
-export default function Rh({ evenement, membre, peut }) {
+export default function Rh({ evenement, membre, peut, toutPouvoir }) {
   const [onglet, setOnglet] = useState('couverture')
   const [message, setMessage] = useState(null)
 
@@ -41,10 +42,30 @@ export default function Rh({ evenement, membre, peut }) {
       )}
 
       {onglet === 'couverture' && (
-        <Couverture evenement={evenement} setMessage={setMessage} />
+        <Couverture
+          evenement={evenement}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+          setMessage={setMessage}
+        />
       )}
-      {onglet === 'equipe' && <Equipe evenement={evenement} setMessage={setMessage} />}
-      {onglet === 'fiches' && <FichesPoste evenement={evenement} setMessage={setMessage} />}
+      {onglet === 'equipe' && (
+        <Equipe
+          evenement={evenement}
+          membre={membre}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+          setMessage={setMessage}
+        />
+      )}
+      {onglet === 'fiches' && (
+        <FichesPoste
+          evenement={evenement}
+          peut={peut}
+          toutPouvoir={toutPouvoir}
+          setMessage={setMessage}
+        />
+      )}
     </div>
   )
 }
@@ -53,7 +74,7 @@ export default function Rh({ evenement, membre, peut }) {
 /* Couverture des créneaux                                             */
 /* ================================================================== */
 
-function Couverture({ evenement, setMessage }) {
+function Couverture({ evenement, peut, toutPouvoir, setMessage }) {
   const [lignes, setLignes] = useState([])
   const [detail, setDetail] = useState(null)
   const [membres, setMembres] = useState([])
@@ -62,6 +83,12 @@ function Couverture({ evenement, setMessage }) {
   const [ouvrir, setOuvrir] = useState(false)
   const [rappelPour, setRappelPour] = useState(null)
   const [fiches, setFiches] = useState([])
+
+  // Ce que RLS acceptera, ni plus ni moins : créer un créneau ou y
+  // proposer quelqu'un (`creneaux`, `affectations` en insertion) exige
+  // `rh:creer` ; retoucher un créneau — rappel, fiche — `rh:modifier`.
+  const peutCreer = toutPouvoir || peut?.('rh', 'creer')
+  const peutModifier = toutPouvoir || peut?.('rh', 'modifier')
 
   async function charger() {
     const [c, m] = await Promise.all([
@@ -175,12 +202,14 @@ function Couverture({ evenement, setMessage }) {
         <button className="discret" onClick={() => setAVenir(!aVenir)}>
           {aVenir ? 'Afficher les passés' : 'À venir seulement'}
         </button>
-        <button className="discret" onClick={() => setOuvrir(!ouvrir)}>
-          {ouvrir ? 'Fermer' : 'Nouveau créneau'}
-        </button>
+        {peutCreer && (
+          <button className="discret" onClick={() => setOuvrir(!ouvrir)}>
+            {ouvrir ? 'Fermer' : 'Nouveau créneau'}
+          </button>
+        )}
       </div>
 
-      {ouvrir && (
+      {peutCreer && ouvrir && (
         <div className="formulaire">
           <div className="saisie-rapide">
             <input
@@ -243,23 +272,31 @@ function Couverture({ evenement, setMessage }) {
                   <strong>manque {l.manque}</strong>
                 </span>
               )}
+              {/* Pour qui ne peut pas modifier, ces deux faits n'ont
+                  pas d'autre endroit où se lire. */}
+              {!peutModifier && l.fiche_intitule && <span>fiche : {l.fiche_intitule}</span>}
+              {!peutModifier && l.rappel_envoye_le && <span>rappel envoyé ✓</span>}
             </div>
-            <div className="ligne-boutons" style={{ marginTop: 10 }}>
-              <button
-                className="discret"
-                onClick={() => setDetail(detail === l.creneau_id ? null : l.creneau_id)}
-              >
-                {detail === l.creneau_id ? 'Fermer' : 'Affecter'}
-              </button>
-              <button
-                className="discret"
-                onClick={() => setRappelPour(rappelPour === l.creneau_id ? null : l.creneau_id)}
-              >
-                {l.rappel_envoye_le ? 'Rappel envoyé ✓' : 'Rappel'}
-              </button>
-            </div>
+            {(peutCreer || peutModifier) && (
+              <div className="ligne-boutons" style={{ marginTop: 10 }}>
+                <button
+                  className="discret"
+                  onClick={() => setDetail(detail === l.creneau_id ? null : l.creneau_id)}
+                >
+                  {detail === l.creneau_id ? 'Fermer' : peutCreer ? 'Affecter' : 'Fiche de poste'}
+                </button>
+                {peutModifier && (
+                  <button
+                    className="discret"
+                    onClick={() => setRappelPour(rappelPour === l.creneau_id ? null : l.creneau_id)}
+                  >
+                    {l.rappel_envoye_le ? 'Rappel envoyé ✓' : 'Rappel'}
+                  </button>
+                )}
+              </div>
+            )}
 
-            {detail === l.creneau_id && (
+            {peutModifier && detail === l.creneau_id && (
               <div className="formulaire" style={{ marginTop: 6 }}>
                 <label htmlFor={`fiche-${l.creneau_id}`}>Fiche de poste</label>
                 <select
@@ -280,7 +317,7 @@ function Couverture({ evenement, setMessage }) {
               </div>
             )}
 
-            {rappelPour === l.creneau_id && (
+            {peutModifier && rappelPour === l.creneau_id && (
               <FormRappel
                 valeurInitiale={l.rappel ?? ''}
                 envoyeLe={l.rappel_envoye_le}
@@ -288,7 +325,7 @@ function Couverture({ evenement, setMessage }) {
                 onAnnuler={() => setRappelPour(null)}
               />
             )}
-            {detail === l.creneau_id && (
+            {peutCreer && detail === l.creneau_id && (
               <div className="formulaire">
                 <div className="ligne-boutons">
                   {membres.map((m) => (
@@ -503,10 +540,15 @@ function FichePoste({ fiche }) {
 /* Bénévoles                                                           */
 /* ================================================================== */
 
-function Equipe({ evenement, setMessage }) {
+function Equipe({ evenement, membre, peut, toutPouvoir, setMessage }) {
   const [membres, setMembres] = useState([])
   const [equipes, setEquipes] = useState([])
   const [recherche, setRecherche] = useState('')
+
+  // Policy `membres_modification` : `membres:modifier`, ou sa propre
+  // ligne — chacun peut renseigner son véhicule sans encadrer personne.
+  const peutGererMembres = toutPouvoir || peut?.('membres', 'modifier')
+  const peutModifier = (m) => peutGererMembres || m.user_id === membre?.user_id
 
   async function charger() {
     const [m, e] = await Promise.all([
@@ -540,8 +582,9 @@ function Equipe({ evenement, setMessage }) {
   }
 
   async function majVehicule(id, type_vehicule) {
-    await supabase.from('membres_evenement').update({ type_vehicule }).eq('id', id)
-    charger()
+    const refus = await modifierOuRefuser('membres_evenement', { type_vehicule }, { id })
+    if (refus) setMessage({ type: 'erreur', texte: refus })
+    else charger()
   }
 
   useEffect(() => {
@@ -598,28 +641,38 @@ function Equipe({ evenement, setMessage }) {
             {m.perimetre && <span>{m.perimetre}</span>}
             {m.telephone && <span className="mono">{m.telephone}</span>}
             {!m.actif && <span className="alerte-texte">inactif</span>}
+            {/* Sans droit d'écriture, l'équipe et le véhicule restent
+                lisibles — ils ne s'affichaient que dans les commandes. */}
+            {!peutModifier(m) && m.equipe_id && (
+              <span>{equipes.find((eq) => eq.id === m.equipe_id)?.code ?? 'équipe'}</span>
+            )}
+            {!peutModifier(m) && m.est_chauffeur && (
+              <span>chauffeur{m.type_vehicule ? ` · ${m.type_vehicule}` : ''}</span>
+            )}
           </div>
-          <div className="ligne-boutons" style={{ marginTop: 10 }}>
-            <select
-              value={m.equipe_id ?? ''}
-              onChange={(e) => rattacher(m.id, e.target.value)}
-              style={{ width: 'auto', marginBottom: 0 }}
-            >
-              <option value="">— sans équipe —</option>
-              {equipes.map((eq) => (
-                <option key={eq.id} value={eq.id}>
-                  {eq.code} · {eq.nom}
-                </option>
-              ))}
-            </select>
-            <button
-              className={`module ${m.est_chauffeur ? 'actif' : ''}`}
-              onClick={() => basculerChauffeur(m.id, m.est_chauffeur)}
-            >
-              {m.est_chauffeur ? 'Chauffeur ✓' : 'Marquer chauffeur'}
-            </button>
-          </div>
-          {m.est_chauffeur && (
+          {peutModifier(m) && (
+            <div className="ligne-boutons" style={{ marginTop: 10 }}>
+              <select
+                value={m.equipe_id ?? ''}
+                onChange={(e) => rattacher(m.id, e.target.value)}
+                style={{ width: 'auto', marginBottom: 0 }}
+              >
+                <option value="">— sans équipe —</option>
+                {equipes.map((eq) => (
+                  <option key={eq.id} value={eq.id}>
+                    {eq.code} · {eq.nom}
+                  </option>
+                ))}
+              </select>
+              <button
+                className={`module ${m.est_chauffeur ? 'actif' : ''}`}
+                onClick={() => basculerChauffeur(m.id, m.est_chauffeur)}
+              >
+                {m.est_chauffeur ? 'Chauffeur ✓' : 'Marquer chauffeur'}
+              </button>
+            </div>
+          )}
+          {peutModifier(m) && m.est_chauffeur && (
             <input
               defaultValue={m.type_vehicule ?? ''}
               placeholder="Véhicule habituel — utilitaire, 7 places…"
@@ -654,9 +707,13 @@ function Equipe({ evenement, setMessage }) {
  * créneaux : devant une page blanche on n'écrit rien, devant une
  * question on répond.
  */
-function FichesPoste({ evenement, setMessage }) {
+function FichesPoste({ evenement, peut, toutPouvoir, setMessage }) {
   const [fiches, setFiches] = useState([])
   const [ouvert, setOuvert] = useState(null)
+  const [lecture, setLecture] = useState(null)
+
+  // Policy `fiches_poste_ecriture` : toute écriture exige `rh:creer`.
+  const peutGerer = toutPouvoir || peut?.('rh', 'creer')
 
   async function charger() {
     const { data, error } = await supabase
@@ -683,11 +740,13 @@ function FichesPoste({ evenement, setMessage }) {
       a_signaler: fiche.a_signaler?.trim() || null,
       contact: fiche.contact?.trim() || null
     }
-    const requete = fiche.id
-      ? supabase.from('fiches_poste').update(charge).eq('id', fiche.id)
-      : supabase.from('fiches_poste').insert(charge)
-    const { error } = await requete
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    let refus
+    if (fiche.id) refus = await modifierOuRefuser('fiches_poste', charge, { id: fiche.id })
+    else {
+      const { error } = await supabase.from('fiches_poste').insert(charge)
+      refus = error ? texteErreur(error) : null
+    }
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else {
       setOuvert(null)
       charger()
@@ -721,26 +780,40 @@ function FichesPoste({ evenement, setMessage }) {
               <span>{(fi.taches ?? []).length} tâche(s)</span>
               {!fi.a_signaler && <span className="alerte-texte">rien à remonter précisé</span>}
             </div>
+            {/* Le formulaire d'édition était le seul chemin vers le
+                contenu ; sans droit d'écrire, on lit la fiche telle
+                que le bénévole la verra sur son créneau. */}
+            {!peutGerer && lecture === fi.id && <FichePoste fiche={fi} />}
             <div className="ligne-boutons" style={{ marginTop: 8 }}>
-              <button className="discret" onClick={() => setOuvert(fi.id)}>
-                Modifier
-              </button>
+              {peutGerer ? (
+                <button className="discret" onClick={() => setOuvert(fi.id)}>
+                  Modifier
+                </button>
+              ) : (
+                <button
+                  className="discret"
+                  onClick={() => setLecture(lecture === fi.id ? null : fi.id)}
+                >
+                  {lecture === fi.id ? 'Fermer' : 'Lire la fiche'}
+                </button>
+              )}
             </div>
           </div>
         )
       )}
 
-      {ouvert === 'nouvelle' ? (
-        <FormFiche
-          initiale={{ intitule: '', mission: '', taches: [''], materiel: '', a_signaler: '', contact: '' }}
-          onEnregistrer={enregistrer}
-          onAnnuler={() => setOuvert(null)}
-        />
-      ) : (
-        <div className="ligne-boutons" style={{ marginTop: 10 }}>
-          <button onClick={() => setOuvert('nouvelle')}>+ Nouvelle fiche</button>
-        </div>
-      )}
+      {peutGerer &&
+        (ouvert === 'nouvelle' ? (
+          <FormFiche
+            initiale={{ intitule: '', mission: '', taches: [''], materiel: '', a_signaler: '', contact: '' }}
+            onEnregistrer={enregistrer}
+            onAnnuler={() => setOuvert(null)}
+          />
+        ) : (
+          <div className="ligne-boutons" style={{ marginTop: 10 }}>
+            <button onClick={() => setOuvert('nouvelle')}>+ Nouvelle fiche</button>
+          </div>
+        ))}
     </>
   )
 }

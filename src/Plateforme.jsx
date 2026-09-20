@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { libelleStatut } from './libelles'
 import { texteErreur } from './erreurs'
+import { modifierOuRefuser } from './ecriture'
 
 /**
  * Console plateforme — vue de l'éditeur.
@@ -92,10 +93,6 @@ function Organisations({ setMessage }) {
 
   useEffect(() => {
     charger()
-    // Les 261 communes wallonnes : la saisie libre produisait des noms
-    // qui ne correspondaient à aucune fiche, donc aucune zone.
-    supabase.from('communes').select('nom').order('nom')
-      .then(({ data }) => setCommunes(data ?? []))
   }, [])
 
   async function creer() {
@@ -490,10 +487,6 @@ function Comptes({ setMessage }) {
 
   useEffect(() => {
     charger()
-    // Les 261 communes wallonnes : la saisie libre produisait des noms
-    // qui ne correspondaient à aucune fiche, donc aucune zone.
-    supabase.from('communes').select('nom').order('nom')
-      .then(({ data }) => setCommunes(data ?? []))
   }, [])
 
   async function ajouter() {
@@ -509,11 +502,8 @@ function Comptes({ setMessage }) {
   }
 
   async function basculer(userId, actif) {
-    const { error } = await supabase
-      .from('membres_plateforme')
-      .update({ actif })
-      .eq('user_id', userId)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const refus = await modifierOuRefuser('membres_plateforme', { actif }, { user_id: userId })
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else charger()
   }
 

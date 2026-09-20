@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
+import { modifierOuRefuser } from './ecriture'
 import MoniteurIrm from './MoniteurIrm'
 import { diffuserAlerte } from './diffuserAlerte'
 
@@ -87,7 +89,7 @@ export default function Meteo({
       setPrevisions(d.hourly)
       setErreur(null)
     } catch (e) {
-      setErreur(e.message)
+      setErreur(texteErreur(e))
     }
   }
 
@@ -115,7 +117,7 @@ export default function Meteo({
       })
       .select('id')
       .single()
-    if (error) setErreur(error.message)
+    if (error) setErreur(texteErreur(error))
     else {
       diffuserAlerte(data.id)
       await chargerAlertesActives()
@@ -126,11 +128,8 @@ export default function Meteo({
   async function lever(id) {
     const motif = prompt('Motif de la levée ?')
     if (motif === null) return
-    const { error } = await supabase
-      .from('alertes')
-      .update({ active: false, motif_levee: motif })
-      .eq('id', id)
-    if (error) setErreur(error.message)
+    const refus = await modifierOuRefuser('alertes', { active: false, motif_levee: motif }, { id })
+    if (refus) setErreur(refus)
     else chargerAlertesActives()
   }
 
@@ -526,13 +525,15 @@ function quand(iso) {
 function ReglageSeuils({ seuils, evenementId, onFait }) {
   const [f, setF] = useState({ ...seuils, consignes: seuils.consignes ?? {} })
   const [occupe, setOccupe] = useState(false)
+  const [message, setMessage] = useState(null)
 
   async function enregistrer() {
     setOccupe(true)
     const { evenement_id, created_at, updated_at, created_by, updated_by, ...champs } = f
-    await supabase.from('veille_meteo').update(champs).eq('evenement_id', evenementId)
+    const refus = await modifierOuRefuser('veille_meteo', champs, { evenement_id: evenementId })
     setOccupe(false)
-    onFait()
+    if (refus) setMessage({ type: 'erreur', texte: refus })
+    else onFait()
   }
 
   const nombre = (clef, libelle, unite) => (
@@ -563,6 +564,11 @@ function ReglageSeuils({ seuils, evenementId, onFait }) {
 
   return (
     <div className="formulaire">
+      {message && (
+        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
+          {message.texte}
+        </div>
+      )}
       <div className="pave-titre">Vent</div>
       {nombre('rafale_vigilance_kmh', "Alerte à partir de", 'km/h')}
       {consigne('vent_alerte', "Consigne à l'alerte", 'Sécuriser bâches et structures légères')}

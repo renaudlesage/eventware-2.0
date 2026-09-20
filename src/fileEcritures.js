@@ -32,6 +32,7 @@
 
 import { supabase } from './supabaseClient'
 import { surRetourReseau, nouvelleCle } from './reessai'
+import { texteErreur } from './erreurs'
 
 const CLEF = 'eventware.ecritures.file'
 const MAX_ESSAIS = 8
@@ -162,7 +163,7 @@ export async function ecrireOuEmpiler(operation) {
       empiler(operation)
       return { statut: 'enfile' }
     }
-    return { statut: 'refus', message: e.message }
+    return { statut: 'refus', message: texteErreur(e) }
   }
 }
 
@@ -249,7 +250,7 @@ export async function rejouer() {
         const definitif = e.definitif || op.essais + 1 >= MAX_ESSAIS
         const file = lireFile().map((o) =>
           o.cle === op.cle
-            ? { ...o, essais: o.essais + 1, message: e.message, definitif, conflit: !!e.conflit }
+            ? { ...o, essais: o.essais + 1, message: texteErreur(e), definitif, conflit: !!e.conflit }
             : o
         )
         ecrireFile(file)

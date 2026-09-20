@@ -3,6 +3,7 @@ import { Footprints, Mic2, PartyPopper, Flag, Wrench, Car } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { heure } from './libelles'
 import { texteErreur } from './erreurs'
+import { modifierOuRefuser } from './ecriture'
 import VisibiliteJalon from './VisibiliteJalon'
 
 /**
@@ -332,8 +333,8 @@ function Jalons({ evenement, peutGerer, setMessage }) {
   }
 
   async function modifier(id, champs) {
-    const { error } = await supabase.from('jalons').update(champs).eq('id', id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const refus = await modifierOuRefuser('jalons', champs, { id })
+    if (refus) setMessage({ type: 'erreur', texte: refus })
     else charger()
   }
 

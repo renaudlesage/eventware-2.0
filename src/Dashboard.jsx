@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { modifierOuRefuser } from './ecriture'
 import { PAVES, pavesDisponibles, pavesObligatoires, composition } from './paves'
 import { libelleStatut, heure } from './libelles'
 import { etatDe } from './Securite'
@@ -34,11 +35,9 @@ export default function Dashboard({
 
   async function enregistrer(nouveau) {
     setChoix(nouveau)
-    const { error } = await supabase
-      .from('membres_evenement')
-      .update({ paves: nouveau })
-      .eq('id', membre.id)
-    if (!error) onFait?.()
+    const refus = await modifierOuRefuser('membres_evenement', { paves: nouveau }, { id: membre.id })
+    if (refus) setMessage({ type: 'erreur', texte: refus })
+    else onFait?.()
   }
 
   function basculer(clef) {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 import { appliquerIconeEvenement } from './logoPwa'
 
 const REFUS = {
@@ -32,7 +33,7 @@ export default function Autorite({ jeton }) {
 
   async function charger() {
     const { data, error } = await supabase.rpc('situation_autorite', { p_jeton: jeton })
-    if (error) setErreur(REFUS[error.code] ?? error.message)
+    if (error) setErreur(REFUS[error.code] ?? texteErreur(error))
     else {
       setS(data)
       setMaj(new Date())

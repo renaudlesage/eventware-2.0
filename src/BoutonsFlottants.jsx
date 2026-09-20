@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Siren, MessageSquareWarning, X, TriangleAlert } from 'lucide-react'
 import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
 import { diffuserAlerte } from './diffuserAlerte'
 import { DOMAINES } from './libelles'
 import { detecterDoublons } from './doublons'
+import { nouvelleCle } from './reessai'
 
 /**
  * Boutons SOS et REX, présents sur toutes les pages.
@@ -148,13 +150,16 @@ function FormSos({ evenement, membre, onFini }) {
     const { error } = await supabase.from('signalements').insert({
       evenement_id: evenement.id,
       reference,
-      cle_client: crypto.randomUUID(),
+      // `nouvelleCle` et non `crypto.randomUUID` : ce dernier n'existe pas
+      // en http://, et le SOS d'un membre sur le réseau du festival ne
+      // doit pas planter pour ça.
+      cle_client: nouvelleCle(),
       type,
       description: description.trim(),
       emis_le: new Date().toISOString(),
       ...(position ?? {})
     })
-    if (error) setErreur(error.message)
+    if (error) setErreur(texteErreur(error))
     else onFini()
     setOccupe(false)
   }
@@ -248,7 +253,7 @@ function FormMayday({ evenement, onFini }) {
       p_longitude: position?.longitude ?? null,
       p_precision_m: position?.precision_m ?? null
     })
-    if (error) setErreur(error.message)
+    if (error) setErreur(texteErreur(error))
     else {
       const ligne = Array.isArray(data) ? data[0] : data
       setEnvoye(ligne)
@@ -386,7 +391,7 @@ function FormRex({ evenement, membre, onFini }) {
       phase: evenement.phase,
       membre_id: membre.id
     })
-    if (error) setErreur(error.message)
+    if (error) setErreur(texteErreur(error))
     else onFini()
     setOccupe(false)
   }
