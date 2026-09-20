@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { Pin, PinOff } from 'lucide-react'
 import { Icone, DOMAINES, FAMILLES, SEUIL_GROUPEMENT } from './icones'
 
@@ -30,6 +30,31 @@ import { Icone, DOMAINES, FAMILLES, SEUIL_GROUPEMENT } from './icones'
 export default function Rail({ visibles, ecran, onAller, palier, epingle, setEpingle }) {
   const [survol, setSurvol] = useState(false)
   const [focus, setFocus] = useState(false)
+  const navRef = useRef(null)
+  const panneauRef = useRef(null)
+  // Où poser le panneau déplié, en coordonnées d'écran (voir plus bas).
+  const [cadre, setCadre] = useState(null)
+  const deploye = palier !== 'mobile' && !epingle && (survol || focus)
+
+  // Le panneau est fixé à l'écran, pas au rail : le rail est collant
+  // (sticky) et tient donc dans la colonne quelle que soit la page,
+  // mais treize modules nommés font 700 px de haut — plus qu'un écran
+  // de portable sous la tête et les cadrans. Fixé, le panneau part du
+  // haut du rail quand il y tient, remonte jusqu'à la marge sinon, et
+  // défile en dernier recours. Mesuré avant la peinture : on ne voit
+  // jamais la position de repli de la feuille de style.
+  useLayoutEffect(() => {
+    if (!deploye || !navRef.current) return
+    const marge = 16
+    const nav = navRef.current.getBoundingClientRect()
+    const hauteur = panneauRef.current?.scrollHeight ?? 0
+    // La tête de page est collante et passe au-dessus : le panneau
+    // commence sous elle, jamais derrière.
+    const tete = document.querySelector('.tete')?.getBoundingClientRect().bottom ?? 0
+    const plafond = Math.max(marge, tete + 8)
+    const top = Math.max(plafond, Math.min(nav.top, window.innerHeight - marge - hauteur))
+    setCadre({ left: nav.right, top, maxHeight: window.innerHeight - top - marge })
+  }, [deploye])
 
   const parClef = Object.fromEntries(visibles.map((e) => [e.clef, e]))
 
@@ -58,7 +83,7 @@ export default function Rail({ visibles, ecran, onAller, palier, epingle, setEpi
 
   const boutonEpingle = (
     <button
-      className="rail-epingle"
+      className="bouton-epingle"
       aria-pressed={epingle}
       aria-label={epingle ? 'Replier le menu' : 'Garder le menu déplié'}
       title={epingle ? 'Replier le menu' : 'Garder le menu déplié'}
@@ -89,10 +114,9 @@ export default function Rail({ visibles, ecran, onAller, palier, epingle, setEpi
     )
   }
 
-  const deploye = survol || focus
-
   return (
     <nav
+      ref={navRef}
       className={`plaques rail-compact ${deploye ? 'deploye' : ''}`}
       aria-label="Modules"
       onMouseEnter={() => setSurvol(true)}
@@ -120,7 +144,12 @@ export default function Rail({ visibles, ecran, onAller, palier, epingle, setEpi
           décoratif pour les lecteurs d'écran — chaque icône porte déjà
           son libellé — et sort du flux pour ne rien décaler. */}
       {deploye && (
-        <div className="rail-deploye" aria-hidden="true">
+        <div
+          className="rail-deploye"
+          aria-hidden="true"
+          ref={panneauRef}
+          style={cadre ? { position: 'fixed', left: cadre.left, top: cadre.top, maxHeight: cadre.maxHeight } : undefined}
+        >
           <span className="survol-note">Modules</span>
           {groupes.map(([titre, cles]) => (
             <div key={titre || 'plat'}>

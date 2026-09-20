@@ -57,6 +57,9 @@
 
   --rayon: 2px;
   --ombre: 0 1px 0 rgba(16, 21, 27, 0.06);
+  /* La seule ombre portée autorisée : ce qui flotte au-dessus de la
+     page (panneau du rail déplié, boutons flottants). */
+  --ombre-flottant: 0 3px 12px rgba(16, 21, 27, 0.22);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -76,6 +79,7 @@
     --etat-info:   #4a8ec2;
     --etat-froid:  #8d99a6;
     --ombre: none;
+    --ombre-flottant: 0 3px 12px rgba(0, 0, 0, 0.55);
 
     --dom-indigo:   #8b97e8;
     --dom-violet:   #b085e0;
@@ -108,6 +112,7 @@
   --etat-info:   #4a8ec2;
   --etat-froid:  #8d99a6;
   --ombre: none;
+  --ombre-flottant: 0 3px 12px rgba(0, 0, 0, 0.55);
 
     --dom-indigo:   #8b97e8;
     --dom-violet:   #b085e0;
@@ -368,6 +373,11 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
 
 /* ---------------- Navigation par plaques ---------------- */
 
+/* `.corps` est aussi la classe du texte d'une ligne de journal
+   (`.chrono .corps`, et une dizaine de listes) : les règles de GRILLE
+   ci-dessous ne visent que la coquille du poste, `.poste > .corps`.
+   Sans cette portée, chaque ligne de journal devenait une grille de
+   deux colonnes et son texte s'enroulait mot à mot dans la première. */
 .corps { display: block; }
 
 .plaques {
@@ -445,19 +455,24 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
    lui-même ce panneau (`rail-groupe`), dans le flux, 200 px. */
 
 @media (min-width: 940px) {
-  .corps { display: grid; grid-template-columns: 56px 1fr; gap: 26px; align-items: start; position: relative; }
-  .corps.rail-epingle { grid-template-columns: 200px 1fr; }
+  .poste > .corps { display: grid; grid-template-columns: 56px 1fr; gap: 26px; align-items: start; position: relative; }
+  .poste > .corps.rail-epingle { grid-template-columns: 200px 1fr; }
   /* Sans rail (Mon compte, « pas membre », nom manquant, premier
      événement), le travail prend toute la largeur au lieu de tomber
      dans la colonne du rail. */
-  .corps > .travail:only-child { grid-column: 1 / -1; }
+  .poste > .corps > .travail:only-child { grid-column: 1 / -1; }
   .plaques { flex-direction: column; position: sticky; top: 16px; }
   .plaque-nav { text-align: left; }
 }
 
 /* Le rail reste collant (sticky = positionné : le panneau déplié, en
-   absolu, s'y accroche sans qu'on perde le collage). */
-.rail-compact { gap: 0; }
+   absolu, s'y accroche sans qu'on perde le collage). Sticky crée son
+   propre contexte d'empilement : sans z-index sur le rail lui-même, le
+   panneau passait SOUS tout élément positionné venant après dans la
+   page (lignes du journal, tuiles) — le texte se lisait à travers. 20
+   reste sous la tête (30) et sous la barre du bas, les flottants et
+   les tiroirs (55, 60, 70). */
+.rail-compact { gap: 0; z-index: 20; }
 .rail-compact .plaque-nav { justify-content: center; padding: 11px 0; gap: 0; }
 .rail-compact .plaque-nav span { display: none; }
 
@@ -487,9 +502,24 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
   padding: 8px 10px 12px;
   z-index: 5;
   box-sizing: border-box;
+  /* Treize modules et quatre titres dépassent un écran de 720 px de
+     haut : le panneau défile plutôt que d'être coupé. */
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
 }
-.rail-deploye .plaque-nav { width: 100%; box-sizing: border-box; margin-bottom: 6px; }
-.rail-deploye .famille-titre { margin: 14px 0 6px; }
+/* Dans le panneau, chaque module est nommé : icône ET libellé, comme
+   en mode épinglé — la règle « icône seule » du rail compact ne
+   s'applique qu'au rail. */
+.rail-compact .rail-deploye .plaque-nav {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 3px;
+  justify-content: flex-start;
+  padding: 6px 12px;
+  gap: 9px;
+}
+.rail-compact .rail-deploye .plaque-nav span { display: inline; }
+.rail-deploye .famille-titre { margin: 12px 0 5px; }
 .rail-deploye > div:first-of-type .famille-titre { margin-top: 8px; }
 
 .survol-note {
@@ -503,8 +533,10 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
   border-bottom: 1px solid var(--trait);
 }
 
-/* L'épingle : un bouton discret au pied du rail, jamais un domaine. */
-.rail-epingle {
+/* L'épingle : un bouton discret au pied du rail, jamais un domaine.
+   (Classe distincte de `.corps.rail-epingle`, le modificateur de grille :
+   un même nom sur les deux posait `all: unset` sur la grille entière.) */
+.bouton-epingle {
   all: unset;
   cursor: pointer;
   display: flex;
@@ -515,9 +547,9 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
   color: var(--sourdine);
   border-top: 1px solid var(--trait);
 }
-.rail-epingle:hover { color: var(--encre); }
-.rail-epingle:focus-visible { outline: 2px solid var(--etat-info); outline-offset: 2px; }
-.rail-groupe .rail-epingle { justify-content: flex-start; padding-left: 13px; }
+.bouton-epingle:hover { color: var(--encre); }
+.bouton-epingle:focus-visible { outline: 2px solid var(--etat-info); outline-offset: 2px; }
+.rail-groupe .bouton-epingle { justify-content: flex-start; padding-left: 13px; }
 
 /* ---------------- Paliers de largeur ----------------
    La résolution supplémentaire achète de l'information, jamais du
@@ -528,20 +560,24 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
 
 @media (min-width: 1440px) {
   .poste { max-width: 1640px; }
-  .corps { grid-template-columns: 56px minmax(0, 1fr) 380px; }
-  .corps.rail-epingle { grid-template-columns: 200px minmax(0, 1fr) 380px; }
-  /* La veille porte déjà la météo compacte : Situation et Sécurité ne
-     la répètent pas à côté. (Les classes palier-* viennent de Poste.) */
-  .corps.palier-veille .travail .meteo-compact,
-  .corps.palier-mur .travail .meteo-compact { display: none; }
+  .poste > .corps { grid-template-columns: 56px minmax(0, 1fr) 380px; }
+  .poste > .corps.rail-epingle { grid-template-columns: 200px minmax(0, 1fr) 380px; }
+  /* La veille porte déjà les alertes, la météo et le fil du journal :
+     Situation et Sécurité ne les répètent pas à côté. (Les classes
+     palier-* viennent de Poste ; `avec-veille-cache` est posée dans
+     Situation sur les blocs redondants.) */
+  .poste > .corps.palier-veille .travail .meteo-compact,
+  .poste > .corps.palier-mur .travail .meteo-compact,
+  .poste > .corps.palier-veille .travail .avec-veille-cache,
+  .poste > .corps.palier-mur .travail .avec-veille-cache { display: none; }
 }
 
 @media (min-width: 2200px) {
   .poste { max-width: 2480px; }
-  .corps { grid-template-columns: 56px minmax(0, 1fr) 440px; }
-  .corps.rail-epingle { grid-template-columns: 200px minmax(0, 1fr) 440px; }
-  .corps.avec-mur { grid-template-columns: 56px minmax(0, 1.1fr) minmax(0, 1fr) 440px; }
-  .corps.avec-mur.rail-epingle { grid-template-columns: 200px minmax(0, 1.1fr) minmax(0, 1fr) 440px; }
+  .poste > .corps { grid-template-columns: 56px minmax(0, 1fr) 440px; }
+  .poste > .corps.rail-epingle { grid-template-columns: 200px minmax(0, 1fr) 440px; }
+  .poste > .corps.avec-mur { grid-template-columns: 56px minmax(0, 1.1fr) minmax(0, 1fr) 440px; }
+  .poste > .corps.avec-mur.rail-epingle { grid-template-columns: 200px minmax(0, 1.1fr) minmax(0, 1fr) 440px; }
   .etat.etat-mur { grid-template-columns: repeat(8, 1fr); }
 }
 
@@ -1076,7 +1112,7 @@ dl.fiche dd { margin: 1px 0 0; }
   .dashboard, .compteurs, .bandeaux, button, input, select,
   .veille, .colonne-mur, .rail-deploye,
   .carte-conteneur, .travail > * > h2 { display: none !important; }
-  .corps { display: block !important; }
+  .poste > .corps { display: block !important; }
   .imprimable { display: block !important; }
   .imprimable .carte { border: 1px solid #000; break-inside: avoid; margin-bottom: 6mm; padding: 4mm; }
   .titre-impression { display: block !important; font-size: 15px; margin: 0 0 10px; }
@@ -2467,6 +2503,77 @@ input:disabled {
 
 .meteo-compact { padding: 10px 12px; }
 .meteo-compact .entete-dashboard { margin-bottom: 4px; }
+
+/* --- Veille météo : vue de veille (colonne de veille, ≥ 1440 px) ---
+   Lue de loin : trois valeurs en grand, puis les prochaines heures en
+   lignes. Le niveau de chaque heure est un filet à gauche ET un mot —
+   jaune, orange, rouge ne se distinguent pas par la seule couleur. */
+.meteo-veille { padding: 12px 14px; }
+.meteo-veille .entete-dashboard h2 { white-space: nowrap; }
+
+.meteo-valeurs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--trait);
+  border: 1px solid var(--trait);
+  margin: 8px 0 12px;
+}
+.meteo-valeurs > div {
+  background: var(--surface);
+  padding: 9px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.meteo-valeurs .grand {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.meteo-valeurs .unite {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sourdine);
+  white-space: nowrap;
+}
+
+.meteo-heures {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.meteo-heures li {
+  display: grid;
+  grid-template-columns: 34px 62px 34px 52px 1fr;
+  gap: 8px;
+  align-items: baseline;
+  padding: 5px 0 5px 10px;
+  border-left: 3px solid var(--etat-ok);
+  border-bottom: 1px solid var(--trait);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.meteo-heures li:last-child { border-bottom: none; }
+.meteo-heures .heure { color: var(--sourdine); }
+.meteo-heures .pluie { color: var(--sourdine); }
+.meteo-heures .niveau {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+.meteo-heures li.niv-jaune  { border-left-color: #d4a017; }
+.meteo-heures li.niv-orange { border-left-color: var(--etat-veille); }
+.meteo-heures li.niv-rouge  { border-left-color: var(--etat-chaud); }
+.meteo-heures li.niv-jaune  .niveau { color: #d4a017; }
+.meteo-heures li.niv-orange .niveau { color: var(--etat-veille); }
+.meteo-heures li.niv-rouge  .niveau,
+.meteo-heures li.niv-rouge  .rafale { color: var(--etat-chaud); }
+.meteo-veille .irm-bloc { margin-bottom: 12px; }
 
 .meteo-resume {
   font-size: 13px;

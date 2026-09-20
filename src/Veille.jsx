@@ -8,12 +8,14 @@ import Meteo from './Meteo'
  * C'est le gain réel du palier : le coordinateur cesse de faire
  * l'aller-retour entre son module et le journal. Dans cet ordre, parce
  * que c'est l'ordre d'urgence : les bandeaux d'alerte en cours, le
- * journal en direct (onze lignes), la veille météo en vue compacte —
+ * journal en direct (onze lignes), la veille météo en vue de veille —
  * la vue faite pour 380 px, jamais les bandes horaires qui s'écrasent
  * — et, au mur (≥ 2200 px), le moniteur radio.
  *
- * Elle ne remplace aucun écran : tout ce qu'elle montre a son écran
- * complet ailleurs, et elle n'offre aucune commande. Elle lit.
+ * Ce qu'elle porte, la Situation ne le répète pas (feuille de style,
+ * classes palier-*) : ni les alertes, ni « Derniers événements », ni
+ * la météo compacte. Deux fois la même chose côte à côte, c'est du
+ * bruit, pas de l'information.
  */
 const LIBELLE_MODULE = {
   securite: 'Sécurité',
@@ -132,9 +134,13 @@ export default function Veille({ evenement, peut, toutPouvoir, palier, onAller }
         )}
       </div>
 
-      {/* La vue compacte, celle de l'écran Situation : les bandes
-          horaires (24 colonnes) sont illisibles dans 380 px. */}
-      <Meteo evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} compact autoJournal={false} />
+      {/* La vue de veille : valeurs du moment en grand, avis IRM,
+          prochaines heures en lignes — les bandes horaires (24 colonnes)
+          sont illisibles dans 380 px, et la vue compacte de la Situation
+          trop petite pour une colonne qu'on lit de loin. À partir de
+          1440 px c'est la seule météo à l'écran : elle garde les seuils
+          et la diffusion d'alerte. */}
+      <Meteo evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} veille autoJournal={false} />
 
       {auMur && radio && (
         <div>

@@ -42,12 +42,25 @@ const CRITERE_LIBELLE = {
   orage: 'Orage'
 }
 
+/*
+ * Trois vues, un seul composant :
+ *   - pleine (Sécurité, Réglages) : détails ouverts, bandes horaires ;
+ *   - `compact` (Situation, Sécurité en tête de groupe) : badge et
+ *     résumé d'une ligne, « Détails » déplie le reste ;
+ *   - `veille` (colonne de veille, refonte du 20/09) : faite pour
+ *     380 px de large et lue de loin — les trois valeurs du moment en
+ *     grand, les avis officiels de l'IRM, puis les prochaines heures en
+ *     LIGNES, jamais les 24 bandes qui s'écrasent dans cette largeur.
+ *     Les seuils et la diffusion d'alerte y restent accessibles : à
+ *     partir de 1440 px, c'est la seule météo à l'écran.
+ */
 export default function Meteo({
   evenement,
   membre,
   peut,
   toutPouvoir,
   compact,
+  veille = false,
   autoJournal = true
 }) {
   const [seuils, setSeuils] = useState(null)
@@ -241,7 +254,7 @@ export default function Meteo({
   }, [cleEtat, seuils, evenement.id, autoJournal])
 
   if (!lat || !lon) {
-    if (compact) return null
+    if (compact || veille) return null
     return (
       <section className="bloc">
         <h2>Veille météo</h2>
@@ -268,8 +281,13 @@ export default function Meteo({
       ? null
       : evaluees.find((h) => h.niveau === pire.niveau)?.heure
 
+  // En veille, les détails n'ont pas d'interrupteur : la vue est fixe.
+  const details = veille ? false : detailsOuverts
+
   return (
-    <section className={`bloc meteo meteo-${pire.niveau} ${compact ? 'meteo-compact' : ''}`}>
+    <section
+      className={`bloc meteo meteo-${pire.niveau} ${compact ? 'meteo-compact' : ''} ${veille ? 'meteo-veille' : ''}`}
+    >
       <div className="entete-dashboard">
         <h2>Veille météo</h2>
         <div className="ligne-boutons" style={{ marginBottom: 0 }}>
@@ -279,10 +297,12 @@ export default function Meteo({
             {LIBELLE_NIVEAU[pire.niveau]}
           </span>
           {echeancePire && <span className="aide">{quand(echeancePire)}</span>}
-          <button className="lien" onClick={() => setDetailsOuverts(!detailsOuverts)}>
-            {detailsOuverts ? 'Réduire' : 'Détails'}
-          </button>
-          {peutAlerter && detailsOuverts && (
+          {!veille && (
+            <button className="lien" onClick={() => setDetailsOuverts(!detailsOuverts)}>
+              {detailsOuverts ? 'Réduire' : 'Détails'}
+            </button>
+          )}
+          {peutAlerter && (details || veille) && (
             <button className="lien" onClick={() => setReglage(!reglage)}>
               {reglage ? 'Terminé' : 'Seuils'}
             </button>
@@ -292,16 +312,35 @@ export default function Meteo({
 
       {/* Résumé d'une ligne, visible même replié — pour ne rien perdre
           en fermant les détails, juste le volume. */}
-      {!detailsOuverts && maintenant && (
+      {!details && !veille && maintenant && (
         <p className="meteo-resume">
           {Math.round(maintenant.rafale)} km/h · {Math.round(maintenant.temp)}°C
           {maintenant.pluie > 0 ? ` · pluie ${maintenant.pluie} mm/h` : ' · sec'}
         </p>
       )}
 
+      {/* Les trois valeurs du moment, en grand : c'est ce qu'on lit de
+          loin, avant le badge même. */}
+      {veille && maintenant && (
+        <div className="meteo-valeurs">
+          <div className={maintenant.niveau !== 'vert' ? 'alerte-texte' : ''}>
+            <span className="grand mono">{Math.round(maintenant.rafale)}</span>
+            <span className="unite">km/h rafales</span>
+          </div>
+          <div>
+            <span className="grand mono">{maintenant.pluie}</span>
+            <span className="unite">mm/h</span>
+          </div>
+          <div>
+            <span className="grand mono">{Math.round(maintenant.temp)}°</span>
+            <span className="unite">température</span>
+          </div>
+        </div>
+      )}
+
       {erreur && <div className="message erreur">{erreur}</div>}
 
-      {detailsOuverts && reglage && (
+      {(details || veille) && reglage && (
         <ReglageSeuils
           seuils={seuils}
           evenementId={evenement.id}
@@ -369,7 +408,31 @@ export default function Meteo({
         </div>
       )}
 
-      {detailsOuverts && (
+      {veille && (
+        <>
+          <MoniteurIrm province={evenement.province} />
+          {evaluees.length > 1 && (
+            <>
+              <div className="pave-titre">Prochaines heures</div>
+              <ul className="meteo-heures">
+                {evaluees.slice(1, 9).map((h, i) => (
+                  <li key={i} className={`niv-${h.niveau}`} title={`${quand(h.heure)} — rafales ${Math.round(h.rafale)} km/h, ${Math.round(h.temp)} °C, ${h.pluie} mm/h`}>
+                    <span className="mono heure">
+                      {new Date(h.heure).getHours().toString().padStart(2, '0')} h
+                    </span>
+                    <span className="mono rafale">{Math.round(h.rafale)} km/h</span>
+                    <span className="mono temp">{Math.round(h.temp)}°</span>
+                    <span className="mono pluie">{h.pluie > 0 ? `${h.pluie} mm` : '—'}</span>
+                    <span className="niveau">{h.niveau !== 'vert' ? LIBELLE_NIVEAU[h.niveau] : ''}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </>
+      )}
+
+      {details && (
         <>
           <MoniteurIrm province={evenement.province} />
 

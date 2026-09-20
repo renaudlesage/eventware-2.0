@@ -228,15 +228,22 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
 
       <Maydays evenement={evenement} compact />
 
-      {(s.alertes ?? []).map((a, i) => (
-        <div className={`bandeau-alerte niv-${a.niveau}`} key={i}>
-          <div className="niv">{a.niveau}</div>
-          <div className="contenu">
-            <strong>{a.titre}</strong>
-            {a.consigne && <div className="consigne">→ {a.consigne}</div>}
-          </div>
+      {/* Alertes, météo compacte et « Derniers événements » portent la
+          classe qui les cache quand la colonne de veille les montre déjà
+          (≥ 1440 px, voir styles.css « Paliers de largeur »). */}
+      {(s.alertes ?? []).length > 0 && (
+        <div className="avec-veille-cache">
+          {(s.alertes ?? []).map((a, i) => (
+            <div className={`bandeau-alerte niv-${a.niveau}`} key={i}>
+              <div className="niv">{a.niveau}</div>
+              <div className="contenu">
+                <strong>{a.titre}</strong>
+                {a.consigne && <div className="consigne">→ {a.consigne}</div>}
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
 
       {(s.recherches ?? []).length > 0 && (
         <div className="bloc-alerte">
@@ -466,7 +473,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
 
       {/* --- 4. Le fil --- */}
 
-      <section className="panneau large">
+      <section className="panneau large avec-veille-cache">
         <h2>Derniers événements</h2>
         <div className="panneau-corps">
         <ul className="chrono">
