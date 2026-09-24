@@ -196,35 +196,27 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
 
   return (
     <div className="situation dom-indigo">
-      {/* La météo remonte à côté du titre : c'est une donnée de
-          contexte permanente, pas un événement de plus dans le fil de
-          lecture (mayday, alertes, domaines). Sur un écran étroit, elle
-          repasse sous le titre (styles.css, « Situation générale »). */}
-      <div className="situation-tete">
-        <div className="entete-dashboard">
-          <h2>Situation</h2>
-          <div className="ligne-boutons" style={{ marginBottom: 0 }}>
-            <button
-              className={sonActif ? '' : 'discret'}
-              onClick={() => setSonActif(!sonActif)}
-              title="Alarme sonore sur toute nouvelle urgence — mayday, P1, alerte"
-            >
-              {sonActif ? '🔔 Son ON' : '🔕 Son OFF'}
-            </button>
-            <button
-              className={veilleActive ? '' : 'discret'}
-              onClick={basculerVeille}
-              title="Empêche le verrouillage automatique de cet écran"
-            >
-              {veilleActive ? '☀ Veille ON' : '🌙 Veille OFF'}
-            </button>
-            <span className="compte">
-              {maj && `relevé ${maj.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}`}
-            </span>
-          </div>
+      <div className="entete-dashboard">
+        <h2>Situation</h2>
+        <div className="ligne-boutons" style={{ marginBottom: 0 }}>
+          <button
+            className={sonActif ? '' : 'discret'}
+            onClick={() => setSonActif(!sonActif)}
+            title="Alarme sonore sur toute nouvelle urgence — mayday, P1, alerte"
+          >
+            {sonActif ? '🔔 Son ON' : '🔕 Son OFF'}
+          </button>
+          <button
+            className={veilleActive ? '' : 'discret'}
+            onClick={basculerVeille}
+            title="Empêche le verrouillage automatique de cet écran"
+          >
+            {veilleActive ? '☀ Veille ON' : '🌙 Veille OFF'}
+          </button>
+          <span className="compte">
+            {maj && `relevé ${maj.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}`}
+          </span>
         </div>
-
-        <Meteo evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} compact />
       </div>
       {veilleIndisponible && (
         <p className="aide">
@@ -236,22 +228,15 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
 
       <Maydays evenement={evenement} compact />
 
-      {/* Alertes, météo compacte et « Derniers événements » portent la
-          classe qui les cache quand la colonne de veille les montre déjà
-          (≥ 1440 px, voir styles.css « Paliers de largeur »). */}
-      {(s.alertes ?? []).length > 0 && (
-        <div className="avec-veille-cache">
-          {(s.alertes ?? []).map((a, i) => (
-            <div className={`bandeau-alerte niv-${a.niveau}`} key={i}>
-              <div className="niv">{a.niveau}</div>
-              <div className="contenu">
-                <strong>{a.titre}</strong>
-                {a.consigne && <div className="consigne">→ {a.consigne}</div>}
-              </div>
-            </div>
-          ))}
+      {(s.alertes ?? []).map((a, i) => (
+        <div className={`bandeau-alerte niv-${a.niveau}`} key={i}>
+          <div className="niv">{a.niveau}</div>
+          <div className="contenu">
+            <strong>{a.titre}</strong>
+            {a.consigne && <div className="consigne">→ {a.consigne}</div>}
+          </div>
         </div>
-      )}
+      ))}
 
       {(s.recherches ?? []).length > 0 && (
         <div className="bloc-alerte">
@@ -271,6 +256,8 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
           ))}
         </div>
       )}
+
+      <Meteo evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} compact />
 
       {/* --- 2/3. Domaines opérationnels ------------------------------
            Repris du dashboard v18 : un bandeau de couleur par domaine,
@@ -479,8 +466,8 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
 
       {/* --- 4. Le fil --- */}
 
-      <section className="panneau large avec-veille-cache">
-        <h2>Journal en direct</h2>
+      <section className="panneau large">
+        <h2>Derniers événements</h2>
         <div className="panneau-corps">
         <ul className="chrono">
           {(s.journal ?? []).map((l, i) => (

@@ -30,11 +30,24 @@ import { Icone, DOMAINES, FAMILLES, SEUIL_GROUPEMENT } from './icones'
 export default function Rail({ visibles, ecran, onAller, palier, epingle, setEpingle }) {
   const [survol, setSurvol] = useState(false)
   const [focus, setFocus] = useState(false)
+  // Un clic sur un module ferme le panneau plutôt que de le laisser
+  // couvrir l'écran jusqu'à ce que la souris s'en aille : on a cliqué
+  // pour y aller, pas pour le regarder. Il se réarme au survol suivant
+  // (la souris doit ressortir puis revenir — sinon il resterait fermé
+  // sous le curseur qui n'a pas bougé).
+  const [dismis, setDismis] = useState(false)
   const navRef = useRef(null)
   const panneauRef = useRef(null)
   // Où poser le panneau déplié, en coordonnées d'écran (voir plus bas).
   const [cadre, setCadre] = useState(null)
-  const deploye = palier !== 'mobile' && !epingle && (survol || focus)
+  const deploye = palier !== 'mobile' && !epingle && !dismis && (survol || focus)
+
+  function surNavigation() {
+    setDismis(true)
+    // Un clic donne aussi le focus au bouton, qui rouvrirait le
+    // panneau par la branche clavier si on ne le relâche pas.
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+  }
 
   // Le panneau est fixé à l'écran, pas au rail : le rail est collant
   // (sticky) et tient donc dans la colonne quelle que soit la page,
@@ -120,8 +133,13 @@ export default function Rail({ visibles, ecran, onAller, palier, epingle, setEpi
       className={`plaques rail-compact ${deploye ? 'deploye' : ''}`}
       aria-label="Modules"
       onMouseEnter={() => setSurvol(true)}
-      onMouseLeave={() => setSurvol(false)}
-      onFocus={() => setFocus(true)}
+      onMouseLeave={() => { setSurvol(false); setDismis(false) }}
+      // Le focus qui arrive (Tab) réarme aussi le panneau : sinon, un
+      // clic qui l'a fermé le laisserait fermé pour le reste de la
+      // tabulation. Le blur, lui, ne touche pas `dismis` — c'est notre
+      // propre clic qui déclenche ce blur (voir `surNavigation`), et le
+      // réarmer ici l'annulerait dans le même geste.
+      onFocus={() => { setFocus(true); setDismis(false) }}
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget)) setFocus(false)
       }}
@@ -134,7 +152,7 @@ export default function Rail({ visibles, ecran, onAller, palier, epingle, setEpi
           key={titre || 'plat'}
         >
           {cles.map((c) => (
-            <PlaqueNav key={c} ecran={parClef[c]} actif={ecran === c} onAller={onAller} compact />
+            <PlaqueNav key={c} ecran={parClef[c]} actif={ecran === c} onAller={onAller} onNaviguer={surNavigation} compact />
           ))}
         </div>
       ))}
@@ -155,7 +173,7 @@ export default function Rail({ visibles, ecran, onAller, palier, epingle, setEpi
             <div key={titre || 'plat'}>
               {titre && <h2 className="famille-titre">{titre}</h2>}
               {cles.map((c) => (
-                <PlaqueNav key={c} ecran={parClef[c]} actif={ecran === c} onAller={onAller} tabIndex={-1} />
+                <PlaqueNav key={c} ecran={parClef[c]} actif={ecran === c} onAller={onAller} onNaviguer={surNavigation} tabIndex={-1} />
               ))}
             </div>
           ))}
@@ -165,12 +183,15 @@ export default function Rail({ visibles, ecran, onAller, palier, epingle, setEpi
   )
 }
 
-function PlaqueNav({ ecran, actif, onAller, compact = false, tabIndex }) {
+function PlaqueNav({ ecran, actif, onAller, onNaviguer, compact = false, tabIndex }) {
   const teinte = DOMAINES[ecran.clef]?.teinte ?? 'gris'
   return (
     <button
       className={`plaque-nav dom-${teinte} ${actif ? 'actif' : ''}`}
-      onClick={() => onAller(ecran.clef)}
+      onClick={() => {
+        onAller(ecran.clef)
+        onNaviguer?.()
+      }}
       aria-current={actif ? 'page' : undefined}
       aria-label={compact ? ecran.libelle : undefined}
       title={compact ? ecran.libelle : undefined}

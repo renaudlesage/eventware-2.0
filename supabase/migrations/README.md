@@ -131,7 +131,34 @@ on conflict (version) do nothing;
 
 Une fois ces lignes en place, la série est continue de 001 à 108.
 
-## Ne jamais rejouer 088 → 108 par `db push` sans les lignes ci-dessus
+> État constaté le 24/09 : 107 et 108 sont **appliquées** (la fonction
+> `reprendre_groupe_comme_equipe` existe, `transports` a disparu de la
+> matrice) mais **pas enregistrées** — l'historique s'arrête à 106.
+> Le bloc d'enregistrement ci-dessous (109) les reprend.
+
+### 109 : à appliquer — la page autorité redevient un outil de travail (24/09)
+
+| Fichier | Fait |
+|---|---|
+| `20260924080000_109_autorite_operationnelle.sql` | `acces_autorite.niveau` (`situation` / `operationnel`) ; `contacts.visible_autorite` (rien par défaut, seul un coordinateur coche) ; table `documents_autorite` ; `situation_autorite` renvoie les interventions une par une, les recherches (où et quand, jamais qui), les groupes sur le parcours, la veille météo, les accès secours, les repères, les tronçons et le brancardage, les ressources (DEA, eau, coupures, moyens), les installations à risque, le programme, le plan radio, les contacts cochés et les documents |
+
+Éprouvée dans une transaction annulée avec les blocs N et U de
+`droits.sql` : 9 lignes OK. Au niveau « situation », aucun texte libre ;
+au niveau « opérationnel », les descriptions ; aux deux, ni nom ni numéro
+de l'appelant, de la personne recherchée ou de son accompagnant. Appliquer
+la 109 **avant** de déployer l'application : Réglages › Partage lit
+`documents_autorite` et `contacts.visible_autorite`.
+
+```sql
+insert into supabase_migrations.schema_migrations (version, name, statements)
+values
+  ('20260920100000', '107_campagne_tests',          array['-- appliquée manuellement via l''éditeur SQL']),
+  ('20260920101000', '108_matrice_resserree',       array['-- appliquée manuellement via l''éditeur SQL']),
+  ('20260924080000', '109_autorite_operationnelle', array['-- appliquée manuellement via l''éditeur SQL'])
+on conflict (version) do nothing;
+```
+
+## Ne jamais rejouer 088 → 109 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

@@ -562,14 +562,12 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
   .poste { max-width: 1640px; }
   .poste > .corps { grid-template-columns: 56px minmax(0, 1fr) 380px; }
   .poste > .corps.rail-epingle { grid-template-columns: 200px minmax(0, 1fr) 380px; }
-  /* La veille porte déjà les alertes, la météo et le fil du journal :
-     Situation et Sécurité ne les répètent pas à côté. (Les classes
-     palier-* viennent de Poste ; `avec-veille-cache` est posée dans
-     Situation sur les blocs redondants.) */
-  .poste > .corps.palier-veille .travail .meteo-compact,
-  .poste > .corps.palier-mur .travail .meteo-compact,
-  .poste > .corps.palier-veille .travail .avec-veille-cache,
-  .poste > .corps.palier-mur .travail .avec-veille-cache { display: none; }
+  /* La veille porte déjà la météo : Sécurité ne répète pas la sienne
+     à côté (Situation est revenue à son affichage d'avant la refonte
+     du 20/09 — sa météo et son journal restent visibles quel que soit
+     le palier, voir « Situation générale » plus bas). */
+  .poste > .corps.palier-veille .travail .securite .meteo-compact,
+  .poste > .corps.palier-mur .travail .securite .meteo-compact { display: none; }
 }
 
 @media (min-width: 2200px) {
@@ -1193,23 +1191,6 @@ dl.fiche dd { margin: 1px 0 0; }
 
 .situation .grille-paves { margin-bottom: 20px; }
 
-/* Le titre à gauche, la météo compacte à droite — la météo est un
-   contexte permanent, pas un élément du fil de lecture (mayday,
-   alertes, domaines) sous elle. Sous 900 px, la météo n'a plus la
-   place à côté du titre et repasse dessous, pleine largeur. */
-.situation-tete {
-  display: flex;
-  align-items: flex-start;
-  gap: 20px;
-  margin-bottom: 14px;
-}
-.situation-tete .entete-dashboard { flex: 1 1 auto; margin-bottom: 0; }
-.situation-tete .meteo { flex: 0 0 320px; margin-bottom: 0; min-width: 0; }
-
-@media (max-width: 900px) {
-  .situation-tete { flex-direction: column; }
-  .situation-tete .meteo { flex-basis: auto; width: 100%; }
-}
 
 button.grand-lien {
   all: unset;
@@ -1269,6 +1250,84 @@ button.grand-lien:hover .grand { text-decoration-color: currentColor; }
 }
 
 .carte.revoque { opacity: 0.55; }
+
+/* Page autorité, refonte du 24/09 (109) : un outil de travail pour le
+   Dir-PC-Ops, pas un tableau de compteurs. Tout état porte son mot. */
+.niveau-autorite {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 4px 10px;
+  border: 2px solid;
+}
+.niveau-normal    { color: var(--etat-ok);     border-color: var(--etat-ok); }
+.niveau-vigilance { color: var(--etat-veille); border-color: var(--etat-veille); }
+.niveau-alerte    { background: var(--etat-chaud); border-color: var(--etat-chaud); color: var(--on-teinte); }
+
+.onglets-autorite {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--fond);
+  padding: 8px 0;
+  margin-top: 6px;
+}
+.onglets-autorite button.module { font-size: 14px; padding: 8px 16px; }
+.tri-autorite { align-items: center; margin-bottom: 10px; }
+.tri-autorite .etiquette { margin: 0 4px 0 0; }
+
+.carte.intervention { border-left: 4px solid var(--trait-fort); }
+.carte.intervention.prise-attente   { border-left-color: var(--etat-chaud); }
+.carte.intervention.prise-engage    { border-left-color: var(--etat-veille); }
+.carte.intervention.prise-sur_place { border-left-color: var(--etat-ok); }
+.intervention-tete { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.intervention-tete .mono { color: var(--sourdine); font-size: 12px; }
+.intervention-texte { font-size: 13.5px; margin: 5px 0 3px; }
+.jeton.prise-attente   { color: var(--etat-chaud); font-weight: 700; }
+.jeton.prise-engage    { color: var(--etat-veille); }
+.jeton.prise-sur_place { color: var(--etat-ok); }
+
+.frise { position: relative; height: 62px; margin: 6px 16px 16px; }
+.frise-ligne { position: absolute; left: 0; right: 0; top: 34px; height: 3px; background: var(--trait-fort); }
+.frise-repere { position: absolute; top: 29px; transform: translateX(-50%); text-align: center; }
+.frise-point { display: block; width: 11px; height: 11px; margin: 0 auto; background: var(--surface); border: 2px solid var(--encre); border-radius: 50%; }
+.frise-lib { display: block; font-family: var(--mono); font-size: 10px; color: var(--sourdine); margin-top: 3px; }
+.frise-groupe {
+  position: absolute; top: 0; transform: translateX(-50%);
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  padding: 1px 5px; background: var(--surface); border: 1px solid var(--etat-info); color: var(--etat-info);
+}
+.frise-groupe.sans-nouvelles { border-color: var(--etat-chaud); color: var(--etat-chaud); }
+.frise-interv { position: absolute; top: 18px; transform: translateX(-50%); color: var(--etat-chaud); font-size: 12px; line-height: 1; }
+
+.tableau-autorite { font-size: 13px; }
+.tableau-autorite td { vertical-align: top; }
+.tableau-autorite .aide { margin: 2px 0 0; }
+.tableau-autorite .lien-externe { font-size: 12px; white-space: nowrap; }
+
+.carte.troncon { border-left: 4px solid var(--etat-ok); }
+.carte.troncon-modere    { border-left-color: var(--etat-veille); }
+.carte.troncon-difficile { border-left-color: var(--etat-chaud); }
+.carte.troncon .aide { margin: 6px 0 0; }
+
+a.carte-lien { display: block; color: inherit; text-decoration: none; }
+a.carte-lien:hover { border-color: var(--etat-info); }
+a.carte-lien.urgence-appel { border: 2px solid var(--etat-chaud); color: var(--etat-chaud); }
+
+.autorite .titre .jeton,
+.autorite td .jeton,
+.intervention-tete .jeton { margin-left: 6px; }
+
+@media (max-width: 620px) {
+  .tableau-autorite .lien-externe .mono { display: none; }
+  .autorite .etat-droite { flex-direction: row; align-items: center; gap: 10px; }
+}
+
+@media print {
+  .onglets-autorite, .tri-autorite { display: none; }
+}
 
 /* --- Console plateforme --- */
 

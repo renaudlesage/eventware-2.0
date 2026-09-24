@@ -64,6 +64,9 @@ declare
   v_transport2 uuid;
   v_groupe     uuid;   -- groupe de travail du bloc S
   v_membre_gt  uuid;   -- un membre rattaché à ce groupe (bloc S)
+  v_json_op    jsonb;  -- page autorité au niveau opérationnel (bloc U)
+  v_jeton_op   uuid;
+  v_contact    uuid;   -- contact de l'annuaire (bloc U)
   -- Prend l'identité d'un utilisateur applicatif : rôle `authenticated`
   -- et claims JWT, exactement ce que PostgREST installe.
   v_phase      phase_evenement;
@@ -1090,6 +1093,99 @@ begin
       execute 'reset role';
       insert into verif (bloc, intitule, resultat)
         values ('T. Actions', 'Avancement par le responsable', 'ERREUR : ' || sqlerrm);
+    end;
+  end if;
+
+  -- ------------------------------------------------------------------
+  -- BLOC U — la page autorité opérationnelle, et ce qu'elle tait (109)
+  --
+  -- Un signalement avec description et numéro d'appelant, une recherche
+  -- avec le nom de l'enfant et celui de son parent, une mission P1 ;
+  -- deux liens, « situation » et « opérationnel », consultés sans
+  -- compte. Le premier n'a aucun texte libre ; le second a les
+  -- descriptions ; aucun des deux n'a de nom ni de numéro. Un contact
+  -- non coché ne sort pas ; coché, il sort. Et un chef d'équipe (sans
+  -- tout pouvoir) ne peut pas cocher un contact.
+  -- ------------------------------------------------------------------
+  if v_rando is null then
+    insert into verif (bloc, intitule, resultat)
+      values ('U. Autorité 109', 'Niveaux du lien autorité', 'IGNORÉ : Rando VTT absent');
+  else
+    begin
+      insert into signalements (evenement_id, reference, cle_client, type, description, contact, statut, gravite, emis_le)
+        values (v_rando, 'VERIF-' || substr(gen_random_uuid()::text, 1, 6), gen_random_uuid(), 'malaise',
+                'VERIF_DESCRIPTION_MALAISE', 'VERIF_NUMERO_APPELANT', 'recu', 'grave', now());
+      insert into recherches (evenement_id, reference, nom, age_approx, description, dernier_lieu,
+                              accompagnant_nom, accompagnant_tel, point_regroupement, statut)
+        values (v_rando, 'VERIF-' || substr(gen_random_uuid()::text, 1, 6), 'VERIF_NOM_ENFANT', 7,
+                'VERIF_SIGNALEMENT_PHYSIQUE', 'buvette', 'VERIF_NOM_PARENT', 'VERIF_TEL_PARENT', 'Accueil', 'en_cours');
+      insert into missions (evenement_id, reference, module, titre, description, priorite, statut)
+        values (v_rando, 'VERIF-' || substr(gen_random_uuid()::text, 1, 6), 'logistique',
+                'VERIF_TITRE_MISSION', 'VERIF_DESC_MISSION', 'P1', 'a_traiter');
+      insert into contacts (evenement_id, code, nom, telephone)
+        values (v_rando, 'VERIF-' || substr(gen_random_uuid()::text, 1, 6), 'VERIF_CONTACT_CACHE', '0400')
+        returning id into v_contact;
+      insert into contacts (evenement_id, code, nom, telephone, visible_autorite)
+        values (v_rando, 'VERIF-' || substr(gen_random_uuid()::text, 1, 6), 'VERIF_CONTACT_VISIBLE', '0401', true);
+      insert into acces_autorite (evenement_id, libelle)
+        values (v_rando, 'Vérification situation') returning jeton into v_jeton;
+      insert into acces_autorite (evenement_id, libelle, niveau)
+        values (v_rando, 'Vérification opérationnel', 'operationnel') returning jeton into v_jeton_op;
+
+      perform set_config('request.jwt.claims', json_build_object('role', 'anon')::text, true);
+      execute 'set local role anon';
+      select situation_autorite(v_jeton) into v_json;
+      select situation_autorite(v_jeton_op) into v_json_op;
+      execute 'reset role';
+
+      insert into verif (bloc, intitule, resultat) values
+        ('U. Autorité 109', 'Niveau situation : les interventions sont listées une par une',
+         case when jsonb_array_length(v_json->'interventions') >= 2 then 'OK'
+              else 'ÉCHEC : ' || jsonb_array_length(v_json->'interventions') || ' intervention(s)' end);
+      insert into verif (bloc, intitule, resultat) values
+        ('U. Autorité 109', 'Niveau situation : aucun texte libre',
+         case when v_json::text ~ 'VERIF_(DESCRIPTION|TITRE|DESC_MISSION|SIGNALEMENT)'
+              then 'ÉCHEC : un texte libre sort' else 'OK' end);
+      insert into verif (bloc, intitule, resultat) values
+        ('U. Autorité 109', 'Niveau opérationnel : descriptions et signalement physique présents',
+         case when v_json_op::text like '%VERIF_DESCRIPTION_MALAISE%'
+               and v_json_op::text like '%VERIF_TITRE_MISSION%'
+               and v_json_op::text like '%VERIF_SIGNALEMENT_PHYSIQUE%' then 'OK'
+              else 'ÉCHEC : description absente' end);
+      insert into verif (bloc, intitule, resultat) values
+        ('U. Autorité 109', 'Aucun niveau : nom ou numéro de l''appelant, de l''enfant, du parent',
+         case when (v_json::text || v_json_op::text) ~ 'VERIF_(NUMERO_APPELANT|NOM_ENFANT|NOM_PARENT|TEL_PARENT)'
+              then 'ÉCHEC : une donnée nominative sort' else 'OK' end);
+      insert into verif (bloc, intitule, resultat) values
+        ('U. Autorité 109', 'Seuls les contacts cochés sortent',
+         case when v_json_op::text like '%VERIF_CONTACT_VISIBLE%'
+               and v_json_op::text not like '%VERIF_CONTACT_CACHE%' then 'OK'
+              else 'ÉCHEC : annuaire mal filtré' end);
+
+      if v_chef is null then
+        insert into verif (bloc, intitule, resultat) values
+          ('U. Autorité 109', 'Un chef d''équipe ne coche pas un contact', 'IGNORÉ : pas de chef d''équipe');
+      else
+        perform set_config('request.jwt.claims',
+          json_build_object('sub', v_chef, 'role', 'authenticated')::text, true);
+        execute 'set local role authenticated';
+        v_etat := 'passée';
+        begin
+          update contacts set visible_autorite = true where id = v_contact;
+          get diagnostics v_n = row_count;
+          if v_n = 0 then v_etat := 'refusée (RLS)'; end if;
+        exception when others then
+          if sqlstate = '42501' then v_etat := 'refusée'; else v_etat := sqlstate; end if;
+        end;
+        execute 'reset role';
+        insert into verif (bloc, intitule, resultat) values
+          ('U. Autorité 109', 'Un chef d''équipe ne coche pas un contact',
+           case when v_etat like 'refusée%' then 'OK' else 'ÉCHEC : modification ' || v_etat end);
+      end if;
+    exception when others then
+      execute 'reset role';
+      insert into verif (bloc, intitule, resultat)
+        values ('U. Autorité 109', 'Niveaux du lien autorité', 'ERREUR : ' || sqlerrm);
     end;
   end if;
 
