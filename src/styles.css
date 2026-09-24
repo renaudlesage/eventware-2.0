@@ -581,6 +581,32 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
 
 .veille { display: flex; flex-direction: column; gap: 18px; min-width: 0; position: sticky; top: 16px; }
 .veille .chrono { margin-bottom: 0; }
+
+/* Colonne de droite sur Situation (24/09) : carte tactique au lieu de
+   la veille, qui y faisait redite. La légende porte des mots : la
+   couleur seule ne suffit pas (règle du socle). */
+.carte-tactique { margin-bottom: 6px; }
+.legende-carte {
+  list-style: none; margin: 0 0 10px; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 4px 12px;
+  font-size: 11px; color: var(--sourdine);
+}
+.legende-carte li { display: flex; align-items: center; gap: 5px; }
+.puce-carte { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid; flex: 0 0 auto; }
+.puce-chaud  { background: var(--etat-chaud); border-color: var(--etat-chaud); }
+.puce-veille { background: var(--etat-veille); border-color: var(--etat-veille); }
+.puce-info   { background: transparent; border-color: var(--etat-info); }
+.puce-repere { background: var(--surface); border-color: var(--encre); }
+.trait-risque, .trait-ok { display: inline-block; width: 14px; height: 0; border-top: 3px dashed; vertical-align: middle; }
+.trait-risque { border-color: var(--etat-chaud); }
+.trait-ok     { border-color: var(--etat-ok); }
+.leaflet-tooltip.etiquette-carte {
+  background: var(--surface); color: var(--encre); border: 1px solid var(--trait-fort);
+  font-family: var(--mono); font-size: 10px; padding: 0 4px; box-shadow: none;
+}
+.leaflet-tooltip.etiquette-carte::before { display: none; }
+.a-venir .jeton { margin-left: 6px; }
+.groupes-dehors td .jeton { margin-left: 6px; }
 .veille .bandeaux { margin: 0; }
 .veille .meteo { margin-bottom: 0; }
 

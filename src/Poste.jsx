@@ -21,6 +21,7 @@ import { BasculeTheme } from './Connexion'
 import Rail from './Rail'
 import BandeauEtat from './BandeauEtat'
 import Veille from './Veille'
+import ColonneSituation from './ColonneSituation'
 import Mur from './Mur'
 import BoutonsFlottants from './BoutonsFlottants'
 import BarreOnglets from './BarreOnglets'
@@ -374,13 +375,20 @@ export default function Poste({ session, theme, setTheme }) {
 
             {(palier === 'veille' || palier === 'mur') && (
               <aside className="veille" aria-label="Veille">
-                <Veille
-                  evenement={courant}
-                  peut={peut}
-                  toutPouvoir={toutPouvoir}
-                  palier={palier}
-                  onAller={aller}
-                />
+                {/* Sur Situation, la veille serait de la redite (alertes,
+                    journal et météo y sont déjà) : la colonne montre la
+                    carte tactique et ce que Situation n'a pas (24/09). */}
+                {ecran === 'situation' ? (
+                  <ColonneSituation evenement={courant} palier={palier} onAller={aller} />
+                ) : (
+                  <Veille
+                    evenement={courant}
+                    peut={peut}
+                    toutPouvoir={toutPouvoir}
+                    palier={palier}
+                    onAller={aller}
+                  />
+                )}
               </aside>
             )}
           </div>
