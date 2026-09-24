@@ -2206,6 +2206,11 @@ input:disabled {
 .moniteur-ligne span { color: var(--sourdine); font-size: 10.5px; }
 .moniteur-ligne.urgent strong { color: var(--etat-chaud); }
 
+/* Agir depuis la Situation (24/09, repris du QG BFMF 2026). */
+.moniteur-ligne .moniteur-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 3px; }
+.moniteur-actions button { font-size: 11px; padding: 2px 9px; }
+.moniteur-actions button.cloturer { color: var(--etat-ok); border-color: var(--etat-ok); }
+
 /* Une ligne de .chrono rendue cliquable, sans rien changer à son
    apparence — pour un pavé comme « Mes demandes » où chaque ligne
    mène à un écran différent selon son module. */

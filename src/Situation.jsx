@@ -6,6 +6,7 @@ import Maydays from './Maydays'
 import { libelleStatut } from './libelles'
 import { TYPES } from './PcOps'
 import { ChevronDown } from 'lucide-react'
+import { ecrireOuEmpiler } from './fileEcritures'
 
 /**
  * Tableau de bord général — la vue QG.
@@ -52,6 +53,11 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
   const [s, setS] = useState(null)
   const [signalementsRecents, setSignalementsRecents] = useState([])
   const [demandesLogistique, setDemandesLogistique] = useState([])
+  const [demandesSecurite, setDemandesSecurite] = useState([])
+  // Retour d'une action faite depuis un moniteur (prise en charge,
+  // clôture) : une ligne, pas une erreur qui remplacerait l'écran.
+  const [retour, setRetour] = useState(null)
+  const [occupe, setOccupe] = useState(null)
   const [erreur, setErreur] = useState(null)
   const [maj, setMaj] = useState(null)
   const [sonActif, setSonActif] = useState(false)
@@ -102,26 +108,31 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
       // — illisible en pratique. On garde le contrôle total des
       // colonnes ici plutôt que de deviner ce que le RPC choisit
       // d'exposer.
+      // Les signalements OUVERTS seulement : maintenant qu'on les clôture
+      // d'ici, un signalement clos qui resterait affiché aurait l'air de
+      // ne pas l'être (24/09).
       supabase
         .from('signalements')
         .select('id, reference, type, description, statut')
         .eq('evenement_id', evenement.id)
+        .is('deleted_at', null)
+        .in('statut', ['recu', 'pris_en_charge', 'en_cours'])
         .order('recu_le', { ascending: false })
-        .limit(5),
+        .limit(6),
       // Les demandes logistiques ouvertes, pour le moniteur de la
       // colonne Logistique : son compteur les comptait, son moniteur
       // ne montrait que le matériel sous seuil — « 3 demandes » sans
       // aucune demande visible (campagne du 20/09, 3a-01).
       supabase
         .from('missions')
-        .select('id, reference, titre, statut, priorite')
+        .select('id, reference, titre, statut, priorite, module')
         .eq('evenement_id', evenement.id)
-        .eq('module', 'logistique')
+        .in('module', ['logistique', 'securite'])
         .is('deleted_at', null)
         .not('statut', 'in', '("resolue","annulee")')
         .order('priorite')
         .order('created_at', { ascending: false })
-        .limit(6)
+        .limit(12)
     ])
     if (error) setErreur(texteErreur(error))
     else {
@@ -132,7 +143,8 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
 
       setS(data)
       setSignalementsRecents(sig.data ?? [])
-      setDemandesLogistique(logi.data ?? [])
+      setDemandesLogistique((logi.data ?? []).filter((d) => d.module === 'logistique').slice(0, 6))
+      setDemandesSecurite((logi.data ?? []).filter((d) => d.module === 'securite').slice(0, 6))
       setMaj(new Date())
       setErreur(null)
     }
@@ -144,6 +156,36 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
     return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evenement.id, sonActif])
+
+  // Agir depuis la Situation, comme le QG de BFMF 2026 : prendre en
+  // charge et clôturer un SOS, démarrer et clore une demande sécurité
+  // ou logistique, sans quitter l'écran qu'on projette (Ren, 24/09).
+  // Même chemin d'écriture que Sécurité : si le réseau tombe,
+  // l'écriture part en file et la barre du haut le dit. Horodatage et
+  // journal sont posés par les déclencheurs (cycle_mission,
+  // statut_signalement), pas ici.
+  const peutSos = toutPouvoir || peut?.('sos', 'modifier')
+  const peutMissions = toutPouvoir || (peut?.('missions', 'modifier') && peut?.('missions', 'creer'))
+
+  async function agir(table, ligne, statut, libelle) {
+    setOccupe(ligne.id)
+    const r = await ecrireOuEmpiler({
+      nature: 'update',
+      table,
+      id: ligne.id,
+      champs: { statut },
+      libelle: `${ligne.reference ?? ''} — ${libelle}`
+    })
+    setOccupe(null)
+    if (r.statut === 'refus') {
+      setRetour({ type: 'erreur', texte: `${ligne.reference} : ${r.message}` })
+    } else if (r.statut === 'enfile') {
+      setRetour({ type: 'info', texte: `${ligne.reference} : réseau indisponible, « ${libelle} » partira au retour du signal.` })
+    } else {
+      setRetour({ type: 'ok', texte: `${ligne.reference} : ${libelle}.` })
+      charger()
+    }
+  }
 
   // Veille active — repris de BFMF2026 : le QG reste affiché en
   // permanence sur un écran dédié, un verrouillage automatique y est
@@ -225,6 +267,15 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
       )}
 
       {/* --- 1. Ce qui exige une décision --- */}
+
+      {retour && (
+        <div className={`message ${retour.type === 'erreur' ? 'erreur' : ''}`} role="status">
+          {retour.texte}
+          <button className="lien" style={{ marginLeft: 10 }} onClick={() => setRetour(null)}>
+            OK
+          </button>
+        </div>
+      )}
 
       <Maydays evenement={evenement} compact />
 
@@ -333,8 +384,8 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
             }
           ]}
         >
-          {signalementsRecents.length === 0 && (s.recherches ?? []).length === 0 ? (
-            <p className="moniteur-vide">Aucun signalement actif.</p>
+          {signalementsRecents.length === 0 && demandesSecurite.length === 0 && (s.recherches ?? []).length === 0 ? (
+            <p className="moniteur-vide">Aucun signalement ni demande ouverts.</p>
           ) : (
             <>
               {(s.recherches ?? []).map((r, i) => (
@@ -355,7 +406,24 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
                   <span>
                     {libelleStatut(x.statut)} <span className="mono">· {x.reference}</span>
                   </span>
+                  {peutSos && (
+                    <span className="moniteur-actions">
+                      {x.statut === 'recu' && (
+                        <button className="discret" disabled={occupe === x.id}
+                          onClick={() => agir('signalements', x, 'pris_en_charge', 'pris en charge')}>
+                          Prendre en charge
+                        </button>
+                      )}
+                      <button className="discret cloturer" disabled={occupe === x.id}
+                        onClick={() => agir('signalements', x, 'clos', 'clôturé')}>
+                        Clôturer
+                      </button>
+                    </span>
+                  )}
                 </div>
+              ))}
+              {demandesSecurite.map((d) => (
+                <LigneDemande key={d.id} d={d} peut={peutMissions} occupe={occupe} agir={agir} />
               ))}
             </>
           )}
@@ -393,17 +461,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
             ) : (
               <>
                 {demandesLogistique.map((d) => (
-                  <div
-                    className={`moniteur-ligne ${d.priorite === 'P1' ? 'urgent' : ''}`}
-                    key={d.id}
-                  >
-                    <strong>
-                      {d.priorite} — {d.titre}
-                    </strong>
-                    <span>
-                      {libelleStatut(d.statut)} <span className="mono">· {d.reference}</span>
-                    </span>
-                  </div>
+                  <LigneDemande key={d.id} d={d} peut={peutMissions} occupe={occupe} agir={agir} />
                 ))}
                 {(s.logistique?.sous_seuil ?? []).map((a, i) => (
                   <div className="moniteur-ligne urgent" key={'s' + i}>
@@ -511,6 +569,37 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
  * qu'on doit replier à chaque rechargement est une corvée, pas un
  * réglage.
  */
+/* Une demande (mission) sécurité ou logistique dans un moniteur, avec
+   ce que le QG en fait sans quitter la Situation : la démarrer, la
+   clore. L'attribution à une équipe reste dans Sécurité / Logistique —
+   elle demande de choisir parmi les équipes, pas un bouton. */
+function LigneDemande({ d, peut, occupe, agir }) {
+  return (
+    <div className={`moniteur-ligne ${d.priorite === 'P1' ? 'urgent' : ''}`}>
+      <strong>
+        {d.priorite} — {d.titre}
+      </strong>
+      <span>
+        {libelleStatut(d.statut)} <span className="mono">· {d.reference}</span>
+      </span>
+      {peut && (
+        <span className="moniteur-actions">
+          {d.statut !== 'en_cours' && (
+            <button className="discret" disabled={occupe === d.id}
+              onClick={() => agir('missions', d, 'en_cours', 'en cours')}>
+              Démarrer
+            </button>
+          )}
+          <button className="discret cloturer" disabled={occupe === d.id}
+            onClick={() => agir('missions', d, 'resolue', 'close')}>
+            Clore
+          </button>
+        </span>
+      )}
+    </div>
+  )
+}
+
 export function ColonneDomaine({ teinte, icone, titre, lien, onAller, compteurs, children }) {
   const clef = `bloc-replie:${titre}`
 
