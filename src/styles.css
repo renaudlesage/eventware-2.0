@@ -2700,3 +2700,26 @@ input:disabled {
 .bloc-local textarea {
   margin-bottom: 6px;
 }
+
+/* Case à cocher dans un formulaire : sur une ligne avec son libellé
+   (les champs de saisie, eux, prennent toute la largeur). */
+label.case-a-cocher { display: flex; align-items: center; gap: 8px; margin: 4px 0 10px; font-size: 14px; cursor: pointer; text-transform: none; letter-spacing: normal; color: var(--encre); }
+label.case-a-cocher input { width: auto; margin: 0; }
+
+/* Vider l'événement (111) : des blocs à cocher, une confirmation par le
+   nom. Le bouton destructeur porte son mot, pas seulement sa couleur. */
+.blocs-vidage { display: grid; gap: 8px; margin: 10px 0; }
+label.bloc-vidage {
+  display: flex; gap: 10px; align-items: flex-start; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--trait); padding: 10px 12px; margin: 0;
+}
+label.bloc-vidage { text-transform: none; letter-spacing: normal; font-size: 14px; font-weight: 400; color: var(--encre); }
+label.bloc-vidage strong { font-weight: 600; }
+label.bloc-vidage.coche { border-color: var(--etat-chaud); }
+label.bloc-vidage input { width: auto; margin: 3px 0 0; }
+label.bloc-vidage strong { margin-right: 8px; }
+label.bloc-vidage .aide { display: block; margin: 2px 0 0; }
+.compte-vidage { font-size: 12px; color: var(--sourdine); }
+.confirmation-vidage { border-left: 3px solid var(--etat-chaud); }
+button.danger { background: var(--etat-chaud); border-color: var(--etat-chaud); color: var(--on-teinte); }
+button.danger:disabled { opacity: 0.45; }

@@ -158,7 +158,31 @@ values
 on conflict (version) do nothing;
 ```
 
-## Ne jamais rejouer 088 → 109 par `db push` sans les lignes ci-dessus
+### 110 : appliquée le 26/09 (par Claude, via l'outil Supabase) — audit 4.8 et 4.9
+
+| Fichier | Fait |
+|---|---|
+| `20260926090000_110_references_et_codes.sql` | Références REC- des recherches et codes FR- des fiches réflexe attribués par la base (plus de collision après une suppression) ; unicité des codes de lieux, équipes, types de mission, matériel et contacts sur les seules lignes vivantes (un code supprimé se réimporte) |
+
+Éprouvée en transaction annulée, puis appliquée et inscrite dans l'historique en une seule transaction. Bloc V de `droits.sql`.
+
+### 111 : appliquée le 26/09 (par Claude, via l'outil Supabase) — vider un événement
+
+| Fichier | Fait |
+|---|---|
+| `20260926110000_111_vider_evenement.sql` | `vider_evenement(evenement, blocs, confirmation, simulation)` : suppression réelle par bloc (activité, préparation, bénévoles, parcours, plan, référentiels, conformité), réservée au tout pouvoir, confirmation par le nom, interdite en exploitation, simulation pour afficher les comptes, ligne « majeur » au journal. Stocks ramenés à leur quantité d'avant les mouvements, groupes remis à « inscrit » |
+
+Éprouvée en transaction annulée sur Rando VTT (chef d'équipe refusé, exploitation refusée, mauvais nom refusé, activité vidée en gardant les lieux, stock 6 → 10, journal réduit à la ligne du vidage ; puis tous les blocs), puis appliquée et inscrite.
+
+### 112 : appliquée le 26/09 (par Claude, via l'outil Supabase) — supprimer un événement
+
+| Fichier | Fait |
+|---|---|
+| `20260926120000_112_supprimer_evenement.sql` | Corbeille de la console Plateforme, réservée à l'exploitant : `supprimer_evenement(evenement, confirmation)` (suppression logique, nom retapé, refusée en exploitation, ligne au journal), `restaurer_evenement(evenement)` (vérifie le quota), `purger_evenement(evenement, confirmation)` (seulement depuis la corbeille : membres d'abord, puis l'événement et ses 47 tables en cascade ; les fichiers du stockage restent), `evenements_supprimes()` |
+
+Éprouvée en transaction annulée (non-exploitant refusé, mauvais nom refusé, corbeille puis restauration, purge hors corbeille refusée, exploitation refusée), puis appliquée et inscrite.
+
+## Ne jamais rejouer 088 → 112 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

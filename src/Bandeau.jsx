@@ -81,6 +81,15 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
     message: '',
     consigne: ''
   })
+  // Diffuser aux participants (vitrine) — audit 4.3 : la colonne
+  // `alertes.public` existait depuis la 075, mais aucun écran ne
+  // l'écrivait ; la vitrine n'a jamais montré une seule alerte. Cochée
+  // d'office pour une urgence ou une évacuation (c'est le public qu'il
+  // faut mettre à l'abri), décochée pour le reste (« PMR15 sature » ne
+  // regarde pas les participants). Un choix explicite l'emporte.
+  const [publique, setPublique] = useState(null)
+  const publiqueParDefaut = (niveau) => niveau === 'urgence' || niveau === 'evacuation'
+  const estPublique = publique ?? publiqueParDefaut(f.niveau)
 
   async function charger() {
     const { data, error } = await supabase
@@ -101,12 +110,13 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
     if (!f.titre.trim()) return
     const { data, error } = await supabase
       .from('alertes')
-      .insert({ evenement_id: evenement.id, ...f })
+      .insert({ evenement_id: evenement.id, ...f, public: estPublique })
       .select('id')
       .single()
     if (error) setMessage?.({ type: 'erreur', texte: texteErreur(error) })
     else {
       setF({ niveau: 'vigilance', titre: '', message: '', consigne: '' })
+      setPublique(null)
       setOuvrir(false)
       charger()
       diffuserAlerte(data.id)
@@ -122,6 +132,16 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
       .eq('id', id)
     if (error) setMessage?.({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) setMessage?.({ type: 'erreur', texte: 'Levée refusée.' })
+    else charger()
+  }
+
+  async function basculerPublique(a) {
+    const { error, count } = await supabase
+      .from('alertes')
+      .update({ public: !a.public }, { count: 'exact' })
+      .eq('id', a.id)
+    if (error) setMessage?.({ type: 'erreur', texte: texteErreur(error) })
+    else if (count === 0) setMessage?.({ type: 'erreur', texte: 'Modification refusée.' })
     else charger()
   }
 
@@ -173,6 +193,14 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
             onChange={(e) => setF({ ...f, consigne: e.target.value })}
             placeholder="Consigne — ce qu'il faut faire"
           />
+          <label className="case-a-cocher">
+            <input
+              type="checkbox"
+              checked={estPublique}
+              onChange={(e) => setPublique(e.target.checked)}
+            />
+            Afficher aussi aux participants (vitrine et lien participant)
+          </label>
           <button disabled={!f.titre.trim()} onClick={emettre}>
             Diffuser
           </button>
@@ -190,10 +218,14 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
           <div className="carte urgent" key={a.id}>
             <div className="titre">
               <span className="jeton alerte-texte">{a.niveau}</span> {a.titre}
+              {a.public && <span className="jeton"> visible des participants</span>}
             </div>
             {a.consigne && <p style={{ margin: '4px 0' }}>→ {a.consigne}</p>}
             <div className="ligne-boutons" style={{ marginTop: 10 }}>
               <button onClick={() => lever(a.id)}>Lever l'alerte</button>
+              <button className="discret" onClick={() => basculerPublique(a)}>
+                {a.public ? 'Retirer de la vitrine' : 'Montrer aux participants'}
+              </button>
             </div>
           </div>
         ))

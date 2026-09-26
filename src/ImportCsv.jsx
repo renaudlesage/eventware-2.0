@@ -83,9 +83,11 @@ export default function ImportCsv({ evenementId, phase, peut, toutPouvoir, onFai
         const codes = lignes.filter((l) => l.valeurs.code).map((l) => l.valeurs.code)
 
         // Codes déjà présents en base, pour cet événement uniquement.
-        // Les entrées supprimées comptent : la contrainte d'unicité
-        // (evenement_id, code) les retient toujours, donc réinsérer le
-        // même code échouerait sur une erreur de contrainte.
+        // Depuis la 110, l'unicité ne porte que sur les lignes vivantes :
+        // un code dont la ligne a été supprimée est libre, et le
+        // réimporter crée une nouvelle ligne (la supprimée reste en base
+        // comme trace). RLS cache de toute façon les lignes supprimées,
+        // si bien que `supprime` ne se présente plus en pratique.
         let existants = new Map()
         if (codes.length) {
           const { data, error } = await supabase

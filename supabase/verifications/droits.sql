@@ -1190,6 +1190,41 @@ begin
   end if;
 
   -- ------------------------------------------------------------------
+  -- BLOC V — références attribuées par la base, codes réutilisables (110)
+  -- ------------------------------------------------------------------
+  if v_rando is null then
+    insert into verif (bloc, intitule, resultat)
+      values ('V. Références 110', 'Références et codes', 'IGNORÉ : Rando VTT absent');
+  else
+    begin
+      insert into recherches (evenement_id, nom, description, statut)
+        values (v_rando, 'vérif', 'vérif', 'en_cours') returning reference into v_texte;
+      update recherches set deleted_at = now() where evenement_id = v_rando and reference = v_texte;
+      insert into recherches (evenement_id, nom, description, statut)
+        values (v_rando, 'vérif', 'vérif', 'en_cours');
+      insert into verif (bloc, intitule, resultat) values
+        ('V. Références 110', 'Une recherche après suppression reçoit une référence libre', 'OK');
+      insert into lieux (evenement_id, code, nom, type)
+        values (v_rando, 'VERIF-110', 'vérif', 'autre') returning id into v_jalon;
+      v_etat := 'accepté';
+      begin
+        insert into lieux (evenement_id, code, nom, type) values (v_rando, 'VERIF-110', 'doublon', 'autre');
+      exception when unique_violation then v_etat := 'refusé';
+      end;
+      insert into verif (bloc, intitule, resultat) values
+        ('V. Références 110', 'Un code vivant reste unique',
+         case when v_etat = 'refusé' then 'OK' else 'ÉCHEC : doublon accepté' end);
+      update lieux set deleted_at = now() where id = v_jalon;
+      insert into lieux (evenement_id, code, nom, type) values (v_rando, 'VERIF-110', 'réimport', 'autre');
+      insert into verif (bloc, intitule, resultat) values
+        ('V. Références 110', 'Le code d''un lieu supprimé se réimporte', 'OK');
+    exception when others then
+      insert into verif (bloc, intitule, resultat)
+        values ('V. Références 110', 'Références et codes', 'ERREUR : ' || sqlerrm);
+    end;
+  end if;
+
+  -- ------------------------------------------------------------------
   -- BLOC G — dotation d'un événement (le défaut météo du 15/09)
   -- ------------------------------------------------------------------
   begin

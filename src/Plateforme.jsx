@@ -296,8 +296,47 @@ function Evenements({ setMessage, onOuvrir }) {
     commune: '', date_debut: '', date_fin: ''
   })
   const [communes, setCommunes] = useState([])
+  // Suppression (112) : une confirmation en ligne, sur la fiche même,
+  // par le nom retapé — { id, mode: 'supprimer' | 'purger', saisie }.
+  const [confirme, setConfirme] = useState(null)
+  const [corbeille, setCorbeille] = useState([])
+
+  async function chargerCorbeille() {
+    const { data, error } = await supabase.rpc('evenements_supprimes')
+    if (!error) setCorbeille(data ?? [])
+  }
+
+  async function supprimer(ev) {
+    const { error } = await supabase.rpc('supprimer_evenement', {
+      p_evenement: ev.id,
+      p_confirmation: confirme?.saisie ?? ''
+    })
+    if (error) return setMessage({ type: 'erreur', texte: texteErreur(error) })
+    setConfirme(null)
+    setMessage({ type: 'info', texte: `« ${ev.nom} » est dans la corbeille : restaurable ci-dessous.` })
+    charger()
+  }
+
+  async function restaurer(ev) {
+    const { error } = await supabase.rpc('restaurer_evenement', { p_evenement: ev.id })
+    if (error) return setMessage({ type: 'erreur', texte: texteErreur(error) })
+    setMessage({ type: 'info', texte: `« ${ev.nom} » est restauré.` })
+    charger()
+  }
+
+  async function purger(ev) {
+    const { error } = await supabase.rpc('purger_evenement', {
+      p_evenement: ev.id,
+      p_confirmation: confirme?.saisie ?? ''
+    })
+    if (error) return setMessage({ type: 'erreur', texte: texteErreur(error) })
+    setConfirme(null)
+    setMessage({ type: 'info', texte: `« ${ev.nom} » et toutes ses données sont supprimés définitivement.` })
+    charger()
+  }
 
   async function charger() {
+    chargerCorbeille()
     const [e, o] = await Promise.all([
       supabase
         .from('evenements')
@@ -454,14 +493,98 @@ function Evenements({ setMessage, onOuvrir }) {
                 </option>
               ))}
             </select>
+            {e.phase !== 'exploitation' && (
+              <button
+                className="discret"
+                onClick={() => setConfirme(confirme?.id === e.id ? null : { id: e.id, mode: 'supprimer', saisie: '' })}
+              >
+                {confirme?.id === e.id ? 'Annuler' : 'Supprimer…'}
+              </button>
+            )}
           </div>
+          {confirme?.id === e.id && confirme.mode === 'supprimer' && (
+            <Confirmation
+              ev={e}
+              texte="L'événement disparaît pour tous ses membres, ses liens participant et autorité cessent de fonctionner, et il ne compte plus dans le quota. Il reste restaurable depuis la corbeille."
+              bouton="Mettre à la corbeille"
+              confirme={confirme}
+              setConfirme={setConfirme}
+              onValider={() => supprimer(e)}
+            />
+          )}
         </div>
       ))}
+
+      {corbeille.length > 0 && (
+        <section className="bloc corbeille">
+          <h2>Corbeille</h2>
+          {corbeille.map((e) => (
+            <div className="carte revoque" key={e.id}>
+              <div className="titre">{e.nom}</div>
+              <div className="meta">
+                <span>{e.organisation ?? 'sans organisation'}</span>
+                <span>{e.phase}</span>
+                <span>{e.membres} membre(s)</span>
+                <span>
+                  supprimé le{' '}
+                  {new Date(e.supprime_le).toLocaleString('fr-BE', {
+                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                  })}
+                </span>
+              </div>
+              <div className="ligne-boutons" style={{ marginTop: 10 }}>
+                <button onClick={() => restaurer(e)}>Restaurer</button>
+                <button
+                  className="discret"
+                  onClick={() => setConfirme(confirme?.id === e.id ? null : { id: e.id, mode: 'purger', saisie: '' })}
+                >
+                  {confirme?.id === e.id ? 'Annuler' : 'Supprimer définitivement…'}
+                </button>
+              </div>
+              {confirme?.id === e.id && confirme.mode === 'purger' && (
+                <Confirmation
+                  ev={e}
+                  texte="Toutes les données de l'événement sont effacées, sans retour possible : membres, journal, demandes, lieux, plan, bénévoles… Les fichiers déjà envoyés (logo, pièces jointes) restent dans le stockage."
+                  bouton="Supprimer définitivement"
+                  confirme={confirme}
+                  setConfirme={setConfirme}
+                  onValider={() => purger(e)}
+                />
+              )}
+            </div>
+          ))}
+        </section>
+      )}
       <p className="aide">
         « Ouvrir » bascule ton espace de travail sur cet événement. Si tu n'en es pas
         membre, l'écran te proposera de rejoindre le dispositif.
       </p>
     </>
+  )
+}
+
+/* Confirmation d'une suppression d'événement : le nom à retaper. */
+function Confirmation({ ev, texte, bouton, confirme, setConfirme, onValider }) {
+  const ok = confirme.saisie.trim().toLowerCase() === (ev.nom ?? '').trim().toLowerCase()
+  return (
+    <div className="formulaire confirmation-vidage" style={{ marginTop: 10 }}>
+      <p>{texte}</p>
+      <p>
+        Pour confirmer, retape le nom : <span className="mono">{ev.nom}</span>
+      </p>
+      <div className="saisie-rapide">
+        <input
+          value={confirme.saisie}
+          onChange={(x) => setConfirme({ ...confirme, saisie: x.target.value })}
+          placeholder="Nom de l'événement"
+          aria-label={`Nom de l'événement ${ev.nom}, pour confirmer`}
+          autoComplete="off"
+        />
+        <button className="danger" disabled={!ok} onClick={onValider}>
+          {bouton}
+        </button>
+      </div>
+    </div>
   )
 }
 

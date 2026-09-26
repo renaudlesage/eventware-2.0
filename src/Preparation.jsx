@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import PiecesJointes from './PiecesJointes'
 import VisibiliteJalon from './VisibiliteJalon'
+import { STATUTS_JALON, libelleStatutJalon, jalonEnRetard, supprimerJalon } from './jalons'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 
@@ -224,9 +225,7 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
       {groupes.map((g) => {
         const siennes = lignes.filter((a) => a.groupe_travail_id === g.id)
         const faites = siennes.filter((a) => a.statut === 'fait').length
-        const enRetard = siennes.filter(
-          (a) => a.echeance && a.statut === 'a_venir' && new Date(a.echeance) < new Date()
-        ).length
+        const enRetard = siennes.filter((a) => jalonEnRetard(a)).length
 
         const siens = compositions
           .filter((c) => c.groupe_id === g.id)
@@ -341,13 +340,6 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
 
 /* ------------------------------------------------------------------ */
 
-const STATUTS = [
-  ['a_venir', 'À venir'],
-  ['en_cours', 'En cours'],
-  ['fait', 'Fait'],
-  ['rate', 'Raté'],
-  ['annule', 'Annulé']
-]
 
 /**
  * Une liste de jalons (groupe nul) ou d'actions (dans un groupe). Même
@@ -396,31 +388,12 @@ function Lignes({ nature, evenement, groupe, lignes, membres, peutGerer, toutPou
    * plus. C'est la convention du projet, et ici elle a une raison de
    * plus — une action supprimée par erreur en préparation se retrouve,
    * alors qu'une ligne effacée pour de bon ne se retrouve pas.
-   *
-   * À ne pas confondre avec le statut « Annulé », qui garde l'action
-   * visible : on annule ce qui a existé et qu'on assume, on supprime ce
-   * qui n'aurait pas dû être encodé.
+   * (Confirmation et appel partagés avec Planning : jalons.js.)
    */
   async function supprimer(a) {
-    const ok = window.confirm(
-      `Supprimer ${estJalon ? 'le jalon' : "l'action"} « ${a.libelle} » ?\n\n` +
-        'Pour garder la trace de quelque chose d’abandonné, le statut ' +
-        '« Annulé » est plus juste : la ligne reste lisible.'
-    )
-    if (!ok) return
-
-    // Pas un `update` direct : poser `deleted_at` rend la ligne
-    // invisible au regard de la policy de lecture, et PostgreSQL
-    // refuse alors l'écriture. La fonction 091 vérifie les droits
-    // elle-même et écrit au-dessus de RLS.
-    const { data, error } = await supabase.rpc('supprimer_logiquement', {
-      p_table: 'jalons',
-      p_id: a.id
-    })
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
-    else if (data === false)
-      setMessage({ type: 'erreur', texte: 'Ligne introuvable ou déjà supprimée.' })
-    else onFait()
+    const { fait, refus } = await supprimerJalon(a, estJalon ? 'le jalon' : "l'action")
+    if (refus) setMessage({ type: 'erreur', texte: refus })
+    else if (fait) onFait()
   }
 
   return (
@@ -433,8 +406,7 @@ function Lignes({ nature, evenement, groupe, lignes, membres, peutGerer, toutPou
         </p>
       ) : (
         lignes.map((a) => {
-          const retard =
-            a.echeance && a.statut === 'a_venir' && new Date(a.echeance) < new Date()
+          const retard = jalonEnRetard(a)
           return (
             <div className="carte" key={a.id}>
               <div className="titre">
@@ -446,7 +418,7 @@ function Lignes({ nature, evenement, groupe, lignes, membres, peutGerer, toutPou
                     ? new Date(a.echeance).toLocaleDateString('fr-BE')
                     : 'sans échéance'}
                 </span>
-                <span>{STATUTS.find(([v]) => v === a.statut)?.[1] ?? a.statut}</span>
+                <span>{libelleStatutJalon(a.statut)}</span>
                 {a.responsable_membre_id && (
                   <span>
                     {membres.find((m) => m.id === a.responsable_membre_id)?.nom_affiche ??
@@ -474,7 +446,7 @@ function Lignes({ nature, evenement, groupe, lignes, membres, peutGerer, toutPou
                     onChange={(e) => modifier(a.id, { statut: e.target.value })}
                     style={{ width: 'auto', marginBottom: 0 }}
                   >
-                    {STATUTS.map(([v, l]) => (
+                    {STATUTS_JALON.map(([v, l]) => (
                       <option key={v} value={v}>
                         {l}
                       </option>

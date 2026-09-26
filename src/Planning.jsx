@@ -5,6 +5,7 @@ import { heure } from './libelles'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import VisibiliteJalon from './VisibiliteJalon'
+import { STATUTS_JALON, libelleStatutJalon, jalonEnRetard, supprimerJalon } from './jalons'
 
 /**
  * Planning.
@@ -297,13 +298,6 @@ export default function Planning({ evenement, peut, toutPouvoir }) {
  * jalons traversent les domaines. Un « Briefing sécurité » y serait
  * mal rangé.
  */
-const STATUTS_JALON = [
-  ['a_venir', 'À venir'],
-  ['en_cours', 'En cours'],
-  ['fait', 'Fait'],
-  ['rate', 'Raté'],
-  ['annule', 'Annulé']
-]
 
 /**
  * Les JALONS de l'événement — pas les actions des groupes de travail.
@@ -353,26 +347,10 @@ function Jalons({ evenement, peutCreer, peutGerer, toutPouvoir, setMessage }) {
     else charger()
   }
 
-  // Suppression logique, comme en Préparation : la ligne sort de
-  // l'écran sans sortir de la base. « Annulé » reste le bon choix pour
-  // ce qui a existé et qu'on assume.
   async function supprimer(j) {
-    const ok = window.confirm(
-      `Supprimer le jalon « ${j.libelle} » ?\n\n` +
-        'Pour garder la trace de quelque chose d\u2019abandonné, le statut ' +
-        '« Annulé » est plus juste.'
-    )
-    if (!ok) return
-    // Voir 091 : un `update` direct sur `deleted_at` est refusé par RLS,
-    // la nouvelle ligne n'étant plus visible de son auteur.
-    const { data, error } = await supabase.rpc('supprimer_logiquement', {
-      p_table: 'jalons',
-      p_id: j.id
-    })
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
-    else if (data === false)
-      setMessage({ type: 'erreur', texte: 'Jalon introuvable ou déjà supprimé.' })
-    else charger()
+    const { fait, refus } = await supprimerJalon(j, 'le jalon')
+    if (refus) setMessage({ type: 'erreur', texte: refus })
+    else if (fait) charger()
   }
 
   const maintenant = Date.now()
@@ -411,8 +389,7 @@ function Jalons({ evenement, peutCreer, peutGerer, toutPouvoir, setMessage }) {
         <p className="vide">Aucun jalon.</p>
       ) : (
         lignes.map((j) => {
-          const depasse =
-            j.echeance && j.statut === 'a_venir' && new Date(j.echeance).getTime() < maintenant
+          const depasse = jalonEnRetard(j, maintenant)
           return (
             <div className={`carte ${depasse || j.statut === 'rate' ? 'urgent' : ''}`} key={j.id}>
               <div className="titre">
@@ -459,7 +436,7 @@ function Jalons({ evenement, peutCreer, peutGerer, toutPouvoir, setMessage }) {
                 </div>
               ) : (
                 <div className="meta" style={{ marginTop: 6 }}>
-                  <span>{STATUTS_JALON.find(([v]) => v === j.statut)?.[1] ?? j.statut}</span>
+                  <span>{libelleStatutJalon(j.statut)}</span>
                 </div>
               )}
             </div>

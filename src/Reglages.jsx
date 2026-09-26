@@ -12,6 +12,7 @@ import LogoEvenement from './LogoEvenement'
 import Point0 from './Point0'
 import Diffusion from './Diffusion'
 import VitrineAdmin from './VitrineAdmin'
+import ViderEvenement from './ViderEvenement'
 import { RESSOURCES } from './colonnesImport'
 import { PHASES, MODULES } from './referentielsProduit'
 import { texteErreur } from './erreurs'
@@ -200,6 +201,14 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
           </section>
 
           <ImportKml evenement={evenement} setMessage={setMessage} />
+
+          {toutPouvoir && (
+            <ViderEvenement
+              evenement={evenement}
+              setMessage={setMessage}
+              onFait={() => setCompteur((c) => c + 1)}
+            />
+          )}
         </>
       )}
 
