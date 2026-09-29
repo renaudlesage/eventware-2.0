@@ -127,20 +127,27 @@ export function lireKml(texte) {
     if (objets.length) calques.push({ nom: nomCalque, objets })
   }
 
-  // Calques nommés
-  const dossiers = [...racine.children].filter(
-    (e) => e.tagName === 'Folder' || e.tagName === 'Document'
-  )
-  for (const d of dossiers) {
-    ajouterPlacemarks(d, valeur(d, 'name') ?? 'Sans nom')
+  // Calques nommés, sous-dossiers compris (Google Earth en imbrique ;
+  // My Maps n'en fait qu'un niveau) : « Parent › Enfant ».
+  function parcourir(conteneur, prefixe) {
+    const dossiers = [...conteneur.children].filter(
+      (e) => e.tagName === 'Folder' || e.tagName === 'Document'
+    )
+    for (const d of dossiers) {
+      const nom = valeur(d, 'name') ?? 'Sans nom'
+      const complet = prefixe ? `${prefixe} › ${nom}` : nom
+      ajouterPlacemarks(d, complet)
+      parcourir(d, complet)
+    }
   }
+  parcourir(racine, null)
 
   // Repères posés à la racine, hors de tout dossier
   ajouterPlacemarks(racine, valeur(racine, 'name') ?? 'Racine')
 
   if (!calques.length) {
     throw new Error(
-      "Aucun repère exploitable. Vérifie qu'il s'agit d'un KML (et non d'un KMZ, qui est une archive à décompresser d'abord)."
+      "Aucun repère exploitable dans ce fichier : ni point, ni ligne, ni zone."
     )
   }
 
@@ -149,6 +156,63 @@ export function lireKml(texte) {
     calques,
     total: calques.reduce((n, c) => n + c.objets.length, 0)
   }
+}
+
+/**
+ * Lit un fichier choisi par l'utilisateur, KML ou KMZ, et rend le texte
+ * du KML. Un KMZ est une archive zip dont le KML principal s'appelle
+ * d'ordinaire `doc.kml` : on le sort de l'archive dans le navigateur,
+ * sans bibliothèque, avec `DecompressionStream` (Chrome 80, Safari 16.4,
+ * Firefox 113). Constat de Ren (26/09) : « j'importe un kmz, rien ne se
+ * passe » — l'ancien écran demandait de décompresser à la main.
+ */
+export async function texteKmlDepuisFichier(fichier) {
+  const octets = new Uint8Array(await fichier.arrayBuffer())
+  const estZip = octets[0] === 0x50 && octets[1] === 0x4b && octets[2] === 0x03 && octets[3] === 0x04
+  if (!estZip) return new TextDecoder('utf-8').decode(octets)
+  return await kmlDansZip(octets)
+}
+
+async function kmlDansZip(o) {
+  const dv = new DataView(o.buffer, o.byteOffset, o.byteLength)
+  // Fin du répertoire central : signature 0x06054b50, dans les 64 Ko finaux.
+  let fin = -1
+  for (let i = o.length - 22; i >= Math.max(0, o.length - 65557); i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) {
+      fin = i
+      break
+    }
+  }
+  if (fin < 0) throw new Error('Archive KMZ illisible : fichier zip incomplet ou abîmé.')
+  const nb = dv.getUint16(fin + 10, true)
+  let p = dv.getUint32(fin + 16, true)
+  const entrees = []
+  const dec = new TextDecoder('utf-8')
+  for (let k = 0; k < nb; k++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) break
+    const methode = dv.getUint16(p + 10, true)
+    const taille = dv.getUint32(p + 20, true)
+    const lgNom = dv.getUint16(p + 28, true)
+    const lgExtra = dv.getUint16(p + 30, true)
+    const lgComm = dv.getUint16(p + 32, true)
+    const local = dv.getUint32(p + 42, true)
+    const nom = dec.decode(o.subarray(p + 46, p + 46 + lgNom))
+    entrees.push({ nom, methode, taille, local })
+    p += 46 + lgNom + lgExtra + lgComm
+  }
+  const kmls = entrees.filter((e) => /\.kml$/i.test(e.nom))
+  const e = kmls.find((x) => /(^|\/)doc\.kml$/i.test(x.nom)) ?? kmls[0]
+  if (!e) throw new Error("L'archive KMZ ne contient aucun fichier .kml.")
+
+  const debut = e.local + 30 + dv.getUint16(e.local + 26, true) + dv.getUint16(e.local + 28, true)
+  const brut = o.subarray(debut, debut + e.taille)
+  if (e.methode === 0) return dec.decode(brut)
+  if (e.methode !== 8) throw new Error('Archive KMZ compressée dans un format non pris en charge.')
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('Ce navigateur ne sait pas ouvrir un KMZ : décompresse-le et charge le .kml.')
+  }
+  const flux = new Blob([brut]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
+  return dec.decode(await new Response(flux).arrayBuffer())
 }
 
 /** Code court, stable et lisible, dérivé du nom. */

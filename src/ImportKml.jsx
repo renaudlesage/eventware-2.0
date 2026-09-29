@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { supabase } from './supabaseClient'
-import { lireKml, codeDepuis } from './kml'
+import { lireKml, codeDepuis, texteKmlDepuisFichier } from './kml'
 import { mesurer, simplifier } from './gpx'
 import { texteErreur } from './erreurs'
 
@@ -58,12 +58,19 @@ export default function ImportKml({ evenement, setMessage }) {
   const [affectations, setAffectations] = useState({})
   const [bilan, setBilan] = useState(null)
   const [occupe, setOccupe] = useState(false)
+  // Les erreurs s'affichent DANS le bloc : le message de Réglages est en
+  // haut de page, hors de vue quand on est descendu jusqu'ici — d'où le
+  // « rien ne se passe » du 26/09.
+  const [erreur, setErreur] = useState(null)
+  const [lit, setLit] = useState(false)
 
   async function lire(fichier) {
     setBilan(null)
+    setErreur(null)
     setMessage(null)
+    setLit(true)
     try {
-      const r = lireKml(await fichier.text())
+      const r = lireKml(await texteKmlDepuisFichier(fichier))
       setLecture(r)
       const a = {}
       r.calques.forEach((c, i) => {
@@ -71,13 +78,15 @@ export default function ImportKml({ evenement, setMessage }) {
       })
       setAffectations(a)
     } catch (e) {
-      setMessage({ type: 'erreur', texte: texteErreur(e) })
+      setErreur(e?.message ?? texteErreur(e) ?? String(e))
       setLecture(null)
     }
+    setLit(false)
   }
 
   async function importer() {
     setOccupe(true)
+    setErreur(null)
     setMessage(null)
     const res = { lieux: 0, plan: 0, traces: 0, ignores: 0, rejets: 0 }
 
@@ -168,7 +177,7 @@ export default function ImportKml({ evenement, setMessage }) {
       setBilan(res)
       setLecture(null)
     } catch (e) {
-      setMessage({ type: 'erreur', texte: texteErreur(e) ?? String(e) })
+      setErreur(texteErreur(e) ?? String(e))
     }
     setOccupe(false)
   }
@@ -177,9 +186,9 @@ export default function ImportKml({ evenement, setMessage }) {
     <section className="bloc">
       <h2>Import cartographique</h2>
       <p className="aide">
-        Charge le KML exporté de Google My Maps. Les calques, les noms, les descriptions et
-        les champs personnalisés sont repris — pas seulement le tracé. Si ton export est un
-        KMZ, décompresse-le d'abord : c'est une archive contenant le KML.
+        Charge le KML ou le KMZ exporté de Google My Maps ou Google Earth. Les calques, les
+        noms, les descriptions et les champs personnalisés sont repris — pas seulement le
+        tracé. Rien n'est écrit avant d'avoir choisi, calque par calque, où chacun va.
       </p>
 
       {bilan && (
@@ -191,9 +200,17 @@ export default function ImportKml({ evenement, setMessage }) {
 
       <input
         type="file"
-        accept=".kml,application/vnd.google-earth.kml+xml"
-        onChange={(e) => e.target.files?.[0] && lire(e.target.files[0])}
+        accept=".kml,.kmz,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz"
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          // Vidé tout de suite : rechoisir le même fichier relance la lecture.
+          e.target.value = ''
+          if (f) lire(f)
+        }}
       />
+
+      {lit && <p className="aide">Lecture du fichier…</p>}
+      {erreur && <div className="message erreur">{erreur}</div>}
 
       {lecture && (
         <>
