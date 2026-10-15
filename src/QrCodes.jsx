@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { supabase } from './supabaseClient'
+import { useDrapeau } from './useDrapeau'
 
 /**
  * Le lien participant, et ses QR codes.
@@ -20,7 +21,7 @@ export default function QrCodes({ evenement }) {
   const [lieux, setLieux] = useState([])
   const [choisis, setChoisis] = useState([])
   const [taille, setTaille] = useState(150)
-  const [copie, setCopie] = useState(false)
+  const [copie, setCopie] = useDrapeau(2000)
 
   const sos = !!evenement.modules?.sos_participants
   const base = `${window.location.origin}${window.location.pathname}?sos=${evenement.jeton_public}`
@@ -42,8 +43,7 @@ export default function QrCodes({ evenement }) {
   async function copier() {
     try {
       await navigator.clipboard.writeText(base)
-      setCopie(true)
-      setTimeout(() => setCopie(false), 2000)
+      setCopie()
     } catch {
       /* Sans presse-papiers (http://, ancien navigateur), le lien reste
          sélectionnable dans le champ juste au-dessus. */

@@ -32,7 +32,8 @@
 
 import { supabase } from './supabaseClient'
 import { surRetourReseau, nouvelleCle } from './reessai'
-import { texteErreur } from './erreurs'
+import { texteErreur, estReseau } from './erreurs'
+import { lireListe, ecrireListe } from './stockageLocal'
 
 const CLEF = 'eventware.ecritures.file'
 const MAX_ESSAIS = 8
@@ -41,19 +42,11 @@ const MAX_ESSAIS = 8
 /* Stockage                                                            */
 
 export function lireFile() {
-  try {
-    return JSON.parse(localStorage.getItem(CLEF) || '[]')
-  } catch {
-    return []
-  }
+  return lireListe(CLEF)
 }
 
 function ecrireFile(file) {
-  try {
-    localStorage.setItem(CLEF, JSON.stringify(file))
-  } catch {
-    /* stockage plein ou navigation privée : on continue en mémoire */
-  }
+  ecrireListe(CLEF, file)
   prevenir()
 }
 
@@ -133,17 +126,10 @@ export function vider() {
  * manifestement vouée à l'échec, en mode avion assumé.
  */
 export function estErreurReseau(e) {
-  if (!e) return false
-  if (e.definitif) return false
-  const m = `${e.name ?? ''} ${e.message ?? ''}`.toLowerCase()
-  return (
-    e instanceof TypeError ||
-    m.includes('fetch') ||
-    m.includes('network') ||
-    m.includes('load failed') ||
-    m.includes('timeout') ||
-    m.includes('abort')
-  )
+  if (!e || e.definitif) return false
+  // fetch lève un TypeError quand la requête ne part pas ; le reste du
+  // vocabulaire réseau est celui d'erreurs.js, un seul pour l'application.
+  return e instanceof TypeError || estReseau(e)
 }
 
 /**

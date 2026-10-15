@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
+import { useDrapeau } from './useDrapeau'
 
 /*
  * Conformité et contrôles préalables.
@@ -202,7 +203,7 @@ export default function Conformite({ evenement, exploitant, peut, toutPouvoir, s
 function Questionnaire({ evenement, setMessage }) {
   const [reponses, setReponses] = useState({})
   const [criteres, setCriteres] = useState([])
-  const [enregistre, setEnregistre] = useState(false)
+  const [enregistre, setEnregistre] = useDrapeau()
 
   async function charger() {
     const [r, i] = await Promise.all([
@@ -246,8 +247,7 @@ function Questionnaire({ evenement, setMessage }) {
       .upsert({ evenement_id: evenement.id, reponses })
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
-      setEnregistre(true)
-      setTimeout(() => setEnregistre(false), 2500)
+      setEnregistre()
     }
   }
 

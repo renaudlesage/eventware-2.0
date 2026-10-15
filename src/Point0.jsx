@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { modifierOuRefuser } from './ecriture'
+import { useDrapeau } from './useDrapeau'
 
 /**
  * Point 0 — la coordonnée de référence de l'événement.
@@ -25,12 +26,12 @@ export default function Point0({ evenement, onFait, setMessage }) {
   const [communesConnues, setCommunesConnues] = useState([])
   const [modeParcours, setModeParcours] = useState(evenement.mode_parcours ?? 'groupes')
   const [occupeMode, setOccupeMode] = useState(false)
-  const [modeEnregistre, setModeEnregistre] = useState(false)
+  const [modeEnregistre, setModeEnregistre] = useDrapeau()
   const [occupe, setOccupe] = useState(false)
   const [occupeProvince, setOccupeProvince] = useState(false)
   const [occupeCommune, setOccupeCommune] = useState(false)
-  const [provinceEnregistree, setProvinceEnregistree] = useState(false)
-  const [communeEnregistree, setCommuneEnregistree] = useState(false)
+  const [provinceEnregistree, setProvinceEnregistree] = useDrapeau()
+  const [communeEnregistree, setCommuneEnregistree] = useDrapeau()
 
   useEffect(() => {
     supabase
@@ -55,8 +56,7 @@ export default function Point0({ evenement, onFait, setMessage }) {
     if (refus) setMessage({ type: 'erreur', texte: refus })
     else {
       onFait()
-      setModeEnregistre(true)
-      setTimeout(() => setModeEnregistre(false), 2500)
+      setModeEnregistre()
     }
     setOccupeMode(false)
   }
@@ -71,8 +71,7 @@ export default function Point0({ evenement, onFait, setMessage }) {
     if (refus) setMessage({ type: 'erreur', texte: refus })
     else {
       onFait()
-      setCommuneEnregistree(true)
-      setTimeout(() => setCommuneEnregistree(false), 2500)
+      setCommuneEnregistree()
     }
     setOccupeCommune(false)
   }
@@ -83,8 +82,7 @@ export default function Point0({ evenement, onFait, setMessage }) {
     if (refus) setMessage({ type: 'erreur', texte: refus })
     else {
       onFait()
-      setProvinceEnregistree(true)
-      setTimeout(() => setProvinceEnregistree(false), 2500)
+      setProvinceEnregistree()
     }
     setOccupeProvince(false)
   }

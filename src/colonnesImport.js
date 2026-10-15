@@ -1,3 +1,5 @@
+import { TYPES_LIEU, PRIORITES } from './referentielsProduit'
+
 /**
  * Définition des COLONNES importables, par ressource.
  *
@@ -8,12 +10,7 @@
  * régénérable sans risque, un fichier de données ne l'est pas.
  */
 
-const TYPES_LIEU = [
-  'etape', 'poste_secours', 'pc_ops', 'scene', 'bar', 'camping',
-  'parking', 'entree', 'zone', 'point_kilometrique', 'autre'
-]
 
-const PRIORITES = ['P1', 'P2', 'P3', 'P4']
 
 export const RESSOURCES = {
   lieux: {

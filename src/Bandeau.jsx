@@ -2,13 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { diffuserAlerte } from './diffuserAlerte'
 import { texteErreur } from './erreurs'
+import { NIVEAUX_ALERTE as NIVEAUX } from './referentielsProduit'
 
-const NIVEAUX = [
-  ['information', 'Information'],
-  ['vigilance', 'Vigilance'],
-  ['urgence', 'Urgence'],
-  ['evacuation', 'Évacuation']
-]
 
 /**
  * Le bandeau s'impose : il n'est pas refermable tant que l'alerte est

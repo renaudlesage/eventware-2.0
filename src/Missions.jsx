@@ -5,6 +5,7 @@ import { libelleStatut } from './libelles'
 import { detecterDoublons } from './doublons'
 import { texteErreur } from './erreurs'
 import { MODULES_SAISIE } from './Journal'
+import { PRIORITES } from './referentielsProduit'
 
 /**
  * Demandes (missions), leur formulaire et leur fil de commentaires,
@@ -35,7 +36,6 @@ const STATUTS_MISSION = [
   ['annulee', 'Annulée']
 ]
 
-const PRIORITES = ['P1', 'P2', 'P3', 'P4']
 
 function emetteurDe(mission, membres) {
   const m = membres.find((x) => x.user_id === mission.created_by)

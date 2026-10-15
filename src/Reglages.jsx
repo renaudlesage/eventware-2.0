@@ -17,6 +17,7 @@ import { RESSOURCES } from './colonnesImport'
 import { PHASES, MODULES } from './referentielsProduit'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
+import { useDrapeau } from './useDrapeau'
 
 /* ================================================================== */
 /* Réglages                                                            */
@@ -346,7 +347,7 @@ function DatesEvenement({ evenement, onFait, setMessage }) {
     setFin(evenement.date_fin ?? '')
   }, [evenement.id, evenement.date_debut, evenement.date_fin])
   const [occupe, setOccupe] = useState(false)
-  const [enregistre, setEnregistre] = useState(false)
+  const [enregistre, setEnregistre] = useDrapeau()
 
   async function enregistrer() {
     setOccupe(true)
@@ -359,8 +360,7 @@ function DatesEvenement({ evenement, onFait, setMessage }) {
       setMessage({ type: 'erreur', texte: 'Enregistrement refusé : droits insuffisants.' })
     } else {
       onFait?.()
-      setEnregistre(true)
-      setTimeout(() => setEnregistre(false), 2500)
+      setEnregistre()
     }
     setOccupe(false)
   }

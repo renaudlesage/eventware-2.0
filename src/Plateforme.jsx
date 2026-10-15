@@ -7,6 +7,7 @@ import { modifierOuRefuser } from './ecriture'
 // la copie locale oubliait `preparation`, que la console ne pouvait donc
 // ni accorder ni retirer alors que le déclencheur de licence le contrôle.
 import { MODULES } from './referentielsProduit'
+import { useDrapeau } from './useDrapeau'
 
 /**
  * Console plateforme — vue de l'éditeur.
@@ -207,7 +208,7 @@ function FicheClient({ organisation, onMaj }) {
     quota_evenements: organisation.quota_evenements ?? '',
     notes: organisation.notes ?? ''
   })
-  const [enregistre, setEnregistre] = useState(false)
+  const [enregistre, setEnregistre] = useDrapeau()
 
   function enregistrer() {
     onMaj(organisation.id, {
@@ -220,8 +221,7 @@ function FicheClient({ organisation, onMaj }) {
       contact_tel: f.contact_tel || null,
       notes: f.notes || null
     })
-    setEnregistre(true)
-    setTimeout(() => setEnregistre(false), 2500)
+    setEnregistre()
   }
 
   const champ = (clef, libelle, type = 'text') => (

@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import { lireKml, codeDepuis, texteKmlDepuisFichier } from './kml'
 import { mesurer, simplifier } from './gpx'
 import { texteErreur } from './erreurs'
+import { CATEGORIES_PLAN, TYPES_LIEU } from './referentielsProduit'
 
 /*
  * Destinations possibles pour un calque.
@@ -10,22 +11,7 @@ import { texteErreur } from './erreurs'
  * d'objets — « Postes de secours », « Étapes », « Accès pompiers » —
  * d'où l'affectation calque par calque plutôt qu'objet par objet.
  */
-const TYPES_LIEU = [
-  'etape', 'poste_secours', 'pc_ops', 'scene', 'bar', 'camping',
-  'parking', 'entree', 'zone', 'point_kilometrique', 'autre'
-]
-
-const CATEGORIES_PLAN = [
-  'foodtruck', 'groupe_electrogene', 'stockage_gaz', 'bar_installation', 'feu',
-  'extincteur', 'dea', 'point_eau', 'poste_secours', 'coupure_gaz',
-  'coffret_electrique', 'sortie_secours', 'cheminement', 'itineraire_evacuation',
-  'voie_engins', 'cable', 'tuyau', 'scene', 'bar', 'camping', 'parking',
-  'perimetre', 'zone_interdite', 'autre'
-]
-
-const RISQUES = new Set([
-  'foodtruck', 'groupe_electrogene', 'stockage_gaz', 'bar_installation', 'feu'
-])
+const RISQUES = new Set(CATEGORIES_PLAN.filter((c) => c[3]).map((c) => c[0]))
 
 /** Devine la destination d'un calque d'après son nom. */
 function deviner(calque) {
@@ -35,19 +21,32 @@ function deviner(calque) {
 
   if (surtoutDesLignes && /parcours|trace|circuit|balade|boucle|itin/.test(n))
     return { vers: 'traces' }
-  if (/secours|poste|pmi|croix/.test(n)) return { vers: 'lieux', param: 'poste_secours' }
+  // Dispositif de secours d'abord : « poste médical avancé » contient
+  // « poste », et finirait sinon en simple poste de secours.
+  // Les sigles courts se cherchent en mot entier (03/10) : « eau »
+  // attrapait « bureau » et « plateau », « pc » n'importe quel mot qui
+  // le contenait — d'où les zones de posé et le cabinet médical de Rando
+  // VTT rangés en DEA ou en point d'eau.
+  if (/\bpma\b|m[ée]dical avanc/.test(n)) return { vers: 'plan', param: 'pma' }
+  if (/\bprv\b|regroupement/.test(n)) return { vers: 'plan', param: 'prv' }
+  if (/h[ée]lico|h[ée]liport|\bdz\b|zone de pos[ée]|atterriss/.test(n))
+    return { vers: 'plan', param: 'aire_helico' }
+  if (/rencontre/.test(n)) return { vers: 'plan', param: 'point_rencontre_secours' }
+  if (/rassemblement/.test(n)) return { vers: 'plan', param: 'point_rassemblement' }
+  if (/secours|poste|\bpmi\b|croix/.test(n)) return { vers: 'lieux', param: 'poste_secours' }
   if (/etape|étape|ravito|ravitaill/.test(n)) return { vers: 'lieux', param: 'etape' }
-  if (/pc|qg|command/.test(n)) return { vers: 'lieux', param: 'pc_ops' }
+  if (/\bpc\b|\bqg\b|command/.test(n)) return { vers: 'lieux', param: 'pc_ops' }
   if (/parking/.test(n)) return { vers: 'lieux', param: 'parking' }
   if (/entree|entrée|acces|accès/.test(n)) return { vers: 'lieux', param: 'entree' }
-  if (/borne|km|kilom/.test(n)) return { vers: 'lieux', param: 'point_kilometrique' }
+  if (/borne|\bkm\b|kilom/.test(n)) return { vers: 'lieux', param: 'point_kilometrique' }
   if (/extincteur/.test(n)) return { vers: 'plan', param: 'extincteur' }
-  if (/dea|defibril|défibril/.test(n)) return { vers: 'plan', param: 'dea' }
-  if (/eau/.test(n)) return { vers: 'plan', param: 'point_eau' }
-  if (/food|frit|bar|buvette/.test(n)) return { vers: 'plan', param: 'foodtruck' }
+  if (/\bdea\b|\baed\b|d[ée]fibril/.test(n)) return { vers: 'plan', param: 'dea' }
+  if (/\beau\b|citerne|hydrant|borne incendie/.test(n)) return { vers: 'plan', param: 'point_eau' }
+  if (/food|frit|\bbar\b|buvette/.test(n)) return { vers: 'plan', param: 'foodtruck' }
   if (/gaz/.test(n)) return { vers: 'plan', param: 'stockage_gaz' }
-  if (/pompier|engin|voie/.test(n)) return { vers: 'plan', param: 'voie_engins' }
+  if (/pompier|engin|\bvoie/.test(n)) return { vers: 'plan', param: 'voie_engins' }
   if (/evac|évac/.test(n)) return { vers: 'plan', param: 'itineraire_evacuation' }
+  if (/p[ée]rim[eè]tre|enceinte/.test(n)) return { vers: 'plan', param: 'perimetre' }
   if (/scene|scène/.test(n)) return { vers: 'lieux', param: 'scene' }
   if (/camping/.test(n)) return { vers: 'lieux', param: 'camping' }
   return { vers: 'lieux', param: 'autre' }
@@ -295,10 +294,10 @@ export default function ImportKml({ evenement, setMessage }) {
                       }
                       style={{ width: 'auto', marginBottom: 0 }}
                     >
-                      {CATEGORIES_PLAN.map((t) => (
-                        <option key={t}>
-                          {t}
-                          {RISQUES.has(t) ? ' ⚠' : ''}
+                      {CATEGORIES_PLAN.map(([v, l, , risque]) => (
+                        <option key={v} value={v}>
+                          {l}
+                          {risque ? ' ⚠' : ''}
                         </option>
                       ))}
                     </select>

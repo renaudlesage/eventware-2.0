@@ -182,7 +182,31 @@ on conflict (version) do nothing;
 
 Éprouvée en transaction annulée (non-exploitant refusé, mauvais nom refusé, corbeille puis restauration, purge hors corbeille refusée, exploitation refusée), puis appliquée et inscrite.
 
-## Ne jamais rejouer 088 → 112 par `db push` sans les lignes ci-dessus
+### 113 : appliquée le 14/10 par Ren dans le SQL Editor (script autovérifié `appliquer-113-sql-editor.sql`) — dette de la base
+
+| Fichier | Fait |
+|---|---|
+| `20261003090000_113_dette_base.sql` | 25 index de clés étrangères (les 10 `evenement_id` signalés et les liens suivis par les cascades) ; fusion, par table et par commande, des policies doubles de 17 tables (OU des anciennes conditions : mêmes droits, une évaluation) ; `auth.uid()` enveloppé en `(select auth.uid())` ; `trg_horodatage` sur les 8 tables dont `updated_at` ne bougeait pas |
+
+Le script s'est vérifié lui-même avant de valider : 0 écart de visibilité (20 tables × chaque compte), 0 policy en double, suppression logique directe toujours possible. Inscrite après la 114 dans le temps, avant elle par numéro. Les six index « jamais utilisés » sont gardés exprès (base de test trop petite pour s'en servir).
+
+### 114 : appliquée le 14/10 (par Claude, via l'outil Supabase) — Précurseur
+
+| Fichier | Fait |
+|---|---|
+| `20261005060000_114_precurseur.sql` | Module Précurseur livré par Ren (fichier d'origine `20261004_precurseur_module_eventware.sql`) : 5 tables `prc_*`, vues de charge par lieu, grappes, mémoire des incidents, déclencheur sur `missions`, grappes dans la main courante. Trois retouches : verrou par événement dans `prc_actualiser_grappes`, déclencheur qui ne bloque jamais une demande, ressource `precurseur` dans `matrice_permissions` |
+
+Éprouvée en transaction annulée sur Rando VTT (grappe détectée puis modifiée et résorbée au fil des clôtures, chef d'équipe en lecture et refusé en écriture, demande enregistrée malgré une erreur de calcul provoquée), puis appliquée et inscrite. L'outil Supabase refuse désormais toute requête contenant `DROP` : les `drop … if exists` du fichier, sans objet sur une première installation, ont été omis à l'application. Appliquée avant la 113, qui porte un numéro plus bas.
+
+### 115 : appliquée le 15/10 (par Claude, via l'outil Supabase) — implantation à l'échelle
+
+| Fichier | Fait |
+|---|---|
+| `20261015200000_115_implantation_echelle.sql` | `catalogue_equipements` (44 fiches standard + fiches par organisation : dimensions, calque, puissance, eau, public, distance de sécurité) ; `elements_plan` gagne centre, largeur, longueur, rotation, puissance consommée/produite, `alimente_par`, besoin/source/raccord d'eau, public, distance de sécurité, fournisseur — `geometrie` reste le polygone calculé, lu par tous les autres écrans ; code attribué par la base (`PREFIXE-nn`, security definer pour voir les lignes supprimées) ; `fonds_plan` + bucket privé `plans` ; `supprimer_logiquement` accepte `elements_plan` |
+
+Éprouvée en transaction annulée (codes GE60-01 puis GE60-02 après suppression, chef d'équipe lit le catalogue et ne peut écrire au standard, retire un objet en exploitation, fond calé), puis appliquée et inscrite. Aucun DROP.
+
+## Ne jamais rejouer 088 → 115 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

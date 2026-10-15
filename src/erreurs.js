@@ -24,9 +24,12 @@ const RESEAU = [
   'failed to fetch',
   'networkerror',
   'network request failed',
+  'network connection was lost',
   'load failed',
   'timeout',
   'aborted',
+  'aborterror',
+  'err_network',
   'err_internet_disconnected'
 ]
 

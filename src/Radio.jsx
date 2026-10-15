@@ -31,7 +31,6 @@ export default function Radio({ evenement, setMessage, peut, toutPouvoir }) {
   const [canaux, setCanaux] = useState([])
   const [postes, setPostes] = useState([])
   const [equipes, setEquipes] = useState([])
-  const [edite, setEdite] = useState(null)
   const [vue, setVue] = useState('matrice')
   const [f, setF] = useState({
     numero: '',
@@ -93,10 +92,7 @@ export default function Radio({ evenement, setMessage, peut, toutPouvoir }) {
       .eq('id', id)
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) setMessage({ type: 'erreur', texte: 'Modification refusée.' })
-    else {
-      setEdite(null)
-      charger()
-    }
+    else charger()
   }
 
   async function majPoste(id, champs) {

@@ -3,42 +3,11 @@ import { MapContainer, TileLayer, Polyline, Polygon, CircleMarker, Popup, useMap
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
+import { CATEGORIES_PLAN as CATEGORIES } from './referentielsProduit'
+import { useDrapeau } from './useDrapeau'
+import Implantation from './Implantation'
+import BilansImplantation from './BilansImplantation'
 
-const CATEGORIES = [
-  // Dispositif de secours — vocabulaire de la doctrine belge
-  ['point_rencontre_secours', 'Point de rencontre des secours', 'point', false],
-  ['prv', 'PRV — regroupement des victimes', 'point', false],
-  ['pma', 'PMA — poste médical avancé', 'point', false],
-  ['aire_helico', 'Aire hélicoptère', 'zone', false],
-  ['point_rassemblement', 'Point de rassemblement', 'point', false],
-  ['point_transfert', 'Point de transfert', 'point', false],
-  ['noria', 'Noria', 'ligne', false],
-  // Installations
-  ['foodtruck', 'Foodtruck', 'point', true],
-  ['groupe_electrogene', 'Groupe électrogène', 'point', true],
-  ['stockage_gaz', 'Stockage gaz', 'point', true],
-  ['bar_installation', 'Bar', 'point', true],
-  ['feu', 'Feu / brasero', 'point', true],
-  ['extincteur', 'Extincteur', 'point', false],
-  ['dea', 'DEA', 'point', false],
-  ['point_eau', "Point d'eau", 'point', false],
-  ['poste_secours', 'Poste de secours', 'point', false],
-  ['coupure_gaz', 'Coupure gaz', 'point', false],
-  ['coffret_electrique', 'Coffret électrique', 'point', false],
-  ['sortie_secours', 'Sortie de secours', 'point', false],
-  ['cheminement', 'Cheminement', 'ligne', false],
-  ['itineraire_evacuation', "Itinéraire d'évacuation", 'ligne', false],
-  ['voie_engins', 'Voie engins', 'ligne', false],
-  ['cable', 'Câble', 'ligne', false],
-  ['tuyau', 'Tuyau', 'ligne', false],
-  ['scene', 'Scène', 'zone', false],
-  ['bar', 'Zone bar', 'zone', false],
-  ['camping', 'Camping', 'zone', false],
-  ['parking', 'Parking', 'zone', false],
-  ['perimetre', 'Périmètre', 'zone', false],
-  ['zone_interdite', 'Zone interdite', 'zone', false],
-  ['autre', 'Autre', 'point', false]
-]
 
 const libelleCat = (c) => CATEGORIES.find((x) => x[0] === c)?.[1] ?? c
 
@@ -72,7 +41,8 @@ const COULEUR = (e) =>
 export default function PlanImplantation({ evenement, membre, peut, toutPouvoir }) {
   const [elements, setElements] = useState([])
   const [message, setMessage] = useState(null)
-  const [vue, setVue] = useState('tournee')
+  // En préparation on conçoit ; sur site on fait la tournée.
+  const [vue, setVue] = useState(evenement.phase === 'preparation' ? 'conception' : 'tournee')
   const [position, setPosition] = useState(null)
   const [edite, setEdite] = useState(null)
 
@@ -141,6 +111,8 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
 
       <div className="onglets">
         {[
+          ['conception', 'Conception'],
+          ['bilans', 'Bilans'],
           ['tournee', `Tournée (${aConfirmer.length})`],
           ['carte', 'Carte'],
           ['secours', `Accès secours (${secours.length})`],
@@ -165,6 +137,19 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
         </div>
       )}
 
+      {vue === 'conception' && (
+        <Implantation
+          evenement={evenement}
+          elements={elements}
+          onRecharger={charger}
+          peutCreer={peutCreer}
+          peutModifier={peutModifier}
+          setMessage={setMessage}
+        />
+      )}
+      {vue === 'bilans' && <BilansImplantation elements={elements} />}
+
+      {vue !== 'conception' && vue !== 'bilans' && (
       <div className="geo">
         {position ? (
           <>
@@ -184,6 +169,7 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
           "Position indisponible — les éléments posés n'auront pas de coordonnées."
         )}
       </div>
+      )}
 
       {vue === 'tournee' && (
         <>
@@ -556,7 +542,7 @@ const TYPES_MOYENS = [
 export function Effectifs({ evenement, peut, toutPouvoir, setMessage }) {
   const [min, setMin] = useState(evenement.frequentation_min ?? '')
   const [max, setMax] = useState(evenement.frequentation_max ?? '')
-  const [enregistre, setEnregistre] = useState(false)
+  const [enregistre, setEnregistre] = useDrapeau()
   const [moyens, setMoyens] = useState([])
 
   const peutMoyens = toutPouvoir || peut?.('plan_implantation', 'creer')
@@ -585,8 +571,7 @@ export function Effectifs({ evenement, peut, toutPouvoir, setMessage }) {
     )
     if (refus) setMessage({ type: 'erreur', texte: refus })
     else {
-      setEnregistre(true)
-      setTimeout(() => setEnregistre(false), 2500)
+      setEnregistre()
     }
   }
 

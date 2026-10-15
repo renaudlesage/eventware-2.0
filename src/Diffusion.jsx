@@ -2,13 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
+import { NIVEAUX_ALERTE as NIVEAUX } from './referentielsProduit'
 
-const NIVEAUX = [
-  ['information', 'Information'],
-  ['vigilance', 'Vigilance'],
-  ['urgence', 'Urgence'],
-  ['evacuation', 'Évacuation']
-]
 
 /**
  * Diffusion externe des alertes.

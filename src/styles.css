@@ -2723,3 +2723,145 @@ label.bloc-vidage .aide { display: block; margin: 2px 0 0; }
 .confirmation-vidage { border-left: 3px solid var(--etat-chaud); }
 button.danger { background: var(--etat-chaud); border-color: var(--etat-chaud); color: var(--on-teinte); }
 button.danger:disabled { opacity: 0.45; }
+
+/* ---------------- Précurseur — charge des lieux (114, 14/10) ----------------
+   Maquette de Ren « Précurseur — tableau de charge ». Les états (ok,
+   veille, chaud, froid) colorent les valeurs ; la teinte ardoise ne sert
+   qu'à repérer le domaine. */
+.prc-cadrans { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.prc-cadrans .cadran { cursor: default; gap: 4px; }
+.prc-cadrans .cadran:hover { background: var(--surface); }
+.prc-cadrans .cadran.veille .cadran-valeur { color: var(--etat-veille); }
+.prc-aide { font-size: 11.5px; color: var(--sourdine); }
+.prc-surtitre { font-size: 11px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; }
+.prc-surtitre.chaud, .prc-chiffre.chaud, .prc-jeton.chaud { color: var(--etat-chaud); }
+.prc-surtitre.ok { color: var(--etat-ok); }
+.prc-titre { margin: 0 0 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: var(--sourdine); }
+.prc-titre-ligne { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.prc-titre-ligne .case-a-cocher { margin: 0 0 10px; font-size: 13px; }
+.prc-grappes { display: flex; flex-direction: column; gap: 8px; margin-bottom: 22px; }
+.prc-grappe { background: var(--surface); border: 1px solid var(--trait); border-radius: 2px; box-shadow: inset 3px 0 0 var(--etat-chaud); padding: 16px 18px 16px 22px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px 26px; }
+.prc-grappe-texte { flex: 999 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.prc-grappe-noms { font-size: 20px; font-weight: 700; }
+.prc-grappe-charge { display: flex; flex-direction: column; align-items: flex-end; }
+.prc-chiffre { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 24px; font-weight: 700; }
+.prc-sans-grappe { background: var(--surface); border: 1px solid var(--trait); border-radius: 2px; padding: 14px 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 22px; }
+.prc-colonnes { display: flex; flex-wrap: wrap; gap: 30px 26px; align-items: flex-start; }
+.prc-lieux { flex: 999 1 600px; min-width: 0; }
+.prc-cote { flex: 1 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 26px; }
+.prc-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 8px; }
+.prc-lieu { background: var(--surface); border: 1px solid var(--trait); border-radius: 2px; padding: 14px 14px 12px; display: flex; flex-direction: column; gap: 10px; }
+.prc-lieu.chaud { box-shadow: inset 3px 0 0 var(--etat-chaud); padding-left: 17px; }
+.prc-lieu-tete { display: flex; align-items: flex-start; gap: 8px; }
+.prc-lieu-tete h4 { margin: 0; flex-grow: 1; font-size: 15px; font-weight: 600; text-transform: none; letter-spacing: normal; color: var(--encre); }
+.prc-jeton { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sourdine); border: 1px solid var(--trait); border-radius: 4px; padding: 1px 6px; }
+.prc-jeton.chaud { border-color: var(--etat-chaud); }
+.prc-niveau { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.prc-grains { display: flex; gap: 4px; }
+.prc-grain { display: block; width: 26px; height: 12px; border-radius: 2px; box-sizing: border-box; background: var(--surface-2); border: 1px solid var(--trait); }
+.prc-grain.ok { background: var(--etat-ok); border-color: var(--etat-ok); }
+.prc-grain.veille { background: var(--etat-veille); border-color: var(--etat-veille); }
+.prc-grain.chaud { background: var(--etat-chaud); border-color: var(--etat-chaud); }
+.prc-niveau-texte { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; }
+.prc-niveau-texte.froid { color: var(--etat-froid); }
+.prc-niveau-texte.ok { color: var(--etat-ok); }
+.prc-niveau-texte.veille { color: var(--etat-veille); }
+.prc-niveau-texte.chaud { color: var(--etat-chaud); }
+.prc-capacite { font-size: 11px; color: var(--sourdine); margin-left: auto; }
+.prc-chiffres { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.prc-chiffres dt { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sourdine); }
+.prc-chiffres dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 15px; }
+.prc-liens { border-top: 1px solid var(--trait); padding-top: 8px; display: flex; flex-direction: column; gap: 2px; font-size: 11.5px; color: var(--sourdine); }
+.prc-liens span { color: var(--encre); }
+.prc-liste { background: var(--surface); border: 1px solid var(--trait); border-radius: 2px; margin-bottom: 8px; }
+.prc-ligne { display: flex; gap: 12px; align-items: center; padding: 10px 12px; font-size: 13px; }
+.prc-ligne + .prc-ligne { border-top: 1px solid var(--trait); }
+.prc-ligne.residu { background: var(--surface-2); }
+.prc-ligne-texte { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; }
+.prc-ligne-droite { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.prc-ligne .sourdine, .prc-ligne .mono.sourdine { color: var(--sourdine); font-size: 12px; flex-shrink: 0; }
+.prc-poids { font-variant-numeric: tabular-nums; font-size: 11.5px; white-space: nowrap; }
+.prc-poids.veille { color: var(--etat-veille); }
+.prc-poids.froid { color: var(--etat-froid); }
+.prc-majeur { font-weight: 600; }
+.prc-memoire { padding: 12px 14px; }
+.prc-tableau { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px 14px; align-items: baseline; font-size: 13.5px; }
+.prc-tableau .droite { text-align: right; }
+.prc-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 22px; }
+.prc-form select, .prc-form input { width: auto; margin: 0; flex: 1 1 180px; }
+.prc-form label { display: flex; align-items: center; gap: 6px; margin: 0; }
+.prc-form label input { flex: 0 0 80px; }
+
+/* ---------------- Implantation à l'échelle (115, 15/10) ----------------
+   Conception du site : catalogue à gauche, carte au centre, propriétés à
+   droite. Les calques ont chacun une teinte (variable --c sur l'élément),
+   l'état (chaud/veille) reste réservé aux contrôles. */
+.implantation { display: flex; flex-direction: column; gap: 10px; }
+.impl-barre { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.impl-barre .ligne-boutons { margin: 0; }
+.impl-calques { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.impl-calque { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; text-transform: none; letter-spacing: normal; color: var(--encre); cursor: pointer; margin: 0; }
+.impl-calque input { width: auto; margin: 0; }
+.impl-calque.masque { opacity: 0.5; }
+.impl-calque .mono { font-size: 11px; color: var(--sourdine); }
+.impl-pastille { display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--c, var(--sourdine)); flex-shrink: 0; }
+.impl-consigne { margin: 0; min-height: 1.4em; }
+.impl-corps { display: grid; grid-template-columns: 230px minmax(0, 1fr) 300px; gap: 12px; align-items: start; }
+@media (max-width: 1100px) { .impl-corps { grid-template-columns: 200px minmax(0, 1fr); } .impl-proprietes { grid-column: 1 / -1; } }
+@media (max-width: 700px) { .impl-corps { grid-template-columns: minmax(0, 1fr); } .impl-catalogue { order: 2; } .impl-proprietes { order: 3; } }
+.impl-catalogue { display: flex; flex-direction: column; gap: 6px; }
+.impl-catalogue input, .impl-catalogue select { margin: 0; }
+.impl-fiches { display: flex; flex-direction: column; gap: 2px; max-height: 560px; overflow-y: auto; border: 1px solid var(--trait); background: var(--surface); }
+/* `!important` : la règle de domaine (.dom-prune button…, seize :not()) a une
+   spécificité qu'aucune classe ne dépasse, et elle remplirait chaque fiche
+   de la teinte du module. */
+.impl-fiche { all: unset; cursor: pointer; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px 8px !important; font-size: 13px !important; background: var(--surface) !important; color: var(--encre) !important; border: none !important; border-radius: 0 !important; box-shadow: inset 3px 0 0 var(--c) !important; text-transform: none !important; letter-spacing: normal !important; }
+.impl-fiche:hover { background: var(--surface-2) !important; }
+.impl-fiche.actif { background: var(--teinte) !important; color: var(--on-teinte) !important; }
+.impl-fiche:disabled { cursor: default; opacity: 0.6; }
+.impl-fiche-nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.impl-fiche-dim { font-size: 11px; color: var(--sourdine); }
+.impl-fiche.actif .impl-fiche-dim { color: inherit; }
+.impl-carte { position: relative; height: 620px; margin: 0; }
+.mode-poser .impl-carte, .mode-mesurer .impl-carte, .mode-caler .impl-carte, .mode-deplacer .impl-carte { outline: 2px solid var(--etat-info); }
+.impl-legende { position: absolute; left: 8px; bottom: 28px; z-index: 500; background: var(--surface); border: 1px solid var(--trait); padding: 6px 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 11.5px; max-width: calc(100% - 200px); }
+.impl-legende-item { display: inline-flex; align-items: center; gap: 5px; }
+.impl-proprietes, .impl-fonds { display: flex; flex-direction: column; gap: 6px; }
+.impl-props { display: flex; flex-direction: column; gap: 6px; background: var(--surface); border: 1px solid var(--trait); padding: 12px; }
+.impl-props label, .impl-fonds label { display: flex; flex-direction: column; gap: 3px; margin: 0; font-size: 11px; }
+.impl-props input, .impl-props select, .impl-props textarea { margin: 0; }
+.impl-props .case-a-cocher, .impl-fonds .case-a-cocher { flex-direction: row; font-size: 13px; }
+.impl-props-tete { display: flex; gap: 6px; flex-wrap: wrap; }
+.impl-props .prc-titre { margin: 8px 0 2px; }
+.impl-deux { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.impl-trois { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.impl-rotation { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.impl-rotation input[type=range] { flex: 1 1 100px; margin: 0; }
+.impl-cases { display: flex; gap: 14px; flex-wrap: wrap; }
+.impl-actions { margin-top: 8px; }
+.danger-texte { color: var(--etat-chaud) !important; }
+.impl-fond { background: var(--surface); border: 1px solid var(--trait); padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.impl-fond-tete { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.impl-envoi input { margin: 0; }
+.prc-jeton.veille { color: var(--etat-veille); border-color: var(--etat-veille); }
+.prc-jeton.chaud { color: var(--etat-chaud); border-color: var(--etat-chaud); }
+.prc-chiffres dd.chaud { color: var(--etat-chaud); }
+.prc-chiffres dd.veille { color: var(--etat-veille); }
+.impl-bilans .prc-cadrans { margin-bottom: 14px; }
+.tableau-defilant { overflow-x: auto; }
+.tableau { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface); }
+.tableau th, .tableau td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--trait); vertical-align: top; }
+.tableau th { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sourdine); }
+
+/* Impression du plan : la carte seule, pleine page, légende comprise. */
+@media print {
+  body.impression-plan .poste > *:not(.corps), body.impression-plan .rail, body.impression-plan .veille,
+  body.impression-plan .impl-barre, body.impression-plan .impl-consigne, body.impression-plan .impl-catalogue,
+  body.impression-plan .impl-proprietes, body.impression-plan .onglets, body.impression-plan .etat,
+  body.impression-plan .travail > * > h2, body.impression-plan .flottant, body.impression-plan .barre-onglets { display: none !important; }
+  body.impression-plan .carte-conteneur.impl-carte { display: block !important; position: fixed; inset: 0; height: 100vh !important; width: 100vw; border: none; }
+  body.impression-plan .impl-corps { display: block; }
+  body.impression-plan .leaflet-control-zoom, body.impression-plan .leaflet-control-attribution { display: none; }
+  body.impression-plan .impl-legende { bottom: 12px; font-size: 10pt; }
+}
+@media (max-width: 700px) { .impl-carte { height: 440px; } .impl-legende { display: none; } }

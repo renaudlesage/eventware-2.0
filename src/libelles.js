@@ -47,6 +47,25 @@ export function libelleStatut(code) {
 }
 
 /**
+ * Un transport est une demande logistique (même table, mêmes statuts),
+ * mais on le dit autrement : on le PLANIFIE et il est TERMINÉ, on ne le
+ * « traite » ni ne le « résout ». Ce vocabulaire vivait en dur dans
+ * Logistique.jsx (audit du 19/09) ; il vit ici, à côté du vocabulaire
+ * général, pour qu'un renommage ne se fasse qu'une fois.
+ */
+export const STATUTS_TRANSPORT = [
+  ['a_traiter', 'À planifier'],
+  ['attribuee', 'Attribuée'],
+  ['en_cours', 'En cours'],
+  ['resolue', 'Terminée'],
+  ['annulee', 'Annulée']
+]
+
+export function libelleStatutTransport(code) {
+  return STATUTS_TRANSPORT.find(([v]) => v === code)?.[1] ?? libelleStatut(code)
+}
+
+/**
  * Les domaines qu'une personne peut choisir elle-même à la saisie —
  * journal, REX, tout endroit qui demande « à quel domaine ça
  * appartient ». Un seul endroit : avant cette liste, le journal, le

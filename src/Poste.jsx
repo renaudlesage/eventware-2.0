@@ -7,6 +7,7 @@ import Logistique from './Logistique'
 import Parcours from './Parcours'
 import Rh from './Rh'
 import Analyse from './Analyse'
+import Precurseur from './Precurseur'
 import PlanImplantation from './PlanImplantation'
 import Bandeau from './Bandeau'
 import Situation from './Situation'
@@ -76,6 +77,9 @@ const ECRANS = [
   { clef: 'plan',       libelle: 'Implantation', module: 'plan_implantation', besoin: ['plan_implantation', 'lire'] },
   // Analyse reste l'écran de l'arbitrage. Qui consigne sans arbitrer
   // retrouve ses constats dans le pavé « Mes constats » de Mon poste.
+  // Précurseur (114) : lecture dès missions:lire, comme les vues de la
+  // base ; les réglages de l'écran restent gardés par `precurseur`.
+  { clef: 'precurseur', libelle: 'Charge',       module: 'precurseur',        besoin: ['missions', 'lire'] },
   { clef: 'analyse',    libelle: 'Analyse',      module: 'analyse',           besoin: ['analyse', 'modifier'] },
   { clef: 'reglages',   libelle: 'Réglages',     module: null,                besoin: 'tout_pouvoir' },
   // Console de l'éditeur : hors événement, réservée à l'exploitant.
@@ -181,13 +185,19 @@ export default function Poste({ session, theme, setTheme }) {
     return toutPouvoir || peut(e.besoin[0], e.besoin[1])
   })
 
+  // Dépend de la LISTE des écrans visibles, pas de ce qui la produit
+  // (audit du 19/09) : un changement de phase change les capacités, donc
+  // les écrans ; avant, il laissait l'utilisateur sur un écran devenu
+  // invisible.
+  const clefsVisibles = visibles.map((e) => e.clef).join(',')
   useEffect(() => {
     if (!pret || !courant) return
     // L'écran d'ouverture est la situation pour qui y a droit, son poste sinon.
     if (!visibles.some((e) => e.clef === ecran)) {
       setEcran(visibles.some((e) => e.clef === 'situation') ? 'situation' : 'accueil')
     }
-  }, [courantId, pret, exploitant, JSON.stringify(courant?.modules)])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courantId, pret, clefsVisibles, ecran])
 
   if (chargement) return <div className="attente">Chargement…</div>
 
@@ -559,6 +569,8 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
       return (
         <PlanImplantation evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} />
       )
+    case 'precurseur':
+      return <Precurseur evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} />
     case 'analyse':
       return <Analyse evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} />
     case 'plateforme':

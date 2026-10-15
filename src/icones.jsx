@@ -25,7 +25,8 @@ import {
   Megaphone,
   QrCode,
   Upload,
-  ScrollText
+  ScrollText,
+  Network
 } from 'lucide-react'
 
 /**
@@ -55,6 +56,10 @@ export const DOMAINES = {
   rh:         { icone: Users,                teinte: 'azur' },
   plan:       { icone: MapPinned,            teinte: 'prune' },
   analyse:    { icone: TrendingUp,           teinte: 'ardoise' },
+  // Ardoise aussi, à la demande de la maquette du 14/10 : Charge et
+  // Analyse sont les deux écrans qui lisent la situation au lieu de la
+  // saisir, voisins dans la famille Pilotage.
+  precurseur: { icone: Network,              teinte: 'ardoise' },
   reglages:   { icone: SlidersHorizontal,    teinte: 'gris' },
   plateforme: { icone: Building2,            teinte: 'gris' }
 }
@@ -71,7 +76,7 @@ export const FAMILLES = [
   ['Commandement', ['situation', 'planning', 'preparation']],
   ['Terrain',      ['securite', 'sos', 'parcours', 'memento']],
   ['Ressources',   ['logistique', 'rh', 'plan', 'accueil']],
-  ['Pilotage',     ['analyse', 'reglages', 'plateforme']]
+  ['Pilotage',     ['precurseur', 'analyse', 'reglages', 'plateforme']]
 ]
 
 /**

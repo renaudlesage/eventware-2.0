@@ -10,22 +10,16 @@
  * C'est elle qui garantit qu'un renvoi ne crée pas de doublon côté base.
  */
 
+import { lireListe, ecrireListe } from './stockageLocal'
+
 const CLEF = 'eventware.sos.file'
 
 export function lireFile() {
-  try {
-    return JSON.parse(localStorage.getItem(CLEF) || '[]')
-  } catch {
-    return []
-  }
+  return lireListe(CLEF)
 }
 
 export function ecrireFile(file) {
-  try {
-    localStorage.setItem(CLEF, JSON.stringify(file))
-  } catch {
-    /* stockage plein ou navigation privée : on continue en mémoire */
-  }
+  ecrireListe(CLEF, file)
 }
 
 export function ajouter(signalement) {

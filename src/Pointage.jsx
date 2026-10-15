@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { nouvelleCle } from './fileSos'
 import { surRetourReseau } from './reessai'
+import { lireListe, ecrireListe } from './stockageLocal'
 
 /**
  * Pointage par QR, scanné par le participant lui-même.
@@ -18,21 +19,8 @@ import { surRetourReseau } from './reessai'
 
 const CLEF = 'eventware.pointages.file'
 
-function lireFile() {
-  try {
-    return JSON.parse(localStorage.getItem(CLEF) ?? '[]')
-  } catch {
-    return []
-  }
-}
-
-function ecrireFile(f) {
-  try {
-    localStorage.setItem(CLEF, JSON.stringify(f))
-  } catch {
-    /* stockage plein ou refusé : on continue sans file */
-  }
-}
+const lireFile = () => lireListe(CLEF)
+const ecrireFile = (f) => ecrireListe(CLEF, f)
 
 export default function Pointage({ jeton, codeLieu, nomLieu }) {
   const [etat, setEtat] = useState('pret') // pret | envoi | fait | file
