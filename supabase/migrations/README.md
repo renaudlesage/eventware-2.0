@@ -206,7 +206,23 @@ Le script s'est vérifié lui-même avant de valider : 0 écart de visibilité (
 
 Éprouvée en transaction annulée (codes GE60-01 puis GE60-02 après suppression, chef d'équipe lit le catalogue et ne peut écrire au standard, retire un objet en exploitation, fond calé), puis appliquée et inscrite. Aucun DROP.
 
-## Ne jamais rejouer 088 → 115 par `db push` sans les lignes ci-dessus
+### 116 : appliquée le 15/10 (par Claude, via l'outil Supabase) — demandes similaires
+
+| Fichier | Fait |
+|---|---|
+| `20261015210000_116_demandes_similaires.sql` | module livré par Ren (fichier d'origine `20261015_demandes_similaires.sql`) : extensions `pg_trgm` et `unaccent` dans le schéma `extensions` ; table `demande_vocabulaire` (synonymes et mots vides, commun = `evenement_id` NULL, surcharge par événement, CRUD sous `referentiels/modifier`) ; `normaliser_demande` (minuscules, sans accents, « étape 2 » → `etape2`, synonymes, mots vides) ; `score_similarite` (trigrammes ou mots partagés) ; `missions_similaires(événement, titre, description, lieu, exclure, seuil, auteur, date)` → doublon / complément / récurrence sur 6 h, security invoker (RLS des missions). Repris tel quel sauf : `drop … if exists` retirés (sans objet, et l'outil refuse tout DROP) ; policy `gestion FOR ALL` scindée en insert / update / delete pour ne pas recréer une policy double sur SELECT (113) |
+
+Éprouvée en transaction annulée par rejeu des 68 demandes réelles de BFMF 2026 avec les lieux et émetteurs du jeu de Ren : 7 suggestions, les mêmes que son évaluation (029 doublon de 026, 033 récurrence de 025, 042 et 067 compléments, 053, 061, 063). Appliquée et inscrite. Sur les données de production, les demandes BFMF importées n'ont ni lieu ni auteur : la fonction y serait bruyante, mais la fenêtre de 6 h les met hors jeu.
+
+### 117 : appliquée le 15/10 (par Claude, via l'outil Supabase) — barriérage et pictogrammes
+
+| Fichier | Fait |
+|---|---|
+| `20261015220000_117_barrierage_pictos.sql` | `nature` (objet / ligne / picto) et `picto` sur `catalogue_equipements` et `elements_plan`, `quantite` sur `elements_plan` ; les barrières standard (HERAS, NADAR, CRASH) passent en nature `ligne` : le tracé est `geometrie`, `largeur_m` la longueur d'un module, `longueur_m` le total, `quantite` le nombre de barrières ; 16 pictogrammes de sécurité (sortie, sortie de secours, sens d'évacuation, rassemblement, extincteur, RIA, hydrant, DEA, premiers soins, téléphone, coupures élec/gaz, eau potable, interdit, danger, PMR) dessinés par l'application. Les contraintes `forme in ('rect','cercle')` de la 115 sont laissées telles quelles (les retoucher demanderait un DROP CONSTRAINT) |
+
+Éprouvée en transaction annulée (insertion d'un picto → code `SORTIE-01`, d'une ligne de 12 Heras), puis appliquée et inscrite. Aucun DROP.
+
+## Ne jamais rejouer 088 → 117 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

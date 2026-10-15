@@ -2822,8 +2822,24 @@ button.danger:disabled { opacity: 0.45; }
 .impl-fiche-nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .impl-fiche-dim { font-size: 11px; color: var(--sourdine); }
 .impl-fiche.actif .impl-fiche-dim { color: inherit; }
-.impl-carte { position: relative; height: 620px; margin: 0; }
-.mode-poser .impl-carte, .mode-mesurer .impl-carte, .mode-caler .impl-carte, .mode-deplacer .impl-carte { outline: 2px solid var(--etat-info); }
+.impl-carte { position: relative; height: min(72vh, 900px); min-height: 480px; margin: 0; }
+.mode-poser .impl-carte, .mode-mesurer .impl-carte, .mode-caler .impl-carte, .mode-deplacer .impl-carte, .mode-tracer .impl-carte { outline: 2px solid var(--etat-info); }
+.impl-carte .leaflet-container.fond-blanc { background: #fff; }
+.impl-fond-choix { width: auto; margin: 0; }
+.impl-fiche-picto { display: inline-flex; width: 18px; height: 18px; }
+.impl-fiche { grid-template-columns: 18px minmax(0, 1fr) auto; }
+/* Pictogrammes : à taille fixe sur la carte, pointillé = non confirmé. */
+.impl-picto { background: none; border: none; }
+.impl-picto > div { width: 100%; height: 100%; display: flex; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5)); }
+.impl-picto.actif > div { outline: 3px solid var(--encre); outline-offset: 1px; border-radius: 6px; }
+.impl-picto.non-confirme > div { opacity: 0.8; }
+/* Plein écran (117) : l'éditeur couvre la page, Échap ou « Réduire » pour revenir. */
+body.impl-plein-corps { overflow: hidden; }
+.implantation.impl-plein { position: fixed; inset: 0; z-index: 1200; background: var(--fond); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+.impl-plein .impl-corps { flex: 1; min-height: 0; align-items: stretch; }
+.impl-plein .impl-carte { height: 100%; min-height: 0; }
+.impl-plein .impl-catalogue, .impl-plein .impl-proprietes { overflow: auto; min-height: 0; max-height: 100%; }
+.impl-plein .impl-fiches { max-height: none; flex: 1; }
 .impl-legende { position: absolute; left: 8px; bottom: 28px; z-index: 500; background: var(--surface); border: 1px solid var(--trait); padding: 6px 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 11.5px; max-width: calc(100% - 200px); }
 .impl-legende-item { display: inline-flex; align-items: center; gap: 5px; }
 .impl-proprietes, .impl-fonds { display: flex; flex-direction: column; gap: 6px; }
@@ -2865,3 +2881,24 @@ button.danger:disabled { opacity: 0.45; }
   body.impression-plan .impl-legende { bottom: 12px; font-size: 10pt; }
 }
 @media (max-width: 700px) { .impl-carte { height: 440px; } .impl-legende { display: none; } }
+
+/* ------------------------------------------------------------------ */
+/* Demandes similaires (116, 15/10) — sous le champ « précision » du   */
+/* formulaire de demande. Jamais bloquant : une suggestion, pas un mur. */
+.suggestions-demande { display: grid; gap: 6px; margin: 4px 0 10px; }
+.suggestion {
+  background: var(--surface-2); border: 1px solid var(--trait); border-left: 4px solid var(--etat-info);
+  border-radius: 6px; padding: 8px 10px; font-size: 0.92em;
+}
+.suggestion--doublon    { border-left-color: var(--etat-veille); }
+.suggestion--complement { border-left-color: var(--etat-info); }
+.suggestion--recurrence { border-left-color: var(--sourdine); }
+.suggestion__entete { display: flex; gap: 8px; align-items: baseline; }
+.suggestion__type { font-weight: 600; }
+.suggestion--doublon .suggestion__type { color: var(--etat-veille); }
+.suggestion--complement .suggestion__type { color: var(--etat-info); }
+.suggestion__ref { color: var(--sourdine); font-size: 0.9em; }
+.suggestion__texte { margin: 2px 0 0; }
+.suggestion__raison { margin: 2px 0 0; color: var(--sourdine); }
+.suggestion__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.suggestion__actions button { margin: 0; }

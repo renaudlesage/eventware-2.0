@@ -98,7 +98,7 @@ export default function BilansImplantation({ elements }) {
         }
       }
     }
-    const sansLieu = objets.filter((o) => !polys.get(o.id))
+    const sansLieu = objets.filter((o) => !polys.get(o.id) && o.nature !== 'ligne')
     return { liste, sansLieu }
   }, [objets, polys, elements])
 
@@ -106,9 +106,11 @@ export default function BilansImplantation({ elements }) {
   const metre = useMemo(() => {
     const par = new Map()
     for (const o of objets) {
-      const cle = `${o.fournisseur ?? ''}|${o.catalogue_id ?? o.nom}|${o.largeur_m}|${o.longueur_m}`
-      const l = par.get(cle) ?? { fournisseur: o.fournisseur ?? '', libelle: o.nom, calque: o.calque, largeur: o.largeur_m, longueur: o.longueur_m, n: 0, surface: 0, kw: 0, kva: 0, codes: [] }
-      l.n++
+      // Une ligne de barrières compte ses modules (quantite), pas son tracé.
+      const ligne = o.nature === 'ligne'
+      const cle = ligne ? `${o.fournisseur ?? ''}|${o.catalogue_id ?? o.nom}|${o.largeur_m}` : `${o.fournisseur ?? ''}|${o.catalogue_id ?? o.nom}|${o.largeur_m}|${o.longueur_m}`
+      const l = par.get(cle) ?? { fournisseur: o.fournisseur ?? '', libelle: ligne ? `${o.nom} (modules de ${fr(o.largeur_m, 1)} m)` : o.nom, calque: o.calque, largeur: o.largeur_m, longueur: ligne ? null : o.longueur_m, n: 0, surface: 0, kw: 0, kva: 0, codes: [] }
+      l.n += ligne ? Number(o.quantite ?? 0) : 1
       l.surface += surfaceObjet(o)
       l.kw += Number(o.puissance_kw || 0)
       l.kva += Number(o.production_kva || 0)

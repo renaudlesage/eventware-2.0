@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, TileLayer, Polygon, Polyline, CircleMarker, ImageOverlay, Tooltip, useMap, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Polygon, Polyline, CircleMarker, Marker, ImageOverlay, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser, supprimerOuRefuser } from './ecriture'
 import { CATEGORIES_PLAN } from './referentielsProduit'
-import { polygoneObjet, distancePoints } from './geometrie'
+import { polygoneObjet, distancePoints, longueurLigne, jonctionsLigne, nombreModules, milieuLigne, translaterLigne } from './geometrie'
+import { pictoSvg } from './pictos'
 
 /**
  * Conception de l'implantation à l'échelle (migration 115, 15/10).
@@ -21,8 +22,12 @@ import { polygoneObjet, distancePoints } from './geometrie'
  *   mesurer  — deux clics, une distance ;
  *   caler    — deux clics (coin nord-ouest puis sud-est) pour poser un
  *              plan du terrain en transparence sous la carte.
+ *   tracer   — une ligne de barrières (117) : clic après clic, double-clic
+ *              ou « Terminer » pour la fermer ; la base en déduit le
+ *              nombre de modules.
  * Un objet sélectionné se déplace à la souris (glisser) ou, au doigt,
- * par « Déplacer » puis un clic.
+ * par « Déplacer » puis un clic. Les pictogrammes de sécurité (117) sont
+ * des points dessinés à taille fixe, qui se glissent comme des marqueurs.
  *
  * Les calques ne sont qu'un filtre d'affichage : chaque objet porte le
  * sien, et un calque masqué ne se sélectionne pas.
@@ -41,8 +46,21 @@ export const CALQUES = [
 export const COULEUR_CALQUE = Object.fromEntries(CALQUES.map(([k, , c]) => [k, c]))
 export const LIBELLE_CALQUE = Object.fromEntries(CALQUES.map(([k, l]) => [k, l]))
 
-const SATELLITE = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-const OSM = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+// Fonds de carte. `natif` : zoom maximal servi par la source ; au-delà,
+// Leaflet agrandit les tuiles, ce qui suffit pour poser à l'échelle.
+export const FONDS_CARTE = [
+  ['satellite', 'Satellite', [{ url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: '&copy; Esri', natif: 19 }]],
+  ['hybride', 'Satellite + noms', [
+    { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: '&copy; Esri', natif: 19 },
+    { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', attribution: '', natif: 19 }
+  ]],
+  ['plan', 'Plan (OSM)', [{ url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap', natif: 19 }]],
+  ['ign', 'Carte IGN belge', [{ url: 'https://cartoweb.wmts.ngi.be/1.0.0/topo/default/3857/{z}/{y}/{x}.png', attribution: '&copy; IGN-NGI', natif: 17 }]],
+  ['topo', 'Topographique', [{ url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenTopoMap', natif: 17 }]],
+  ['clair', 'Clair', [{ url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', attribution: '&copy; OpenStreetMap, &copy; CARTO', natif: 20 }]],
+  ['sombre', 'Sombre', [{ url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', attribution: '&copy; OpenStreetMap, &copy; CARTO', natif: 20 }]],
+  ['aucun', 'Aucun (fond de plan seul)', []]
+]
 
 const num = (v) => (v === '' || v == null ? null : Number(String(v).replace(',', '.')))
 const fr = (x, d = 1) => (x == null ? '—' : Number(x).toFixed(d).replace('.', ','))
@@ -53,12 +71,18 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
   const [urls, setUrls] = useState({})
   const [calquesVisibles, setCalquesVisibles] = useState(() => new Set(CALQUES.map(([k]) => k)))
   const [existantsVisibles, setExistantsVisibles] = useState(true)
-  const [fondCarte, setFondCarte] = useState('satellite')
+  const [fondCarte, setFondCarte] = useState(() => { try { return localStorage.getItem('impl.fond') || 'satellite' } catch { return 'satellite' } })
+  const [plein, setPlein] = useState(false)
   const [selection, setSelection] = useState(null)
-  const [mode, setMode] = useState(null) // {type:'poser', fiche} | {type:'mesurer', points} | {type:'caler', fond, points} | {type:'deplacer'}
+  const [mode, setMode] = useState(null) // {type:'poser', fiche} | {type:'tracer', fiche, points} | {type:'mesurer', points} | {type:'caler', fond, points} | {type:'deplacer'}
   const [recherche, setRecherche] = useState('')
   const [filtreCalque, setFiltreCalque] = useState('')
   const [brouillon, setBrouillon] = useState(null) // objet en cours de déplacement (centre provisoire)
+  // Le double-clic de fin de tracé arrive avant que les gestionnaires de
+  // la carte aient vu le dernier clic : on lit le mode courant, pas celui
+  // du rendu qui a attaché le gestionnaire.
+  const modeCourant = useRef(mode)
+  modeCourant.current = mode
   const [echelle, setEchelle] = useState(null) // mètres par centimètre de papier, à l'échelle affichée
 
   const objets = useMemo(() => elements.filter((e) => e.centre_lat != null && e.largeur_m), [elements])
@@ -91,11 +115,40 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evenement.id])
 
+  useEffect(() => {
+    try { localStorage.setItem('impl.fond', fondCarte) } catch {}
+  }, [fondCarte])
+
+  // Plein écran : Échap pour en sortir, et la page ne défile plus derrière.
+  useEffect(() => {
+    if (!plein) return
+    const touche = (e) => { if (e.key === 'Escape') setPlein(false) }
+    window.addEventListener('keydown', touche)
+    document.body.classList.add('impl-plein-corps')
+    return () => {
+      window.removeEventListener('keydown', touche)
+      document.body.classList.remove('impl-plein-corps')
+    }
+  }, [plein])
+
   /* ---- écritures ------------------------------------------------- */
 
   function champsGeometrie(o) {
+    if (o.nature === 'ligne') {
+      // Le tracé est la vérité ; longueur et nombre de modules en découlent.
+      const pts = o.geometrie ?? []
+      const total = longueurLigne(pts)
+      return { geometrie: pts, forme: 'ligne', longueur_m: Math.max(0.1, Math.round(total * 100) / 100), quantite: nombreModules(total, Number(o.largeur_m)) }
+    }
+    if (o.nature === 'picto') return { geometrie: [[Number(o.centre_lat), Number(o.centre_lon)]], forme: 'point' }
     const poly = polygoneObjet(o)
     return poly ? { geometrie: poly, forme: 'zone' } : {}
+  }
+
+  /** Les champs d'un déplacement vers `latlng`, selon la nature de l'objet. */
+  function champsDeplacement(o, latlng) {
+    if (o.nature === 'ligne') return { centre_lat: latlng.lat, centre_lon: latlng.lng, geometrie: translaterLigne(o.geometrie ?? [], [latlng.lat, latlng.lng]) }
+    return { centre_lat: latlng.lat, centre_lon: latlng.lng }
   }
 
   async function poser(fiche, latlng) {
@@ -108,6 +161,8 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
       catalogue_id: fiche.id,
       calque: fiche.calque,
       forme_echelle: fiche.forme,
+      nature: fiche.nature ?? 'objet',
+      picto: fiche.picto ?? null,
       centre_lat: latlng.lat,
       centre_lon: latlng.lng,
       largeur_m: fiche.largeur_m,
@@ -133,6 +188,39 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
     onRecharger()
   }
 
+  async function poserLigne(fiche, points) {
+    if (points.length < 2) return
+    const milieu = milieuLigne(points)
+    const o = {
+      evenement_id: evenement.id,
+      code: '',
+      nom: fiche.libelle,
+      categorie: fiche.categorie,
+      est_risque: fiche.est_risque,
+      catalogue_id: fiche.id,
+      calque: fiche.calque,
+      forme_echelle: fiche.forme,
+      nature: 'ligne',
+      centre_lat: milieu[0],
+      centre_lon: milieu[1],
+      largeur_m: fiche.largeur_m, // longueur d'un module
+      hauteur_m: fiche.hauteur_m,
+      rotation_deg: 0,
+      distance_securite_m: fiche.distance_securite_m,
+      description: fiche.description,
+      fournisseur: null,
+      geometrie: points,
+      confirme: false,
+      origine: 'humain'
+    }
+    const { data, error } = await supabase.from('elements_plan').insert({ ...o, ...champsGeometrie(o) }).select('id').single()
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    else {
+      setSelection(data.id)
+      onRecharger()
+    }
+  }
+
   async function modifier(o, champs) {
     const fusion = { ...o, ...champs }
     const refus = await modifierOuRefuser('elements_plan', { ...champs, ...champsGeometrie(fusion) }, { id: o.id })
@@ -142,11 +230,11 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
 
   async function dupliquer(o) {
     const { id, code, created_at, updated_at, created_by, updated_by, confirme_le, confirme_par, ecart_constate, ...reste } = o
+    const centre = { lat: Number(o.centre_lat) + 0.00005, lng: Number(o.centre_lon) + 0.00008 }
     const copie = {
       ...reste,
       code: '',
-      centre_lat: Number(o.centre_lat) + 0.00005,
-      centre_lon: Number(o.centre_lon) + 0.00008,
+      ...champsDeplacement(o, centre),
       confirme: false
     }
     const { data, error } = await supabase.from('elements_plan').insert({ ...copie, ...champsGeometrie(copie) }).select('id').single()
@@ -175,11 +263,19 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
     }
     if (mode.type === 'poser') {
       poser(mode.fiche, latlng)
-      // On garde le mode : poser dix barrières ne demande pas dix allers-retours.
+      // On garde le mode : poser dix extincteurs ne demande pas dix allers-retours.
+      return
+    }
+    if (mode.type === 'tracer') {
+      const points = mode.points ?? []
+      const dernier = points[points.length - 1]
+      // Le double-clic envoie deux clics au même endroit : un seul point.
+      if (dernier && distancePoints(dernier, [latlng.lat, latlng.lng]) < 0.3) return
+      setMode({ ...mode, points: [...points, [latlng.lat, latlng.lng]] })
       return
     }
     if (mode.type === 'deplacer' && selectionne) {
-      modifier(selectionne, { centre_lat: latlng.lat, centre_lon: latlng.lng })
+      modifier(selectionne, champsDeplacement(selectionne, latlng))
       setMode(null)
       return
     }
@@ -203,7 +299,27 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
 
   function finDeplacement(o, latlng) {
     setBrouillon(null)
-    modifier(o, { centre_lat: latlng.lat, centre_lon: latlng.lng })
+    modifier(o, champsDeplacement(o, latlng))
+  }
+
+  function terminerTrace() {
+    const m = modeCourant.current
+    if (m?.type !== 'tracer') return
+    const points = m.points ?? []
+    if (points.length >= 2) poserLigne(m.fiche, points)
+    // On garde la barrière en main : un périmètre se trace en plusieurs lignes.
+    setMode({ type: 'tracer', fiche: m.fiche, points: [] })
+  }
+
+  function choisirFiche(f) {
+    if (f.nature === 'ligne') setMode({ type: 'tracer', fiche: f, points: [] })
+    else setMode({ type: 'poser', fiche: f })
+  }
+
+  /** L'objet tel qu'il s'affiche pendant un glisser (centre provisoire). */
+  function avecBrouillon(o) {
+    if (brouillon?.id !== o.id) return o
+    return { ...o, ...champsDeplacement(o, brouillon) }
   }
 
   /* ---- fonds -------------------------------------------------------- */
@@ -267,6 +383,8 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
   )
   const visibles = objets.filter((o) => calquesVisibles.has(o.calque ?? 'infrastructures'))
   const mesure = mode?.type === 'mesurer' && mode.points?.length === 2 ? distancePoints(mode.points[0], mode.points[1]) : null
+  const trace = mode?.type === 'tracer' && mode.points?.length ? { longueur: longueurLigne(mode.points), n: nombreModules(longueurLigne(mode.points), Number(mode.fiche.largeur_m)) } : null
+  const couchesFond = FONDS_CARTE.find(([k]) => k === fondCarte)?.[2] ?? FONDS_CARTE[0][2]
 
   function basculerCalque(k) {
     setCalquesVisibles((s) => {
@@ -277,18 +395,23 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
   }
 
   return (
-    <div className={`implantation mode-${mode?.type ?? 'libre'}`}>
+    <div className={`implantation mode-${mode?.type ?? 'libre'} ${plein ? 'impl-plein' : ''}`}>
       <div className="impl-barre">
         <div className="ligne-boutons">
-          <button className={fondCarte === 'satellite' ? '' : 'discret'} onClick={() => setFondCarte('satellite')}>Satellite</button>
-          <button className={fondCarte === 'plan' ? '' : 'discret'} onClick={() => setFondCarte('plan')}>Plan</button>
+          <select value={fondCarte} onChange={(e) => setFondCarte(e.target.value)} aria-label="Fond de carte" className="impl-fond-choix">
+            {FONDS_CARTE.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          </select>
           <button className={mode?.type === 'mesurer' ? '' : 'discret'} onClick={() => setMode(mode?.type === 'mesurer' ? null : { type: 'mesurer', points: [] })}>
             Mesurer
           </button>
+          <button className="discret" onClick={() => setPlein((v) => !v)}>{plein ? 'Réduire' : 'Agrandir'}</button>
           <button className="discret" onClick={imprimer}>Imprimer le plan</button>
+          {mode?.type === 'tracer' && (mode.points?.length ?? 0) >= 2 && (
+            <button onClick={terminerTrace}>Terminer la ligne</button>
+          )}
           {mode && (
             <button className="discret" onClick={() => setMode(null)}>
-              Annuler {mode.type === 'poser' ? `(${mode.fiche.libelle})` : ''}
+              Annuler {mode.type === 'poser' || mode.type === 'tracer' ? `(${mode.fiche.libelle})` : ''}
             </button>
           )}
         </div>
@@ -311,7 +434,12 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
       </div>
 
       <p className="aide impl-consigne">
-        {mode?.type === 'poser' && `Clique sur la carte pour poser « ${mode.fiche.libelle} » (${fr(mode.fiche.largeur_m)} × ${fr(mode.fiche.longueur_m)} m). Encore un clic, encore un.`}
+        {mode?.type === 'poser' && (mode.fiche.nature === 'picto'
+          ? `Clique sur la carte pour poser le pictogramme « ${mode.fiche.libelle} ». Encore un clic, encore un.`
+          : `Clique sur la carte pour poser « ${mode.fiche.libelle} » (${fr(mode.fiche.largeur_m)} × ${fr(mode.fiche.longueur_m)} m). Encore un clic, encore un.`)}
+        {mode?.type === 'tracer' && (trace
+          ? `${trace.n} × ${mode.fiche.libelle} sur ${fr(trace.longueur, 1)} m. Clique pour prolonger, double-clic ou « Terminer la ligne » pour poser.`
+          : `Clique les points du tracé de « ${mode.fiche.libelle} » (modules de ${fr(mode.fiche.largeur_m)} m).`)}
         {mode?.type === 'mesurer' && (mesure != null ? `Distance : ${fr(mesure, 1)} m. Clique pour mesurer à nouveau.` : 'Clique deux points sur la carte.')}
         {mode?.type === 'caler' && (mode.points?.length ? 'Puis le coin SUD-EST du plan.' : 'Clique le coin NORD-OUEST du plan sur la carte.')}
         {mode?.type === 'deplacer' && 'Clique sur la carte, là où doit aller l’objet sélectionné.'}
@@ -335,12 +463,18 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
                 className={`impl-fiche ${mode?.type === 'poser' && mode.fiche.id === f.id ? 'actif' : ''}`}
                 style={{ '--c': COULEUR_CALQUE[f.calque] }}
                 disabled={!peutCreer}
-                onClick={() => setMode({ type: 'poser', fiche: f })}
+                onClick={() => choisirFiche(f)}
                 title={f.description ?? ''}
               >
-                <span className="impl-pastille" />
+                {f.nature === 'picto' ? (
+                  <span className="impl-fiche-picto" dangerouslySetInnerHTML={{ __html: pictoSvg(f.picto, 18) }} />
+                ) : (
+                  <span className="impl-pastille" />
+                )}
                 <span className="impl-fiche-nom">{f.libelle}{f.organisation_id ? ' ·' : ''}</span>
-                <span className="mono impl-fiche-dim">{fr(f.largeur_m)} × {fr(f.longueur_m)}</span>
+                <span className="mono impl-fiche-dim">
+                  {f.nature === 'ligne' ? `ligne · ${fr(f.largeur_m)} m` : f.nature === 'picto' ? 'picto' : `${fr(f.largeur_m)} × ${fr(f.longueur_m)}`}
+                </span>
               </button>
             ))}
             {fiches.length === 0 && <p className="aide">Rien dans ce calque.</p>}
@@ -349,12 +483,10 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
         </aside>
 
         <div className="carte-conteneur impl-carte">
-          <MapContainer center={centreParDefaut(evenement, objets)} zoom={18} maxZoom={22} scrollWheelZoom>
-            {fondCarte === 'satellite' ? (
-              <TileLayer attribution="&copy; Esri" url={SATELLITE} maxNativeZoom={19} maxZoom={22} />
-            ) : (
-              <TileLayer attribution="&copy; OpenStreetMap" url={OSM} maxNativeZoom={19} maxZoom={22} />
-            )}
+          <MapContainer center={centreParDefaut(evenement, objets)} zoom={18} maxZoom={22} scrollWheelZoom className={fondCarte === 'aucun' ? 'fond-blanc' : ''}>
+            {couchesFond.map((c, i) => (
+              <TileLayer key={fondCarte + i} attribution={c.attribution} url={c.url} maxNativeZoom={c.natif} maxZoom={22} />
+            ))}
             {fonds.filter((f) => f.visible && urls[f.id]).map((f) => (
               <ImageOverlay key={f.id + f.updated_at} url={urls[f.id]} bounds={[[f.coins.so[0], f.coins.no[1]], [f.coins.no[0], f.coins.ne[1]]]} opacity={Number(f.opacite)} />
             ))}
@@ -362,11 +494,11 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
             {visibles.map((o) => (
               <Objet
                 key={o.id}
-                o={brouillon?.id === o.id ? { ...o, centre_lat: brouillon.lat, centre_lon: brouillon.lng } : o}
+                o={avecBrouillon(o)}
                 selectionne={o.id === selection}
                 peutModifier={peutModifier}
                 onSelection={() => {
-                  if (mode?.type === 'poser' || mode?.type === 'caler') return
+                  if (mode?.type === 'poser' || mode?.type === 'caler' || mode?.type === 'tracer') return
                   setSelection(o.id)
                 }}
                 onGlisser={(latlng) => setBrouillon({ id: o.id, ...latlng })}
@@ -384,7 +516,17 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
               </>
             )}
             {mode?.type === 'caler' && mode.points?.map((p, i) => <CircleMarker key={i} center={p} radius={5} pathOptions={{ color: '#b3311d' }} />)}
-            <Gestes onClic={clicCarte} curseur={mode ? 'crosshair' : ''} />
+            {mode?.type === 'tracer' && mode.points?.length > 0 && (
+              <>
+                {mode.points.length > 1 && <Polyline positions={mode.points} pathOptions={{ color: COULEUR_CALQUE[mode.fiche.calque] ?? '#10151b', weight: 3, dashArray: '8 5' }} interactive={false} />}
+                {jonctionsLigne(mode.points, Number(mode.fiche.largeur_m)).map((p, i) => <CircleMarker key={i} center={p} radius={2.5} interactive={false} pathOptions={{ color: '#10151b', fillColor: '#fff', fillOpacity: 1, weight: 1 }} />)}
+                <CircleMarker center={mode.points[mode.points.length - 1]} radius={5} interactive={false} pathOptions={{ color: '#10151b', fillColor: '#fff', fillOpacity: 1 }}>
+                  {trace && <Tooltip permanent direction="right" offset={[6, 0]} className="etiquette-carte">{trace.n} × {fr(trace.longueur, 1)} m</Tooltip>}
+                </CircleMarker>
+              </>
+            )}
+            <Gestes onClic={clicCarte} onDoubleClic={mode?.type === 'tracer' ? terminerTrace : null} curseur={mode ? 'crosshair' : ''} />
+            <Redimension />
             <Echelle onEchelle={setEchelle} />
             <Cadrage objets={objets} />
           </MapContainer>
@@ -393,6 +535,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
             {CALQUES.filter(([k]) => calquesVisibles.has(k) && objets.some((o) => (o.calque ?? 'infrastructures') === k)).map(([k, l, c]) => (
               <span key={k} className="impl-legende-item"><span className="impl-pastille" style={{ '--c': c }} />{l}</span>
             ))}
+            {objets.some((o) => o.nature === 'picto' && calquesVisibles.has(o.calque ?? 'securite')) && <span className="impl-legende-item">Pictogrammes : signalisation de sécurité</span>}
             {echelle && <span className="mono">1 cm ≈ {fr(echelle, echelle < 10 ? 1 : 0)} m</span>}
             <span className="sourdine">Objets en pointillé : non confirmés sur site</span>
           </div>
@@ -436,15 +579,38 @@ function centreParDefaut(evenement, objets) {
 /* ------------------------------------------------------------------ */
 /* Couches de la carte                                                 */
 
-function Gestes({ onClic, curseur }) {
+function Gestes({ onClic, onDoubleClic, curseur }) {
   const carte = useMapEvents({
     click(e) {
       onClic(e.latlng)
+    },
+    dblclick(e) {
+      if (onDoubleClic) {
+        L.DomEvent.stop(e)
+        onDoubleClic()
+      }
     }
   })
   useEffect(() => {
     carte.getContainer().style.cursor = curseur
   }, [carte, curseur])
+  // Pendant un tracé, le double-clic termine la ligne : il ne zoome plus.
+  useEffect(() => {
+    if (onDoubleClic) carte.doubleClickZoom.disable()
+    else carte.doubleClickZoom.enable()
+  }, [carte, onDoubleClic])
+  return null
+}
+
+/** La carte suit la taille de son conteneur (plein écran, colonnes qui bougent). */
+function Redimension() {
+  const carte = useMap()
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return
+    const obs = new ResizeObserver(() => carte.invalidateSize())
+    obs.observe(carte.getContainer())
+    return () => obs.disconnect()
+  }, [carte])
   return null
 }
 
@@ -494,9 +660,12 @@ function Existant({ e }) {
 
 function Objet({ o, selectionne, peutModifier, onSelection, onGlisser, onDeposer }) {
   const carte = useMap()
-  const poly = polygoneObjet(o)
   const couleur = COULEUR_CALQUE[o.calque] ?? '#5d6874'
   const glisse = useRef(null)
+  const couche = useRef(null)
+  const centre = [Number(o.centre_lat), Number(o.centre_lon)]
+  const poly = o.nature === 'ligne' ? null : polygoneObjet(o)
+  const trace = o.nature === 'ligne' ? o.geometrie ?? [] : null
 
   // Glisser à la souris : on coupe le déplacement de la carte le temps du
   // geste, et on écrit à la dépose seulement.
@@ -506,11 +675,11 @@ function Objet({ o, selectionne, peutModifier, onSelection, onGlisser, onDeposer
     if (ev?.button != null && ev.button !== 0) return
     carte.dragging.disable()
     const origine = e.latlng
-    const centre = { lat: Number(o.centre_lat), lng: Number(o.centre_lon) }
-    glisse.current = { origine, centre }
+    const depart = { lat: centre[0], lng: centre[1] }
+    glisse.current = { origine, depart }
     const bouge = (m) => {
       if (!glisse.current) return
-      onGlisser({ lat: centre.lat + (m.latlng.lat - origine.lat), lng: centre.lng + (m.latlng.lng - origine.lng) })
+      onGlisser({ lat: depart.lat + (m.latlng.lat - origine.lat), lng: depart.lng + (m.latlng.lng - origine.lng) })
     }
     const fin = (m) => {
       carte.off('mousemove', bouge)
@@ -518,16 +687,94 @@ function Objet({ o, selectionne, peutModifier, onSelection, onGlisser, onDeposer
       carte.dragging.enable()
       if (!glisse.current) return
       glisse.current = null
-      const d = { lat: centre.lat + (m.latlng.lat - origine.lat), lng: centre.lng + (m.latlng.lng - origine.lng) }
-      if (Math.abs(d.lat - centre.lat) > 1e-7 || Math.abs(d.lng - centre.lng) > 1e-7) onDeposer(d)
+      const d = { lat: depart.lat + (m.latlng.lat - origine.lat), lng: depart.lng + (m.latlng.lng - origine.lng) }
+      if (Math.abs(d.lat - depart.lat) > 1e-7 || Math.abs(d.lng - depart.lng) > 1e-7) onDeposer(d)
     }
     carte.on('mousemove', bouge)
     carte.on('mouseup', fin)
   }
 
+  // L'étiquette d'un tracé ou d'une emprise est posée par Leaflet à
+  // l'ouverture, et n'en bouge plus toute seule : quand l'objet se
+  // déplace, se tourne ou se redimensionne, on la ramène au centre.
+  // (Et react-leaflet ne réapplique pas `permanent` après coup : la clé
+  // du Tooltip change avec la sélection pour le recréer.)
+  const cle = JSON.stringify(poly ?? trace)
+  useEffect(() => {
+    const l = couche.current
+    const t = l?.getTooltip?.()
+    if (!l || !t || !t.isOpen?.()) return
+    t.setLatLng(trace ? milieuLigne(trace) : l.getCenter())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cle, selectionne])
+
+  const evenements = {
+    click(e) {
+      // Sinon le clic remonte à la carte, qui désélectionne aussitôt.
+      // L'événement LEAFLET, pas le DOM : c'est lui qui porte le drapeau
+      // que la carte consulte avant de propager.
+      L.DomEvent.stopPropagation(e)
+      onSelection()
+    },
+    mousedown: debut
+  }
+
+  if (o.nature === 'picto') {
+    const taille = selectionne ? 36 : 30
+    const icone = L.divIcon({
+      className: `impl-picto ${selectionne ? 'actif' : ''} ${o.confirme ? '' : 'non-confirme'}`,
+      html: `<div style="transform:rotate(${Number(o.rotation_deg ?? 0)}deg)">${pictoSvg(o.picto, taille)}</div>`,
+      iconSize: [taille, taille],
+      iconAnchor: [taille / 2, taille / 2],
+      tooltipAnchor: [0, -taille / 2]
+    })
+    return (
+      <Marker
+        position={centre}
+        icon={icone}
+        draggable={!!(peutModifier && selectionne)}
+        eventHandlers={{
+          click(e) {
+            L.DomEvent.stopPropagation(e)
+            onSelection()
+          },
+          dragend(e) {
+            const p = e.target.getLatLng()
+            onDeposer({ lat: p.lat, lng: p.lng })
+          }
+        }}
+      >
+        <Tooltip key={selectionne ? "fixe" : "survol"} direction="top" permanent={selectionne} className="etiquette-carte">{o.nom}</Tooltip>
+      </Marker>
+    )
+  }
+
+  if (trace) {
+    if (trace.length < 2) return null
+    const jonctions = jonctionsLigne(trace, Number(o.largeur_m))
+    return (
+      <>
+        <Polyline
+          ref={couche}
+          positions={trace}
+          pathOptions={{ color: selectionne ? '#10151b' : couleur, weight: selectionne ? 5 : 3.5, dashArray: o.confirme ? null : '8 5' }}
+          eventHandlers={evenements}
+        >
+          <Tooltip key={selectionne ? "fixe" : "survol"} direction="center" permanent={selectionne} className="etiquette-carte">
+            {o.nom} · {o.quantite ?? jonctions.length} × {fr(o.largeur_m)} m
+          </Tooltip>
+        </Polyline>
+        {jonctions.map((p, i) => (
+          <CircleMarker key={i} center={p} radius={2.5} interactive={false} pathOptions={{ color: couleur, fillColor: '#fff', fillOpacity: 1, weight: 1.5 }} />
+        ))}
+      </>
+    )
+  }
+
   if (!poly) return null
   return (
     <Polygon
+      ref={couche}
       positions={poly}
       pathOptions={{
         color: selectionne ? '#10151b' : couleur,
@@ -536,18 +783,9 @@ function Objet({ o, selectionne, peutModifier, onSelection, onGlisser, onDeposer
         fillOpacity: selectionne ? 0.55 : 0.35,
         dashArray: o.confirme ? null : '5 3'
       }}
-      eventHandlers={{
-        click(e) {
-          // Sinon le clic remonte à la carte, qui désélectionne aussitôt.
-          // L'événement LEAFLET, pas le DOM : c'est lui qui porte le drapeau
-          // que la carte consulte avant de propager.
-          L.DomEvent.stopPropagation(e)
-          onSelection()
-        },
-        mousedown: debut
-      }}
+      eventHandlers={evenements}
     >
-      <Tooltip direction="center" permanent={selectionne} className="etiquette-carte">
+      <Tooltip key={selectionne ? "fixe" : "survol"} direction="center" permanent={selectionne} className="etiquette-carte">
         {o.nom}
       </Tooltip>
     </Polygon>
@@ -585,6 +823,8 @@ function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onDeplacer
   }
 
   const lecture = !peutModifier
+  const ligne = o.nature === 'ligne'
+  const picto = o.nature === 'picto'
   const generateurs = objets.filter((x) => Number(x.production_kva) > 0 && x.id !== o.id)
   const sources = objets.filter((x) => x.source_eau && x.id !== o.id)
 
@@ -625,23 +865,42 @@ function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onDeplacer
           </select>
         </label>
       </div>
-      <div className="impl-trois">
-        <label>
-          {o.forme_echelle === 'cercle' ? 'Diamètre (m)' : 'Largeur (m)'}
-          <input type="number" step="0.1" min="0.1" value={f.largeur_m} disabled={lecture} onChange={(e) => envoyer('largeur_m', e.target.value)} onBlur={() => valider('largeur_m', num)} />
-        </label>
-        {o.forme_echelle !== 'cercle' && (
+      {ligne ? (
+        <div className="impl-trois">
+          <label>
+            Module (m)
+            <input type="number" step="0.1" min="0.1" value={f.largeur_m} disabled={lecture} onChange={(e) => envoyer('largeur_m', e.target.value)} onBlur={() => valider('largeur_m', num)} />
+          </label>
           <label>
             Longueur (m)
-            <input type="number" step="0.1" min="0.1" value={f.longueur_m} disabled={lecture} onChange={(e) => envoyer('longueur_m', e.target.value)} onBlur={() => valider('longueur_m', num)} />
+            <input type="number" value={fr(o.longueur_m, 1)} disabled />
           </label>
-        )}
-        <label>
-          Hauteur (m)
-          <input type="number" step="0.1" min="0" value={f.hauteur_m} disabled={lecture} onChange={(e) => envoyer('hauteur_m', e.target.value)} onBlur={() => valider('hauteur_m', num)} />
-        </label>
-      </div>
-      {o.forme_echelle !== 'cercle' && (
+          <label>
+            Barrières
+            <input type="number" value={o.quantite ?? 0} disabled />
+          </label>
+        </div>
+      ) : picto ? null : (
+        <div className="impl-trois">
+          <label>
+            {o.forme_echelle === 'cercle' ? 'Diamètre (m)' : 'Largeur (m)'}
+            <input type="number" step="0.1" min="0.1" value={f.largeur_m} disabled={lecture} onChange={(e) => envoyer('largeur_m', e.target.value)} onBlur={() => valider('largeur_m', num)} />
+          </label>
+          {o.forme_echelle !== 'cercle' && (
+            <label>
+              Longueur (m)
+              <input type="number" step="0.1" min="0.1" value={f.longueur_m} disabled={lecture} onChange={(e) => envoyer('longueur_m', e.target.value)} onBlur={() => valider('longueur_m', num)} />
+            </label>
+          )}
+          <label>
+            Hauteur (m)
+            <input type="number" step="0.1" min="0" value={f.hauteur_m} disabled={lecture} onChange={(e) => envoyer('hauteur_m', e.target.value)} onBlur={() => valider('hauteur_m', num)} />
+          </label>
+        </div>
+      )}
+      {ligne && <p className="aide">Le tracé se déplace d'un bloc (glisser ou « Déplacer ») ; pour le modifier, retire-le et retrace-le. Le dernier module peut être plus court.</p>}
+      {picto && <p className="aide">Pictogramme dessiné à taille fixe, quel que soit le zoom. La rotation oriente les flèches.</p>}
+      {(o.forme_echelle !== 'cercle' || picto) && !ligne && (
         <div className="impl-rotation">
           <span className="cadran-libelle">Rotation</span>
           <input type="range" min="0" max="359" value={Number(f.rotation_deg)} disabled={lecture} onChange={(e) => envoyer('rotation_deg', Number(e.target.value))} onMouseUp={() => valider('rotation_deg', Number)} onTouchEnd={() => valider('rotation_deg', Number)} onKeyUp={() => valider('rotation_deg', Number)} />
@@ -652,6 +911,7 @@ function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onDeplacer
         </div>
       )}
 
+      {!ligne && !picto && (<>
       <h4 className="prc-titre">Énergie</h4>
       <div className="impl-deux">
         <label>
@@ -687,6 +947,7 @@ function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onDeplacer
           </select>
         </label>
       )}
+      </>)}
 
       <h4 className="prc-titre">Sécurité</h4>
       <div className="impl-cases">

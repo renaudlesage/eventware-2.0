@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { ecrireOuEmpiler } from './fileEcritures'
 import { libelleStatut } from './libelles'
-import { detecterDoublons } from './doublons'
 import { texteErreur } from './erreurs'
+import SuggestionsDemande from './SuggestionsDemande'
 import { MODULES_SAISIE } from './Journal'
 import { PRIORITES } from './referentielsProduit'
 
@@ -198,6 +198,11 @@ export function Missions({ evenement, membre, peut, toutPouvoir, setMessage, mod
             setCreer(null)
             charger()
           }}
+          onSuivre={(id) => {
+            setCreer(null)
+            setOuvert(id)
+            charger()
+          }}
           onAnnuler={() => setCreer(null)}
         />
       )}
@@ -358,7 +363,7 @@ function echeanceDepuisDelai(delai) {
  * demande un délai souhaité et affiche qui signale, en lecture seule,
  * parce que c'est toujours celui qui est connecté.
  */
-function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessage, onFait, onAnnuler }) {
+function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessage, onFait, onSuivre, onAnnuler }) {
   const urgent = mode === 'urgent'
   const [natureUrgente, setNatureUrgente] = useState(NATURES_URGENTES[0][0])
   const [types, setTypes] = useState([])
@@ -371,8 +376,6 @@ function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessa
   const [bloquant, setBloquant] = useState(false)
   const [position, setPosition] = useState(null)
   const [occupe, setOccupe] = useState(false)
-  const [doublons, setDoublons] = useState([])
-  const [ignorerDoublons, setIgnorerDoublons] = useState(false)
 
   useEffect(() => {
     if (urgent) return
@@ -394,47 +397,52 @@ function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urgent])
 
-  // À la saisie, pas après coup — REX BFMF 2026 point 9 : deux missions
-  // identiques pour le même seau de jetons à 21 minutes d'intervalle,
-  // jamais rapprochées. Comparaison simple par mots partagés, pas un
-  // modèle de langage — elle attrape les cas grossiers, pas tous les
-  // doublons possibles. Un avertissement à ignorer d'un clic, jamais
-  // un blocage : le coût d'un faux positif reste faible, celui d'un
-  // blocage à tort ne l'est pas.
-  async function verifierDoublons() {
-    if (urgent || !precision.trim()) {
-      setDoublons([])
-      return
-    }
-    const { data } = await supabase
-      .from('missions')
-      .select('id, titre, lieu_id, created_at, membre:membre_id(nom_affiche)')
-      .eq('evenement_id', evenement.id)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-      .limit(50)
-    const candidats = (data ?? []).map((m) => ({
-      id: m.id,
-      texte: m.titre,
-      lieu_id: m.lieu_id,
-      cree_le: m.created_at,
-      auteur: m.membre?.nom_affiche
-    }))
-    setDoublons(detecterDoublons({ texte: precision, lieuId: lieuId || null, candidats }))
-    setIgnorerDoublons(false)
-  }
-
   const typeChoisi = types.find((t) => t.id === typeId)
 
-  const pret = urgent
-    ? descriptif.trim().length >= 5
-    : !!typeId && (doublons.length === 0 || ignorerDoublons)
+  // À la saisie, pas après coup — REX BFMF 2026 point 9 : deux missions
+  // identiques pour le même seau de jetons à 21 minutes d'intervalle,
+  // jamais rapprochées. Depuis la 116, c'est la base qui compare
+  // (`missions_similaires` : synonymes du terrain, même lieu, même
+  // auteur, fenêtre de 6 h), calibrée sur les 68 demandes de BFMF 2026 :
+  // 7 rapprochements, aucun faux positif. Une suggestion à écarter d'un
+  // clic, jamais un blocage : le coût d'un faux positif reste faible,
+  // celui d'un blocage à tort ne l'est pas.
+  const titreSaisi = urgent
+    ? NATURES_URGENTES.find((n) => n[0] === natureUrgente)[1]
+    : typeChoisi
+      ? typeChoisi.libelle + (precision.trim() ? ` — ${precision.trim()}` : '')
+      : ''
+  const descriptionSaisie = urgent ? descriptif.trim() : ''
+  // La catégorie seule (« Logistique ») ressemble à toutes les demandes
+  // de la catégorie : on n'interroge qu'une fois quelque chose de précis
+  // est écrit.
+  const titreACompar = urgent ? (descriptif.trim().length >= 5 ? titreSaisi : '') : precision.trim() ? titreSaisi : ''
+
+  const pret = urgent ? descriptif.trim().length >= 5 : !!typeId
+
+  // « Ajouter en commentaire » : le texte saisi rejoint la demande
+  // existante plutôt que d'en ouvrir une nouvelle.
+  async function commenter(missionId) {
+    const texte = urgent ? descriptif.trim() : precision.trim()
+    if (!texte) return
+    setOccupe(true)
+    const { error } = await supabase.from('mission_commentaires').insert({
+      evenement_id: evenement.id,
+      mission_id: missionId,
+      auteur_id: membre.user_id,
+      texte
+    })
+    setOccupe(false)
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    else {
+      setMessage({ type: 'ok', texte: 'Ajouté en commentaire de la demande existante.' })
+      onSuivre(missionId)
+    }
+  }
 
   async function creer() {
     setOccupe(true)
-    const titre = urgent
-      ? NATURES_URGENTES.find((n) => n[0] === natureUrgente)[1]
-      : typeChoisi.libelle + (precision.trim() ? ` — ${precision.trim()}` : '')
+    const titre = titreSaisi
     const { error } = await supabase.from('missions').insert({
       evenement_id: evenement.id,
       module,
@@ -511,6 +519,15 @@ function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessa
             placeholder="Ce qui se passe, depuis quand, besoin exprimé…"
           />
 
+          <SuggestionsDemande
+            evenementId={evenement.id}
+            titre={titreACompar}
+            description={descriptionSaisie}
+            lieuId={lieuId}
+            onSuivre={onSuivre}
+            onCommenter={commenter}
+          />
+
           <button disabled={occupe || !pret} onClick={creer} style={{ marginTop: 8 }}>
             Envoyer la demande
           </button>
@@ -540,30 +557,17 @@ function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessa
             id="precision-normale"
             value={precision}
             onChange={(e) => setPrecision(e.target.value)}
-            onBlur={verifierDoublons}
             placeholder="Ex : gobelets scène 2, panne projecteur backstage…"
           />
 
-          {doublons.length > 0 && !ignorerDoublons && (
-            <div className="message erreur">
-              <strong>Une demande très proche existe déjà :</strong>
-              <ul className="chrono" style={{ marginTop: 6 }}>
-                {doublons.slice(0, 3).map((d) => (
-                  <li key={d.id}>
-                    <span className="corps">
-                      {d.texte} — {d.auteur ?? 'quelqu\u2019un'},{' '}
-                      {Math.round((Date.now() - new Date(d.cree_le).getTime()) / 60000)} min
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <div className="ligne-boutons" style={{ marginTop: 6 }}>
-                <button className="discret" onClick={() => setIgnorerDoublons(true)}>
-                  Créer quand même — ce n'est pas la même chose
-                </button>
-              </div>
-            </div>
-          )}
+          <SuggestionsDemande
+            evenementId={evenement.id}
+            titre={titreACompar}
+            description={descriptionSaisie}
+            lieuId={lieuId}
+            onSuivre={onSuivre}
+            onCommenter={commenter}
+          />
 
           <div className="saisie-rapide">
             <div style={{ flex: 1 }}>
@@ -571,10 +575,7 @@ function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessa
               <select
                 id="lieu-normale"
                 value={lieuId}
-                onChange={(e) => {
-                  setLieuId(e.target.value)
-                  verifierDoublons()
-                }}
+                onChange={(e) => setLieuId(e.target.value)}
               >
                 <option value="">— choisir un lieu du dispositif —</option>
                 {lieux.map((l) => (

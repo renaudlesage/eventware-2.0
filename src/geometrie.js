@@ -55,13 +55,17 @@ export function cerclePolygone(centre, diametre, n = 24) {
 /** Le polygone d'un objet placé, ou null s'il n'est pas à l'échelle. */
 export function polygoneObjet(o) {
   if (o.centre_lat == null || o.centre_lon == null || !o.largeur_m || !o.longueur_m) return null
+  // Une ligne de barrières n'a pas d'emprise : son tracé est `geometrie`.
+  if (o.nature === 'ligne') return null
   const centre = [Number(o.centre_lat), Number(o.centre_lon)]
+  // Un pictogramme : un disque symbolique de 0,5 m, pour les distances.
+  if (o.nature === 'picto') return cerclePolygone(centre, 0.5, 8)
   if (o.forme_echelle === 'cercle') return cerclePolygone(centre, Number(o.largeur_m))
   return coinsRectangle(centre, Number(o.largeur_m), Number(o.longueur_m), Number(o.rotation_deg ?? 0))
 }
 
 export function surfaceObjet(o) {
-  if (!o.largeur_m || !o.longueur_m) return 0
+  if (!o.largeur_m || !o.longueur_m || o.nature === 'ligne' || o.nature === 'picto') return 0
   if (o.forme_echelle === 'cercle') return (Math.PI * Number(o.largeur_m) ** 2) / 4
   return Number(o.largeur_m) * Number(o.longueur_m)
 }
@@ -153,4 +157,74 @@ export function distancePolygoneLigne(poly, ligne) {
 export function distancePoints(a, b) {
   const { x, y } = versLocal(b, a)
   return Math.sqrt(x * x + y * y)
+}
+
+/* ------------------------------------------------------------------ */
+/* Lignes (barriérage, 117)                                            */
+
+/** Longueur (m) d'une polyligne [lat, lon][]. */
+export function longueurLigne(points) {
+  let l = 0
+  for (let i = 1; i < points.length; i++) l += distancePoints(points[i - 1], points[i])
+  return l
+}
+
+/**
+ * Subdivise une polyligne en modules de `pas` mètres : les jonctions
+ * entre barrières, en [lat, lon], du premier point jusqu'au dernier
+ * module entier. Le dernier module peut être plus court (le terrain ne
+ * fait jamais un multiple de 3,5 m) : il est compté, pas étiré.
+ */
+export function jonctionsLigne(points, pas) {
+  if (points.length < 2 || !(pas > 0)) return []
+  const origine = points[0]
+  const P = points.map((p) => versLocal(p, origine))
+  const sortie = [points[0]]
+  let reste = pas // distance jusqu'à la prochaine jonction
+  for (let i = 1; i < P.length; i++) {
+    const a = P[i - 1]
+    const b = P[i]
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const L = Math.sqrt(dx * dx + dy * dy)
+    let t = 0
+    while (L - t >= reste) {
+      t += reste
+      sortie.push(versLatLon({ x: a.x + (dx * t) / L, y: a.y + (dy * t) / L }, origine))
+      reste = pas
+    }
+    reste -= L - t
+  }
+  return sortie
+}
+
+/** Nombre de modules de `pas` m pour couvrir une longueur (dernier module partiel compris). */
+export function nombreModules(longueur, pas) {
+  if (!(pas > 0) || !(longueur > 0)) return 0
+  return Math.ceil(longueur / pas - 1e-6)
+}
+
+/** Point milieu (par la longueur) d'une polyligne, en [lat, lon]. */
+export function milieuLigne(points) {
+  if (!points.length) return null
+  const total = longueurLigne(points)
+  let cible = total / 2
+  for (let i = 1; i < points.length; i++) {
+    const d = distancePoints(points[i - 1], points[i])
+    if (d >= cible) {
+      const f = d ? cible / d : 0
+      return [points[i - 1][0] + (points[i][0] - points[i - 1][0]) * f, points[i - 1][1] + (points[i][1] - points[i - 1][1]) * f]
+    }
+    cible -= d
+  }
+  return points[points.length - 1]
+}
+
+/** Translate une polyligne pour que son milieu aille en `vers` ([lat, lon]). */
+export function translaterLigne(points, vers) {
+  const m = milieuLigne(points)
+  if (!m) return points
+  const dLat = vers[0] - m[0]
+  const dLon = vers[1] - m[1]
+  return points.map(([la, lo]) => [la + dLat, lo + dLon])
 }
