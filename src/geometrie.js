@@ -228,3 +228,15 @@ export function translaterLigne(points, vers) {
   const dLon = vers[1] - m[1]
   return points.map(([la, lo]) => [la + dLat, lo + dLon])
 }
+
+/** Vrai si le point [lat, lon] est dans le polygone (rayon lancé). */
+export function contientPoint(poly, p) {
+  if (!poly || poly.length < 3) return false
+  let dedans = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [yi, xi] = poly[i]
+    const [yj, xj] = poly[j]
+    if (yi > p[0] !== yj > p[0] && p[1] < ((xj - xi) * (p[0] - yi)) / (yj - yi) + xi) dedans = !dedans
+  }
+  return dedans
+}

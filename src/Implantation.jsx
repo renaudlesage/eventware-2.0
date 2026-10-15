@@ -5,8 +5,9 @@ import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser, supprimerOuRefuser } from './ecriture'
 import { CATEGORIES_PLAN } from './referentielsProduit'
-import { polygoneObjet, distancePoints, longueurLigne, jonctionsLigne, nombreModules, milieuLigne, translaterLigne } from './geometrie'
+import { polygoneObjet, distancePoints, longueurLigne, jonctionsLigne, nombreModules, milieuLigne, translaterLigne, contientPoint } from './geometrie'
 import { pictoSvg } from './pictos'
+import { estDistributeur, courant, chuteTension, arbreElectrique } from './reseaux'
 
 /**
  * Conception de l'implantation à l'échelle (migration 115, 15/10).
@@ -138,7 +139,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
       // Le tracé est la vérité ; longueur et nombre de modules en découlent.
       const pts = o.geometrie ?? []
       const total = longueurLigne(pts)
-      return { geometrie: pts, forme: 'ligne', longueur_m: Math.max(0.1, Math.round(total * 100) / 100), quantite: nombreModules(total, Number(o.largeur_m)) }
+      return { geometrie: pts, forme: 'ligne', longueur_m: Math.max(0.1, Math.round(total * 100) / 100), quantite: o.reseau ? null : nombreModules(total, Number(o.largeur_m)) }
     }
     if (o.nature === 'picto') return { geometrie: [[Number(o.centre_lat), Number(o.centre_lon)]], forme: 'point' }
     const poly = polygoneObjet(o)
@@ -163,6 +164,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
       forme_echelle: fiche.forme,
       nature: fiche.nature ?? 'objet',
       picto: fiche.picto ?? null,
+      ...champsReseauFiche(fiche),
       centre_lat: latlng.lat,
       centre_lon: latlng.lng,
       largeur_m: fiche.largeur_m,
@@ -188,10 +190,20 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
     onRecharger()
   }
 
-  async function poserLigne(fiche, points) {
+  async function poserLigne(fiche, points, bouts = {}) {
     if (points.length < 2) return
     const milieu = milieuLigne(points)
+    const reseau = fiche.reseau ?? null
     const o = {
+      reseau,
+      de_id: reseau ? bouts.de ?? null : null,
+      vers_id: reseau ? bouts.vers ?? null : null,
+      tension_v: fiche.tension_v ?? null,
+      phases: fiche.phases ?? null,
+      calibre_a: fiche.calibre_a ?? null,
+      section_mm2: fiche.section_mm2 ?? null,
+      type_cable: fiche.type_cable ?? null,
+      diametre_mm: fiche.diametre_mm ?? null,
       evenement_id: evenement.id,
       code: '',
       nom: fiche.libelle,
@@ -214,11 +226,47 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
       origine: 'humain'
     }
     const { data, error } = await supabase.from('elements_plan').insert({ ...o, ...champsGeometrie(o) }).select('id').single()
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
-    else {
-      setSelection(data.id)
-      onRecharger()
+    if (error) {
+      setMessage({ type: 'erreur', texte: texteErreur(error) })
+      return
     }
+    // Un câble tracé jusqu'à un objet le raccorde ; une conduite aussi.
+    if (reseau && bouts.de && bouts.vers && bouts.de !== bouts.vers) {
+      const champ = reseau === 'electricite' ? 'alimente_par' : 'raccord_eau'
+      const refus = await modifierOuRefuser('elements_plan', { [champ]: bouts.de }, { id: bouts.vers })
+      if (refus) setMessage({ type: 'erreur', texte: refus })
+    }
+    setSelection(data.id)
+    onRecharger()
+  }
+
+  /** Les objets posés depuis le catalogue portent aussi leurs caractéristiques réseau. */
+  function champsReseauFiche(fiche) {
+    return {
+      tension_v: fiche.tension_v ?? null,
+      phases: fiche.phases ?? null,
+      calibre_a: fiche.calibre_a ?? null,
+      differentiel_ma: fiche.differentiel_ma ?? null,
+      ip: fiche.ip ?? null,
+      diametre_mm: fiche.diametre_mm ?? null
+    }
+  }
+
+  /** Changer un bout d'un câble ou d'une conduite raccorde l'objet d'arrivée. */
+  async function raccorder(ligne, champs) {
+    const de = champs.de_id !== undefined ? champs.de_id : ligne.de_id
+    const vers = champs.vers_id !== undefined ? champs.vers_id : ligne.vers_id
+    const refus = await modifierOuRefuser('elements_plan', champs, { id: ligne.id })
+    if (refus) {
+      setMessage({ type: 'erreur', texte: refus })
+      return
+    }
+    if (de && vers && de !== vers) {
+      const champ = ligne.reseau === 'electricite' ? 'alimente_par' : 'raccord_eau'
+      const r2 = await modifierOuRefuser('elements_plan', { [champ]: de }, { id: vers })
+      if (r2) setMessage({ type: 'erreur', texte: r2 })
+    }
+    onRecharger()
   }
 
   async function modifier(o, champs) {
@@ -306,8 +354,40 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
     const m = modeCourant.current
     if (m?.type !== 'tracer') return
     const points = m.points ?? []
-    if (points.length >= 2) poserLigne(m.fiche, points)
-    // On garde la barrière en main : un périmètre se trace en plusieurs lignes.
+    if (points.length >= 2) poserLigne(m.fiche, points, { de: m.de, vers: m.vers })
+    // On garde la barrière (ou le câble) en main : un périmètre se trace en
+    // plusieurs lignes, un réseau en plusieurs câbles.
+    setMode({ type: 'tracer', fiche: m.fiche, points: [] })
+  }
+
+  /** En tracé de câble ou de conduite, cliquer un objet y accroche la ligne. */
+  function accrocher(o, latlng) {
+    const m = modeCourant.current
+    if (m?.type !== 'tracer') return
+    // Un câble ou une barrière cliqués pendant un tracé : si un objet est
+    // dessous (les câbles partent du centre des objets), c'est lui qu'on
+    // vise ; sinon, simple point de passage.
+    if (o.nature === 'ligne' || o.nature === 'picto') {
+      const p = latlng ? [latlng.lat, latlng.lng] : null
+      const dessous = p && m.fiche.reseau ? objets.find((x) => x.nature !== 'ligne' && x.nature !== 'picto' && contientPoint(polygoneObjet(x), p)) : null
+      if (dessous) return accrocher(dessous, latlng)
+      if (latlng) clicCarte(latlng)
+      return
+    }
+    if (!m.fiche.reseau) {
+      if (latlng) clicCarte(latlng)
+      return
+    }
+    const p = [Number(o.centre_lat), Number(o.centre_lon)]
+    const points = m.points ?? []
+    if (!points.length) {
+      setMode({ ...m, points: [p], de: o.id })
+      return
+    }
+    // Le second objet ferme le câble.
+    const dernier = points[points.length - 1]
+    const pts = dernier && distancePoints(dernier, p) < 0.3 ? points : [...points, p]
+    if (pts.length >= 2) poserLigne(m.fiche, pts, { de: m.de, vers: o.id })
     setMode({ type: 'tracer', fiche: m.fiche, points: [] })
   }
 
@@ -437,9 +517,12 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
         {mode?.type === 'poser' && (mode.fiche.nature === 'picto'
           ? `Clique sur la carte pour poser le pictogramme « ${mode.fiche.libelle} ». Encore un clic, encore un.`
           : `Clique sur la carte pour poser « ${mode.fiche.libelle} » (${fr(mode.fiche.largeur_m)} × ${fr(mode.fiche.longueur_m)} m). Encore un clic, encore un.`)}
-        {mode?.type === 'tracer' && (trace
-          ? `${trace.n} × ${mode.fiche.libelle} sur ${fr(trace.longueur, 1)} m. Clique pour prolonger, double-clic ou « Terminer la ligne » pour poser.`
+        {mode?.type === 'tracer' && !mode.fiche.reseau && (trace
+          ? `${trace.n} × ${mode.fiche.libelle} sur ${fr(trace.longueur, 1)} m. Clique pour prolonger, double-clic sur le dernier point ou « Terminer la ligne » pour poser.`
           : `Clique les points du tracé de « ${mode.fiche.libelle} » (modules de ${fr(mode.fiche.largeur_m)} m).`)}
+        {mode?.type === 'tracer' && mode.fiche.reseau && (mode.points?.length
+          ? `${mode.fiche.libelle} depuis « ${objets.find((x) => x.id === mode.de)?.nom ?? 'un point'} » : ${fr(trace?.longueur ?? 0, 1)} m. Clique le parcours, puis l'objet d'arrivée pour le raccorder.`
+          : `Clique l'objet de départ (${mode.fiche.reseau === 'electricite' ? 'groupe, raccordement, coffret' : 'point d’eau, répartiteur'}) de « ${mode.fiche.libelle} », puis le parcours, puis l'objet d'arrivée.`)}
         {mode?.type === 'mesurer' && (mesure != null ? `Distance : ${fr(mesure, 1)} m. Clique pour mesurer à nouveau.` : 'Clique deux points sur la carte.')}
         {mode?.type === 'caler' && (mode.points?.length ? 'Puis le coin SUD-EST du plan.' : 'Clique le coin NORD-OUEST du plan sur la carte.')}
         {mode?.type === 'deplacer' && 'Clique sur la carte, là où doit aller l’objet sélectionné.'}
@@ -473,7 +556,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
                 )}
                 <span className="impl-fiche-nom">{f.libelle}{f.organisation_id ? ' ·' : ''}</span>
                 <span className="mono impl-fiche-dim">
-                  {f.nature === 'ligne' ? `ligne · ${fr(f.largeur_m)} m` : f.nature === 'picto' ? 'picto' : `${fr(f.largeur_m)} × ${fr(f.longueur_m)}`}
+                  {f.reseau ? (f.reseau === 'electricite' ? `câble · ${fr(f.calibre_a, 0)} A` : `conduite · Ø ${fr(f.diametre_mm, 0)}`) : f.nature === 'ligne' ? `ligne · ${fr(f.largeur_m)} m` : f.nature === 'picto' ? 'picto' : `${fr(f.largeur_m)} × ${fr(f.longueur_m)}`}
                 </span>
               </button>
             ))}
@@ -497,8 +580,12 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
                 o={avecBrouillon(o)}
                 selectionne={o.id === selection}
                 peutModifier={peutModifier}
-                onSelection={() => {
-                  if (mode?.type === 'poser' || mode?.type === 'caler' || mode?.type === 'tracer') return
+                onSelection={(latlng) => {
+                  if (mode?.type === 'tracer') {
+                    accrocher(o, latlng)
+                    return
+                  }
+                  if (mode?.type === 'poser' || mode?.type === 'caler') return
                   setSelection(o.id)
                 }}
                 onGlisser={(latlng) => setBrouillon({ id: o.id, ...latlng })}
@@ -519,9 +606,9 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
             {mode?.type === 'tracer' && mode.points?.length > 0 && (
               <>
                 {mode.points.length > 1 && <Polyline positions={mode.points} pathOptions={{ color: COULEUR_CALQUE[mode.fiche.calque] ?? '#10151b', weight: 3, dashArray: '8 5' }} interactive={false} />}
-                {jonctionsLigne(mode.points, Number(mode.fiche.largeur_m)).map((p, i) => <CircleMarker key={i} center={p} radius={2.5} interactive={false} pathOptions={{ color: '#10151b', fillColor: '#fff', fillOpacity: 1, weight: 1 }} />)}
+                {!mode.fiche.reseau && jonctionsLigne(mode.points, Number(mode.fiche.largeur_m)).map((p, i) => <CircleMarker key={i} center={p} radius={2.5} interactive={false} pathOptions={{ color: '#10151b', fillColor: '#fff', fillOpacity: 1, weight: 1 }} />)}
                 <CircleMarker center={mode.points[mode.points.length - 1]} radius={5} interactive={false} pathOptions={{ color: '#10151b', fillColor: '#fff', fillOpacity: 1 }}>
-                  {trace && <Tooltip permanent direction="right" offset={[6, 0]} className="etiquette-carte">{trace.n} × {fr(trace.longueur, 1)} m</Tooltip>}
+                  {trace && <Tooltip permanent direction="right" offset={[6, 0]} className="etiquette-carte">{mode.fiche.reseau ? `${fr(trace.longueur, 1)} m` : `${trace.n} × ${fr(trace.longueur, 1)} m`}</Tooltip>}
                 </CircleMarker>
               </>
             )}
@@ -549,6 +636,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
               peutModifier={peutModifier}
               peutCreer={peutCreer}
               onModifier={(champs) => modifier(selectionne, champs)}
+              onRaccorder={(champs) => raccorder(selectionne, champs)}
               onDeplacer={() => setMode({ type: 'deplacer' })}
               onDupliquer={() => dupliquer(selectionne)}
               onRetirer={() => retirer(selectionne)}
@@ -714,7 +802,7 @@ function Objet({ o, selectionne, peutModifier, onSelection, onGlisser, onDeposer
       // L'événement LEAFLET, pas le DOM : c'est lui qui porte le drapeau
       // que la carte consulte avant de propager.
       L.DomEvent.stopPropagation(e)
-      onSelection()
+      onSelection(e.latlng)
     },
     mousedown: debut
   }
@@ -736,7 +824,7 @@ function Objet({ o, selectionne, peutModifier, onSelection, onGlisser, onDeposer
         eventHandlers={{
           click(e) {
             L.DomEvent.stopPropagation(e)
-            onSelection()
+            onSelection(e.latlng)
           },
           dragend(e) {
             const p = e.target.getLatLng()
@@ -746,6 +834,23 @@ function Objet({ o, selectionne, peutModifier, onSelection, onGlisser, onDeposer
       >
         <Tooltip key={selectionne ? "fixe" : "survol"} direction="top" permanent={selectionne} className="etiquette-carte">{o.nom}</Tooltip>
       </Marker>
+    )
+  }
+
+  if (trace && o.reseau) {
+    if (trace.length < 2) return null
+    const c = o.reseau === 'electricite' ? COULEUR_CALQUE.energie : COULEUR_CALQUE.eau
+    return (
+      <Polyline
+        ref={couche}
+        positions={trace}
+        pathOptions={{ color: selectionne ? '#10151b' : c, weight: selectionne ? 5 : o.reseau === 'electricite' ? 3 : 3.5, dashArray: o.reseau === 'eau' ? '10 6' : o.confirme ? null : '2 6', lineCap: 'round' }}
+        eventHandlers={evenements}
+      >
+        <Tooltip key={selectionne ? 'fixe' : 'survol'} direction="center" permanent={selectionne} className="etiquette-carte">
+          {o.nom} · {fr(o.longueur_m, 0)} m
+        </Tooltip>
+      </Polyline>
     )
   }
 
@@ -795,7 +900,7 @@ function Objet({ o, selectionne, peutModifier, onSelection, onGlisser, onDeposer
 /* ------------------------------------------------------------------ */
 /* Panneau de propriétés                                               */
 
-function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onDeplacer, onDupliquer, onRetirer }) {
+function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onRaccorder, onDeplacer, onDupliquer, onRetirer }) {
   const [f, setF] = useState(() => depuis(o))
   useEffect(() => setF(depuis(o)), [o])
 
@@ -818,15 +923,36 @@ function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onDeplacer
       distance_securite_m: x.distance_securite_m ?? 0,
       est_risque: !!x.est_risque,
       fournisseur: x.fournisseur ?? '',
-      description: x.description ?? ''
+      description: x.description ?? '',
+      tension_v: x.tension_v ?? '',
+      phases: x.phases ?? '',
+      calibre_a: x.calibre_a ?? '',
+      differentiel_ma: x.differentiel_ma ?? '',
+      ip: x.ip ?? '',
+      terre: !!x.terre,
+      section_mm2: x.section_mm2 ?? '',
+      type_cable: x.type_cable ?? '',
+      diametre_mm: x.diametre_mm ?? '',
+      de_id: x.de_id ?? '',
+      vers_id: x.vers_id ?? ''
     }
   }
 
   const lecture = !peutModifier
-  const ligne = o.nature === 'ligne'
+  const ligne = o.nature === 'ligne' && !o.reseau
+  const cable = o.nature === 'ligne' && o.reseau === 'electricite'
+  const conduite = o.nature === 'ligne' && o.reseau === 'eau'
   const picto = o.nature === 'picto'
-  const generateurs = objets.filter((x) => Number(x.production_kva) > 0 && x.id !== o.id)
-  const sources = objets.filter((x) => x.source_eau && x.id !== o.id)
+  const solides = objets.filter((x) => x.nature !== 'ligne' && x.nature !== 'picto')
+  const generateurs = solides.filter((x) => estDistributeur(x) && x.id !== o.id)
+  const sources = solides.filter((x) => x.source_eau && x.id !== o.id)
+  const electrique = !ligne && !picto && !conduite && (cable || o.calque === 'energie' || estDistributeur(o) || Number(o.puissance_kw) > 0)
+  // Pour un câble : ce qu'il transporte, d'après l'objet d'arrivée.
+  const arrivee = cable || conduite ? solides.find((x) => x.id === o.vers_id) : null
+  // Ce que le câble transporte : tout ce qui pend sous l'objet d'arrivée (un coffret compte ses départs).
+  const kwArrivee = cable && arrivee ? (arbreElectrique(objets).noeuds.get(arrivee.id)?.kwTotal ?? (Number(arrivee.puissance_kw) || 0)) : 0
+  const iCable = cable && arrivee ? courant(kwArrivee, Number(o.tension_v) || 400, Number(o.phases) || 3) : 0
+  const chute = cable ? chuteTension(Number(o.longueur_m), Number(o.section_mm2), iCable, Number(o.tension_v) || 400, Number(o.phases) || 3) : 0
 
   function envoyer(champ, valeur) {
     setF((v) => ({ ...v, [champ]: valeur }))
@@ -865,7 +991,78 @@ function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onDeplacer
           </select>
         </label>
       </div>
-      {ligne ? (
+      {cable || conduite ? (
+        <>
+          <div className="impl-deux">
+            <label>
+              De
+              <select value={f.de_id} disabled={lecture} onChange={(e) => { envoyer('de_id', e.target.value); onRaccorder({ de_id: e.target.value || null }) }}>
+                <option value="">— non raccordé —</option>
+                {(cable ? generateurs : sources).map((x) => <option key={x.id} value={x.id}>{x.nom}</option>)}
+              </select>
+            </label>
+            <label>
+              Vers
+              <select value={f.vers_id} disabled={lecture} onChange={(e) => { envoyer('vers_id', e.target.value); onRaccorder({ vers_id: e.target.value || null }) }}>
+                <option value="">— non raccordé —</option>
+                {solides.filter((x) => x.id !== o.de_id).map((x) => <option key={x.id} value={x.id}>{x.nom}</option>)}
+              </select>
+            </label>
+          </div>
+          {cable && (
+            <>
+              <div className="impl-trois">
+                <label>
+                  Type
+                  <input value={f.type_cable} disabled={lecture} onChange={(e) => envoyer('type_cable', e.target.value)} onBlur={() => valider('type_cable')} placeholder="H07RN-F" />
+                </label>
+                <label>
+                  Section (mm²)
+                  <input type="number" step="0.5" min="0.5" value={f.section_mm2} disabled={lecture} onChange={(e) => envoyer('section_mm2', e.target.value)} onBlur={() => valider('section_mm2', num)} />
+                </label>
+                <label>
+                  Admissible (A)
+                  <input type="number" step="1" min="1" value={f.calibre_a} disabled={lecture} onChange={(e) => envoyer('calibre_a', e.target.value)} onBlur={() => valider('calibre_a', num)} />
+                </label>
+              </div>
+              <div className="impl-trois">
+                <label>
+                  Tension
+                  <select value={f.tension_v} disabled={lecture} onChange={(e) => { envoyer('tension_v', e.target.value); onModifier({ tension_v: num(e.target.value) }) }}>
+                    <option value="">—</option><option value="230">230 V</option><option value="400">400 V</option>
+                  </select>
+                </label>
+                <label>
+                  Phases
+                  <select value={f.phases} disabled={lecture} onChange={(e) => { envoyer('phases', e.target.value); onModifier({ phases: num(e.target.value) }) }}>
+                    <option value="">—</option><option value="1">mono</option><option value="3">tri</option>
+                  </select>
+                </label>
+                <label>
+                  Longueur (m)
+                  <input value={fr(o.longueur_m, 1)} disabled />
+                </label>
+              </div>
+              <p className="aide">
+                {arrivee ? `${arrivee.nom} : ${fr(kwArrivee, 1)} kW → ${fr(iCable, 0)} A, chute de tension ${fr(chute, 1)} % sur ${fr(o.longueur_m, 0)} m` : 'Raccorde l’arrivée pour calculer courant et chute de tension.'}
+                {iCable > Number(o.calibre_a) && Number(o.calibre_a) > 0 ? ' — câble sous-dimensionné' : ''}
+              </p>
+            </>
+          )}
+          {conduite && (
+            <div className="impl-deux">
+              <label>
+                Diamètre (mm)
+                <input type="number" step="1" min="1" value={f.diametre_mm} disabled={lecture} onChange={(e) => envoyer('diametre_mm', e.target.value)} onBlur={() => valider('diametre_mm', num)} />
+              </label>
+              <label>
+                Longueur (m)
+                <input value={fr(o.longueur_m, 1)} disabled />
+              </label>
+            </div>
+          )}
+        </>
+      ) : ligne ? (
         <div className="impl-trois">
           <label>
             Module (m)
@@ -900,7 +1097,7 @@ function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onDeplacer
       )}
       {ligne && <p className="aide">Le tracé se déplace d'un bloc (glisser ou « Déplacer ») ; pour le modifier, retire-le et retrace-le. Le dernier module peut être plus court.</p>}
       {picto && <p className="aide">Pictogramme dessiné à taille fixe, quel que soit le zoom. La rotation oriente les flèches.</p>}
-      {(o.forme_echelle !== 'cercle' || picto) && !ligne && (
+      {(o.forme_echelle !== 'cercle' || picto) && !ligne && !cable && !conduite && (
         <div className="impl-rotation">
           <span className="cadran-libelle">Rotation</span>
           <input type="range" min="0" max="359" value={Number(f.rotation_deg)} disabled={lecture} onChange={(e) => envoyer('rotation_deg', Number(e.target.value))} onMouseUp={() => valider('rotation_deg', Number)} onTouchEnd={() => valider('rotation_deg', Number)} onKeyUp={() => valider('rotation_deg', Number)} />
@@ -911,7 +1108,48 @@ function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onDeplacer
         </div>
       )}
 
-      {!ligne && !picto && (<>
+      {electrique && !cable && (
+        <>
+          <h4 className="prc-titre">Électricité</h4>
+          <div className="impl-trois">
+            <label>
+              Tension
+              <select value={f.tension_v} disabled={lecture} onChange={(e) => { envoyer('tension_v', e.target.value); onModifier({ tension_v: num(e.target.value) }) }}>
+                <option value="">—</option><option value="230">230 V</option><option value="400">400 V</option>
+              </select>
+            </label>
+            <label>
+              Phases
+              <select value={f.phases} disabled={lecture} onChange={(e) => { envoyer('phases', e.target.value); onModifier({ phases: num(e.target.value) }) }}>
+                <option value="">—</option><option value="1">mono</option><option value="3">tri</option>
+              </select>
+            </label>
+            <label>
+              Protection (A)
+              <input type="number" step="1" min="0" value={f.calibre_a} disabled={lecture} onChange={(e) => envoyer('calibre_a', e.target.value)} onBlur={() => valider('calibre_a', num)} />
+            </label>
+          </div>
+          <div className="impl-trois">
+            <label>
+              Différentiel
+              <select value={f.differentiel_ma} disabled={lecture} onChange={(e) => { envoyer('differentiel_ma', e.target.value); onModifier({ differentiel_ma: num(e.target.value) }) }}>
+                <option value="">—</option><option value="30">30 mA</option><option value="100">100 mA</option><option value="300">300 mA</option><option value="500">500 mA</option>
+              </select>
+            </label>
+            <label>
+              Degré IP
+              <input value={f.ip} disabled={lecture} onChange={(e) => envoyer('ip', e.target.value)} onBlur={() => valider('ip')} placeholder="IP44" />
+            </label>
+            {Number(f.production_kva) > 0 && (
+              <label className="case-a-cocher" style={{ alignSelf: 'end' }}>
+                <input type="checkbox" checked={f.terre} disabled={lecture} onChange={(e) => { envoyer('terre', e.target.checked); onModifier({ terre: e.target.checked }) }} />
+                Terre vérifiée
+              </label>
+            )}
+          </div>
+        </>
+      )}
+      {!ligne && !picto && !cable && !conduite && (<>
       <h4 className="prc-titre">Énergie</h4>
       <div className="impl-deux">
         <label>
@@ -923,12 +1161,12 @@ function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onDeplacer
           <input type="number" step="1" min="0" value={f.production_kva} disabled={lecture} onChange={(e) => envoyer('production_kva', e.target.value)} onBlur={() => valider('production_kva', (v) => Number(v) || 0)} />
         </label>
       </div>
-      {Number(f.puissance_kw) > 0 && (
+      {(Number(f.puissance_kw) > 0 || (estDistributeur(o) && !Number(o.production_kva))) && (
         <label>
           Alimenté par
           <select value={f.alimente_par} disabled={lecture} onChange={(e) => { envoyer('alimente_par', e.target.value); onModifier({ alimente_par: e.target.value || null }) }}>
             <option value="">— non raccordé —</option>
-            {generateurs.map((g) => <option key={g.id} value={g.id}>{g.nom} ({fr(g.production_kva, 0)} kVA)</option>)}
+            {generateurs.map((g) => <option key={g.id} value={g.id}>{g.nom}{Number(g.production_kva) > 0 ? ` (${fr(g.production_kva, 0)} kVA)` : g.calibre_a ? ` (${fr(g.calibre_a, 0)} A)` : ''}</option>)}
           </select>
         </label>
       )}
@@ -949,6 +1187,7 @@ function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onDeplacer
       )}
       </>)}
 
+      {!cable && !conduite && (<>
       <h4 className="prc-titre">Sécurité</h4>
       <div className="impl-cases">
         <label className="case-a-cocher"><input type="checkbox" checked={f.accueil_public} disabled={lecture} onChange={(e) => { envoyer('accueil_public', e.target.checked); onModifier({ accueil_public: e.target.checked }) }} />Reçoit du public</label>
@@ -958,6 +1197,7 @@ function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onDeplacer
         Distance de sécurité (m) — vis-à-vis du public et des toiles
         <input type="number" step="0.5" min="0" value={f.distance_securite_m} disabled={lecture} onChange={(e) => envoyer('distance_securite_m', e.target.value)} onBlur={() => valider('distance_securite_m', (v) => Number(v) || 0)} />
       </label>
+      </>)}
 
       <h4 className="prc-titre">Métré</h4>
       <label>

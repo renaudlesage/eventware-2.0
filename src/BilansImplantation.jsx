@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { polygoneObjet, surfaceObjet, seChevauchent, distancePolygones, distancePolygoneLigne } from './geometrie'
+import { controlesReseau, arbreEau, estDistributeur, RAPPELS_RGIE } from './reseaux'
+import Unifilaire from './Unifilaire'
 import { LIBELLE_CALQUE, COULEUR_CALQUE } from './Implantation'
 
 /**
@@ -28,33 +30,39 @@ const fr = (x, d = 1) => (x == null ? '—' : Number(x).toFixed(d).replace('.', 
 const TOILES = new Set(['CHAP', 'TONN', 'PAGODE'])
 const estToile = (o) => /chapiteau|tonnelle|pagode|tente/i.test(o.nom ?? '') || TOILES.has((o.code ?? '').split('-')[0].replace(/\d.*$/, ''))
 
-export default function BilansImplantation({ elements }) {
+export default function BilansImplantation({ elements, evenement }) {
   const [onglet, setOnglet] = useState('controles')
   const objets = useMemo(() => elements.filter((e) => e.centre_lat != null && e.largeur_m), [elements])
   const polys = useMemo(() => new Map(objets.map((o) => [o.id, polygoneObjet(o)])), [objets])
   const nom = Object.fromEntries(objets.map((o) => [o.id, o.nom]))
 
   /* ---- énergie --------------------------------------------------- */
+  const reseau = useMemo(() => controlesReseau(objets), [objets])
   const energie = useMemo(() => {
     const groupes = objets.filter((o) => Number(o.production_kva) > 0)
+    // La charge d'une source est celle de tout ce qui pend sous elle,
+    // coffrets compris (arbre de `reseaux.js`).
     const lignes = groupes.map((g) => {
+      const n = reseau.racines.find((r) => r.o.id === g.id)
       const conso = objets.filter((o) => o.alimente_par === g.id)
-      const kw = conso.reduce((s, o) => s + Number(o.puissance_kw || 0), 0)
+      const kw = n ? n.kwTotal : conso.reduce((s, o) => s + Number(o.puissance_kw || 0), 0)
       const kva = kw / COS_PHI
       return { g, conso, kw, kva, charge: Number(g.production_kva) ? kva / Number(g.production_kva) : 0 }
     })
-    const orphelins = objets.filter((o) => Number(o.puissance_kw) > 0 && !o.alimente_par)
+    const orphelins = objets.filter((o) => Number(o.puissance_kw) > 0 && !o.alimente_par && !estDistributeur(o))
     const total = objets.reduce((s, o) => s + Number(o.puissance_kw || 0), 0)
     const prod = groupes.reduce((s, g) => s + Number(g.production_kva || 0), 0)
     return { lignes, orphelins, total, prod }
-  }, [objets])
+  }, [objets, reseau])
 
   /* ---- eau --------------------------------------------------------- */
   const eau = useMemo(() => {
     const sources = objets.filter((o) => o.source_eau)
     const lignes = sources.map((s) => ({ s, conso: objets.filter((o) => o.raccord_eau === s.id) }))
     const orphelins = objets.filter((o) => o.besoin_eau && !o.raccord_eau)
-    return { lignes, orphelins }
+    const { conduites, conduitesOrphelines } = arbreEau(objets)
+    const longueur = conduites.reduce((t, c) => t + Number(c.longueur_m || 0), 0)
+    return { lignes, orphelins, conduites, conduitesOrphelines, longueur }
   }, [objets])
 
   /* ---- contrôles --------------------------------------------------- */
@@ -101,6 +109,7 @@ export default function BilansImplantation({ elements }) {
     const sansLieu = objets.filter((o) => !polys.get(o.id) && o.nature !== 'ligne')
     return { liste, sansLieu }
   }, [objets, polys, elements])
+  const nbReseauChaud = reseau.liste.filter((c) => c.gravite === 'chaud').length
 
   /* ---- métré ------------------------------------------------------- */
   const metre = useMemo(() => {
@@ -140,6 +149,8 @@ export default function BilansImplantation({ elements }) {
         {[
           ['controles', `Contrôles (${controles.liste.length})`],
           ['energie', 'Énergie'],
+          ['rgie', `Électricité — RGIE (${reseau.liste.length})`],
+          ['unifilaire', 'Schéma unifilaire'],
           ['eau', 'Eau'],
           ['metre', 'Métré']
         ].map(([k, l]) => (
@@ -213,8 +224,57 @@ export default function BilansImplantation({ elements }) {
         </section>
       )}
 
+      {onglet === 'rgie' && (
+        <section>
+          <div className="etat prc-cadrans">
+            <Cadran libelle="À corriger" v={nbReseauChaud} etat={nbReseauChaud ? 'chaud' : ''} />
+            <Cadran libelle="À vérifier" v={reseau.liste.length - nbReseauChaud} etat={reseau.liste.length - nbReseauChaud ? 'veille' : ''} />
+            <Cadran libelle="Sources" v={reseau.racines.length} />
+            <Cadran libelle="Câbles tracés" v={reseau.cables.length} />
+          </div>
+          {reseau.liste.length === 0 ? (
+            <p className="aide">Rien à signaler sur ce que le plan sait vérifier. Reste la liste ci-dessous, qui ne se vérifie que sur site.</p>
+          ) : (
+            <div className="prc-liste">
+              {reseau.liste.map((c, i) => (
+                <div key={i} className="prc-ligne rgie-ligne">
+                  <span className={`prc-jeton ${c.gravite}`}>{c.type}</span>
+                  <span>{c.texte}{c.ref && <span className="sourdine rgie-ref"> — {c.ref}</span>}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <h4 className="prc-titre">Avant le contrôle de l'organisme agréé</h4>
+          <div className="prc-liste">
+            {RAPPELS_RGIE.map(([t, texte, ref]) => (
+              <div key={t} className="prc-ligne rgie-ligne">
+                <span className="prc-jeton">{t}</span>
+                <span>{texte}<span className="sourdine rgie-ref"> — {ref}</span></span>
+              </div>
+            ))}
+          </div>
+          <p className="aide">
+            Pré-vérification d'après les caractéristiques encodées (tension, phases, calibres, différentiels, IP, sections et longueurs
+            des câbles tracés, cos φ {COS_PHI}). Références au RGIE Livre 1 (installations à basse tension, édition 2020 et modifications) :
+            à confirmer sur le texte en vigueur. Seul le rapport de l'organisme agréé fait foi.
+          </p>
+        </section>
+      )}
+
+      {onglet === 'unifilaire' && (
+        <section>
+          <Unifilaire objets={objets} evenement={evenement} reseau="electricite" />
+        </section>
+      )}
+
       {onglet === 'eau' && (
         <section>
+          <div className="etat prc-cadrans">
+            <Cadran libelle="Points d'eau" v={eau.lignes.length} />
+            <Cadran libelle="Conduites tracées" v={eau.conduites.length} />
+            <Cadran libelle="Longueur" v={`${fr(eau.longueur, 0)} m`} />
+            <Cadran libelle="Non raccordés" v={eau.orphelins.length} etat={eau.orphelins.length ? 'veille' : ''} />
+          </div>
           {eau.lignes.map(({ s, conso }) => (
             <div key={s.id} className="prc-lieu" style={{ marginBottom: 8 }}>
               <div className="prc-lieu-tete"><h4>{s.nom}</h4><span className="prc-jeton">{s.code}</span></div>
@@ -222,6 +282,8 @@ export default function BilansImplantation({ elements }) {
             </div>
           ))}
           {eau.lignes.length === 0 && <p className="aide">Aucun point d'eau placé.</p>}
+          {eau.conduitesOrphelines.length > 0 && <p className="aide">Conduites non raccordées aux deux bouts : {eau.conduitesOrphelines.map((c) => c.code).join(', ')}.</p>}
+          {eau.lignes.length > 0 && <Unifilaire objets={objets} evenement={evenement} reseau="eau" />}
           {eau.orphelins.length > 0 && (
             <>
               <h4 className="prc-titre">Besoins non raccordés</h4>

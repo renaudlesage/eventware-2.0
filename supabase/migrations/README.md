@@ -222,7 +222,15 @@ Le script s'est vérifié lui-même avant de valider : 0 écart de visibilité (
 
 Éprouvée en transaction annulée (insertion d'un picto → code `SORTIE-01`, d'une ligne de 12 Heras), puis appliquée et inscrite. Aucun DROP.
 
-## Ne jamais rejouer 088 → 117 par `db push` sans les lignes ci-dessus
+### 118 : appliquée le 15/10 (par Claude, via l'outil Supabase) — réseaux d'électricité et d'eau
+
+| Fichier | Fait |
+|---|---|
+| `20261015230000_118_reseaux.sql` | `catalogue_equipements` et `elements_plan` gagnent `reseau` (electricite / eau), `tension_v`, `phases`, `calibre_a`, `differentiel_ma`, `ip`, `section_mm2`, `type_cable`, `diametre_mm` ; `elements_plan` gagne `de_id` / `vers_id` (un câble ou une conduite va d'un objet à un autre) et `terre` (mise à la terre vérifiée). Les groupes et l'armoire standard reçoivent tension, phases, calibre, différentiel, IP. Catalogue : raccordements réseau 63 / 125 A, coffrets de distribution 32 / 63 / 125 A, câbles H07RN-F 3G1,5 → 5G35, raccordement eau, répartiteur, conduites 19 → 50 mm |
+
+Éprouvée en transaction annulée (GE60 → câble 5G16 → coffret 63 A, codes `CAB5G16-01`), puis appliquée et inscrite. Aucun DROP.
+
+## Ne jamais rejouer 088 → 118 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

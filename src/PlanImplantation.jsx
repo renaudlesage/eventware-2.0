@@ -147,7 +147,7 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
           setMessage={setMessage}
         />
       )}
-      {vue === 'bilans' && <BilansImplantation elements={elements} />}
+      {vue === 'bilans' && <BilansImplantation elements={elements} evenement={evenement} />}
 
       {vue !== 'conception' && vue !== 'bilans' && (
       <div className="geo">

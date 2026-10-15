@@ -2902,3 +2902,10 @@ body.impl-plein-corps { overflow: hidden; }
 .suggestion__raison { margin: 2px 0 0; color: var(--sourdine); }
 .suggestion__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .suggestion__actions button { margin: 0; }
+
+/* Réseaux et schéma unifilaire (118) */
+.unifilaire { display: flex; flex-direction: column; gap: 8px; }
+.unifilaire-cadre { overflow: auto; border: 1px solid var(--trait); background: #fff; max-height: 70vh; }
+.unifilaire-cadre svg { display: block; }
+.rgie-ligne { align-items: flex-start; }
+.rgie-ref { font-size: 0.9em; }
