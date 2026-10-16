@@ -230,7 +230,13 @@ Le script s'est vérifié lui-même avant de valider : 0 écart de visibilité (
 
 Éprouvée en transaction annulée (GE60 → câble 5G16 → coffret 63 A, codes `CAB5G16-01`), puis appliquée et inscrite. Aucun DROP.
 
-## Ne jamais rejouer 088 → 118 par `db push` sans les lignes ci-dessus
+### 119 : appliquée le 15/10 (par Claude, via l'outil Supabase) — taille des pictogrammes
+
+| Fichier | Fait |
+|---|---|
+| `20261015234000_119_taille_pictos.sql` | les pictogrammes se dessinent à l'échelle : `largeur_m` = taille au plan, 3 m par défaut (catalogue et les 3 pictos déjà posés, qui étaient à 0,5 m) |
+
+## Ne jamais rejouer 088 → 119 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

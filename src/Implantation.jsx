@@ -465,6 +465,8 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
   const mesure = mode?.type === 'mesurer' && mode.points?.length === 2 ? distancePoints(mode.points[0], mode.points[1]) : null
   const trace = mode?.type === 'tracer' && mode.points?.length ? { longueur: longueurLigne(mode.points), n: nombreModules(longueurLigne(mode.points), Number(mode.fiche.largeur_m)) } : null
   const couchesFond = FONDS_CARTE.find(([k]) => k === fondCarte)?.[2] ?? FONDS_CARTE[0][2]
+  // Mètres par pixel à l'écran, pour dessiner les pictogrammes à l'échelle.
+  const mParPx = echelle ? echelle / 37.8 : null
 
   function basculerCalque(k) {
     setCalquesVisibles((s) => {
@@ -579,6 +581,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
                 key={o.id}
                 o={avecBrouillon(o)}
                 selectionne={o.id === selection}
+                mParPx={mParPx}
                 peutModifier={peutModifier}
                 onSelection={(latlng) => {
                   if (mode?.type === 'tracer') {
@@ -746,7 +749,7 @@ function Existant({ e }) {
   return <CircleMarker center={g[0]} radius={4} pathOptions={{ ...style, fillOpacity: 0.6 }}><Tooltip>{e.nom}</Tooltip></CircleMarker>
 }
 
-function Objet({ o, selectionne, peutModifier, onSelection, onGlisser, onDeposer }) {
+function Objet({ o, selectionne, mParPx, peutModifier, onSelection, onGlisser, onDeposer }) {
   const carte = useMap()
   const couleur = COULEUR_CALQUE[o.calque] ?? '#5d6874'
   const glisse = useRef(null)
@@ -808,7 +811,10 @@ function Objet({ o, selectionne, peutModifier, onSelection, onGlisser, onDeposer
   }
 
   if (o.nature === 'picto') {
-    const taille = selectionne ? 36 : 30
+    // À l'échelle : `largeur_m` est la taille du panneau sur le plan. Borné
+    // pour rester cliquable de loin et ne pas couvrir la carte de près.
+    const base = mParPx ? Number(o.largeur_m || 3) / mParPx : 30
+    const taille = Math.round(Math.max(12, Math.min(120, base)) * (selectionne ? 1.2 : 1))
     const icone = L.divIcon({
       className: `impl-picto ${selectionne ? 'actif' : ''} ${o.confirme ? '' : 'non-confirme'}`,
       html: `<div style="transform:rotate(${Number(o.rotation_deg ?? 0)}deg)">${pictoSvg(o.picto, taille)}</div>`,
@@ -1077,7 +1083,14 @@ function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onRaccorde
             <input type="number" value={o.quantite ?? 0} disabled />
           </label>
         </div>
-      ) : picto ? null : (
+      ) : picto ? (
+        <div className="impl-deux">
+          <label>
+            Taille au plan (m)
+            <input type="number" step="0.5" min="0.5" value={f.largeur_m} disabled={lecture} onChange={(e) => envoyer('largeur_m', e.target.value)} onBlur={() => valider('largeur_m', num)} />
+          </label>
+        </div>
+      ) : (
         <div className="impl-trois">
           <label>
             {o.forme_echelle === 'cercle' ? 'Diamètre (m)' : 'Largeur (m)'}
@@ -1096,7 +1109,7 @@ function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onRaccorde
         </div>
       )}
       {ligne && <p className="aide">Le tracé se déplace d'un bloc (glisser ou « Déplacer ») ; pour le modifier, retire-le et retrace-le. Le dernier module peut être plus court.</p>}
-      {picto && <p className="aide">Pictogramme dessiné à taille fixe, quel que soit le zoom. La rotation oriente les flèches.</p>}
+      {picto && <p className="aide">Pictogramme dessiné à l'échelle du plan (entre 12 et 120 px à l’écran). La rotation oriente les flèches.</p>}
       {(o.forme_echelle !== 'cercle' || picto) && !ligne && !cable && !conduite && (
         <div className="impl-rotation">
           <span className="cadran-libelle">Rotation</span>
