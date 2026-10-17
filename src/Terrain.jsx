@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { libelleStatut } from './libelles'
 import { texteErreur } from './erreurs'
+import { situerSurTrace, libelleSurTrace } from './geometrie'
 
 /**
  * Mes missions.
@@ -17,6 +18,26 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
   const [lignes, setLignes] = useState([])
   const [message, setMessage] = useState(null)
   const [filtre, setFiltre] = useState('tout')
+  // (123) La trace et les repères, pour dire « km 3,2 · entre E2 et
+  // E3 » sous une mission : à pied sur le parcours, c'est ce qui
+  // permet d'y aller, pas des coordonnées ni « Y aller » sans réseau.
+  const [fond, setFond] = useState(null)
+
+  useEffect(() => {
+    let vivant = true
+    Promise.all([
+      supabase.from('traces').select('nom, points').eq('evenement_id', evenement.id).is('deleted_at', null).eq('actif', true),
+      supabase.from('lieux').select('code, nom, pk_km').eq('evenement_id', evenement.id).is('deleted_at', null).eq('actif', true).not('pk_km', 'is', null)
+    ]).then(([tr, l]) => {
+      if (vivant) setFond({ traces: tr.data ?? [], lieux: l.data ?? [] })
+    })
+    return () => {
+      vivant = false
+    }
+  }, [evenement.id])
+
+  const surTrace = (l) =>
+    fond && l.latitude ? libelleSurTrace(situerSurTrace(fond.traces, fond.lieux, l.latitude, l.longitude)) : ''
 
   async function charger() {
     const { data, error } = await supabase.rpc('mon_terrain', {
@@ -150,6 +171,7 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
                   aucun bouton ne s'affiche plus bas — la policy
                   refuserait de toute façon, autant ne pas proposer. */}
               {!l.pour_moi && l.titulaire && <span>pris par {l.titulaire}</span>}
+              {surTrace(l) && <span className="sur-trace">{surTrace(l)}</span>}
               {l.latitude && (
                 <a
                   className="lien-externe"

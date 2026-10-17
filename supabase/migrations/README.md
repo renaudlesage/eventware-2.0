@@ -260,7 +260,15 @@ Le script s'est vérifié lui-même avant de valider : 0 écart de visibilité (
 
 Éprouvée en transaction annulée en trois tranches (DDL + déclencheurs + `suivre_signalement` ; `situation()` avec claims d'un membre ; `situation_autorite()` sur un lien actif, deux appels → +1), puis appliquée en trois blocs `do` et inscrite. Particularité de l'outil : un script multi-instructions avec `begin;`/`commit;` reste bloqué 60 s sans erreur ; en un seul bloc `do` avec une sous-transaction par étape, tout passe en moins d'une seconde. Le fichier garde `begin;`/`commit;` pour `psql` / `db push`. Aucun DROP sauf `suivre_signalement`, recréée dans la foulée.
 
-## Ne jamais rejouer 088 → 122 par `db push` sans les lignes ci-dessus
+### 123 : écrite le 17/10, PAS ENCORE APPLIQUÉE — où, sur le parcours (lot 3 du comparatif BFMF 2026)
+
+| Fichier | Fait |
+|---|---|
+| `20261017230000_123_projection_trace_doublons_capacite.sql` | `lieux.capacite` (capacité d'accueil d'une étape, en face de sa charge) ; `signalements.doublon_de` (SOS participant absorbé par un autre, ouvert, de même nature au même lieu depuis moins de deux heures — déduplication sanitaire de BFMF) ; `projeter_sur_trace(evenement, lat, lon)` (km sur la trace principale la plus proche, écart en mètres, repères `lieux.pk_km` qui encadrent ; les traces de moins d'un quart de la plus longue — zones 30, voies d'accès importées d'un KML — sont ignorées ; même calcul que `situerSurTrace` de `geometrie.js`) ; `suivi_signalement_interne(id)` (le cycle de l'original si doublon) et `suivi_signalement` / `creer_signalement` redéfinies dessus ; `situation()` : les doublons ne comptent plus comme SOS à traiter, `derniers[].doublons` ; `situation_autorite()` : `sur_trace` sur interventions et recherches, `doublons`, `reperes[].capacite`, `traces` (400 points au plus par trace, pour la carte SVG hors ligne) ; `contenu_public()` : `traces` |
+
+Éprouvée en transaction annulée en deux passes (tranche A seule, puis A + B + C dans un bloc : `projeter_sur_trace` sur Rando VTT → « km 6,11 · après E3B · 87 m », `situation()` avec claims d'un membre, `situation_autorite()` et `contenu_public()` sur les jetons de Rando VTT). À appliquer en trois blocs `do` (A : DDL + fonctions ; B : `situation()` ; C : `situation_autorite()` + `contenu_public()`), puis inscrire. **L'application (PR lot 3) suppose la colonne `doublon_de` : appliquer la 123 avant de fusionner.** Aucun DROP.
+
+## Ne jamais rejouer 088 → 123 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

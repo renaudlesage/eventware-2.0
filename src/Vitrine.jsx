@@ -17,7 +17,7 @@ import Pointage from './Pointage'
  * organisateur qui peut pousser « mise à l'abri » sur le téléphone de
  * chaque participant a une vraie capacité, pas un gadget.
  */
-export default function Vitrine({ jeton, codeLieu }) {
+export default function Vitrine({ jeton, codeLieu, onContenu }) {
   const [contenu, setContenu] = useState(null)
   const [erreur, setErreur] = useState(null)
   const [vue, setVue] = useState('infos')
@@ -28,6 +28,9 @@ export default function Vitrine({ jeton, codeLieu }) {
     else {
       setContenu(data)
       setErreur(null)
+      // (123) Le parent (page participant) lit la trace et les lieux
+      // pour dire au participant où il est sur le parcours.
+      onContenu?.(data)
     }
   }
 

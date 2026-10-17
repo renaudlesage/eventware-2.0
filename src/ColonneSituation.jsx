@@ -3,6 +3,7 @@ import { MapContainer, Polyline, Polygon, CircleMarker, Tooltip, Popup, useMap }
 import { FondCarte, ControlesCarte, useFondCarte } from './carte'
 import { supabase } from './supabaseClient'
 import { libelleStatut } from './libelles'
+import { situerSurTrace, libelleSurTrace } from './geometrie'
 
 /**
  * La colonne de droite quand l'écran ouvert est Situation (≥ 1440 px).
@@ -286,6 +287,9 @@ function position(objet, lieux) {
 
 export function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
   const c = useMemo(jetons, [])
+  // (123) « km 3,2 · entre E2 et E3 » dans chaque bulle : la carte
+  // montre, la projection dit — c'est ce qu'on annonce à la radio.
+  const situer = (pos) => libelleSurTrace(situerSurTrace(fond.traces, fond.lieux, pos[0], pos[1]))
   const [fondCarte, setFondCarte] = useFondCarte('situation')
   const repli = evenement.point_0_lat ? [evenement.point_0_lat, evenement.point_0_lon] : [50.38212, 5.61679]
 
@@ -399,6 +403,12 @@ export function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
                 {m.titre}
                 <br />
                 {libelleStatut(m.statut)}
+                {situer(m.pos) && (
+                  <>
+                    <br />
+                    <span className="sur-trace">{situer(m.pos)}</span>
+                  </>
+                )}
               </Popup>
             </CircleMarker>
           ))}
@@ -415,6 +425,12 @@ export function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
                 {s.gravite ? ` · ${s.gravite}` : ''}
                 <br />
                 {libelleStatut(s.statut)} depuis {hhmm(s.emis_le)}
+                {situer(s.pos) && (
+                  <>
+                    <br />
+                    <span className="sur-trace">{situer(s.pos)}</span>
+                  </>
+                )}
               </Popup>
             </CircleMarker>
           ))}
@@ -428,6 +444,7 @@ export function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
             >
               <Tooltip permanent direction="right">
                 {m.reference}
+                {situer([m.latitude, m.longitude]) && ` · ${situer([m.latitude, m.longitude])}`}
               </Tooltip>
             </CircleMarker>
           ))}
