@@ -2880,7 +2880,20 @@ body.impl-plein-corps { overflow: hidden; }
   body.impression-plan .leaflet-control-zoom, body.impression-plan .leaflet-control-attribution { display: none; }
   body.impression-plan .impl-legende { bottom: 12px; font-size: 10pt; }
 }
-@media (max-width: 700px) { .impl-carte { height: 440px; } .impl-legende { display: none; } }
+@media (max-width: 700px) {
+  .impl-carte { height: 440px; }
+  .impl-legende { display: none; }
+  /* Plein écran sur téléphone : la grille à une colonne empile carte,
+     catalogue et propriétés, et « height: 100 % » d'une rangée
+     automatique vaut zéro — la carte disparaissait derrière le
+     catalogue (retour de Ren, 17/10). En colonne flex, la carte garde
+     au moins la moitié de l'écran et les deux panneaux se partagent le
+     reste en défilant. */
+  .impl-plein .impl-corps { display: flex; flex-direction: column; gap: 8px; }
+  .impl-plein .impl-carte { flex: 1 1 auto; height: auto; min-height: 50vh; min-height: 50dvh; order: 1; }
+  .impl-plein .impl-catalogue { order: 2; flex: 0 1 auto; max-height: 28vh; overflow: auto; }
+  .impl-plein .impl-proprietes { order: 3; flex: 0 1 auto; max-height: 28vh; overflow: auto; }
+}
 
 /* ------------------------------------------------------------------ */
 /* Demandes similaires (116, 15/10) — sous le champ « précision » du   */
