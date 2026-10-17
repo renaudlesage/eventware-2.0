@@ -63,7 +63,7 @@ export default function MonCompte({ session, membre, evenement, setMessage, onRe
   }
 
   async function changerMdp() {
-    if (mdp.length < 6) return
+    if (mdp.length < 12) return
     setOccupe('mdp')
     setInfo(null)
     const { error } = await supabase.auth.updateUser({ password: mdp })
@@ -142,9 +142,9 @@ export default function MonCompte({ session, membre, evenement, setMessage, onRe
         value={mdp}
         onChange={(e) => setMdp(e.target.value)}
         autoComplete="new-password"
-        placeholder="Six caractères au minimum"
+        placeholder="Douze caractères au minimum"
       />
-      <button className="discret" disabled={occupe === 'mdp' || mdp.length < 6} onClick={changerMdp}>
+      <button className="discret" disabled={occupe === 'mdp' || mdp.length < 12} onClick={changerMdp}>
         Changer le mot de passe
       </button>
 

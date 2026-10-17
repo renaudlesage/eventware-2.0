@@ -23,7 +23,8 @@ export const MODULES = [
   ['sos_participants', 'SOS participants'],
   ['plan_implantation', "Plan d'implantation"],
   ['analyse', 'Analyse / REX'],
-  ['precurseur', 'Précurseur (charge des lieux)']
+  ['precurseur', 'Précurseur (charge des lieux)'],
+  ['exercices', 'Exercices sur mesure']
 ]
 
 /*

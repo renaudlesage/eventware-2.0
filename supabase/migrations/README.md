@@ -236,7 +236,15 @@ Le script s'est vérifié lui-même avant de valider : 0 écart de visibilité (
 |---|---|
 | `20261015234000_119_taille_pictos.sql` | les pictogrammes se dessinent à l'échelle : `largeur_m` = taille au plan, 3 m par défaut (catalogue et les 3 pictos déjà posés, qui étaient à 0,5 m) |
 
-## Ne jamais rejouer 088 → 119 par `db push` sans les lignes ci-dessus
+### 120 : appliquée le 16/10 (par Claude, via l'outil Supabase) — exercice sur mesure, v1
+
+| Fichier | Fait |
+|---|---|
+| `20261016060000_120_exercices.sql` | enum `origine_donnee` + 'exercice' (hors transaction, pour la v2) ; les sept tables du concept FERRU (`exercices`, `exercice_objectifs`, `exercice_stimuli`, `exercice_sources`, `exercice_actions_attendues`, `exercice_observations`, `exercice_ecarts`) + `exercice_trames` (bibliothèque commune) ; ressource `exercices` dans `matrice_permissions` (coordinateur, toutes phases sauf clôture), RLS via `exercice_permet` ; `exercice_objectifs_catalogue()` (10 objectifs) ; `avant_vol(ev)` — 14 contrôles déterministes (seuils de veille inversés, installation à risque sans mesure de maîtrise, catégories du plan incohérentes, secouristes vs fréquentation, DEA moyens vs plan, équipes sans responsable, canal d'urgence, groupes incohérents, fiches réflexes manquantes, contacts sans téléphone, lieux sans position, point de rencontre des secours, veille inactive), chacun avec sa source et le stimulus qui le mettrait en scène ; 7 trames rédigées (victime parcours, gaz, météo, enfant perdu, panne énergie, groupe de nuit, foule) avec champs à compléter ; `remplir_champs` ; `generer_exercice(ev, titre, format, durée, objectifs, date, max pièges)` — contexte lu dans le dispositif, 2 à 4 trames selon la durée, pièges de l'avant-vol intercalés sans doubler une trame qui les joue déjà, traçabilité dans `exercice_sources` |
+
+Éprouvée en transaction annulée sur Rando VTT (20 écarts dont 3 chauds ; 12 stimuli dont 4 pièges, 21 actions attendues, 6 objectifs ; vrais noms : étape 3 bis, canal 8, 8 bouteilles de propane, seuils 100/85, 17h10), puis appliquée et inscrite. Deux corrections après coup (`min(uuid)`, variable masquant un alias), rejouées en `create or replace`. Aucun DROP.
+
+## Ne jamais rejouer 088 → 120 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

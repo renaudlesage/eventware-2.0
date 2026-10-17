@@ -26,7 +26,8 @@ import {
   QrCode,
   Upload,
   ScrollText,
-  Network
+  Network,
+  Swords
 } from 'lucide-react'
 
 /**
@@ -60,6 +61,7 @@ export const DOMAINES = {
   // Analyse sont les deux écrans qui lisent la situation au lieu de la
   // saisir, voisins dans la famille Pilotage.
   precurseur: { icone: Network,              teinte: 'ardoise' },
+  exercices:  { icone: Swords,               teinte: 'ardoise' },
   reglages:   { icone: SlidersHorizontal,    teinte: 'gris' },
   plateforme: { icone: Building2,            teinte: 'gris' }
 }
@@ -76,7 +78,7 @@ export const FAMILLES = [
   ['Commandement', ['situation', 'planning', 'preparation']],
   ['Terrain',      ['securite', 'sos', 'parcours', 'memento']],
   ['Ressources',   ['logistique', 'rh', 'plan', 'accueil']],
-  ['Pilotage',     ['precurseur', 'analyse', 'reglages', 'plateforme']]
+  ['Pilotage',     ['precurseur', 'exercices', 'analyse', 'reglages', 'plateforme']]
 ]
 
 /**

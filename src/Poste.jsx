@@ -8,6 +8,7 @@ import Parcours from './Parcours'
 import Rh from './Rh'
 import Analyse from './Analyse'
 import Precurseur from './Precurseur'
+import Exercices from './Exercices'
 import PlanImplantation from './PlanImplantation'
 import Bandeau from './Bandeau'
 import Situation from './Situation'
@@ -80,6 +81,9 @@ const ECRANS = [
   // Précurseur (114) : lecture dès missions:lire, comme les vues de la
   // base ; les réglages de l'écran restent gardés par `precurseur`.
   { clef: 'precurseur', libelle: 'Charge',       module: 'precurseur',        besoin: ['missions', 'lire'] },
+  // Exercice sur mesure (120) : le contrôle avant-vol et les exercices
+  // générés depuis le dispositif encodé. Gardé par `exercices`.
+  { clef: 'exercices',  libelle: 'Exercices',    module: 'exercices',         besoin: ['exercices', 'lire'] },
   { clef: 'analyse',    libelle: 'Analyse',      module: 'analyse',           besoin: ['analyse', 'modifier'] },
   { clef: 'reglages',   libelle: 'Réglages',     module: null,                besoin: 'tout_pouvoir' },
   // Console de l'éditeur : hors événement, réservée à l'exploitant.
@@ -571,6 +575,8 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
       )
     case 'precurseur':
       return <Precurseur evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} />
+    case 'exercices':
+      return <Exercices evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} />
     case 'analyse':
       return <Analyse evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} />
     case 'plateforme':

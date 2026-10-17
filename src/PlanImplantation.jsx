@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { MapContainer, TileLayer, Polyline, Polygon, CircleMarker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, Polyline, Polygon, CircleMarker, Popup, useMap } from 'react-leaflet'
+import { FondCarte, ControlesCarte, useFondCarte } from './carte'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
@@ -454,6 +455,7 @@ function Ajout({ evenement, position, onFait, setMessage }) {
 }
 
 function Carte({ elements, evenement, position }) {
+  const [fondCarte, setFondCarte] = useFondCarte('plan')
   const centre =
     elements[0]?.geometrie?.[0] ??
     (evenement.point_0_lat ? [evenement.point_0_lat, evenement.point_0_lon] : [50.38212, 5.61679])
@@ -463,10 +465,8 @@ function Carte({ elements, evenement, position }) {
   return (
     <div className="carte-conteneur" style={{ height: 380 }}>
       <MapContainer center={centre} zoom={17}>
-        <TileLayer
-          attribution="&copy; OpenStreetMap"
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        <FondCarte cle={fondCarte} />
+        <ControlesCarte fond={fondCarte} onFond={setFondCarte} />
         {elements.map((e) => {
           const g = e.geometrie
           const couleur = COULEUR(e)

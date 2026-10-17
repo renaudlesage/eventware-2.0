@@ -2909,3 +2909,62 @@ body.impl-plein-corps { overflow: hidden; }
 .unifilaire-cadre svg { display: block; }
 .rgie-ligne { align-items: flex-start; }
 .rgie-ref { font-size: 0.9em; }
+
+/* ------------------------------------------------------------------ */
+/* Exercice sur mesure (120)                                           */
+.exo { display: flex; flex-direction: column; gap: 10px; }
+.exo-item { all: unset; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--trait); }
+.exo-item:hover { background: var(--surface-2); }
+.exo-ecart { align-items: flex-start; }
+.exo-source { font-size: 0.9em; }
+.exo-stimulus-apercu { display: block; color: var(--sourdine); font-style: italic; margin-top: 2px; }
+.exo-objectifs { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 4px 12px; margin-bottom: 8px; }
+.exo-objectifs .impl-calque { font-size: 13px; }
+.exo-point { color: var(--etat-veille); }
+.exo-titre { font-size: 18px; margin: 0; }
+.exo-chrono { font-size: 20px; font-weight: 700; padding: 0 8px; }
+.exo-bandeau-exercice { background: var(--etat-veille); color: var(--on-teinte); padding: 6px 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px; }
+.exo-stimuli { display: flex; flex-direction: column; gap: 8px; }
+.exo-stimulus { background: var(--surface); border: 1px solid var(--trait); border-left: 4px solid var(--trait); padding: 8px 12px; }
+.exo-stimulus.piege { border-left-color: var(--etat-veille); }
+.exo-stimulus.lance { border-left-color: var(--etat-ok); }
+.exo-stimulus.annule { opacity: 0.45; }
+.exo-stimulus.a-lancer { outline: 2px solid var(--etat-chaud); }
+.exo-stimulus-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; }
+.exo-t { font-weight: 700; font-size: 14px; }
+.exo-emetteur { font-weight: 600; }
+.exo-texte { margin: 6px 0 4px; font-size: 15px; line-height: 1.4; }
+.exo-note { margin: 2px 0; font-size: 12.5px; color: var(--sourdine); border-left: 2px solid var(--etat-info); padding-left: 8px; }
+.exo-sources { margin: 2px 0; font-size: 11.5px; color: var(--sourdine); }
+.exo-grille { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.exo-grille li { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; border-top: 1px dashed var(--trait); }
+.exo-grille li.faite .exo-action { color: var(--etat-ok); }
+.exo-grille li.manquee .exo-action { color: var(--etat-chaud); }
+.exo-coches { display: inline-flex; gap: 2px; flex-shrink: 0; }
+.exo-coche { all: unset; cursor: pointer; width: 26px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--trait); border-radius: 4px; font-size: 13px; color: var(--sourdine); }
+.exo-coche.oui { background: var(--etat-ok); border-color: var(--etat-ok); color: var(--on-teinte); }
+.exo-coche.non { background: var(--etat-chaud); border-color: var(--etat-chaud); color: var(--on-teinte); }
+.exo-coche:disabled { cursor: default; opacity: 0.5; }
+.exo-obj { font-size: 11px; color: var(--etat-info); }
+.exo-critere { font-size: 11px; }
+.exo-edition { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; }
+.exo-edition label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; margin: 0; }
+.exo-edition input, .exo-edition textarea { margin: 0; }
+.exo-ecarts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px; }
+.exo-synthese .tableau { margin-bottom: 8px; }
+@media print {
+  body.impression-exercice .rail, body.impression-exercice .bandeau, body.impression-exercice .impl-barre .ligne-boutons,
+  body.impression-exercice .exo-actions-stimulus, body.impression-exercice .boutons-flottants { display: none !important; }
+  body.impression-exercice .exo-stimulus { break-inside: avoid; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Contrôles communs des cartes (17/10) : fond et plein écran, dans la carte */
+.carte-controles { display: flex; align-items: stretch; background: var(--surface); border: 1px solid var(--trait) !important; box-shadow: 0 1px 4px rgba(0,0,0,0.3); overflow: hidden; }
+.carte-controles .carte-fond { margin: 0; border: none; border-right: 1px solid var(--trait); border-radius: 0; height: 30px; padding: 0 26px 0 8px; font-size: 12px; max-width: 150px; background-color: var(--surface); color: var(--encre); }
+.carte-controles .carte-plein-bouton { all: unset; cursor: pointer; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; color: var(--encre); background: var(--surface); }
+.carte-controles .carte-plein-bouton:hover { background: var(--surface-2); }
+.leaflet-touch .carte-controles { border: 1px solid var(--trait) !important; }
+.carte-conteneur.carte-plein { position: fixed !important; inset: 0; z-index: 1200; height: 100vh !important; height: 100dvh !important; width: 100vw; margin: 0; border: none; }
+body.carte-plein-corps { overflow: hidden; }
+@media (max-width: 700px) { .carte-controles .carte-fond { max-width: 110px; } }
