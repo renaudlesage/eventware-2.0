@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, TileLayer, Polygon, Polyline, CircleMarker, Marker, ImageOverlay, Tooltip, useMap, useMapEvents } from 'react-leaflet'
+import { MapContainer, Polygon, Polyline, CircleMarker, Marker, ImageOverlay, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
@@ -7,6 +7,7 @@ import { modifierOuRefuser, supprimerOuRefuser } from './ecriture'
 import { CATEGORIES_PLAN } from './referentielsProduit'
 import { polygoneObjet, distancePoints, longueurLigne, jonctionsLigne, nombreModules, milieuLigne, translaterLigne, contientPoint } from './geometrie'
 import { pictoSvg } from './pictos'
+import { FONDS_CARTE, FondCarte, ControlesCarte, useFondCarte } from './carte'
 import { estDistributeur, courant, chuteTension, arbreElectrique } from './reseaux'
 
 /**
@@ -47,21 +48,8 @@ export const CALQUES = [
 export const COULEUR_CALQUE = Object.fromEntries(CALQUES.map(([k, , c]) => [k, c]))
 export const LIBELLE_CALQUE = Object.fromEntries(CALQUES.map(([k, l]) => [k, l]))
 
-// Fonds de carte. `natif` : zoom maximal servi par la source ; au-delà,
-// Leaflet agrandit les tuiles, ce qui suffit pour poser à l'échelle.
-export const FONDS_CARTE = [
-  ['satellite', 'Satellite', [{ url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: '&copy; Esri', natif: 19 }]],
-  ['hybride', 'Satellite + noms', [
-    { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: '&copy; Esri', natif: 19 },
-    { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', attribution: '', natif: 19 }
-  ]],
-  ['plan', 'Plan (OSM)', [{ url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap', natif: 19 }]],
-  ['ign', 'Carte IGN belge', [{ url: 'https://cartoweb.wmts.ngi.be/1.0.0/topo/default/3857/{z}/{y}/{x}.png', attribution: '&copy; IGN-NGI', natif: 17 }]],
-  ['topo', 'Topographique', [{ url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenTopoMap', natif: 17 }]],
-  ['clair', 'Clair', [{ url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', attribution: '&copy; OpenStreetMap, &copy; CARTO', natif: 20 }]],
-  ['sombre', 'Sombre', [{ url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', attribution: '&copy; OpenStreetMap, &copy; CARTO', natif: 20 }]],
-  ['aucun', 'Aucun (fond de plan seul)', []]
-]
+// Fonds de carte : partagés par toutes les cartes de l'app (carte.jsx).
+export { FONDS_CARTE }
 
 const num = (v) => (v === '' || v == null ? null : Number(String(v).replace(',', '.')))
 const fr = (x, d = 1) => (x == null ? '—' : Number(x).toFixed(d).replace('.', ','))
@@ -72,7 +60,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
   const [urls, setUrls] = useState({})
   const [calquesVisibles, setCalquesVisibles] = useState(() => new Set(CALQUES.map(([k]) => k)))
   const [existantsVisibles, setExistantsVisibles] = useState(true)
-  const [fondCarte, setFondCarte] = useState(() => { try { return localStorage.getItem('impl.fond') || 'satellite' } catch { return 'satellite' } })
+  const [fondCarte, setFondCarte] = useFondCarte('implantation', 'satellite')
   const [plein, setPlein] = useState(false)
   const [selection, setSelection] = useState(null)
   const [mode, setMode] = useState(null) // {type:'poser', fiche} | {type:'tracer', fiche, points} | {type:'mesurer', points} | {type:'caler', fond, points} | {type:'deplacer'}
@@ -115,10 +103,6 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
     chargerFonds()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evenement.id])
-
-  useEffect(() => {
-    try { localStorage.setItem('impl.fond', fondCarte) } catch {}
-  }, [fondCarte])
 
   // Plein écran : Échap pour en sortir, et la page ne défile plus derrière.
   useEffect(() => {
@@ -464,7 +448,6 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
   const visibles = objets.filter((o) => calquesVisibles.has(o.calque ?? 'infrastructures'))
   const mesure = mode?.type === 'mesurer' && mode.points?.length === 2 ? distancePoints(mode.points[0], mode.points[1]) : null
   const trace = mode?.type === 'tracer' && mode.points?.length ? { longueur: longueurLigne(mode.points), n: nombreModules(longueurLigne(mode.points), Number(mode.fiche.largeur_m)) } : null
-  const couchesFond = FONDS_CARTE.find(([k]) => k === fondCarte)?.[2] ?? FONDS_CARTE[0][2]
   // Mètres par pixel à l'écran, pour dessiner les pictogrammes à l'échelle.
   const mParPx = echelle ? echelle / 37.8 : null
 
@@ -480,13 +463,9 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
     <div className={`implantation mode-${mode?.type ?? 'libre'} ${plein ? 'impl-plein' : ''}`}>
       <div className="impl-barre">
         <div className="ligne-boutons">
-          <select value={fondCarte} onChange={(e) => setFondCarte(e.target.value)} aria-label="Fond de carte" className="impl-fond-choix">
-            {FONDS_CARTE.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-          </select>
           <button className={mode?.type === 'mesurer' ? '' : 'discret'} onClick={() => setMode(mode?.type === 'mesurer' ? null : { type: 'mesurer', points: [] })}>
             Mesurer
           </button>
-          <button className="discret" onClick={() => setPlein((v) => !v)}>{plein ? 'Réduire' : 'Agrandir'}</button>
           <button className="discret" onClick={imprimer}>Imprimer le plan</button>
           {mode?.type === 'tracer' && (mode.points?.length ?? 0) >= 2 && (
             <button onClick={terminerTrace}>Terminer la ligne</button>
@@ -569,9 +548,8 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
 
         <div className="carte-conteneur impl-carte">
           <MapContainer center={centreParDefaut(evenement, objets)} zoom={18} maxZoom={22} scrollWheelZoom className={fondCarte === 'aucun' ? 'fond-blanc' : ''}>
-            {couchesFond.map((c, i) => (
-              <TileLayer key={fondCarte + i} attribution={c.attribution} url={c.url} maxNativeZoom={c.natif} maxZoom={22} />
-            ))}
+            <FondCarte cle={fondCarte} />
+            <ControlesCarte fond={fondCarte} onFond={setFondCarte} pleinEcran={plein} onPleinEcran={setPlein} />
             {fonds.filter((f) => f.visible && urls[f.id]).map((f) => (
               <ImageOverlay key={f.id + f.updated_at} url={urls[f.id]} bounds={[[f.coins.so[0], f.coins.no[1]], [f.coins.no[0], f.coins.ne[1]]]} opacity={Number(f.opacite)} />
             ))}

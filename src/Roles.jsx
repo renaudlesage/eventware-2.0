@@ -26,7 +26,8 @@ const RESSOURCES = [
   ['plan_implantation', "Plan d'implantation"],
   ['installations_risque', 'Installations à risque'],
   ['analyse', 'Analyse / REX'],
-  ['precurseur', 'Précurseur (dépendances, capacités)']
+  ['precurseur', 'Précurseur (dépendances, capacités)'],
+  ['exercices', 'Exercices (avant-vol, animation)']
 ]
 
 const ACTIONS = ['lire', 'creer', 'modifier', 'supprimer']

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { MapContainer, TileLayer, Polyline, Polygon, CircleMarker, Tooltip, Popup, useMap } from 'react-leaflet'
+import { MapContainer, Polyline, Polygon, CircleMarker, Tooltip, Popup, useMap } from 'react-leaflet'
+import { FondCarte, ControlesCarte, useFondCarte } from './carte'
 import { supabase } from './supabaseClient'
 import { libelleStatut } from './libelles'
 
@@ -198,6 +199,7 @@ function position(objet, lieux) {
 
 function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
   const c = useMemo(jetons, [])
+  const [fondCarte, setFondCarte] = useFondCarte('situation')
   const repli = evenement.point_0_lat ? [evenement.point_0_lat, evenement.point_0_lon] : [50.38212, 5.61679]
 
   const signalements = (vif?.signalements ?? [])
@@ -227,10 +229,8 @@ function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
     <>
       <div className="carte-conteneur carte-tactique" style={{ height: hauteur }}>
         <MapContainer center={repli} zoom={14} zoomSnap={0.25} scrollWheelZoom={false}>
-          <TileLayer
-            attribution="&copy; OpenStreetMap"
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+          <FondCarte cle={fondCarte} />
+          <ControlesCarte fond={fondCarte} onFond={setFondCarte} />
           {fond.traces.map((t) =>
             (t.points ?? []).length > 1 ? (
               <Polyline

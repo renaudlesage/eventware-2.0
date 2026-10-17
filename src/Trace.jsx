@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { MapContainer, TileLayer, Polyline, CircleMarker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, Polyline, CircleMarker, Popup, useMap } from 'react-leaflet'
+import { FondCarte, ControlesCarte, useFondCarte } from './carte'
 import { supabase } from './supabaseClient'
 import { lireTrace, mesurer, simplifier, profil } from './gpx'
 import { texteErreur } from './erreurs'
 
 export default function Trace({ evenement, peut, toutPouvoir, setMessage }) {
   const [traces, setTraces] = useState([])
+  const [fondCarte, setFondCarte] = useFondCarte('trace')
   // Une trace est un référentiel, comme un lieu : l'import exige
   // `referentiels:creer` (policy traces_creation, 107). Le bénévole
   // qui pointe des groupes (`parcours:creer`) n'a pas à en importer —
@@ -181,10 +183,8 @@ export default function Trace({ evenement, peut, toutPouvoir, setMessage }) {
 
           <div className="carte-conteneur" style={{ height: 340 }}>
             <MapContainer center={affichee.points[0].slice(0, 2)} zoom={13}>
-              <TileLayer
-                attribution="&copy; OpenStreetMap"
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
+              <FondCarte cle={fondCarte} />
+              <ControlesCarte fond={fondCarte} onFond={setFondCarte} />
               <Polyline
                 positions={affichee.points.map((p) => [p[0], p[1]])}
                 pathOptions={{ color: '#1d5c4f', weight: 4 }}

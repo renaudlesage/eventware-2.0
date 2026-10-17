@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, Marker, Popup, useMap } from 'react-leaflet'
+import { FondCarte, ControlesCarte, useFondCarte } from './carte'
 import L from 'leaflet'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
@@ -62,6 +63,7 @@ function Recadrer({ points }) {
 
 export default function PcOps({ evenement }) {
   const [signalements, setSignalements] = useState([])
+  const [fondCarte, setFondCarte] = useFondCarte('pcops')
   const [erreur, setErreur] = useState(null)
   const [masquerClos, setMasquerClos] = useState(true)
   const minuteur = useRef(null)
@@ -123,10 +125,8 @@ export default function PcOps({ evenement }) {
       {geolocalises.length > 0 && (
         <div className="carte-conteneur">
           <MapContainer center={centre} zoom={14} scrollWheelZoom={false}>
-            <TileLayer
-              attribution='&copy; OpenStreetMap'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
+            <FondCarte cle={fondCarte} />
+            <ControlesCarte fond={fondCarte} onFond={setFondCarte} />
             <Recadrer points={geolocalises} />
             {geolocalises.map((s) => (
               <Marker
