@@ -3018,3 +3018,7 @@ body.carte-plein-corps { overflow: hidden; }
 .bandeau-alerte .meta button.discret { margin: 0 0 0 6px; padding: 2px 8px; font-size: 11px; }
 .moniteur-actions select { width: auto; margin: 0; font-size: 11px; padding: 2px 4px; }
 .participant .cycle-sos { margin: 2px 0 0; }
+
+/* Plan radio dans la colonne Situation (lot 2) */
+.plan-radio tr.canal-urgence td { color: var(--etat-chaud); font-weight: 700; }
+.plan-radio .jeton { margin-left: 6px; }

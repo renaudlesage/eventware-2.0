@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { MapContainer, Marker, Popup, useMap } from 'react-leaflet'
-import { FondCarte, ControlesCarte, useFondCarte } from './carte'
-import L from 'leaflet'
 import { supabase } from './supabaseClient'
+import { CarteTactique, useTactique } from './ColonneSituation'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import { jouerAlarme } from './alarme'
@@ -46,55 +44,12 @@ export const GRAVITES = [
 
 const PRIORITES = ['P1', 'P2', 'P3']
 
-const COULEURS = {
-  recu: '#a3341f',
-  pris_en_charge: '#c07000',
-  en_cours: '#c07000',
-  clos: '#1d5c4f',
-  sans_suite: '#6b6862'
-}
-
-// Au-delà, la liste a l'air vivante alors qu'elle ne l'est plus : le
-// relevé passe en rouge. Trois cycles de rafraîchissement.
-const RELEVE_PERIME_MS = 30000
-
-/**
- * Marqueur dessiné en CSS plutôt qu'en image : les icônes par défaut de
- * Leaflet cassent une fois le projet compilé (chemins d'images perdus au
- * bundling). Un divIcon évite le problème et permet de coder le statut
- * par la couleur.
- */
-function marqueur(statut) {
-  const couleur = COULEURS[statut] ?? '#6b6862'
-  return L.divIcon({
-    className: '',
-    html: `<span style="display:block;width:16px;height:16px;border-radius:50%;
-           background:${couleur};border:2px solid #fff;
-           box-shadow:0 0 0 1px rgba(0,0,0,.35)"></span>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8]
-  })
-}
-
-function Recadrer({ points }) {
-  const carte = useMap()
-  useEffect(() => {
-    if (!points.length) return
-    carte.fitBounds(
-      points.map((p) => [p.latitude, p.longitude]),
-      { padding: [40, 40], maxZoom: 16 }
-    )
-  }, [points.length])
-  return null
-}
-
 export default function PcOps({ evenement, peut, toutPouvoir }) {
   const [signalements, setSignalements] = useState([])
   const [demandes, setDemandes] = useState({}) // signalement_id → demande créée
   const [membres, setMembres] = useState({}) // user_id → nom affiché
   const [lieux, setLieux] = useState({}) // lieu_id → nom
   const [equipes, setEquipes] = useState([])
-  const [fondCarte, setFondCarte] = useFondCarte('pcops')
   const [erreur, setErreur] = useState(null)
   const [retour, setRetour] = useState(null)
   const [masquerClos, setMasquerClos] = useState(true)
@@ -109,6 +64,13 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
 
   // Sans ces droits, le select de statut et le bouton de conversion
   // n'ont aucune chance d'aboutir : autant ne pas les montrer.
+  // (lot 2) La carte tactique de la colonne Situation, ici aussi : la
+  // trace, le dispositif de secours, les étapes, les missions urgentes et
+  // les Mayday sous les signalements — et une carte même sans
+  // signalement, au lieu d'un écran vide. Les signalements affichés
+  // sont ceux de la liste (clôturés masqués ou non).
+  const tactique = useTactique(evenement)
+
   const peutSos = toutPouvoir || peut?.('sos', 'modifier')
   // La conversion crée une demande ET passe le signalement en pris en
   // charge : il faut les deux droits, sinon la RPC échoue à mi-chemin.
@@ -215,14 +177,6 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
     ? signalements.filter((s) => !['clos', 'sans_suite'].includes(s.statut))
     : signalements
 
-  const geolocalises = visibles.filter((s) => s.latitude && s.longitude)
-
-  const centre = geolocalises.length
-    ? [geolocalises[0].latitude, geolocalises[0].longitude]
-    : evenement.point_0_lat
-      ? [evenement.point_0_lat, evenement.point_0_lon]
-      : [50.38212, 5.61679]
-
   const ouverts = signalements.filter((s) =>
     ['recu', 'pris_en_charge', 'en_cours'].includes(s.statut)
   ).length
@@ -268,31 +222,16 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
         <span className="identifiant">{lienParticipant}</span>
       </p>
 
-      {geolocalises.length > 0 && (
-        <div className="carte-conteneur">
-          <MapContainer center={centre} zoom={14} scrollWheelZoom={false}>
-            <FondCarte cle={fondCarte} />
-            <ControlesCarte fond={fondCarte} onFond={setFondCarte} />
-            <Recadrer points={geolocalises} />
-            {geolocalises.map((s) => (
-              <Marker
-                key={s.id}
-                position={[s.latitude, s.longitude]}
-                icon={marqueur(s.statut)}
-              >
-                <Popup>
-                  <strong>{s.reference}</strong> — {TYPES[s.type] ?? s.type}
-                  <br />
-                  {s.description}
-                  <br />
-                  <span className="mono">
-                    précision ±{Math.round(s.precision_m ?? 0)} m
-                  </span>
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
-        </div>
+      {!tactique.fond ? (
+        <p className="vide">Chargement de la carte…</p>
+      ) : (
+        <CarteTactique
+          evenement={evenement}
+          fond={tactique.fond}
+          vif={{ ...(tactique.vif ?? { missions: [], maydays: [], groupes: [] }), signalements: visibles }}
+          lieux={tactique.lieux}
+          hauteur={380}
+        />
       )}
 
       <div className="ligne-boutons" style={{ margin: '12px 0' }}>
