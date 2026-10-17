@@ -588,31 +588,56 @@ function Parcours({ s, maintenant }) {
  * à seuils du PC sur le point de l'événement, et l'avertissement officiel
  * IRM de la province. Plus le relevé du moment (Open-Meteo), sans clé.
  */
+// Open-Meteo actualise son « current » toutes les quinze minutes :
+// inutile d'appeler plus souvent, dangereux de ne jamais rappeler — le
+// relevé restait figé à l'ouverture de la page, sous un pied qui
+// promettait vingt secondes (comparatif BFMF 2026, lot 1).
+const RAFRAICHISSEMENT_METEO_MS = 15 * 60 * 1000
+
 function Meteo({ s }) {
   const ev = s.evenement ?? {}
   const criteres = s.meteo?.criteres ?? []
   const [obs, setObs] = useState(null)
+  const [releve, setReleve] = useState(null)
+  const [pannePuis, setPannePuis] = useState(null)
 
   useEffect(() => {
     const p = ev.point_0
     if (!p?.lat) return
     let vivant = true
-    fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}` +
-        '&current=temperature_2m,wind_gusts_10m,precipitation' +
-        '&daily=sunrise,sunset&timezone=Europe%2FBrussels&forecast_days=1'
-    )
-      .then((r) => r.json())
-      .then((d) => vivant && setObs(d))
-      .catch(() => vivant && setObs({ erreur: true }))
+    function charger() {
+      fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}` +
+          '&current=temperature_2m,wind_gusts_10m,precipitation' +
+          '&daily=sunrise,sunset&timezone=Europe%2FBrussels&forecast_days=1'
+      )
+        .then((r) => r.json())
+        .then((d) => {
+          if (!vivant) return
+          setObs(d)
+          setReleve(new Date())
+          setPannePuis(null)
+        })
+        .catch(() => {
+          if (!vivant) return
+          // Le dernier relevé reste affiché, daté ; seule la panne est
+          // nouvelle.
+          setPannePuis((x) => x ?? new Date())
+          setObs((o) => o ?? { erreur: true })
+        })
+    }
+    charger()
+    const t = setInterval(charger, RAFRAICHISSEMENT_METEO_MS)
     return () => {
       vivant = false
+      clearInterval(t)
     }
   }, [ev.point_0?.lat, ev.point_0?.lon])
 
   const c = obs?.current
   const jour = obs?.daily
   const heureSeule = (iso) => (iso ? iso.slice(11, 16) : '—')
+  const heure = (d) => d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
 
   return (
     <section className="bloc">
@@ -646,6 +671,13 @@ function Meteo({ s }) {
                   {heureSeule(jour?.sunrise?.[0])} · {heureSeule(jour?.sunset?.[0])}
                 </strong>
               </div>
+              <p className={`aide ${pannePuis ? 'alerte-texte' : ''}`} style={{ margin: '6px 0 0' }}>
+                {pannePuis
+                  ? `Relevé indisponible depuis ${heure(pannePuis)}${releve ? ` — dernier relevé ${heure(releve)}` : ''}.`
+                  : releve
+                    ? `Relevé ${heure(releve)} (Open-Meteo, actualisé toutes les 15 min).`
+                    : ''}
+              </p>
             </>
           )}
         </div>

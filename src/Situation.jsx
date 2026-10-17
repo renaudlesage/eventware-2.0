@@ -7,6 +7,7 @@ import { libelleStatut } from './libelles'
 import { TYPES } from './PcOps'
 import { ChevronDown } from 'lucide-react'
 import { ecrireOuEmpiler } from './fileEcritures'
+import { jouerAlarme } from './alarme'
 
 /**
  * Tableau de bord général — la vue QG.
@@ -52,6 +53,7 @@ const COLONNES_PAR_PHASE = {
 export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
   const [s, setS] = useState(null)
   const [signalementsRecents, setSignalementsRecents] = useState([])
+  const [alertes, setAlertes] = useState(null)
   const [demandesLogistique, setDemandesLogistique] = useState([])
   const [demandesSecurite, setDemandesSecurite] = useState([])
   // Retour d'une action faite depuis un moniteur (prise en charge,
@@ -68,39 +70,21 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
 
   // Compte ce qui exige vraiment une réaction immédiate — alertes
   // actives (le Mayday y crée déjà sa propre ligne, pas besoin de le
-  // compter à part) et missions P1 non résolues. Un simple total, pas
+  // compter à part), missions P1 non résolues, SOS participants pas
+  // encore pris en charge et recherches en cours. Un simple total, pas
   // le détail : on ne veut savoir qu'une chose, si ça vient de monter.
+  // Les SOS et les recherches manquaient (comparatif BFMF 2026, lot 1) :
+  // un SOS participant arrivait en silence sur l'écran projeté.
   function compterUrgent(donnees) {
     const alertesActives = donnees?.alertes?.length ?? 0
     const p1 = donnees?.missions?.p1 ?? 0
-    return alertesActives + p1
-  }
-
-  function jouerAlarme() {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)()
-      ;[0, 260, 520].forEach((decalage) => {
-        setTimeout(() => {
-          const osc = ctx.createOscillator()
-          const gain = ctx.createGain()
-          osc.type = 'square'
-          osc.frequency.value = 880
-          gain.gain.value = 0.15
-          osc.connect(gain)
-          gain.connect(ctx.destination)
-          osc.start()
-          osc.stop(ctx.currentTime + 0.18)
-        }, decalage)
-      })
-    } catch {
-      /* Certains navigateurs bloquent l'audio sans interaction récente
-         de l'utilisateur — l'activation du son par un clic suffit
-         normalement, mais on ne casse jamais l'écran pour ça. */
-    }
+    const sos = donnees?.signalements?.non_pris_en_charge ?? 0
+    const recherches = donnees?.recherches?.length ?? 0
+    return alertesActives + p1 + sos + recherches
   }
 
   async function charger() {
-    const [{ data, error }, sig, logi] = await Promise.all([
+    const [{ data, error }, sig, logi, al] = await Promise.all([
       supabase.rpc('situation', { p_evenement: evenement.id }),
       // Requête directe plutôt que de dépendre du sous-objet exposé
       // par situation() : le moniteur affichait la référence et le
@@ -111,9 +95,12 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
       // Les signalements OUVERTS seulement : maintenant qu'on les clôture
       // d'ici, un signalement clos qui resterait affiché aurait l'air de
       // ne pas l'être (24/09).
+      // Heure, contact, position et lieu (lot 1 du comparatif BFMF
+      // 2026) : sans eux, le moniteur disait « Malaise — reçu » sans
+      // dire depuis quand, ni où, ni qui rappeler.
       supabase
         .from('signalements')
-        .select('id, reference, type, description, statut')
+        .select('id, reference, type, description, statut, recu_le, contact, latitude, longitude, lieu_id, lieu:lieu_id(nom)')
         .eq('evenement_id', evenement.id)
         .is('deleted_at', null)
         .in('statut', ['recu', 'pris_en_charge', 'en_cours'])
@@ -132,7 +119,17 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
         .not('statut', 'in', '("resolue","annulee")')
         .order('priorite')
         .order('created_at', { ascending: false })
-        .limit(12)
+        .limit(12),
+      // Les alertes avec leur message et leur heure : situation() ne
+      // renvoie que titre, consigne et niveau — sur l'écran projeté, le
+      // texte de la consigne générale doit se lire sans ouvrir Sécurité.
+      supabase
+        .from('alertes')
+        .select('id, niveau, titre, message, consigne, emise_le')
+        .eq('evenement_id', evenement.id)
+        .eq('active', true)
+        .is('deleted_at', null)
+        .order('emise_le', { ascending: false })
     ])
     if (error) setErreur(texteErreur(error))
     else {
@@ -143,6 +140,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
 
       setS(data)
       setSignalementsRecents(sig.data ?? [])
+      if (!al.error) setAlertes(al.data ?? [])
       setDemandesLogistique((logi.data ?? []).filter((d) => d.module === 'logistique').slice(0, 6))
       setDemandesSecurite((logi.data ?? []).filter((d) => d.module === 'securite').slice(0, 6))
       setMaj(new Date())
@@ -183,6 +181,24 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
       setRetour({ type: 'info', texte: `${ligne.reference} : réseau indisponible, « ${libelle} » partira au retour du signal.` })
     } else {
       setRetour({ type: 'ok', texte: `${ligne.reference} : ${libelle}.` })
+      charger()
+    }
+  }
+
+  // Un signalement devient une demande sécurité P2, sans quitter
+  // l'écran projeté ; l'attribution fine (priorité, équipe) se fait
+  // depuis PC-OPS. La RPC passe aussi le signalement en pris en charge.
+  async function convertir(x) {
+    setOccupe(x.id)
+    const { data, error } = await supabase.rpc('convertir_signalement_en_mission', {
+      p_signalement: x.id,
+      p_module: 'securite',
+      p_priorite: 'P2'
+    })
+    setOccupe(null)
+    if (error) setRetour({ type: 'erreur', texte: `${x.reference} : ${texteErreur(error)}` })
+    else {
+      setRetour({ type: 'ok', texte: `${x.reference} → demande ${data?.reference ?? ''} créée, signalement pris en charge.` })
       charger()
     }
   }
@@ -279,12 +295,19 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
 
       <Maydays evenement={evenement} compact />
 
-      {(s.alertes ?? []).map((a, i) => (
-        <div className={`bandeau-alerte niv-${a.niveau}`} key={i}>
+      {(alertes ?? s.alertes ?? []).map((a, i) => (
+        <div className={`bandeau-alerte niv-${a.niveau}`} key={a.id ?? i}>
           <div className="niv">{a.niveau}</div>
           <div className="contenu">
             <strong>{a.titre}</strong>
+            {a.message && <div className="msg">{a.message}</div>}
             {a.consigne && <div className="consigne">→ {a.consigne}</div>}
+            {a.emise_le && (
+              <div className="meta">
+                <span>émise à {new Date(a.emise_le).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</span>
+                <span>il y a {ecoule(a.emise_le)}</span>
+              </div>
+            )}
           </div>
         </div>
       ))}
@@ -405,19 +428,48 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
                   </strong>
                   <span>
                     {libelleStatut(x.statut)} <span className="mono">· {x.reference}</span>
+                    {x.recu_le && ` · il y a ${ecoule(x.recu_le)}`}
+                    {x.lieu?.nom && ` · ${x.lieu.nom}`}
+                    {x.contact && (
+                      <>
+                        {' · '}
+                        <a href={`tel:${x.contact.replace(/\s/g, '')}`}>{x.contact}</a>
+                      </>
+                    )}
+                    {x.latitude && (
+                      <>
+                        {' · '}
+                        <a
+                          href={`https://www.google.com/maps?q=${x.latitude},${x.longitude}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          carte
+                        </a>
+                      </>
+                    )}
                   </span>
-                  {peutSos && (
+                  {(peutSos || peutMissions) && (
                     <span className="moniteur-actions">
-                      {x.statut === 'recu' && (
+                      {peutSos && x.statut === 'recu' && (
                         <button className="discret" disabled={occupe === x.id}
                           onClick={() => agir('signalements', x, 'pris_en_charge', 'pris en charge')}>
                           Prendre en charge
                         </button>
                       )}
-                      <button className="discret cloturer" disabled={occupe === x.id}
-                        onClick={() => agir('signalements', x, 'clos', 'clôturé')}>
-                        Clôturer
-                      </button>
+                      {peutMissions && peutSos && (
+                        <button className="discret" disabled={occupe === x.id}
+                          title="Créer une demande sécurité P2 à partir de ce signalement"
+                          onClick={() => convertir(x)}>
+                          → Demande
+                        </button>
+                      )}
+                      {peutSos && (
+                        <button className="discret cloturer" disabled={occupe === x.id}
+                          onClick={() => agir('signalements', x, 'clos', 'clôturé')}>
+                          Clôturer
+                        </button>
+                      )}
                     </span>
                   )}
                 </div>
@@ -456,6 +508,12 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
               { libelle: 'Non rendus', valeur: s.logistique?.biens_non_rendus, etat: 'attente' }
             ]}
           >
+            {/* La jauge contre la capacité attendue : « 412 présents »
+                ne dit rien sans « sur 500 ». Chaude à 90 %, comme le
+                bandeau d'état (comparatif BFMF 2026, lot 1). */}
+            {evenement.frequentation_max > 0 && s.logistique?.jauge != null && (
+              <JaugeLigne presents={s.logistique.jauge} max={evenement.frequentation_max} />
+            )}
             {demandesLogistique.length === 0 && (s.logistique?.sous_seuil ?? []).length === 0 ? (
               <p className="moniteur-vide">Aucune demande ouverte, aucune anomalie matérielle.</p>
             ) : (
@@ -654,6 +712,23 @@ export function ColonneDomaine({ teinte, icone, titre, lien, onAller, compteurs,
         </div>
         <div className="moniteur-corps">{children}</div>
       </div>
+    </div>
+  )
+}
+
+/** Présents contre capacité attendue, en barre : chaude dès 90 %. */
+export function JaugeLigne({ presents, max }) {
+  const taux = Math.min(1, presents / max)
+  const chaud = taux >= 0.9
+  return (
+    <div className={`moniteur-ligne jauge-ligne ${chaud ? 'urgent' : ''}`}>
+      <strong>
+        Présents {presents} / {max}
+        {chaud ? ` · ${Math.round(taux * 100)} % de la capacité` : ''}
+      </strong>
+      <span className="barre" aria-hidden="true">
+        <span style={{ width: `${Math.round(taux * 100)}%` }} />
+      </span>
     </div>
   )
 }

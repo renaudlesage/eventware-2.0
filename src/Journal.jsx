@@ -27,7 +27,7 @@ const MODULES_JOURNAL = [
 ]
 export const LIBELLE_MODULE = Object.fromEntries(MODULES_JOURNAL)
 
-export function Journal({ evenement, setMessage, moduleParDefaut = 'securite', peut, toutPouvoir }) {
+export function Journal({ evenement, setMessage, moduleParDefaut = 'securite', peut, toutPouvoir, membre }) {
   const [lignes, setLignes] = useState([])
   const [texte, setTexte] = useState('')
   const [moduleSaisie, setModuleSaisie] = useState(moduleParDefaut)
@@ -66,7 +66,11 @@ export function Journal({ evenement, setMessage, moduleParDefaut = 'securite', p
       module: moduleSaisie,
       categorie: 'observation',
       texte: texte.trim(),
-      phase: evenement.phase
+      phase: evenement.phase,
+      // Le nom tel qu'il se lit, figé à l'écriture : un SITREP doit
+      // dire qui a consigné, même si le membre quitte l'événement
+      // ensuite (comparatif BFMF 2026, main courante).
+      auteur_nom: membre?.nom_affiche ?? null
     })
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {

@@ -42,10 +42,12 @@ ensuite, et ne jamais arriver en double.
 
 ## Ce qui n'est pas fait
 
-- **QR code** : le lien s'affiche en texte, à encoder avec un générateur
-  externe pour l'instant.
-- **Notification au PC** : il faut regarder l'écran. Le rafraîchissement
-  est de 10 secondes, sans son ni alerte.
+- ~~**QR code**~~ : fait depuis — `QrCodes.jsx`, un QR générique et un
+  par lieu.
+- **Notification au PC** : rafraîchissement toutes les 10 secondes ;
+  depuis le 17/10, la Situation et PC-OPS sonnent sur tout nouveau SOS
+  si l'opérateur a activé le son (bouton 🔔). Pas de notification
+  système ni de vibration.
 - **Fond de carte hors ligne** : les tuiles OpenStreetMap exigent du
   réseau. La saisie fonctionne hors ligne, pas l'affichage de la carte.
 - **Limitation d'abus** : aucune. À traiter le jour où un abus existe,
