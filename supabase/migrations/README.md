@@ -244,7 +244,15 @@ Le script s'est vérifié lui-même avant de valider : 0 écart de visibilité (
 
 Éprouvée en transaction annulée sur Rando VTT (20 écarts dont 3 chauds ; 12 stimuli dont 4 pièges, 21 actions attendues, 6 objectifs ; vrais noms : étape 3 bis, canal 8, 8 bouteilles de propane, seuils 100/85, 17h10), puis appliquée et inscrite. Deux corrections après coup (`min(uuid)`, variable masquant un alias), rejouées en `create or replace`. Aucun DROP.
 
-## Ne jamais rejouer 088 → 120 par `db push` sans les lignes ci-dessus
+### 121 : appliquée le 17/10 (par Claude, via l'outil Supabase) — refermer les RPC de 114 et 120
+
+| Fichier | Fait |
+|---|---|
+| `20261017090000_121_fermer_rpc_exercices_precurseur.sql` | 114 et 120 accordaient EXECUTE à `authenticated` sans le retirer d'abord à PUBLIC et `anon` (règle de 090) : sept fonctions étaient joignables sans compte via `/rest/v1/rpc/` — `avant_vol`, `generer_exercice`, `exercice_permet`, `exercice_objectifs_catalogue`, `remplir_champs` (120), `prc_grappes`, `prc_synthese` (114). Retirées à PUBLIC et `anon`, regranées à `authenticated` (seuls `Exercices.jsx` et `Precurseur.jsx` les appellent) ; `search_path` figé sur `exercice_objectifs_catalogue` et `remplir_champs` |
+
+Éprouvée en transaction annulée (`anon` ne garde que les six fonctions publiques de 090, `authenticated` garde les sept, `remplir_champs` fonctionne), puis appliquée et inscrite en une seule transaction. Les cinq de 120 étaient signalées par l'advisor sécurité Supabase ; les deux de 114 sont ressorties de la même requête (`has_function_privilege('anon', …)`). Aucun DROP.
+
+## Ne jamais rejouer 088 → 121 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`
