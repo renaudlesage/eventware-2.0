@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import Meteo from './Meteo'
+import { useAccuses, BienRecu } from './accuses.jsx'
 
 /**
  * La colonne de veille — à partir de 1440 px (refonte du 20/09).
@@ -29,7 +30,8 @@ const LIBELLE_MODULE = {
   analyse: 'Analyse'
 }
 
-export default function Veille({ evenement, peut, toutPouvoir, palier, onAller }) {
+export default function Veille({ evenement, membre, peut, toutPouvoir, palier, onAller }) {
+  const { mes, accuser } = useAccuses(evenement, membre)
   const [alertes, setAlertes] = useState([])
   const [journal, setJournal] = useState(null)
   const [radio, setRadio] = useState(null)
@@ -99,6 +101,13 @@ export default function Veille({ evenement, peut, toutPouvoir, palier, onAller }
                   <span>
                     {new Date(a.emise_le).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
                   </span>
+                  {a.acquittee_le && (
+                    <span>
+                      prise en compte par le PC à{' '}
+                      {new Date(a.acquittee_le).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                  <BienRecu alerte={a} mes={mes} accuser={accuser} membre={membre} />
                 </div>
               </div>
             </div>

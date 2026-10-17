@@ -33,6 +33,7 @@ export function Journal({ evenement, setMessage, moduleParDefaut = 'securite', p
   const [moduleSaisie, setModuleSaisie] = useState(moduleParDefaut)
   const [filtre, setFiltre] = useState('tout')
   const [filtreModule, setFiltreModule] = useState('tout')
+  const [majeur, setMajeur] = useState(false)
   const [occupe, setOccupe] = useState(false)
 
   // Policy `journal_creation` : `journal:creer` — chef d'équipe et
@@ -70,11 +71,15 @@ export function Journal({ evenement, setMessage, moduleParDefaut = 'securite', p
       // Le nom tel qu'il se lit, figé à l'écriture : un SITREP doit
       // dire qui a consigné, même si le membre quitte l'événement
       // ensuite (comparatif BFMF 2026, main courante).
-      auteur_nom: membre?.nom_affiche ?? null
+      auteur_nom: membre?.nom_affiche ?? null,
+      // « Majeur » à la saisie (122) : BFMF avait l'étoile « Important »
+      // ; ici l'importance n'était posée que par les déclencheurs.
+      importance: majeur ? 'majeur' : 'routine'
     })
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       setTexte('')
+      setMajeur(false)
       charger()
     }
     setOccupe(false)
@@ -105,6 +110,10 @@ export function Journal({ evenement, setMessage, moduleParDefaut = 'securite', p
             onKeyDown={(e) => e.key === 'Enter' && ajouter()}
             placeholder="Observation, décision, appel radio…"
           />
+          <label className="case-a-cocher" title="Entrée majeure : mise en avant dans le journal et le SITREP">
+            <input type="checkbox" checked={majeur} onChange={(e) => setMajeur(e.target.checked)} />
+            Majeur
+          </label>
           <button disabled={occupe || !texte.trim()} onClick={ajouter}>
             Inscrire
           </button>

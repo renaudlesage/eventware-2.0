@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import { diffuserAlerte } from './diffuserAlerte'
 import { texteErreur } from './erreurs'
 import { NIVEAUX_ALERTE as NIVEAUX } from './referentielsProduit'
+import { useAccuses, BienRecu } from './accuses.jsx'
 
 
 /**
@@ -17,8 +18,9 @@ import { NIVEAUX_ALERTE as NIVEAUX } from './referentielsProduit'
  * quelqu'un qui travaille sur un festival — il y crée du bruit et brouille
  * le cloisonnement entre organisateurs.
  */
-export default function Bandeau({ evenement }) {
+export default function Bandeau({ evenement, membre }) {
   const [alertes, setAlertes] = useState([])
+  const { mes, accuser } = useAccuses(evenement, membre)
 
   async function charger() {
     if (!evenement?.id) return setAlertes([])
@@ -55,6 +57,13 @@ export default function Bandeau({ evenement }) {
                   minute: '2-digit'
                 })}
               </span>
+              {a.acquittee_le && (
+                <span>
+                  prise en compte par le PC à{' '}
+                  {new Date(a.acquittee_le).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+              <BienRecu alerte={a} mes={mes} accuser={accuser} membre={membre} />
             </div>
           </div>
         </div>
@@ -69,6 +78,7 @@ export default function Bandeau({ evenement }) {
 
 export function GestionAlertes({ evenement, setMessage, embarque = false, onCompteurs }) {
   const [alertes, setAlertes] = useState([])
+  const [accuses, setAccuses] = useState({}) // alerte_id → [{nom, accuse_le}]
   const [ouvrir, setOuvrir] = useState(false)
   const [f, setF] = useState({
     niveau: 'vigilance',
@@ -87,19 +97,48 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
   const estPublique = publique ?? publiqueParDefaut(f.niveau)
 
   async function charger() {
-    const { data, error } = await supabase
-      .from('alertes')
-      .select('*')
-      .eq('evenement_id', evenement.id)
-      .order('emise_le', { ascending: false })
-      .limit(20)
+    const [{ data, error }, ac] = await Promise.all([
+      supabase
+        .from('alertes')
+        .select('*')
+        .eq('evenement_id', evenement.id)
+        .order('emise_le', { ascending: false })
+        .limit(20),
+      // (122) Qui a lu quoi : les accusés nominatifs, groupés par alerte.
+      supabase
+        .from('alertes_accuses')
+        .select('alerte_id, accuse_le, membre:membre_id(nom_affiche)')
+        .eq('evenement_id', evenement.id)
+        .order('accuse_le')
+    ])
     if (error) setMessage?.({ type: 'erreur', texte: texteErreur(error) })
     else setAlertes(data ?? [])
+    if (!ac.error) {
+      const parAlerte = {}
+      for (const x of ac.data ?? []) {
+        ;(parAlerte[x.alerte_id] ??= []).push({ nom: x.membre?.nom_affiche ?? 'membre sans nom', accuse_le: x.accuse_le })
+      }
+      setAccuses(parAlerte)
+    }
   }
 
   useEffect(() => {
     charger()
+    const t = setInterval(charger, 15000)
+    return () => clearInterval(t)
   }, [evenement.id])
+
+  // « Vu, pris en compte » : le PC a la main, sans lever. Qui et quand
+  // sont posés par le déclencheur cycle_alerte.
+  async function acquitter(id) {
+    const { error, count } = await supabase
+      .from('alertes')
+      .update({ acquittee_le: new Date().toISOString() }, { count: 'exact' })
+      .eq('id', id)
+    if (error) setMessage?.({ type: 'erreur', texte: texteErreur(error) })
+    else if (count === 0) setMessage?.({ type: 'erreur', texte: 'Acquittement refusé.' })
+    else charger()
+  }
 
   async function emettre() {
     if (!f.titre.trim()) return
@@ -216,7 +255,13 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
               {a.public && <span className="jeton"> visible des participants</span>}
             </div>
             {a.consigne && <p style={{ margin: '4px 0' }}>→ {a.consigne}</p>}
+            <Accuses liste={accuses[a.id]} acquittee_le={a.acquittee_le} />
             <div className="ligne-boutons" style={{ marginTop: 10 }}>
+              {!a.acquittee_le && (
+                <button className="discret" onClick={() => acquitter(a.id)} title="Le PC a vu et prend en compte, sans lever">
+                  Vu, pris en compte
+                </button>
+              )}
               <button onClick={() => lever(a.id)}>Lever l'alerte</button>
               <button className="discret" onClick={() => basculerPublique(a)}>
                 {a.public ? 'Retirer de la vitrine' : 'Montrer aux participants'}
@@ -224,6 +269,29 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
             </div>
           </div>
         ))
+      )}
+    </div>
+  )
+}
+
+/**
+ * La liste nominative des accusés d'une alerte (122), et l'acquittement
+ * du PC. Partagée par la gestion des alertes et la Situation : les
+ * deux doivent dire la même chose avec les mêmes mots.
+ */
+export function Accuses({ liste = [], acquittee_le, acquittee_par, membresActifs }) {
+  const hm = (iso) => new Date(iso).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
+  return (
+    <div className="accuses">
+      <span className={liste.length ? '' : 'sourdine'}>
+        {liste.length === 0
+          ? 'personne n’a encore accusé réception'
+          : `lue par ${liste.length}${membresActifs ? ` / ${membresActifs}` : ''} : ${liste.map((x) => `${x.nom} (${hm(x.accuse_le)})`).join(' · ')}`}
+      </span>
+      {acquittee_le && (
+        <span className="acquittee">
+          · prise en compte{acquittee_par ? ` par ${acquittee_par}` : ' par le PC'} à {hm(acquittee_le)}
+        </span>
       )}
     </div>
   )

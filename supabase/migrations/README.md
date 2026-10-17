@@ -252,7 +252,15 @@ Le script s'est vérifié lui-même avant de valider : 0 écart de visibilité (
 
 Éprouvée en transaction annulée (`anon` ne garde que les six fonctions publiques de 090, `authenticated` garde les sept, `remplir_champs` fonctionne), puis appliquée et inscrite en une seule transaction. Les cinq de 120 étaient signalées par l'advisor sécurité Supabase ; les deux de 114 sont ressorties de la même requête (`has_function_privilege('anon', …)`). Aucun DROP.
 
-## Ne jamais rejouer 088 → 121 par `db push` sans les lignes ci-dessus
+### 122 : appliquée le 17/10 (par Claude, via l'outil Supabase) — la boucle de retour (lot 2 du comparatif BFMF 2026)
+
+| Fichier | Fait |
+|---|---|
+| `20261017190000_122_accuses_acquittement_cycle_sos.sql` | `alertes_accuses` (accusé de lecture nominatif « Bien reçu », un par membre et par alerte, RLS : lecture par tout membre, écriture pour soi seulement) ; `alertes.acquittee_le / acquittee_par` (« vu, pris en compte » sans lever, auteur posé par `trg_cycle_alerte`) ; `signalements.en_route_le / arrive_le` (moyen en route posé par le PC, sur place posé par `trg_statut_signalement` au passage en `en_cours`) ; `suivre_signalement` renvoie les quatre temps (drop + create, droits anon reposés) ; `situation()` : alertes avec id, message, accusés nominatifs, acquittement et dénominateur `membres_actifs` ; `logistique.transports` (6 prochains, chauffeur, RDV) ; `parcours.personnes_en_attente / personnes_rentrees / groupes` ; `situation_autorite()` : nombre d'accusés (jamais les noms) et acquittement sur les alertes, `pris_en_charge_le / en_route_le / arrive_le` sur les signalements, compteur `nb_acces` incrémenté une fois par visite (10 min) et non à chaque rafraîchissement |
+
+Éprouvée en transaction annulée en trois tranches (DDL + déclencheurs + `suivre_signalement` ; `situation()` avec claims d'un membre ; `situation_autorite()` sur un lien actif, deux appels → +1), puis appliquée en trois blocs `do` et inscrite. Particularité de l'outil : un script multi-instructions avec `begin;`/`commit;` reste bloqué 60 s sans erreur ; en un seul bloc `do` avec une sous-transaction par étape, tout passe en moins d'une seconde. Le fichier garde `begin;`/`commit;` pour `psql` / `db push`. Aucun DROP sauf `suivre_signalement`, recréée dans la foulée.
+
+## Ne jamais rejouer 088 → 122 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

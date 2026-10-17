@@ -3006,3 +3006,15 @@ body.carte-plein-corps { overflow: hidden; }
 /* Présents contre capacité, dans le moniteur Logistique. */
 .jauge-ligne .barre { margin-top: 4px; width: 100%; }
 .jauge-ligne.urgent .barre > span { background: var(--etat-chaud); }
+
+/* ------------------------------------------------------------------ */
+/* Accusés de lecture et acquittement (122)                            */
+
+.bien-recu { all: unset; cursor: pointer; font-size: 12px; font-weight: 700; padding: 3px 10px; border: 1px solid currentColor; color: var(--etat-chaud); }
+.bien-recu:hover { background: var(--surface-2); }
+.bien-recu.lu { cursor: default; border-color: transparent; color: var(--etat-ok); padding-left: 0; }
+.accuses { font-size: 11px; color: var(--sourdine); margin-top: 5px; line-height: 1.4; }
+.accuses .acquittee { color: var(--etat-ok); }
+.bandeau-alerte .meta button.discret { margin: 0 0 0 6px; padding: 2px 8px; font-size: 11px; }
+.moniteur-actions select { width: auto; margin: 0; font-size: 11px; padding: 2px 4px; }
+.participant .cycle-sos { margin: 2px 0 0; }

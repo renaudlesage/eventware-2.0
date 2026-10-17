@@ -259,6 +259,11 @@ export default function Autorite({ jeton }) {
             {al.consigne && <div className="consigne">→ {al.consigne}</div>}
             <div className="meta">
               <span>émise à {hhmm(al.emise_le)}</span>
+              {/* (122) Combien de postes ont lu, jamais lesquels. */}
+              {al.membres_actifs != null && (
+                <span>lue par {al.accuses ?? 0} / {al.membres_actifs} postes</span>
+              )}
+              {al.acquittee_le && <span>prise en compte par le PC à {hhmm(al.acquittee_le)}</span>}
             </div>
           </div>
         </div>
@@ -480,6 +485,10 @@ function Ligne({ i, maintenant }) {
         <span>{i.lieu || 'lieu non précisé'}</span>
         {i.pk_km != null && <span>km {Number(i.pk_km).toFixed(1)}</span>}
         <span>depuis {depuis(i.depuis ?? i.heure, maintenant)}</span>
+        {/* (122) Des faits horodatés derrière « Moyen engagé » et
+            « Sur place », pas seulement un statut choisi. */}
+        {i.en_route_le && <span>engagé {hhmm(i.en_route_le)}</span>}
+        {i.arrive_le && <span>sur place {hhmm(i.arrive_le)}</span>}
         <span>{i.reference}</span>
         <Gps position={i.position} />
       </div>

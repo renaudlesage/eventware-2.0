@@ -350,6 +350,8 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
                     {s.traite_par && membres[s.traite_par] ? ` par ${membres[s.traite_par]}` : ''}
                   </span>
                 )}
+                {s.en_route_le && <span>· moyen en route {hm(s.en_route_le)}</span>}
+                {s.arrive_le && <span>· sur place {hm(s.arrive_le)} (+{delai(s.recu_le, s.arrive_le)})</span>}
                 {s.clos_le && (
                   <span>· {s.statut === 'sans_suite' ? 'sans suite' : 'clos'} {hm(s.clos_le)} (+{delai(s.recu_le, s.clos_le)})</span>
                 )}
@@ -366,18 +368,39 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
               <div className="ligne-boutons" style={{ marginTop: 10 }}>
                 {peutSos ? (
                   <>
-                    <select
-                      value={s.statut}
-                      onChange={(e) => modifier(s.id, { statut: e.target.value })}
-                      style={{ width: 'auto', marginBottom: 0 }}
-                      aria-label="Statut"
-                    >
-                      {STATUTS.map(([v, l]) => (
-                        <option key={v} value={v}>
-                          {l}
-                        </option>
-                      ))}
-                    </select>
+                    {/* (122) Le cycle en boutons successifs, comme la
+                        volante de BFMF : chaque geste est un fait
+                        horodaté, pas un choix dans une liste. */}
+                    {s.statut === 'recu' && (
+                      <button onClick={() => modifier(s.id, { statut: 'pris_en_charge' }, `${s.reference} pris en charge`)}>
+                        Prendre en charge
+                      </button>
+                    )}
+                    {s.statut === 'pris_en_charge' && !s.en_route_le && (
+                      <button onClick={() => modifier(s.id, { en_route_le: new Date().toISOString() }, `${s.reference} : moyen en route`)}>
+                        Moyen en route
+                      </button>
+                    )}
+                    {s.statut === 'pris_en_charge' && s.en_route_le && (
+                      <button onClick={() => modifier(s.id, { statut: 'en_cours' }, `${s.reference} : sur place`)}>
+                        Sur place
+                      </button>
+                    )}
+                    {!['clos', 'sans_suite'].includes(s.statut) && (
+                      <>
+                        <button className="discret cloturer" onClick={() => modifier(s.id, { statut: 'clos' }, `${s.reference} clôturé`)}>
+                          Clôturer
+                        </button>
+                        <button className="discret" onClick={() => modifier(s.id, { statut: 'sans_suite' }, `${s.reference} classé sans suite`)}>
+                          Sans suite
+                        </button>
+                      </>
+                    )}
+                    {['clos', 'sans_suite'].includes(s.statut) && (
+                      <button className="discret" onClick={() => modifier(s.id, { statut: 'pris_en_charge' }, `${s.reference} rouvert`)}>
+                        Rouvrir
+                      </button>
+                    )}
                     <select
                       value={s.gravite ?? ''}
                       onChange={(e) => modifier(s.id, { gravite: e.target.value || null })}

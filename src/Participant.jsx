@@ -158,8 +158,24 @@ export default function Participant({ jeton, codeLieu }) {
         p_cle_client: s.cle_client
       })
       const ligne = Array.isArray(data) ? data[0] : data
-      if (ligne?.statut && ligne.statut !== s.statut) {
-        setFile(majSignalement(s.cle_client, { statut: ligne.statut }))
+      // Le statut, mais aussi les temps du cycle (122) : « pris en
+      // charge à 14:02, moyen en route 14:05 » rassure plus qu'un mot.
+      if (
+        ligne?.statut &&
+        (ligne.statut !== s.statut ||
+          ligne.pris_en_charge_le !== s.pris_en_charge_le ||
+          ligne.en_route_le !== s.en_route_le ||
+          ligne.arrive_le !== s.arrive_le)
+      ) {
+        setFile(
+          majSignalement(s.cle_client, {
+            statut: ligne.statut,
+            pris_en_charge_le: ligne.pris_en_charge_le,
+            en_route_le: ligne.en_route_le,
+            arrive_le: ligne.arrive_le,
+            clos_le: ligne.clos_le
+          })
+        )
       }
     }
   }
@@ -222,6 +238,14 @@ export default function Participant({ jeton, codeLieu }) {
               <div className="etat-sos">
                 {s.etat === 'recu' ? etiquetteStatut(s.statut) : ETATS[s.etat]}
               </div>
+              {s.etat === 'recu' && (s.pris_en_charge_le || s.en_route_le || s.arrive_le) && (
+                <p className="aide cycle-sos">
+                  {s.pris_en_charge_le && <span>pris en charge à {heureCourte(s.pris_en_charge_le)}</span>}
+                  {s.en_route_le && <span> · moyen en route {heureCourte(s.en_route_le)}</span>}
+                  {s.arrive_le && <span> · sur place {heureCourte(s.arrive_le)}</span>}
+                  {s.clos_le && <span> · clôturé {heureCourte(s.clos_le)}</span>}
+                </p>
+              )}
               {s.etat === 'en_attente' && (
                 <p className="aide">
                   {s.motif
@@ -299,6 +323,10 @@ export default function Participant({ jeton, codeLieu }) {
       )}
     </div>
   )
+}
+
+function heureCourte(iso) {
+  return new Date(iso).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
 }
 
 function etiquetteStatut(statut) {
