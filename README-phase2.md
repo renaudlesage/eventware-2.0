@@ -48,8 +48,14 @@ ensuite, et ne jamais arriver en double.
   depuis le 17/10, la Situation et PC-OPS sonnent sur tout nouveau SOS
   si l'opérateur a activé le son (bouton 🔔). Pas de notification
   système ni de vibration.
-- **Fond de carte hors ligne** : les tuiles OpenStreetMap exigent du
-  réseau. La saisie fonctionne hors ligne, pas l'affichage de la carte.
+- **Fond de carte hors ligne** (fait le 17/10, `src/tuiles.js` et
+  `public/sw.js`) : les tuiles déjà affichées restent trente jours dans
+  une réserve propre au poste (6 000 au plus) ; la carte IGN belge, seule
+  à l'autoriser, se prépare d'avance pour la zone visible (bouton ⬇ sur
+  la carte, zooms 12 → 16). OpenStreetMap, OpenTopoMap, CARTO et Esri
+  interdisent le téléchargement anticipé : pour eux, parcourir la zone à
+  l'écran avant de partir. Hors réseau, une tuile absente dit « pas en
+  réserve ».
 - **Limitation d'abus** : aucune. À traiter le jour où un abus existe,
   pas avant.
 
