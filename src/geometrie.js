@@ -240,3 +240,117 @@ export function contientPoint(poly, p) {
   }
   return dedans
 }
+
+/* ------------------------------------------------------------------ */
+/* Projection sur la trace (lot 3 du comparatif BFMF 2026)             */
+
+/**
+ * Où est un point par rapport à une trace : l'abscisse curviligne en
+ * km depuis le départ, et l'écart en mètres à la trace. BFMF 2026
+ * disait « km 3,2, entre E2 et E3 » ; Eventware ne donnait que des
+ * coordonnées, illisibles à la radio.
+ *
+ * `points` est `traces.points` : [[lat, lon, alt?], …]. Retourne
+ * { km, ecart_m } ou null si la trace n'a pas deux points.
+ *
+ * Le repère local est centré sur le point projeté : à l'échelle d'un
+ * parcours de quelques dizaines de kilomètres, l'approximation
+ * équirectangulaire reste bien en deçà de la précision d'un GPS.
+ */
+export function projeterSurTrace(points, lat, lon) {
+  if (!Array.isArray(points) || points.length < 2 || lat == null || lon == null) return null
+  const origine = [lat, lon]
+  let cumul = 0
+  let meilleur = null
+  let a = versLocal([points[0][0], points[0][1]], origine)
+  for (let i = 1; i < points.length; i++) {
+    const b = versLocal([points[i][0], points[i][1]], origine)
+    const vx = b.x - a.x
+    const vy = b.y - a.y
+    const l2 = vx * vx + vy * vy
+    const L = Math.sqrt(l2)
+    // Le point projeté est à l'origine : t = -(a·v) / |v|².
+    let t = l2 ? -(a.x * vx + a.y * vy) / l2 : 0
+    t = Math.max(0, Math.min(1, t))
+    const px = a.x + t * vx
+    const py = a.y + t * vy
+    const d = Math.sqrt(px * px + py * py)
+    if (meilleur == null || d < meilleur.ecart_m) {
+      meilleur = { ecart_m: d, km: (cumul + t * L) / 1000 }
+    }
+    cumul += L
+    a = b
+  }
+  return meilleur
+}
+
+/**
+ * Situe un point sur le parcours : la trace la plus proche parmi
+ * celles de l'événement, le km, l'écart, et les deux repères (lieux
+ * avec pk_km) qui l'encadrent. Les repères viennent de `lieux.pk_km`,
+ * saisi par l'exploitant, et non d'une projection des lieux : c'est
+ * la référence que tout le monde a sous les yeux sur le terrain — et
+ * la fonction SQL `projeter_sur_trace` (123) fait exactement pareil,
+ * pour que l'autorité et le PC lisent la même chose.
+ *
+ * `traces` : [{ nom, points }] ; `lieux` : tableau ou dictionnaire de
+ * lieux { code, nom, pk_km }. Retourne null sans trace ou sans point.
+ */
+export function situerSurTrace(traces, lieux, lat, lon) {
+  if (lat == null || lon == null) return null
+  // Un KML importé range aussi dans `traces` les zones 30 et les voies
+  // d'accès (Rando VTT : 93 points de parcours, puis six lignes de 4 à
+  // 11 points) : un km sur une voie d'accès de 200 m ne veut rien
+  // dire. On ne retient que les traces d'au moins un quart de la plus
+  // longue — les boucles d'un événement à plusieurs circuits restent
+  // toutes candidates, les tronçons annexes sortent. Même règle que
+  // `projeter_sur_trace` (123).
+  const candidates = (traces ?? [])
+    .map((t) => {
+      const pts = (t.points ?? []).filter((p) => Array.isArray(p) && p[0] != null && p[1] != null)
+      return { nom: t.nom, longueur: longueurLigne(pts.map((p) => [p[0], p[1]])), proj: projeterSurTrace(pts, lat, lon) }
+    })
+    .filter((t) => t.proj)
+  const longueurMax = Math.max(0, ...candidates.map((t) => t.longueur))
+  const principales = candidates.filter((t) => t.longueur >= 0.25 * longueurMax)
+  let meilleur = null
+  for (const t of principales) {
+    if (meilleur == null || t.proj.ecart_m < meilleur.ecart_m) {
+      meilleur = { ...t.proj, trace: t.nom, plusieurs: principales.length > 1 }
+    }
+  }
+  if (!meilleur) return null
+  const reperes = (Array.isArray(lieux) ? lieux : Object.values(lieux ?? {}))
+    .filter((l) => l.pk_km != null)
+    .sort((x, y) => Number(x.pk_km) - Number(y.pk_km))
+  let avant = null
+  let apres = null
+  for (const l of reperes) {
+    if (Number(l.pk_km) <= meilleur.km) avant = l
+    else if (!apres) apres = l
+  }
+  return { ...meilleur, avant, apres }
+}
+
+/**
+ * « km 3,2 · entre E2 et E3 · 40 m de la trace ». Au-delà de 300 m de
+ * la trace, le km ne veut plus rien dire : on dit « hors trace » et la
+ * distance, c'est ce qui compte pour y aller.
+ */
+export function libelleSurTrace(s) {
+  if (!s) return ''
+  const km = `km ${s.km.toFixed(1)}`
+  const ecart = Math.round(s.ecart_m)
+  if (s.ecart_m > 300) return `hors trace · ${ecart >= 1000 ? `${(ecart / 1000).toFixed(1)} km` : `${ecart} m`} du ${km}`
+  const nom = (l) => l.code || l.nom
+  const entre = s.avant && s.apres
+    ? `entre ${nom(s.avant)} et ${nom(s.apres)}`
+    : s.avant
+      ? `après ${nom(s.avant)}`
+      : s.apres
+        ? `avant ${nom(s.apres)}`
+        : null
+  return [s.plusieurs ? `${s.trace} ${km}` : km, entre, ecart > 20 ? `${ecart} m de la trace` : null]
+    .filter(Boolean)
+    .join(' · ')
+}
