@@ -8,6 +8,7 @@ import { TYPES } from './PcOps'
 import { ChevronDown } from 'lucide-react'
 import { ecrireOuEmpiler } from './fileEcritures'
 import { jouerAlarme } from './alarme'
+import { situerSurTrace, libelleSurTrace } from './geometrie'
 import { Accuses } from './Bandeau'
 
 /**
@@ -55,6 +56,9 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
   const [s, setS] = useState(null)
   const [signalementsRecents, setSignalementsRecents] = useState([])
   const [equipes, setEquipes] = useState([])
+  // (123) Le fond pour dire où : la trace et les lieux, chargés une fois.
+  const [fond, setFond] = useState(null)
+  const [engagement, setEngagement] = useState(null) // formulaire « engager une équipe »
   const [demandesLogistique, setDemandesLogistique] = useState([])
   const [demandesSecurite, setDemandesSecurite] = useState([])
   // Retour d'une action faite depuis un moniteur (prise en charge,
@@ -101,9 +105,10 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
       // dire depuis quand, ni où, ni qui rappeler.
       supabase
         .from('signalements')
-        .select('id, reference, type, description, statut, recu_le, contact, latitude, longitude, lieu_id, lieu:lieu_id(nom)')
+        .select('id, reference, type, description, statut, recu_le, contact, latitude, longitude, lieu_id, lieu:lieu_id(nom, latitude, longitude)')
         .eq('evenement_id', evenement.id)
         .is('deleted_at', null)
+        .is('doublon_de', null)
         .in('statut', ['recu', 'pris_en_charge', 'en_cours'])
         .order('recu_le', { ascending: false })
         .limit(6),
@@ -115,7 +120,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
       // s'en occupe, et l'équipe se choisit ici même.
       supabase
         .from('missions')
-        .select('id, reference, titre, statut, priorite, module, equipe_id, lieu_id, membre_id, equipe:equipe_id(code), lieu:lieu_id(nom), membre:membre_id(nom_affiche)')
+        .select('id, reference, titre, statut, priorite, module, equipe_id, lieu_id, membre_id, attribuee_le, demarree_le, equipe:equipe_id(code), lieu:lieu_id(nom), membre:membre_id(nom_affiche)')
         .eq('evenement_id', evenement.id)
         .in('module', ['logistique', 'securite'])
         .is('deleted_at', null)
@@ -156,6 +161,56 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
     return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evenement.id, sonActif])
+
+  useEffect(() => {
+    let vivant = true
+    Promise.all([
+      supabase.from('traces').select('nom, points').eq('evenement_id', evenement.id).is('deleted_at', null).eq('actif', true),
+      supabase.from('lieux').select('id, code, nom, pk_km, latitude, longitude').eq('evenement_id', evenement.id).is('deleted_at', null).eq('actif', true)
+    ]).then(([tr, l]) => {
+      if (vivant) setFond({ traces: tr.data ?? [], lieux: l.data ?? [] })
+    })
+    return () => {
+      vivant = false
+    }
+  }, [evenement.id])
+
+  // (123) « km 3,2 · entre E2 et E3 » : la position du signalement, ou
+  // celle de son lieu, projetée sur la trace.
+  function surTrace(x) {
+    if (!fond) return ''
+    const lat = x.latitude ?? x.lieu?.latitude
+    const lon = x.longitude ?? x.lieu?.longitude
+    return libelleSurTrace(situerSurTrace(fond.traces, fond.lieux, lat, lon))
+  }
+
+  // (123) Engager une équipe sur un lieu depuis l'écran projeté : une
+  // demande sécurité P1 attribuée d'emblée. Dans BFMF c'était le geste
+  // de base du PC ; ici il fallait aller dans Sécurité → Demandes.
+  // « Je démarre » côté Terrain vaut accusé : la ligne dira « engagée
+  // à <lieu> depuis HH:MM ».
+  async function engager() {
+    const { titre, equipe, lieu } = engagement
+    if (!titre.trim() || !equipe) return
+    setOccupe('engagement')
+    const { error } = await supabase.from('missions').insert({
+      evenement_id: evenement.id,
+      module: 'securite',
+      phase: evenement.phase,
+      titre: titre.trim(),
+      priorite: 'P1',
+      equipe_id: equipe,
+      lieu_id: lieu || null
+    })
+    setOccupe(null)
+    if (error) setRetour({ type: 'erreur', texte: texteErreur(error) })
+    else {
+      const eq = equipes.find((e) => e.id === equipe)
+      setRetour({ type: 'ok', texte: `Équipe ${eq?.code ?? ''} engagée : ${titre.trim()}.` })
+      setEngagement(null)
+      charger()
+    }
+  }
 
   // Agir depuis la Situation, comme le QG de BFMF 2026 : prendre en
   // charge et clôturer un SOS, démarrer et clore une demande sécurité
@@ -476,6 +531,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
                     {libelleStatut(x.statut)} <span className="mono">· {x.reference}</span>
                     {x.recu_le && ` · il y a ${ecoule(x.recu_le)}`}
                     {x.lieu?.nom && ` · ${x.lieu.nom}`}
+                    {surTrace(x) && <span className="sur-trace"> · {surTrace(x)}</span>}
                     {x.contact && (
                       <>
                         {' · '}
@@ -524,6 +580,53 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
                 <LigneDemande key={d.id} d={d} peut={peutMissions} occupe={occupe} agir={agir} equipes={equipes} attribuer={attribuer} />
               ))}
             </>
+          )}
+          {peutMissions && equipes.length > 0 && (
+            engagement ? (
+              <div className="moniteur-ligne engagement">
+                <input
+                  autoFocus
+                  value={engagement.titre}
+                  onChange={(e) => setEngagement({ ...engagement, titre: e.target.value })}
+                  placeholder="Quoi — ex. : chute cycliste, renfort barrière"
+                  aria-label="Objet de l'engagement"
+                />
+                <span className="moniteur-actions">
+                  <select value={engagement.equipe} onChange={(e) => setEngagement({ ...engagement, equipe: e.target.value })} aria-label="Équipe">
+                    <option value="">— équipe —</option>
+                    {equipes.map((eq) => (
+                      <option key={eq.id} value={eq.id}>
+                        {eq.code}
+                      </option>
+                    ))}
+                  </select>
+                  <select value={engagement.lieu} onChange={(e) => setEngagement({ ...engagement, lieu: e.target.value })} aria-label="Lieu">
+                    <option value="">— lieu —</option>
+                    {(fond?.lieux ?? [])
+                      .slice()
+                      .sort((a, b) => (a.pk_km ?? 1e9) - (b.pk_km ?? 1e9) || (a.nom ?? '').localeCompare(b.nom ?? ''))
+                      .map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.pk_km != null ? `km ${Number(l.pk_km).toFixed(1)} · ` : ''}
+                          {l.code || l.nom}
+                        </option>
+                      ))}
+                  </select>
+                  <button className="discret" disabled={occupe === 'engagement' || !engagement.titre.trim() || !engagement.equipe} onClick={engager}>
+                    Engager (P1)
+                  </button>
+                  <button className="discret" onClick={() => setEngagement(null)}>
+                    Annuler
+                  </button>
+                </span>
+              </div>
+            ) : (
+              <p className="moniteur-vide">
+                <button className="discret" onClick={() => setEngagement({ titre: '', equipe: '', lieu: '' })}>
+                  + Engager une équipe
+                </button>
+              </p>
+            )
           )}
         </ColonneDomaine>
         )}
@@ -725,6 +828,14 @@ function LigneDemande({ d, peut, occupe, agir, equipes = [], attribuer }) {
         {d.equipe?.code && ` · équipe ${d.equipe.code}`}
         {d.membre?.nom_affiche && ` · ${d.membre.nom_affiche}`}
         {!d.equipe_id && !d.membre_id && ' · sans titulaire'}
+        {/* (123) L'accusé de l'équipe : « Je démarre » sur le terrain
+            date l'engagement, et le PC le voit ici. */}
+        {d.statut === 'en_cours' && d.demarree_le && (
+          <span className="engagee"> · engagée{d.lieu?.nom ? ` à ${d.lieu.nom}` : ''} depuis {heureCourte(d.demarree_le)}</span>
+        )}
+        {d.statut === 'attribuee' && d.attribuee_le && !d.demarree_le && (
+          <span className="sourdine"> · attribuée {heureCourte(d.attribuee_le)}, pas encore démarrée</span>
+        )}
       </span>
       {peut && (
         <span className="moniteur-actions">

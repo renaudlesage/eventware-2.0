@@ -80,6 +80,7 @@ function prevenir() {
  * `operation` :
  *   { nature: 'update', table, id, champs, libelle }
  *   { nature: 'rpc',    fonction, arguments, libelle }
+ *   { nature: 'insert', table, champs, libelle }   (123 : SOS membre)
  *
  * Le libellé est ce que la personne lira dans l'indicateur : « Mission
  * LOG-012 → résolue », pas « update missions ». Une file illisible ne
@@ -208,6 +209,16 @@ async function envoyer(op) {
   if (op.nature === 'rpc') {
     const { error } = await supabase.rpc(op.fonction, op.arguments)
     if (error) throw error
+    return
+  }
+
+  // (123) Une insertion rejouable : la ligne porte sa clé client
+  // (`cle_client`, unique par événement sur `signalements`). Si le
+  // premier envoi était arrivé et que seule la réponse s'est perdue,
+  // le rejeu heurte l'unicité — c'est un succès, pas une erreur.
+  if (op.nature === 'insert') {
+    const { error } = await supabase.from(op.table).insert(op.champs)
+    if (error && !(error.code === '23505' && /cle_client/.test(error.message ?? ''))) throw error
     return
   }
 

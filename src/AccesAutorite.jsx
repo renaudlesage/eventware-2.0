@@ -27,7 +27,7 @@ const NIVEAUX = {
  */
 export default function AccesAutorite({ evenement, setMessage }) {
   const [acces, setAcces] = useState([])
-  const [f, setF] = useState({ libelle: '', organisation: '', niveau: 'situation' })
+  const [f, setF] = useState({ libelle: '', organisation: '', niveau: 'situation', expire: '' })
   const [ouvert, setOuvert] = useState(null)
   const [occupe, setOccupe] = useState(false)
 
@@ -55,11 +55,15 @@ export default function AccesAutorite({ evenement, setMessage }) {
       evenement_id: evenement.id,
       libelle: f.libelle.trim(),
       organisation: f.organisation.trim() || null,
-      niveau: f.niveau
+      niveau: f.niveau,
+      // (lot 2) La validité, vérifiée côté serveur depuis la 109
+      // (situation_autorite refuse un lien expiré) mais que rien ne
+      // permettait de poser.
+      expire_le: f.expire ? new Date(f.expire).toISOString() : null
     })
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
-      setF({ libelle: '', organisation: '', niveau: 'situation' })
+      setF({ libelle: '', organisation: '', niveau: 'situation', expire: '' })
       charger()
     }
     setOccupe(false)
@@ -118,6 +122,17 @@ export default function AccesAutorite({ evenement, setMessage }) {
             ))}
           </div>
           <p className="aide">{NIVEAUX[f.niveau].aide}</p>
+          <label htmlFor="acces-expire">Valable jusqu'au (facultatif)</label>
+          <input
+            id="acces-expire"
+            type="datetime-local"
+            value={f.expire}
+            onChange={(e) => setF({ ...f, expire: e.target.value })}
+          />
+          <p className="aide">
+            Sans date, le lien vaut jusqu'à sa révocation. Avec, il cesse de répondre à l'heure
+            dite — utile pour un lien remis pour la seule durée de l'événement.
+          </p>
           <button disabled={occupe || !f.libelle.trim()} onClick={creer}>
             Ouvrir un accès
           </button>
@@ -135,11 +150,19 @@ export default function AccesAutorite({ evenement, setMessage }) {
                   {NIVEAUX[a.niveau]?.libelle ?? a.niveau}
                 </span>
                 {!a.actif && <span className="jeton"> révoqué</span>}
+                {a.actif && a.expire_le && new Date(a.expire_le) < new Date() && (
+                  <span className="jeton alerte-jeton"> expiré</span>
+                )}
               </div>
               <div className="meta">
                 {a.organisation && <span>{a.organisation}</span>}
                 <span>
-                  {a.nb_acces === 0 ? 'jamais consulté' : `${a.nb_acces} consultation(s)`}
+                  {a.nb_acces === 0 ? 'jamais consulté' : `${a.nb_acces} visite(s)`}
+                </span>
+                <span>
+                  {a.expire_le
+                    ? `valable jusqu'au ${new Date(a.expire_le).toLocaleString('fr-BE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`
+                    : 'sans date limite'}
                 </span>
                 {a.dernier_acces && (
                   <span>
@@ -198,8 +221,9 @@ export default function AccesAutorite({ evenement, setMessage }) {
                         {base + a.jeton}
                       </div>
                       <p className="aide">
-                        Chaque consultation est horodatée et journalisée : on saura qui a
-                        regardé et quand.
+                        Chaque visite est comptée et datée (une visite = une ouverture de la
+                        page, pas chacun de ses rafraîchissements) : on saura qui a regardé et
+                        quand.
                       </p>
                     </div>
                   )}

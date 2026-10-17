@@ -4,6 +4,7 @@ import Vitrine from './Vitrine'
 import { appliquerIconeEvenement } from './logoPwa'
 import { lireFile, ajouter, majSignalement, retirer, nouvelleCle, ETATS } from './fileSos'
 import { surRetourReseau } from './reessai'
+import { situerSurTrace, libelleSurTrace } from './geometrie'
 
 const TYPES = [
   ['malaise', 'Malaise'],
@@ -40,6 +41,14 @@ export default function Participant({ jeton, codeLieu }) {
   const [etatGeo, setEtatGeo] = useState('inactif')
   const [enLigne, setEnLigne] = useState(navigator.onLine)
   const [envoiEnCours, setEnvoiEnCours] = useState(false)
+  // (123) La trace et les lieux publics, par la vitrine : « tu es au
+  // km 3,2, entre E2 et E3 » rassure et se dicte au téléphone, deux
+  // coordonnées non.
+  const [contenu, setContenu] = useState(null)
+  const surTrace =
+    contenu && position
+      ? libelleSurTrace(situerSurTrace(contenu.traces, contenu.lieux, position.latitude, position.longitude))
+      : ''
 
   useEffect(() => {
     supabase
@@ -153,7 +162,7 @@ export default function Participant({ jeton, codeLieu }) {
   async function rafraichirStatuts() {
     const envoyes = lireFile().filter((s) => s.etat === 'recu')
     for (const s of envoyes) {
-      const { data } = await supabase.rpc('suivre_signalement', {
+      const { data } = await supabase.rpc('suivi_signalement', {
         p_jeton: jeton,
         p_cle_client: s.cle_client
       })
@@ -224,7 +233,7 @@ export default function Participant({ jeton, codeLieu }) {
         </span>
       </div>
 
-      <Vitrine jeton={jeton} codeLieu={codeLieu} />
+      <Vitrine jeton={jeton} codeLieu={codeLieu} onContenu={setContenu} />
 
       {sos && file.length > 0 && (
         <section>
@@ -303,6 +312,12 @@ export default function Participant({ jeton, codeLieu }) {
               <span className="mono">
                 {position.latitude.toFixed(5)} · {position.longitude.toFixed(5)}
               </span>
+              {surTrace && (
+                <>
+                  <br />
+                  <span className="sur-trace">Tu es au {surTrace}</span>
+                </>
+              )}
             </>
           )}
           {etatGeo === 'recherche' && 'Recherche de ta position…'}

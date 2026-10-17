@@ -3018,3 +3018,38 @@ body.carte-plein-corps { overflow: hidden; }
 .bandeau-alerte .meta button.discret { margin: 0 0 0 6px; padding: 2px 8px; font-size: 11px; }
 .moniteur-actions select { width: auto; margin: 0; font-size: 11px; padding: 2px 4px; }
 .participant .cycle-sos { margin: 2px 0 0; }
+
+/* Plan radio dans la colonne Situation (lot 2) */
+.plan-radio tr.canal-urgence td { color: var(--etat-chaud); font-weight: 700; }
+.plan-radio .jeton { margin-left: 6px; }
+
+/* ------------------------------------------------------------------ */
+/* Lot 3 du comparatif BFMF 2026 (123) : où, sur le parcours           */
+
+/* « km 3,2 · entre E2 et E3 · 40 m de la trace » partout où une
+   position est montrée : même mot, même police, pour qu'on le
+   reconnaisse d'un écran à l'autre. */
+.sur-trace { font-family: var(--mono); color: var(--encre); white-space: nowrap; }
+.moniteur-ligne span.sur-trace { color: var(--encre); }
+.leaflet-popup-content .sur-trace { font-size: 11px; }
+
+/* PC-OPS : la saisie d'un SOS radio, et les lieux qui reviennent. */
+.saisie-radio { border-left: 4px solid var(--etat-chaud); margin: 10px 0; }
+.saisie-radio input { margin-bottom: 8px; }
+.points-chauds { margin: 6px 0 0; }
+.points-chauds strong { color: var(--etat-chaud); }
+
+/* Situation : engager une équipe depuis le moniteur Sécurité. */
+.moniteur-ligne.engagement input { font-size: 12px; padding: 4px 6px; margin: 0 0 4px; width: 100%; }
+.moniteur-ligne .engagee { color: var(--etat-ok); }
+.moniteur-vide button.discret { font-size: 11px; padding: 2px 9px; }
+
+/* Autorité : la carte vectorielle et la capacité des étapes. */
+.carte-svg {
+  display: block; width: 100%; height: auto; max-height: 70vh;
+  border: 1px solid var(--trait); border-radius: 6px; margin-bottom: 8px;
+  background: var(--surface);
+}
+.puce-ok { background: var(--etat-ok); border-color: var(--etat-ok); }
+.carre-carte { display: inline-block; width: 10px; height: 10px; background: var(--etat-ok); flex: 0 0 auto; }
+.pave .grand .sur-capacite { font-size: 16px; color: var(--sourdine); font-weight: 400; }

@@ -126,6 +126,145 @@ const MOYEN = {
 const hhmm = (d) =>
   d ? new Date(d).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }) : '—'
 
+/**
+ * (123) La phrase du serveur (projeter_sur_trace) : même forme que
+ * libelleSurTrace de geometrie.js, sur l'objet JSON renvoyé.
+ */
+function libelleSurTrace(p) {
+  if (!p || p.km == null) return ''
+  const km = `km ${Number(p.km).toFixed(1)}`
+  const ecart = Math.round(Number(p.ecart_m ?? 0))
+  if (ecart > 300) return `hors trace · ${ecart >= 1000 ? `${(ecart / 1000).toFixed(1)} km` : `${ecart} m`} du ${km}`
+  const nom = (l) => l.code || l.nom
+  const entre = p.avant && p.apres
+    ? `entre ${nom(p.avant)} et ${nom(p.apres)}`
+    : p.avant
+      ? `après ${nom(p.avant)}`
+      : p.apres
+        ? `avant ${nom(p.apres)}`
+        : null
+  return [p.plusieurs ? `${p.trace} ${km}` : km, entre, ecart > 20 ? `${ecart} m de la trace` : null]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+/**
+ * (123) La carte de l'autorité : un SVG, pas une carte à tuiles. La
+ * page est consultée sur un téléphone de bourgmestre ou dans un
+ * véhicule de commandement, souvent sans réseau stable : un dessin
+ * vectoriel de quelques kilo-octets, livré avec la situation, s'affiche
+ * toujours — comme la cartographie de BFMF 2026. La trace, les
+ * repères, les accès secours, et dessus les interventions et
+ * recherches en cours. Projection équirectangulaire, comme le reste.
+ */
+function CarteSvg({ s }) {
+  const traces = (s.traces ?? []).filter((t) => (t.points ?? []).length > 1)
+  const reperes = (s.reperes ?? []).filter((r) => r.position)
+  const acces = (s.acces_secours ?? []).filter((e) => e.position)
+  const interventions = (s.interventions ?? []).filter((i) => i.position)
+  const recherches = (s.recherches ?? []).filter((r) => r.position)
+
+  const pts = [
+    ...traces.flatMap((t) => t.points),
+    ...reperes.map((r) => [r.position.lat, r.position.lon]),
+    ...interventions.map((i) => [i.position.lat, i.position.lon])
+  ].filter((p) => p[0] != null && p[1] != null)
+  if (pts.length < 2) return null
+
+  const lats = pts.map((p) => Number(p[0]))
+  const lons = pts.map((p) => Number(p[1]))
+  const lat0 = (Math.min(...lats) + Math.max(...lats)) / 2
+  const kx = 111320 * Math.cos((lat0 * Math.PI) / 180)
+  const ky = 111320
+  const minX = Math.min(...lons) * kx
+  const maxX = Math.max(...lons) * kx
+  const minY = Math.min(...lats) * ky
+  const maxY = Math.max(...lats) * ky
+  const marge = Math.max(60, (maxX - minX) * 0.06, (maxY - minY) * 0.06)
+  const L = maxX - minX + 2 * marge
+  const H = maxY - minY + 2 * marge
+  // Le nord en haut : y grandit vers le sud dans le SVG.
+  const X = (lon) => Number(lon) * kx - minX + marge
+  const Y = (lat) => maxY - Number(lat) * ky + marge
+  // Les tailles sont en mètres-terrain : on les ramène en pixels par
+  // l'échelle du dessin (largeur rendue ≈ 100 % du bloc).
+  const echelle = Math.max(L, H) / 720
+  const r = (px) => px * echelle
+  const police = r(12)
+
+  const PRISE_COULEUR = { attente: 'var(--etat-chaud)', engage: 'var(--etat-veille)', sur_place: 'var(--etat-ok)' }
+
+  return (
+    <section className="bloc">
+      <h2>Carte</h2>
+      <svg className="carte-svg" viewBox={`0 0 ${L} ${H}`} role="img" aria-label="Carte du parcours et des interventions">
+        <rect x="0" y="0" width={L} height={H} fill="var(--surface)" />
+        {traces.map((t, k) => (
+          <polyline
+            key={k}
+            points={t.points.map((p) => `${X(p[1])},${Y(p[0])}`).join(' ')}
+            fill="none"
+            stroke={t.couleur || 'var(--etat-info)'}
+            strokeWidth={r(4)}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            opacity="0.8"
+          />
+        ))}
+        {acces.map((e, k) => (
+          <g key={'a' + k}>
+            <rect x={X(e.position.lon) - r(5)} y={Y(e.position.lat) - r(5)} width={r(10)} height={r(10)}
+              fill={e.confirme === false ? 'var(--sourdine)' : 'var(--etat-ok)'} stroke="var(--surface)" strokeWidth={r(1.5)} />
+            <text x={X(e.position.lon) + r(8)} y={Y(e.position.lat) + r(4)} fontSize={police} fill="var(--sourdine)">
+              {e.code || e.nom}
+            </text>
+          </g>
+        ))}
+        {reperes.map((p, k) => (
+          <g key={'r' + k}>
+            <circle cx={X(p.position.lon)} cy={Y(p.position.lat)} r={r(5)} fill="var(--surface)" stroke="var(--encre)" strokeWidth={r(2)} />
+            <text x={X(p.position.lon)} y={Y(p.position.lat) - r(8)} fontSize={police} textAnchor="middle" fill="var(--encre)" fontFamily="var(--mono)">
+              {p.code || p.nom}
+            </text>
+          </g>
+        ))}
+        {recherches.map((rc, k) => (
+          <g key={'q' + k}>
+            <circle cx={X(rc.position.lon)} cy={Y(rc.position.lat)} r={r(12)} fill="none" stroke="var(--etat-veille)" strokeWidth={r(3)} strokeDasharray={`${r(4)} ${r(3)}`} />
+            <text x={X(rc.position.lon)} y={Y(rc.position.lat) + r(26)} fontSize={police} textAnchor="middle" fill="var(--etat-veille)">
+              recherche
+            </text>
+          </g>
+        ))}
+        {interventions.map((i, k) => {
+          const etat = PRISE[i.statut] ?? 'attente'
+          const grave = i.gravite === 'critique' || i.gravite === 'grave' || i.priorite === 'P1'
+          return (
+            <g key={'i' + k}>
+              <circle cx={X(i.position.lon)} cy={Y(i.position.lat)} r={r(grave ? 10 : 7)}
+                fill={PRISE_COULEUR[etat]} stroke="var(--surface)" strokeWidth={r(2)} />
+              <text x={X(i.position.lon) + r(12)} y={Y(i.position.lat) + r(4)} fontSize={police} fill="var(--encre)" fontWeight="600">
+                {i.reference}
+              </text>
+            </g>
+          )
+        })}
+      </svg>
+      <ul className="legende-carte">
+        <li><span className="puce-carte puce-chaud" /> en attente</li>
+        <li><span className="puce-carte puce-veille" /> moyen engagé</li>
+        <li><span className="puce-carte puce-ok" /> sur place</li>
+        <li><span className="puce-carte puce-repere" /> étape, PC, poste</li>
+        <li><span className="carre-carte" /> accès secours</li>
+      </ul>
+      <p className="aide">
+        Dessin livré avec la situation, lisible sans réseau. Le « Localiser » de chaque
+        intervention ouvre la position dans l'application de cartes du téléphone.
+      </p>
+    </section>
+  )
+}
+
 function depuis(d, maintenant) {
   if (!d) return null
   const min = Math.max(0, Math.round((maintenant - new Date(d)) / 60000))
@@ -277,7 +416,11 @@ export default function Autorite({ jeton }) {
             <span className="mono"> · depuis {depuis(r.depuis, maintenant)}</span>
             <div className="msg">
               Dernier lieu connu : {r.dernier_lieu || 'non précisé'}
-              {r.pk_km != null && <span className="mono"> · km {Number(r.pk_km).toFixed(1)}</span>}
+              {r.sur_trace ? (
+                <span className="mono"> · {libelleSurTrace(r.sur_trace)}</span>
+              ) : (
+                r.pk_km != null && <span className="mono"> · km {Number(r.pk_km).toFixed(1)}</span>
+              )}
               {r.vu_a && <> · vue vers {hhmm(r.vu_a)}</>}
             </div>
             {operationnel && (r.age_approx != null || r.signalement) && (
@@ -420,6 +563,8 @@ function Situation({ s, maintenant, operationnel }) {
         </div>
       </section>
 
+      <CarteSvg s={s} />
+
       <section className="bloc">
         <h2>Interventions en cours</h2>
         {interventions.length === 0 ? (
@@ -483,7 +628,11 @@ function Ligne({ i, maintenant }) {
       {i.description && <div className="intervention-texte">« {i.description} »</div>}
       <div className="meta">
         <span>{i.lieu || 'lieu non précisé'}</span>
-        {i.pk_km != null && <span>km {Number(i.pk_km).toFixed(1)}</span>}
+        {i.pk_km != null && !i.sur_trace && <span>km {Number(i.pk_km).toFixed(1)}</span>}
+        {/* (123) « km 3,2 · entre E2 et E3 · 40 m de la trace » : la
+            même phrase que le PC, calculée par le serveur. */}
+        {i.sur_trace && <span className="sur-trace">{libelleSurTrace(i.sur_trace)}</span>}
+        {i.doublons > 0 && <span>{i.doublons + 1} signalements groupés</span>}
         <span>depuis {depuis(i.depuis ?? i.heure, maintenant)}</span>
         {/* (122) Des faits horodatés derrière « Moyen engagé » et
             « Sur place », pas seulement un statut choisi. */}
@@ -549,9 +698,15 @@ function Parcours({ s, maintenant }) {
                   {r.nom}
                   {r.pk_km != null && ` · km ${Number(r.pk_km).toFixed(1)}`}
                 </div>
-                <div className="grand">{r.charge ?? 0}</div>
+                <div className={`grand ${r.capacite && (r.charge ?? 0) >= r.capacite ? 'alerte-texte' : ''}`}>
+                  {r.charge ?? 0}
+                  {r.capacite != null && <span className="sur-capacite"> / {r.capacite}</span>}
+                </div>
                 <div className="detail-metrique">
-                  <span>personnes dont c'est le dernier pointage</span>
+                  <span>
+                    personnes dont c'est le dernier pointage
+                    {r.capacite != null && (r.charge ?? 0) >= r.capacite && ' — capacité atteinte'}
+                  </span>
                 </div>
               </div>
             ))}

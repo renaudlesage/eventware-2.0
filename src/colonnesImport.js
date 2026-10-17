@@ -25,6 +25,7 @@ export const RESSOURCES = {
       { champ: 'longitude', type: 'nombre' },
       { champ: 'altitude_m', type: 'nombre' },
       { champ: 'pk_km', type: 'nombre' },
+      { champ: 'capacite', type: 'nombre' },
       { champ: 'description' }
     ]
   },

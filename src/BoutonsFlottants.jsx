@@ -6,6 +6,7 @@ import { diffuserAlerte } from './diffuserAlerte'
 import { DOMAINES } from './libelles'
 import { detecterDoublons } from './doublons'
 import { nouvelleCle } from './reessai'
+import { ecrireOuEmpiler } from './fileEcritures'
 
 /**
  * Boutons SOS et REX, présents sur toutes les pages.
@@ -146,30 +147,57 @@ function FormSos({ evenement, membre, onFini }) {
     )
   }
 
+  const [enfile, setEnfile] = useState(false)
+
+  // (123) Même file hors réseau que les gestes de terrain : le SOS
+  // d'un membre sous les arbres partait en erreur « Failed to fetch »
+  // et c'était tout — le participant, lui, avait sa file depuis la
+  // 007. Il est écrit dans le téléphone d'abord, envoyé ensuite ; la
+  // barre du haut dit ce qui reste à partir.
   async function envoyer() {
     if (!description.trim()) return
     setOccupe(true)
     setErreur(null)
     const reference =
       'INT-' + Math.random().toString(36).slice(2, 6).toUpperCase()
-    const { error } = await supabase.from('signalements').insert({
-      evenement_id: evenement.id,
-      reference,
-      // `nouvelleCle` et non `crypto.randomUUID` : ce dernier n'existe pas
-      // en http://, et le SOS d'un membre sur le réseau du festival ne
-      // doit pas planter pour ça.
-      cle_client: cle,
-      type,
-      description: description.trim(),
-      emis_le: new Date().toISOString(),
-      ...(position ?? {})
+    const r = await ecrireOuEmpiler({
+      nature: 'insert',
+      table: 'signalements',
+      champs: {
+        evenement_id: evenement.id,
+        reference,
+        // `nouvelleCle` et non `crypto.randomUUID` : ce dernier n'existe pas
+        // en http://, et le SOS d'un membre sur le réseau du festival ne
+        // doit pas planter pour ça. La clé rend aussi le rejeu sûr : un
+        // second envoi du même signalement heurte l'unicité, et la file
+        // le compte comme arrivé.
+        cle_client: cle,
+        type,
+        description: description.trim(),
+        emis_le: new Date().toISOString(),
+        ...(position ?? {})
+      },
+      libelle: `SOS ${reference} — ${description.trim().slice(0, 40)}`
     })
-    // 23505 sur la clé client : le premier envoi était bien arrivé, la
-    // réponse seule s'était perdue. C'est un succès, pas une erreur.
-    const dejaRecu = error?.code === '23505' && /cle_client/.test(error.message ?? '')
-    if (error && !dejaRecu) setErreur(texteErreur(error))
+    if (r.statut === 'refus') setErreur(r.message)
+    else if (r.statut === 'enfile') setEnfile(true)
     else onFini()
     setOccupe(false)
+  }
+
+  if (enfile) {
+    return (
+      <div className="dom-orange">
+        <div className="message">
+          <strong>Pas de réseau.</strong> Le signalement est enregistré dans ce téléphone et
+          partira tout seul dès que le signal revient — la barre du haut le montre. Si tu
+          as une radio, annonce-le aussi au PC.
+        </div>
+        <button className="bouton-terrain" onClick={onFini}>
+          Fermer
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -254,15 +282,29 @@ function FormMayday({ evenement, onFini }) {
   async function envoyer() {
     setOccupe(true)
     setErreur(null)
-    const { data, error } = await supabase.rpc('emettre_mayday', {
+    const args = {
       p_evenement: evenement.id,
       p_motif: motif.trim() || null,
       p_latitude: position?.latitude ?? null,
       p_longitude: position?.longitude ?? null,
       p_precision_m: position?.precision_m ?? null
-    })
-    if (error) setErreur(texteErreur(error))
-    else {
+    }
+    const { data, error } = await supabase.rpc('emettre_mayday', args)
+    if (error) {
+      // (123) Panne réseau : le Mayday part en file plutôt que de
+      // mourir dans une erreur. La RPC n'a pas de clé d'idempotence :
+      // si l'appel était en fait arrivé, le rejeu en créera un second
+      // — deux Mayday pour une personne en difficulté valent mieux
+      // qu'aucun, et le PC lèvera le doublon.
+      const r = await ecrireOuEmpiler({
+        nature: 'rpc',
+        fonction: 'emettre_mayday',
+        arguments: args,
+        libelle: `MAYDAY${motif.trim() ? ` — ${motif.trim().slice(0, 40)}` : ''}`
+      })
+      if (r.statut === 'enfile') setEnvoye({ reference: 'MAYDAY', enfile: true })
+      else setErreur(r.statut === 'refus' ? r.message : texteErreur(error))
+    } else {
       const ligne = Array.isArray(data) ? data[0] : data
       setEnvoye(ligne)
       diffuserAlerte(ligne.alerte_id)
@@ -274,9 +316,19 @@ function FormMayday({ evenement, onFini }) {
     return (
       <div className="dom-grenat">
         <div className="message">
-          <strong>{envoye.reference} transmis.</strong> Le poste de commandement est
-          prévenu et une alerte est affichée sur tous les écrans. Reste où tu es si tu le
-          peux, et garde la radio libre.
+          {envoye.enfile ? (
+            <>
+              <strong>Pas de réseau.</strong> Le Mayday est enregistré dans ce téléphone et
+              partira tout seul dès que le signal revient. Si tu as une radio, lance-le
+              aussi sur le canal d'urgence — n'attends pas le réseau.
+            </>
+          ) : (
+            <>
+              <strong>{envoye.reference} transmis.</strong> Le poste de commandement est
+              prévenu et une alerte est affichée sur tous les écrans. Reste où tu es si tu le
+              peux, et garde la radio libre.
+            </>
+          )}
         </div>
         <button className="bouton-terrain" onClick={onFini}>
           Fermer

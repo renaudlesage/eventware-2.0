@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { MapContainer, Marker, Popup, useMap } from 'react-leaflet'
-import { FondCarte, ControlesCarte, useFondCarte } from './carte'
-import L from 'leaflet'
 import { supabase } from './supabaseClient'
+import { CarteTactique, useTactique } from './ColonneSituation'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import { jouerAlarme } from './alarme'
+import { situerSurTrace, libelleSurTrace } from './geometrie'
+import { nouvelleCle } from './reessai'
 
 /**
  * PC-OPS — les signalements des participants, sur carte et en liste.
@@ -18,6 +18,13 @@ import { jouerAlarme } from './alarme'
  * du dernier relevé, et sonne sur un nouveau SOS si l'opérateur a
  * activé le son. Le bouton « → Demande » appelle enfin
  * convertir_signalement_en_mission, qui dormait depuis la 012.
+ *
+ * Lot 3 (123) : chaque position est dite comme à la radio — « km 3,2 ·
+ * entre E2 et E3 · 40 m de la trace » ; un SOS reçu par radio se saisit
+ * ici (nature, lieu du dispositif, gravité) sans passer par le lien
+ * participant ; les doublons sanitaires (même lieu, même nature) sont
+ * repliés sur l'original avec leur nombre, et les lieux qui reviennent
+ * sont listés sous la carte.
  */
 
 export const TYPES = {
@@ -46,55 +53,12 @@ export const GRAVITES = [
 
 const PRIORITES = ['P1', 'P2', 'P3']
 
-const COULEURS = {
-  recu: '#a3341f',
-  pris_en_charge: '#c07000',
-  en_cours: '#c07000',
-  clos: '#1d5c4f',
-  sans_suite: '#6b6862'
-}
-
-// Au-delà, la liste a l'air vivante alors qu'elle ne l'est plus : le
-// relevé passe en rouge. Trois cycles de rafraîchissement.
-const RELEVE_PERIME_MS = 30000
-
-/**
- * Marqueur dessiné en CSS plutôt qu'en image : les icônes par défaut de
- * Leaflet cassent une fois le projet compilé (chemins d'images perdus au
- * bundling). Un divIcon évite le problème et permet de coder le statut
- * par la couleur.
- */
-function marqueur(statut) {
-  const couleur = COULEURS[statut] ?? '#6b6862'
-  return L.divIcon({
-    className: '',
-    html: `<span style="display:block;width:16px;height:16px;border-radius:50%;
-           background:${couleur};border:2px solid #fff;
-           box-shadow:0 0 0 1px rgba(0,0,0,.35)"></span>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8]
-  })
-}
-
-function Recadrer({ points }) {
-  const carte = useMap()
-  useEffect(() => {
-    if (!points.length) return
-    carte.fitBounds(
-      points.map((p) => [p.latitude, p.longitude]),
-      { padding: [40, 40], maxZoom: 16 }
-    )
-  }, [points.length])
-  return null
-}
-
 export default function PcOps({ evenement, peut, toutPouvoir }) {
   const [signalements, setSignalements] = useState([])
   const [demandes, setDemandes] = useState({}) // signalement_id → demande créée
   const [membres, setMembres] = useState({}) // user_id → nom affiché
   const [lieux, setLieux] = useState({}) // lieu_id → nom
   const [equipes, setEquipes] = useState([])
-  const [fondCarte, setFondCarte] = useFondCarte('pcops')
   const [erreur, setErreur] = useState(null)
   const [retour, setRetour] = useState(null)
   const [masquerClos, setMasquerClos] = useState(true)
@@ -109,7 +73,16 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
 
   // Sans ces droits, le select de statut et le bouton de conversion
   // n'ont aucune chance d'aboutir : autant ne pas les montrer.
+  // (lot 2) La carte tactique de la colonne Situation, ici aussi : la
+  // trace, le dispositif de secours, les étapes, les missions urgentes et
+  // les Mayday sous les signalements — et une carte même sans
+  // signalement, au lieu d'un écran vide. Les signalements affichés
+  // sont ceux de la liste (clôturés masqués ou non).
+  const tactique = useTactique(evenement)
+
   const peutSos = toutPouvoir || peut?.('sos', 'modifier')
+  const peutCreer = toutPouvoir || peut?.('sos', 'creer')
+  const [saisieRadio, setSaisieRadio] = useState(false)
   // La conversion crée une demande ET passe le signalement en pris en
   // charge : il faut les deux droits, sinon la RPC échoue à mi-chemin.
   const peutDemande = toutPouvoir || (peut?.('missions', 'creer') && peut?.('sos', 'modifier'))
@@ -211,21 +184,44 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
     charger()
   }
 
+  // (123) Un doublon n'est pas une ligne de plus : il est compté sur
+  // son original, et ne sonne pas — il n'est jamais « reçu » à traiter.
+  const doublons = {}
+  for (const s of signalements) if (s.doublon_de) doublons[s.doublon_de] = (doublons[s.doublon_de] ?? 0) + 1
+  const originaux = signalements.filter((s) => !s.doublon_de)
+
   const visibles = masquerClos
-    ? signalements.filter((s) => !['clos', 'sans_suite'].includes(s.statut))
-    : signalements
+    ? originaux.filter((s) => !['clos', 'sans_suite'].includes(s.statut))
+    : originaux
 
-  const geolocalises = visibles.filter((s) => s.latitude && s.longitude)
-
-  const centre = geolocalises.length
-    ? [geolocalises[0].latitude, geolocalises[0].longitude]
-    : evenement.point_0_lat
-      ? [evenement.point_0_lat, evenement.point_0_lon]
-      : [50.38212, 5.61679]
-
-  const ouverts = signalements.filter((s) =>
+  const ouverts = originaux.filter((s) =>
     ['recu', 'pris_en_charge', 'en_cours'].includes(s.statut)
   ).length
+
+  // (123) Où, sur le parcours : la position du signalement, ou celle
+  // de son lieu, projetée sur la trace. Vide sans trace.
+  function surTrace(s) {
+    if (!tactique.fond) return ''
+    const l = s.lieu_id ? tactique.lieux[s.lieu_id] : null
+    return libelleSurTrace(
+      situerSurTrace(tactique.fond.traces, tactique.fond.lieux, s.latitude ?? l?.latitude, s.longitude ?? l?.longitude)
+    )
+  }
+
+  // (123) Les lieux qui reviennent : signalements ouverts (doublons
+  // compris) des deux dernières heures, par lieu. Trois « matériel »
+  // au même bloc sanitaire, c'est un bloc à aller voir, pas trois SOS.
+  const depuis = maintenant - 2 * 3600000
+  const parLieu = {}
+  for (const s of signalements) {
+    if (!s.lieu_id || !['recu', 'pris_en_charge', 'en_cours'].includes(s.statut)) continue
+    if (new Date(s.emis_le ?? s.recu_le) < depuis) continue
+    parLieu[s.lieu_id] = (parLieu[s.lieu_id] ?? 0) + 1
+  }
+  const pointsChauds = Object.entries(parLieu)
+    .filter(([, n]) => n >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
 
   const lienParticipant = `${window.location.origin}${window.location.pathname}?sos=${evenement.jeton_public}`
   const relevePerime = maj != null && maintenant - maj > RELEVE_PERIME_MS
@@ -238,6 +234,12 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
           {ouverts > 0 && <span className="jeton alerte-jeton">{ouverts} ouvert(s)</span>}
         </h2>
         <div className="ligne-boutons" style={{ marginBottom: 0 }}>
+          {peutCreer && (
+            <button className={saisieRadio ? '' : 'discret'} onClick={() => setSaisieRadio(!saisieRadio)}
+              title="Saisir un SOS reçu par radio ou par téléphone, sans passer par le lien participant">
+              + SOS radio
+            </button>
+          )}
           <button
             className={sonActif ? '' : 'discret'}
             onClick={() => setSonActif(!sonActif)}
@@ -268,31 +270,41 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
         <span className="identifiant">{lienParticipant}</span>
       </p>
 
-      {geolocalises.length > 0 && (
-        <div className="carte-conteneur">
-          <MapContainer center={centre} zoom={14} scrollWheelZoom={false}>
-            <FondCarte cle={fondCarte} />
-            <ControlesCarte fond={fondCarte} onFond={setFondCarte} />
-            <Recadrer points={geolocalises} />
-            {geolocalises.map((s) => (
-              <Marker
-                key={s.id}
-                position={[s.latitude, s.longitude]}
-                icon={marqueur(s.statut)}
-              >
-                <Popup>
-                  <strong>{s.reference}</strong> — {TYPES[s.type] ?? s.type}
-                  <br />
-                  {s.description}
-                  <br />
-                  <span className="mono">
-                    précision ±{Math.round(s.precision_m ?? 0)} m
-                  </span>
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
-        </div>
+      {saisieRadio && (
+        <FormSosRadio
+          evenement={evenement}
+          lieux={tactique.fond?.lieux ?? []}
+          onFait={(texte) => {
+            setSaisieRadio(false)
+            setRetour({ type: 'ok', texte })
+            charger()
+          }}
+          onAnnuler={() => setSaisieRadio(false)}
+        />
+      )}
+
+      {!tactique.fond ? (
+        <p className="vide">Chargement de la carte…</p>
+      ) : (
+        <CarteTactique
+          evenement={evenement}
+          fond={tactique.fond}
+          vif={{ ...(tactique.vif ?? { missions: [], maydays: [], groupes: [] }), signalements: visibles }}
+          lieux={tactique.lieux}
+          hauteur={380}
+        />
+      )}
+
+      {pointsChauds.length > 0 && (
+        <p className="aide points-chauds">
+          <strong>Lieux qui reviennent (2 h)</strong> :{' '}
+          {pointsChauds.map(([id, n], i) => (
+            <span key={id}>
+              {i > 0 && ' · '}
+              {lieux[id] ?? 'lieu'} <span className="mono">×{n}</span>
+            </span>
+          ))}
+        </p>
       )}
 
       <div className="ligne-boutons" style={{ margin: '12px 0' }}>
@@ -315,6 +327,11 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
               <div className="titre">
                 <span className="mono">{s.reference}</span> — {TYPES[s.type] ?? s.type}
                 {s.gravite && <span className={`jeton grav-${s.gravite}`}>{libelleGravite(s.gravite)}</span>}
+                {doublons[s.id] > 0 && (
+                  <span className="jeton" title="signalements de même nature au même lieu, repliés sur celui-ci">
+                    ×{doublons[s.id] + 1} signalés
+                  </span>
+                )}
               </div>
               {s.description && <p style={{ margin: '4px 0' }}>{s.description}</p>}
               <div className="meta">
@@ -335,8 +352,9 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
                     {Math.round(s.precision_m ?? 0)} m)
                   </span>
                 ) : (
-                  <span>sans position</span>
+                  !s.lieu_id && <span>sans position</span>
                 )}
+                {surTrace(s) && <span className="sur-trace">{surTrace(s)}</span>}
               </div>
               {/* Le cycle, tel qu'il s'est réellement passé : les
                   horodatages sont posés par le déclencheur
@@ -475,6 +493,97 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
           )
         })
       )}
+    </div>
+  )
+}
+
+/**
+ * (123) Un SOS reçu par radio ou par téléphone, saisi au PC : BFMF
+ * avait son « SOS radio » avec la liste des postes ; ici il fallait
+ * ouvrir le lien participant sur son propre téléphone. Le lieu du
+ * dispositif donne la position ; la référence RAD- dit d'où ça vient.
+ */
+function FormSosRadio({ evenement, lieux, onFait, onAnnuler }) {
+  const [type, setType] = useState('malaise')
+  const [lieuId, setLieuId] = useState('')
+  const [gravite, setGravite] = useState('')
+  const [description, setDescription] = useState('')
+  const [occupe, setOccupe] = useState(false)
+  const [erreur, setErreur] = useState(null)
+  const [cle] = useState(nouvelleCle)
+
+  const tries = [...lieux].sort((a, b) => (a.pk_km ?? 1e9) - (b.pk_km ?? 1e9) || (a.nom ?? '').localeCompare(b.nom ?? ''))
+
+  async function envoyer() {
+    if (!description.trim() && !lieuId) return
+    setOccupe(true)
+    setErreur(null)
+    const lieu = lieux.find((l) => l.id === lieuId)
+    const reference = 'RAD-' + Math.random().toString(36).slice(2, 6).toUpperCase()
+    const { error } = await supabase.from('signalements').insert({
+      evenement_id: evenement.id,
+      reference,
+      cle_client: cle,
+      type,
+      gravite: gravite || null,
+      description: description.trim() || null,
+      lieu_id: lieuId || null,
+      latitude: lieu?.latitude ?? null,
+      longitude: lieu?.longitude ?? null,
+      emis_le: new Date().toISOString()
+    })
+    const dejaRecu = error?.code === '23505' && /cle_client/.test(error.message ?? '')
+    if (error && !dejaRecu) setErreur(texteErreur(error))
+    else onFait(`${reference} enregistré${lieu ? ` à ${lieu.nom}` : ''}.`)
+    setOccupe(false)
+  }
+
+  return (
+    <div className="carte saisie-radio">
+      <div className="titre">SOS reçu par radio / téléphone</div>
+      {erreur && <div className="message erreur">{erreur}</div>}
+      <div className="ligne-boutons" style={{ marginTop: 8 }}>
+        <select value={type} onChange={(e) => setType(e.target.value)} style={{ width: 'auto', marginBottom: 0 }} aria-label="Nature">
+          {Object.entries(TYPES).map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+        <select value={lieuId} onChange={(e) => setLieuId(e.target.value)} style={{ width: 'auto', marginBottom: 0 }} aria-label="Lieu">
+          <option value="">— lieu du dispositif —</option>
+          {tries.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.pk_km != null ? `km ${Number(l.pk_km).toFixed(1)} · ` : ''}
+              {l.code ? `${l.code} · ` : ''}
+              {l.nom}
+            </option>
+          ))}
+        </select>
+        <select value={gravite} onChange={(e) => setGravite(e.target.value)} style={{ width: 'auto', marginBottom: 0 }} aria-label="Gravité">
+          <option value="">— gravité —</option>
+          {GRAVITES.map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+      </div>
+      <input
+        autoFocus
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder="Ce qui a été annoncé — qui, quoi, où si pas de lieu"
+        style={{ marginTop: 8 }}
+      />
+      <div className="ligne-boutons">
+        <button disabled={occupe || (!description.trim() && !lieuId)} onClick={envoyer}>
+          Enregistrer le SOS
+        </button>
+        <button className="discret" onClick={onAnnuler}>
+          Annuler
+        </button>
+      </div>
     </div>
   )
 }

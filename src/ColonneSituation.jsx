@@ -3,6 +3,7 @@ import { MapContainer, Polyline, Polygon, CircleMarker, Tooltip, Popup, useMap }
 import { FondCarte, ControlesCarte, useFondCarte } from './carte'
 import { supabase } from './supabaseClient'
 import { libelleStatut } from './libelles'
+import { situerSurTrace, libelleSurTrace } from './geometrie'
 
 /**
  * La colonne de droite quand l'écran ouvert est Situation (≥ 1440 px).
@@ -63,7 +64,12 @@ function ilYa(d, maintenant) {
   return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`
 }
 
-export default function ColonneSituation({ evenement, palier, onAller }) {
+/**
+ * Les données de la carte tactique, partagées avec PC-OPS (lot 2 du
+ * comparatif BFMF 2026) : le fond (trace, plan, lieux), chargé une
+ * fois, et ce qui bouge, rafraîchi toutes les vingt secondes.
+ */
+export function useTactique(evenement) {
   const [fond, setFond] = useState(null) // ce qui ne bouge pas : trace, plan, lieux
   const [vif, setVif] = useState(null) // ce qui bouge
   const [maintenant, setMaintenant] = useState(() => new Date())
@@ -162,6 +168,12 @@ export default function ColonneSituation({ evenement, palier, onAller }) {
     [fond]
   )
 
+  return { fond, vif, lieux, maintenant }
+}
+
+export default function ColonneSituation({ evenement, palier, onAller }) {
+  const { fond, vif, lieux, maintenant } = useTactique(evenement)
+
   return (
     <>
       <section>
@@ -187,7 +199,83 @@ export default function ColonneSituation({ evenement, palier, onAller }) {
       <AVenir vif={vif} lieux={lieux} />
 
       <Groupes vif={vif} lieux={lieux} maintenant={maintenant} onAller={onAller} />
+
+      <Radio evenement={evenement} onAller={onAller} />
     </>
+  )
+}
+
+/**
+ * Le plan radio, sous la main du PC (lot 2 du comparatif BFMF 2026) :
+ * le canal d'urgence en tête, et combien de postes sont en main sur
+ * chaque canal. La colonne de veille ne le montrait qu'au mur
+ * (≥ 2200 px) ; sur l'écran projeté il manquait.
+ */
+function Radio({ evenement, onAller }) {
+  const [radio, setRadio] = useState(null)
+
+  useEffect(() => {
+    let vivant = true
+    async function charger() {
+      const [c, p] = await Promise.all([
+        supabase
+          .from('canaux_radio')
+          .select('id, numero, libelle, usage_prevu, canal_urgence')
+          .eq('evenement_id', evenement.id)
+          .eq('actif', true)
+          .is('deleted_at', null)
+          .order('ordre'),
+        supabase
+          .from('attributions')
+          .select('id, code, canal_id')
+          .eq('evenement_id', evenement.id)
+          .eq('nature', 'radio')
+          .is('deleted_at', null)
+          .is('rendu_le', null)
+      ])
+      if (!vivant) return
+      setRadio({ canaux: c.data ?? [], postes: p.data ?? [] })
+    }
+    charger()
+    const t = setInterval(charger, 60000)
+    return () => {
+      vivant = false
+      clearInterval(t)
+    }
+  }, [evenement.id])
+
+  if (!radio || radio.canaux.length === 0) return null
+  const urgence = radio.canaux.filter((c) => c.canal_urgence)
+  const courants = radio.canaux.filter((c) => !c.canal_urgence)
+
+  return (
+    <section>
+      <div className="entete-dashboard">
+        <h2>Radio</h2>
+        <button className="lien" onClick={() => onAller?.('logistique')}>
+          Matrice →
+        </button>
+      </div>
+      <table className="apercu plan-radio">
+        <tbody>
+          {[...urgence, ...courants].map((c) => (
+            <tr key={c.id} className={c.canal_urgence ? 'canal-urgence' : ''}>
+              <td className="mono">{c.numero}</td>
+              <td>
+                {c.libelle}
+                {c.canal_urgence && <span className="jeton alerte-jeton">urgence</span>}
+                {c.usage_prevu && <span className="sourdine"> · {c.usage_prevu}</span>}
+              </td>
+              <td className="mono">{radio.postes.filter((p) => p.canal_id === c.id).length} poste(s)</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="aide">
+        {radio.postes.length} poste(s) radio en main.
+        {urgence.length === 0 && ' Aucun canal réservé aux urgences — à régler dans la matrice radio.'}
+      </p>
+    </section>
   )
 }
 
@@ -197,8 +285,11 @@ function position(objet, lieux) {
   return l?.latitude != null ? [l.latitude, l.longitude] : null
 }
 
-function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
+export function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
   const c = useMemo(jetons, [])
+  // (123) « km 3,2 · entre E2 et E3 » dans chaque bulle : la carte
+  // montre, la projection dit — c'est ce qu'on annonce à la radio.
+  const situer = (pos) => libelleSurTrace(situerSurTrace(fond.traces, fond.lieux, pos[0], pos[1]))
   const [fondCarte, setFondCarte] = useFondCarte('situation')
   const repli = evenement.point_0_lat ? [evenement.point_0_lat, evenement.point_0_lon] : [50.38212, 5.61679]
 
@@ -312,6 +403,12 @@ function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
                 {m.titre}
                 <br />
                 {libelleStatut(m.statut)}
+                {situer(m.pos) && (
+                  <>
+                    <br />
+                    <span className="sur-trace">{situer(m.pos)}</span>
+                  </>
+                )}
               </Popup>
             </CircleMarker>
           ))}
@@ -328,6 +425,12 @@ function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
                 {s.gravite ? ` · ${s.gravite}` : ''}
                 <br />
                 {libelleStatut(s.statut)} depuis {hhmm(s.emis_le)}
+                {situer(s.pos) && (
+                  <>
+                    <br />
+                    <span className="sur-trace">{situer(s.pos)}</span>
+                  </>
+                )}
               </Popup>
             </CircleMarker>
           ))}
@@ -341,6 +444,7 @@ function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
             >
               <Tooltip permanent direction="right">
                 {m.reference}
+                {situer([m.latitude, m.longitude]) && ` · ${situer([m.latitude, m.longitude])}`}
               </Tooltip>
             </CircleMarker>
           ))}

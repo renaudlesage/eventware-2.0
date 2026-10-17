@@ -15,8 +15,8 @@
 --   3. signalements.en_route_le / arrive_le — « moyen en route » est
 --      posé par le PC (colonne), « sur place » par le passage en
 --      en_cours (déclencheur). Le participant les lit par
---      suivre_signalement, dont le type de retour change (drop +
---      create, droits anon regranés).
+--      suivi_signalement, nouvelle fonction à sept colonnes (pas de
+--      drop : l'ancienne suivre_signalement reste).
 --   4. situation() — les alertes portent id, message, accusés
 --      (nominatifs) et acquittement ; la logistique porte les six
 --      prochains transports ; le parcours porte les groupes dehors et
@@ -27,8 +27,7 @@
 --      s'incrémente plus à chaque rafraîchissement de 20 s mais une
 --      fois par visite (10 min sans accès).
 --
--- Idempotente sur les DDL (if not exists) ; les fonctions sont
--- redéfinies en entier.
+-- Idempotente (if not exists, create or replace), sans aucun DROP.
 -- =====================================================================
 
 begin;
@@ -54,17 +53,22 @@ alter table public.alertes_accuses enable row level security;
 
 -- Tout membre voit qui a accusé (c'est le but : le PC sait qui a lu).
 -- On n'accuse que pour soi-même.
-drop policy if exists alertes_accuses_lecture on public.alertes_accuses;
-create policy alertes_accuses_lecture on public.alertes_accuses for select to authenticated
-  using (est_membre(evenement_id));
-drop policy if exists alertes_accuses_creation on public.alertes_accuses;
-create policy alertes_accuses_creation on public.alertes_accuses for insert to authenticated
-  with check (
-    est_membre(evenement_id)
-    and exists (select 1 from membres_evenement m
-                where m.id = membre_id and m.user_id = auth.uid()
-                  and m.evenement_id = alertes_accuses.evenement_id)
-  );
+do $p$
+begin
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'alertes_accuses' and policyname = 'alertes_accuses_lecture') then
+    create policy alertes_accuses_lecture on public.alertes_accuses for select to authenticated
+      using (est_membre(evenement_id));
+  end if;
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'alertes_accuses' and policyname = 'alertes_accuses_creation') then
+    create policy alertes_accuses_creation on public.alertes_accuses for insert to authenticated
+      with check (
+        est_membre(evenement_id)
+        and exists (select 1 from membres_evenement m
+                    where m.id = membre_id and m.user_id = auth.uid()
+                      and m.evenement_id = alertes_accuses.evenement_id)
+      );
+  end if;
+end $p$;
 
 grant select, insert on public.alertes_accuses to authenticated;
 
@@ -133,11 +137,17 @@ begin
 end;
 $$;
 
--- Le participant lit les quatre temps. Le type de retour change :
--- drop + create, et les droits de 090 sont reposés (anon y a droit,
--- c'est le parcours participant par jeton).
-drop function if exists public.suivre_signalement(uuid, uuid);
-create function public.suivre_signalement(
+-- Les deux déclencheurs redéfinis ci-dessus gardent le search_path figé
+-- que la 113 leur avait posé (l'advisor le réclame).
+alter function public.trg_statut_signalement() set search_path = public, pg_temp;
+alter function public.trg_cycle_alerte() set search_path = public, pg_temp;
+
+-- Le participant lit les quatre temps. Redéfinir suivre_signalement
+-- changerait son type de retour, donc imposerait un DROP : on ajoute
+-- suivi_signalement à côté, et le participant l'appelle. L'ancienne
+-- reste (harmless), les droits de 090 sont reposés sur la nouvelle
+-- (anon y a droit, c'est le parcours participant par jeton).
+create or replace function public.suivi_signalement(
   p_jeton      uuid,
   p_cle_client uuid
 )
@@ -158,8 +168,8 @@ as $$
     and s.cle_client = p_cle_client
     and s.deleted_at is null;
 $$;
-revoke execute on function public.suivre_signalement(uuid, uuid) from public;
-grant execute on function public.suivre_signalement(uuid, uuid) to anon, authenticated;
+revoke execute on function public.suivi_signalement(uuid, uuid) from public;
+grant execute on function public.suivi_signalement(uuid, uuid) to anon, authenticated;
 
 -- ---------------------------------------------------------------------
 -- 4. situation() — redéfinie en entier (base : 069)
@@ -717,7 +727,7 @@ commit;
 --   select count(*) from alertes_accuses;                       -- 0 au départ
 --   select column_name from information_schema.columns
 --   where table_name = 'signalements' and column_name in ('en_route_le','arrive_le');
---   select * from suivre_signalement('<jeton>', '<cle>');       -- 7 colonnes
+--   select * from suivi_signalement('<jeton>', '<cle>');        -- 7 colonnes
 --   select jsonb_pretty(situation('<evenement>') -> 'alertes');
 --   select jsonb_pretty(situation('<evenement>') -> 'logistique' -> 'transports');
 --
