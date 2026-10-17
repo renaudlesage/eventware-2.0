@@ -153,7 +153,7 @@ export default function Participant({ jeton, codeLieu }) {
   async function rafraichirStatuts() {
     const envoyes = lireFile().filter((s) => s.etat === 'recu')
     for (const s of envoyes) {
-      const { data } = await supabase.rpc('suivre_signalement', {
+      const { data } = await supabase.rpc('suivi_signalement', {
         p_jeton: jeton,
         p_cle_client: s.cle_client
       })
