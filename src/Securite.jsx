@@ -124,7 +124,7 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
         </div>
       )}
 
-      {onglet === 'signalements' && <PcOps evenement={evenement} />}
+      {onglet === 'signalements' && <PcOps evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} />}
       {onglet === 'mayday' && (
         <Maydays evenement={evenement} setMessage={setMessage} />
       )}

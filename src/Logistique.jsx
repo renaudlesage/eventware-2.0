@@ -99,6 +99,7 @@ export default function Logistique({ evenement, membre, peut, toutPouvoir }) {
           moduleParDefaut="logistique"
           peut={peut}
           toutPouvoir={toutPouvoir}
+          membre={membre}
         />
       )}
     </div>

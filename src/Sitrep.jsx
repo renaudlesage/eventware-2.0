@@ -36,6 +36,17 @@ export default function Sitrep({ evenement, session, membre }) {
   const [destinataire, setDestinataire] = useState('')
   const [erreur, setErreur] = useState(null)
   const [edite, setEdite] = useState(null)
+  // user_id → nom affiché, pour nommer l'auteur des entrées anciennes
+  // (sans auteur_nom figé) : un SITREP doit dire qui a consigné.
+  const [membres, setMembres] = useState({})
+
+  useEffect(() => {
+    supabase
+      .from('membres_evenement')
+      .select('user_id, nom_affiche')
+      .eq('evenement_id', evenement.id)
+      .then(({ data }) => setMembres(Object.fromEntries((data ?? []).map((m) => [m.user_id, m.nom_affiche]))))
+  }, [evenement.id])
 
   async function charger() {
     let q = supabase
@@ -156,7 +167,7 @@ export default function Sitrep({ evenement, session, membre }) {
           <button disabled={!signataire.trim()} onClick={editer}>
             Éditer le rapport
           </button>
-          <button className="discret" onClick={() => exporterCsv(visibles, reference)}>
+          <button className="discret" onClick={() => exporterCsv(visibles, reference, membres)}>
             Export CSV
           </button>
         </div>
@@ -244,6 +255,7 @@ export default function Sitrep({ evenement, session, membre }) {
               <th>Date et heure</th>
               <th>Réf.</th>
               <th>Événement</th>
+              <th>Par</th>
             </tr>
           </thead>
           <tbody>
@@ -263,11 +275,12 @@ export default function Sitrep({ evenement, session, membre }) {
                   {l.texte}
                   {l.source === 'saisie' && <span className="sitrep-marque"> (saisie)</span>}
                 </td>
+                <td className="nowrap">{nomAuteur(l, membres)}</td>
               </tr>
             ))}
             {visibles.length === 0 && (
               <tr>
-                <td colSpan="3">Aucune entrée sur la période et le niveau retenus.</td>
+                <td colSpan="4">Aucune entrée sur la période et le niveau retenus.</td>
               </tr>
             )}
           </tbody>
@@ -307,8 +320,21 @@ export default function Sitrep({ evenement, session, membre }) {
   )
 }
 
-function exporterCsv(lignes, reference) {
-  const entetes = ['horodatage', 'importance', 'source', 'module', 'categorie', 'reference', 'texte']
+/**
+ * Qui a consigné : le nom figé à l'écriture d'abord (auteur_nom), sinon
+ * le membre dont c'est le compte, sinon « système » pour une ligne
+ * automatique. Le tiret reste possible : une saisie d'avant le lot 1,
+ * par un compte qui a quitté l'événement.
+ */
+function nomAuteur(l, membres) {
+  if (l.auteur_nom) return l.auteur_nom
+  if (l.auteur && membres[l.auteur]) return membres[l.auteur]
+  if (l.source !== 'saisie') return 'système'
+  return '—'
+}
+
+function exporterCsv(lignes, reference, membres = {}) {
+  const entetes = ['horodatage', 'importance', 'source', 'module', 'categorie', 'reference', 'texte', 'auteur']
   const echappe = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
   const csv = [
     entetes.join(';'),
@@ -320,7 +346,8 @@ function exporterCsv(lignes, reference) {
         l.module,
         l.categorie,
         l.objet_ref,
-        l.texte
+        l.texte,
+        nomAuteur(l, membres)
       ]
         .map(echappe)
         .join(';')

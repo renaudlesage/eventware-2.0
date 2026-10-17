@@ -262,7 +262,7 @@ export default function Poste({ session, theme, setTheme }) {
           les porte déjà : à partir de 1440 px elles y vivent, à côté du
           journal, et ne sont plus répétées au-dessus du travail. */}
       {!(courant && moi && moi.nom_affiche && !compteOuvert && palier !== 'simple' && palier !== 'mobile') && (
-        <Bandeau evenement={courant} />
+        <Bandeau evenement={courant} membre={moi} />
       )}
 
       {message && (
@@ -397,6 +397,7 @@ export default function Poste({ session, theme, setTheme }) {
                 ) : (
                   <Veille
                     evenement={courant}
+                    membre={moi}
                     peut={peut}
                     toutPouvoir={toutPouvoir}
                     palier={palier}

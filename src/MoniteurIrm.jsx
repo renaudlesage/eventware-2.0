@@ -21,20 +21,50 @@ const URL_PORTAIL = 'https://meteoalarm.org/en/live/country/belgium'
  * L'IRM lui-même n'a pas d'API publique gratuite ; Meteoalarm, le
  * portail européen qui relaie les services météo nationaux, en a une.
  */
+// Meteoalarm publie au rythme des bulletins IRM : dix minutes suffisent.
+// Avant, le pavé se chargeait une fois et restait figé toute la journée
+// sous un pied de page qui promettait un rafraîchissement (comparatif
+// BFMF 2026, lot 1).
+const RAFRAICHISSEMENT_MS = 10 * 60 * 1000
+
 export default function MoniteurIrm({ province }) {
   const [etat, setEtat] = useState({ chargement: true })
+  const [releve, setReleve] = useState(null)
+  const [pannePuis, setPannePuis] = useState(null)
 
   useEffect(() => {
     let vivant = true
     const q = province ? `?province=${encodeURIComponent(province)}` : ''
-    fetch(URL_FONCTION + q)
-      .then((r) => r.json())
-      .then((d) => vivant && setEtat({ chargement: false, ...d }))
-      .catch(() => vivant && setEtat({ chargement: false, erreur: 'injoignable' }))
+    function charger() {
+      fetch(URL_FONCTION + q)
+        .then((r) => r.json())
+        .then((d) => {
+          if (!vivant) return
+          setEtat({ chargement: false, ...d })
+          setReleve(new Date())
+          setPannePuis(null)
+        })
+        .catch(() => {
+          if (!vivant) return
+          // On garde le dernier relevé lisible et on date la panne.
+          setPannePuis((p) => p ?? new Date())
+          setEtat((e) => (e.chargement ? { chargement: false, erreur: 'injoignable' } : e))
+        })
+    }
+    charger()
+    const t = setInterval(charger, RAFRAICHISSEMENT_MS)
     return () => {
       vivant = false
+      clearInterval(t)
     }
   }, [province])
+
+  const heure = (d) => d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
+  const datation = pannePuis
+    ? `relais indisponible depuis ${heure(pannePuis)}${releve ? `, dernier relevé ${heure(releve)}` : ''}`
+    : releve
+      ? `relevé ${heure(releve)}`
+      : null
 
   if (!province) {
     return (
@@ -90,7 +120,8 @@ export default function MoniteurIrm({ province }) {
       )}
 
       <p className="aide" style={{ marginTop: 6 }}>
-        Via Meteoalarm (relais européen des services météo nationaux, dont l'IRM) —{' '}
+        Via Meteoalarm (relais européen des services météo nationaux, dont l'IRM)
+        {datation && <> — {datation}</>} —{' '}
         <a href={etat.lien ?? URL_PORTAIL} target="_blank" rel="noreferrer">
           voir sur meteoalarm.org →
         </a>

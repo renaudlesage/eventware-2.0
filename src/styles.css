@@ -2981,3 +2981,40 @@ body.impl-plein-corps { overflow: hidden; }
 .carte-conteneur.carte-plein { position: fixed !important; inset: 0; z-index: 1200; height: 100vh !important; height: 100dvh !important; width: 100vw; margin: 0; border: none; }
 body.carte-plein-corps { overflow: hidden; }
 @media (max-width: 700px) { .carte-controles .carte-fond { max-width: 110px; } }
+
+/* ------------------------------------------------------------------ */
+/* PC-OPS et Situation — lot 1 du comparatif BFMF 2026 (17/10)         */
+
+/* Heure du dernier relevé : rouge quand la liste a l'air vivante sans
+   l'être (plus de 30 s sans relevé). */
+.releve.perime { color: var(--etat-chaud); font-weight: 700; }
+
+/* Le cycle d'un signalement : reçu → pris en charge → clos, avec les
+   délais et le traitant. Une ligne, en mono, sous la description. */
+.pcops .cycle { display: flex; flex-wrap: wrap; gap: 4px; font-size: 11px; color: var(--sourdine); margin-top: 4px; }
+.pcops .cycle strong { color: var(--encre); }
+.pcops .cycle .attente { color: var(--etat-chaud); font-weight: 700; }
+.pcops .carte.urgent { box-shadow: inset 3px 0 0 var(--etat-chaud); }
+.pcops .conversion { align-items: center; }
+
+/* Gravité d'un signalement, posée par le PC. */
+.jeton.grav-mineur { color: var(--sourdine); margin-left: 8px; }
+.jeton.grav-modere { color: var(--etat-info); margin-left: 8px; }
+.jeton.grav-grave { color: var(--etat-veille); margin-left: 8px; }
+.jeton.grav-critique { color: var(--etat-chaud); font-weight: 700; margin-left: 8px; }
+
+/* Présents contre capacité, dans le moniteur Logistique. */
+.jauge-ligne .barre { margin-top: 4px; width: 100%; }
+.jauge-ligne.urgent .barre > span { background: var(--etat-chaud); }
+
+/* ------------------------------------------------------------------ */
+/* Accusés de lecture et acquittement (122)                            */
+
+.bien-recu { all: unset; cursor: pointer; font-size: 12px; font-weight: 700; padding: 3px 10px; border: 1px solid currentColor; color: var(--etat-chaud); }
+.bien-recu:hover { background: var(--surface-2); }
+.bien-recu.lu { cursor: default; border-color: transparent; color: var(--etat-ok); padding-left: 0; }
+.accuses { font-size: 11px; color: var(--sourdine); margin-top: 5px; line-height: 1.4; }
+.accuses .acquittee { color: var(--etat-ok); }
+.bandeau-alerte .meta button.discret { margin: 0 0 0 6px; padding: 2px 8px; font-size: 11px; }
+.moniteur-actions select { width: auto; margin: 0; font-size: 11px; padding: 2px 4px; }
+.participant .cycle-sos { margin: 2px 0 0; }

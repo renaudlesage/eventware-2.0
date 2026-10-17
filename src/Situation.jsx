@@ -3,10 +3,12 @@ import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import Meteo from './Meteo'
 import Maydays from './Maydays'
-import { libelleStatut } from './libelles'
+import { libelleStatut, libelleStatutTransport } from './libelles'
 import { TYPES } from './PcOps'
 import { ChevronDown } from 'lucide-react'
 import { ecrireOuEmpiler } from './fileEcritures'
+import { jouerAlarme } from './alarme'
+import { Accuses } from './Bandeau'
 
 /**
  * Tableau de bord général — la vue QG.
@@ -52,6 +54,7 @@ const COLONNES_PAR_PHASE = {
 export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
   const [s, setS] = useState(null)
   const [signalementsRecents, setSignalementsRecents] = useState([])
+  const [equipes, setEquipes] = useState([])
   const [demandesLogistique, setDemandesLogistique] = useState([])
   const [demandesSecurite, setDemandesSecurite] = useState([])
   // Retour d'une action faite depuis un moniteur (prise en charge,
@@ -68,39 +71,21 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
 
   // Compte ce qui exige vraiment une réaction immédiate — alertes
   // actives (le Mayday y crée déjà sa propre ligne, pas besoin de le
-  // compter à part) et missions P1 non résolues. Un simple total, pas
+  // compter à part), missions P1 non résolues, SOS participants pas
+  // encore pris en charge et recherches en cours. Un simple total, pas
   // le détail : on ne veut savoir qu'une chose, si ça vient de monter.
+  // Les SOS et les recherches manquaient (comparatif BFMF 2026, lot 1) :
+  // un SOS participant arrivait en silence sur l'écran projeté.
   function compterUrgent(donnees) {
     const alertesActives = donnees?.alertes?.length ?? 0
     const p1 = donnees?.missions?.p1 ?? 0
-    return alertesActives + p1
-  }
-
-  function jouerAlarme() {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)()
-      ;[0, 260, 520].forEach((decalage) => {
-        setTimeout(() => {
-          const osc = ctx.createOscillator()
-          const gain = ctx.createGain()
-          osc.type = 'square'
-          osc.frequency.value = 880
-          gain.gain.value = 0.15
-          osc.connect(gain)
-          gain.connect(ctx.destination)
-          osc.start()
-          osc.stop(ctx.currentTime + 0.18)
-        }, decalage)
-      })
-    } catch {
-      /* Certains navigateurs bloquent l'audio sans interaction récente
-         de l'utilisateur — l'activation du son par un clic suffit
-         normalement, mais on ne casse jamais l'écran pour ça. */
-    }
+    const sos = donnees?.signalements?.non_pris_en_charge ?? 0
+    const recherches = donnees?.recherches?.length ?? 0
+    return alertesActives + p1 + sos + recherches
   }
 
   async function charger() {
-    const [{ data, error }, sig, logi] = await Promise.all([
+    const [{ data, error }, sig, logi, eq] = await Promise.all([
       supabase.rpc('situation', { p_evenement: evenement.id }),
       // Requête directe plutôt que de dépendre du sous-objet exposé
       // par situation() : le moniteur affichait la référence et le
@@ -111,9 +96,12 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
       // Les signalements OUVERTS seulement : maintenant qu'on les clôture
       // d'ici, un signalement clos qui resterait affiché aurait l'air de
       // ne pas l'être (24/09).
+      // Heure, contact, position et lieu (lot 1 du comparatif BFMF
+      // 2026) : sans eux, le moniteur disait « Malaise — reçu » sans
+      // dire depuis quand, ni où, ni qui rappeler.
       supabase
         .from('signalements')
-        .select('id, reference, type, description, statut')
+        .select('id, reference, type, description, statut, recu_le, contact, latitude, longitude, lieu_id, lieu:lieu_id(nom)')
         .eq('evenement_id', evenement.id)
         .is('deleted_at', null)
         .in('statut', ['recu', 'pris_en_charge', 'en_cours'])
@@ -123,16 +111,27 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
       // colonne Logistique : son compteur les comptait, son moniteur
       // ne montrait que le matériel sous seuil — « 3 demandes » sans
       // aucune demande visible (campagne du 20/09, 3a-01).
+      // (122) Avec l'équipe, le lieu et le titulaire : la ligne dit qui
+      // s'en occupe, et l'équipe se choisit ici même.
       supabase
         .from('missions')
-        .select('id, reference, titre, statut, priorite, module')
+        .select('id, reference, titre, statut, priorite, module, equipe_id, lieu_id, membre_id, equipe:equipe_id(code), lieu:lieu_id(nom), membre:membre_id(nom_affiche)')
         .eq('evenement_id', evenement.id)
         .in('module', ['logistique', 'securite'])
         .is('deleted_at', null)
         .not('statut', 'in', '("resolue","annulee")')
         .order('priorite')
         .order('created_at', { ascending: false })
-        .limit(12)
+        .limit(12),
+      // (122) Les équipes, pour attribuer une demande sans quitter
+      // l'écran projeté — un clic dans BFMF, quatre et un changement
+      // d'écran ici.
+      supabase
+        .from('equipes')
+        .select('id, code, nom')
+        .eq('evenement_id', evenement.id)
+        .is('deleted_at', null)
+        .order('code')
     ])
     if (error) setErreur(texteErreur(error))
     else {
@@ -143,6 +142,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
 
       setS(data)
       setSignalementsRecents(sig.data ?? [])
+      if (!eq.error) setEquipes(eq.data ?? [])
       setDemandesLogistique((logi.data ?? []).filter((d) => d.module === 'logistique').slice(0, 6))
       setDemandesSecurite((logi.data ?? []).filter((d) => d.module === 'securite').slice(0, 6))
       setMaj(new Date())
@@ -166,6 +166,41 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
   // statut_signalement), pas ici.
   const peutSos = toutPouvoir || peut?.('sos', 'modifier')
   const peutMissions = toutPouvoir || (peut?.('missions', 'modifier') && peut?.('missions', 'creer'))
+  const peutAlertes = toutPouvoir || peut?.('alertes', 'modifier')
+
+  // (122) Attribuer une demande à une équipe depuis le moniteur. Le
+  // déclencheur cycle_mission (015) la passe en « attribuée ».
+  async function attribuer(d, equipeId) {
+    setOccupe(d.id)
+    const eq = equipes.find((e) => e.id === equipeId)
+    const r = await ecrireOuEmpiler({
+      nature: 'update',
+      table: 'missions',
+      id: d.id,
+      champs: { equipe_id: equipeId || null },
+      libelle: `${d.reference ?? ''} — ${equipeId ? `attribuée à ${eq?.code ?? 'équipe'}` : 'désattribuée'}`
+    })
+    setOccupe(null)
+    if (r.statut === 'refus') setRetour({ type: 'erreur', texte: `${d.reference} : ${r.message}` })
+    else {
+      if (r.statut === 'enfile') setRetour({ type: 'info', texte: `${d.reference} : réseau indisponible, l'attribution partira au retour du signal.` })
+      charger()
+    }
+  }
+
+  // (122) « Vu, pris en compte » : le PC a la main sur l'alerte sans la
+  // lever. Qui et quand sont posés par le déclencheur cycle_alerte.
+  async function acquitter(a) {
+    const r = await ecrireOuEmpiler({
+      nature: 'update',
+      table: 'alertes',
+      id: a.id,
+      champs: { acquittee_le: new Date().toISOString() },
+      libelle: `${a.titre} — vu, pris en compte`
+    })
+    if (r.statut === 'refus') setRetour({ type: 'erreur', texte: `${a.titre} : ${r.message}` })
+    else charger()
+  }
 
   async function agir(table, ligne, statut, libelle) {
     setOccupe(ligne.id)
@@ -183,6 +218,24 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
       setRetour({ type: 'info', texte: `${ligne.reference} : réseau indisponible, « ${libelle} » partira au retour du signal.` })
     } else {
       setRetour({ type: 'ok', texte: `${ligne.reference} : ${libelle}.` })
+      charger()
+    }
+  }
+
+  // Un signalement devient une demande sécurité P2, sans quitter
+  // l'écran projeté ; l'attribution fine (priorité, équipe) se fait
+  // depuis PC-OPS. La RPC passe aussi le signalement en pris en charge.
+  async function convertir(x) {
+    setOccupe(x.id)
+    const { data, error } = await supabase.rpc('convertir_signalement_en_mission', {
+      p_signalement: x.id,
+      p_module: 'securite',
+      p_priorite: 'P2'
+    })
+    setOccupe(null)
+    if (error) setRetour({ type: 'erreur', texte: `${x.reference} : ${texteErreur(error)}` })
+    else {
+      setRetour({ type: 'ok', texte: `${x.reference} → demande ${data?.reference ?? ''} créée, signalement pris en charge.` })
       charger()
     }
   }
@@ -280,11 +333,27 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
       <Maydays evenement={evenement} compact />
 
       {(s.alertes ?? []).map((a, i) => (
-        <div className={`bandeau-alerte niv-${a.niveau}`} key={i}>
+        <div className={`bandeau-alerte niv-${a.niveau}`} key={a.id ?? i}>
           <div className="niv">{a.niveau}</div>
           <div className="contenu">
             <strong>{a.titre}</strong>
+            {a.message && <div className="msg">{a.message}</div>}
             {a.consigne && <div className="consigne">→ {a.consigne}</div>}
+            {a.emise_le && (
+              <div className="meta">
+                <span>émise à {new Date(a.emise_le).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</span>
+                <span>il y a {ecoule(a.emise_le)}</span>
+                {peutAlertes && a.id && !a.acquittee_le && (
+                  <button className="discret" onClick={() => acquitter(a)} title="Le PC a vu et prend en compte, sans lever">
+                    Vu, pris en compte
+                  </button>
+                )}
+              </div>
+            )}
+            {/* (122) Qui a lu : la liste nominative, comme au QG de BFMF. */}
+            {a.accuses && (
+              <Accuses liste={a.accuses} acquittee_le={a.acquittee_le} acquittee_par={a.acquittee_par} membresActifs={a.membres_actifs} />
+            )}
           </div>
         </div>
       ))}
@@ -405,25 +474,54 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
                   </strong>
                   <span>
                     {libelleStatut(x.statut)} <span className="mono">· {x.reference}</span>
+                    {x.recu_le && ` · il y a ${ecoule(x.recu_le)}`}
+                    {x.lieu?.nom && ` · ${x.lieu.nom}`}
+                    {x.contact && (
+                      <>
+                        {' · '}
+                        <a href={`tel:${x.contact.replace(/\s/g, '')}`}>{x.contact}</a>
+                      </>
+                    )}
+                    {x.latitude && (
+                      <>
+                        {' · '}
+                        <a
+                          href={`https://www.google.com/maps?q=${x.latitude},${x.longitude}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          carte
+                        </a>
+                      </>
+                    )}
                   </span>
-                  {peutSos && (
+                  {(peutSos || peutMissions) && (
                     <span className="moniteur-actions">
-                      {x.statut === 'recu' && (
+                      {peutSos && x.statut === 'recu' && (
                         <button className="discret" disabled={occupe === x.id}
                           onClick={() => agir('signalements', x, 'pris_en_charge', 'pris en charge')}>
                           Prendre en charge
                         </button>
                       )}
-                      <button className="discret cloturer" disabled={occupe === x.id}
-                        onClick={() => agir('signalements', x, 'clos', 'clôturé')}>
-                        Clôturer
-                      </button>
+                      {peutMissions && peutSos && (
+                        <button className="discret" disabled={occupe === x.id}
+                          title="Créer une demande sécurité P2 à partir de ce signalement"
+                          onClick={() => convertir(x)}>
+                          → Demande
+                        </button>
+                      )}
+                      {peutSos && (
+                        <button className="discret cloturer" disabled={occupe === x.id}
+                          onClick={() => agir('signalements', x, 'clos', 'clôturé')}>
+                          Clôturer
+                        </button>
+                      )}
                     </span>
                   )}
                 </div>
               ))}
               {demandesSecurite.map((d) => (
-                <LigneDemande key={d.id} d={d} peut={peutMissions} occupe={occupe} agir={agir} />
+                <LigneDemande key={d.id} d={d} peut={peutMissions} occupe={occupe} agir={agir} equipes={equipes} attribuer={attribuer} />
               ))}
             </>
           )}
@@ -456,12 +554,37 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
               { libelle: 'Non rendus', valeur: s.logistique?.biens_non_rendus, etat: 'attente' }
             ]}
           >
+            {/* La jauge contre la capacité attendue : « 412 présents »
+                ne dit rien sans « sur 500 ». Chaude à 90 %, comme le
+                bandeau d'état (comparatif BFMF 2026, lot 1). */}
+            {evenement.frequentation_max > 0 && s.logistique?.jauge != null && (
+              <JaugeLigne presents={s.logistique.jauge} max={evenement.frequentation_max} />
+            )}
             {demandesLogistique.length === 0 && (s.logistique?.sous_seuil ?? []).length === 0 ? (
               <p className="moniteur-vide">Aucune demande ouverte, aucune anomalie matérielle.</p>
             ) : (
               <>
                 {demandesLogistique.map((d) => (
-                  <LigneDemande key={d.id} d={d} peut={peutMissions} occupe={occupe} agir={agir} />
+                  <LigneDemande key={d.id} d={d} peut={peutMissions} occupe={occupe} agir={agir} equipes={equipes} attribuer={attribuer} />
+                ))}
+                {/* (122) Les six prochains transports, avec chauffeur et
+                    RDV : un compteur seul ne disait pas où en est la
+                    navette de la gare. */}
+                {(s.logistique?.transports ?? []).map((t) => (
+                  <div className={`moniteur-ligne ${t.priorite === 'P1' ? 'urgent' : ''}`} key={t.id}>
+                    <strong>
+                      {t.reference} — {t.depart ?? '?'} → {t.arrivee ?? '?'}
+                      {t.nb_personnes ? ` · ${t.nb_personnes} pers.` : ''}
+                    </strong>
+                    <span>
+                      {libelleStatutTransport(t.statut)}
+                      {t.souhaite_pour && ` · RDV ${heureCourte(t.souhaite_pour)}`}
+                      {t.prise_en_charge_le && ` · en route depuis ${heureCourte(t.prise_en_charge_le)}`}
+                      {t.chauffeur ? ` · ${t.chauffeur}` : ' · sans chauffeur'}
+                      {t.vehicule ? ` (${t.vehicule})` : ''}
+                      {t.motif ? ` · ${t.motif}` : ''}
+                    </span>
+                  </div>
                 ))}
                 {(s.logistique?.sous_seuil ?? []).map((a, i) => (
                   <div className="moniteur-ligne urgent" key={'s' + i}>
@@ -485,16 +608,32 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
             onAller={onAller}
             compteurs={[
               { libelle: 'Sans nouvelles', valeur: s.parcours?.sans_nouvelles, etat: 'urgent' },
+              // (122) En attente au départ et rentrés, en personnes :
+              // les deux cadrans de BFMF qui manquaient.
+              { libelle: 'En attente', valeur: s.parcours?.personnes_en_attente || null, etat: 'attente' },
               { libelle: 'En route', valeur: s.parcours?.en_route, etat: 'cours' },
-              { libelle: 'Arrivés', valeur: s.parcours?.arrives, etat: 'ok' }
+              { libelle: 'Rentrés', valeur: s.parcours?.personnes_rentrees ?? s.parcours?.arrives, etat: 'ok' }
             ]}
           >
-            {s.parcours?.sans_nouvelles > 0 ? (
-              <p className="moniteur-vide alerte">
-                {s.parcours.sans_nouvelles} groupe(s) sans nouvelles — voir Parcours.
-              </p>
+            {(s.parcours?.groupes ?? []).length === 0 ? (
+              <p className="moniteur-vide">Aucun groupe dehors.</p>
             ) : (
-              <p className="moniteur-vide">Tous les groupes donnent de leurs nouvelles.</p>
+              // (122) Chaque groupe dehors, où il a été vu et quand —
+              // avant, la colonne tactique seule le montrait, à partir
+              // de 1440 px.
+              (s.parcours?.groupes ?? []).map((g) => (
+                <div className={`moniteur-ligne ${g.sans_nouvelles ? 'urgent' : ''}`} key={g.id}>
+                  <strong>
+                    {g.code ? `${g.code} · ` : ''}{g.nom}
+                    {g.effectif ? ` · ${g.effectif} pers.` : ''}
+                  </strong>
+                  <span>
+                    {g.dernier_lieu ?? 'position inconnue'}
+                    {g.dernier_passage ? ` · vu il y a ${ecoule(g.dernier_passage)}` : ' · jamais pointé'}
+                    {g.sans_nouvelles ? ' · sans nouvelles' : ''}
+                  </span>
+                </div>
+              ))
             )}
           </ColonneDomaine>
         )}
@@ -571,9 +710,10 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
  */
 /* Une demande (mission) sécurité ou logistique dans un moniteur, avec
    ce que le QG en fait sans quitter la Situation : la démarrer, la
-   clore. L'attribution à une équipe reste dans Sécurité / Logistique —
-   elle demande de choisir parmi les équipes, pas un bouton. */
-function LigneDemande({ d, peut, occupe, agir }) {
+   clore — et depuis la 122, l'attribuer à une équipe (BFMF le faisait
+   en un clic ; ici il fallait changer d'écran). La ligne dit aussi
+   l'équipe, le lieu et le titulaire. */
+function LigneDemande({ d, peut, occupe, agir, equipes = [], attribuer }) {
   return (
     <div className={`moniteur-ligne ${d.priorite === 'P1' ? 'urgent' : ''}`}>
       <strong>
@@ -581,9 +721,29 @@ function LigneDemande({ d, peut, occupe, agir }) {
       </strong>
       <span>
         {libelleStatut(d.statut)} <span className="mono">· {d.reference}</span>
+        {d.lieu?.nom && ` · ${d.lieu.nom}`}
+        {d.equipe?.code && ` · équipe ${d.equipe.code}`}
+        {d.membre?.nom_affiche && ` · ${d.membre.nom_affiche}`}
+        {!d.equipe_id && !d.membre_id && ' · sans titulaire'}
       </span>
       {peut && (
         <span className="moniteur-actions">
+          {attribuer && equipes.length > 0 && (
+            <select
+              value={d.equipe_id ?? ''}
+              disabled={occupe === d.id}
+              onChange={(e) => attribuer(d, e.target.value)}
+              aria-label="Attribuer à une équipe"
+              title="Attribuer à une équipe"
+            >
+              <option value="">— équipe —</option>
+              {equipes.map((eq) => (
+                <option key={eq.id} value={eq.id}>
+                  {eq.code}
+                </option>
+              ))}
+            </select>
+          )}
           {d.statut !== 'en_cours' && (
             <button className="discret" disabled={occupe === d.id}
               onClick={() => agir('missions', d, 'en_cours', 'en cours')}>
@@ -656,6 +816,27 @@ export function ColonneDomaine({ teinte, icone, titre, lien, onAller, compteurs,
       </div>
     </div>
   )
+}
+
+/** Présents contre capacité attendue, en barre : chaude dès 90 %. */
+export function JaugeLigne({ presents, max }) {
+  const taux = Math.min(1, presents / max)
+  const chaud = taux >= 0.9
+  return (
+    <div className={`moniteur-ligne jauge-ligne ${chaud ? 'urgent' : ''}`}>
+      <strong>
+        Présents {presents} / {max}
+        {chaud ? ` · ${Math.round(taux * 100)} % de la capacité` : ''}
+      </strong>
+      <span className="barre" aria-hidden="true">
+        <span style={{ width: `${Math.round(taux * 100)}%` }} />
+      </span>
+    </div>
+  )
+}
+
+function heureCourte(iso) {
+  return new Date(iso).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
 }
 
 function ecoule(date) {

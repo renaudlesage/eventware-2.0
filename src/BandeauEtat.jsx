@@ -134,7 +134,22 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
         chaud: retards > 0,
         aller: ['planning']
       },
-      { valeur: s?.logistique?.jauge ?? null, libelle: 'Présents', aller: ['logistique'] }
+      // Contre la capacité attendue quand elle est connue : « 412 »
+      // seul ne dit pas si la plaine est pleine (comparatif BFMF 2026).
+      {
+        valeur:
+          s?.logistique?.jauge == null
+            ? null
+            : evenement.frequentation_max > 0
+              ? `${s.logistique.jauge} / ${evenement.frequentation_max}`
+              : s.logistique.jauge,
+        libelle:
+          evenement.frequentation_max > 0 && s?.logistique?.jauge >= 0.9 * evenement.frequentation_max
+            ? 'Présents · ≥ 90 % de la capacité'
+            : 'Présents',
+        chaud: evenement.frequentation_max > 0 && s?.logistique?.jauge >= 0.9 * evenement.frequentation_max,
+        aller: ['logistique']
+      }
     ]
     if (auMur) {
       cadrans.push(
