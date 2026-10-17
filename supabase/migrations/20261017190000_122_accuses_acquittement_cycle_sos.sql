@@ -137,6 +137,11 @@ begin
 end;
 $$;
 
+-- Les deux déclencheurs redéfinis ci-dessus gardent le search_path figé
+-- que la 113 leur avait posé (l'advisor le réclame).
+alter function public.trg_statut_signalement() set search_path = public, pg_temp;
+alter function public.trg_cycle_alerte() set search_path = public, pg_temp;
+
 -- Le participant lit les quatre temps. Redéfinir suivre_signalement
 -- changerait son type de retour, donc imposerait un DROP : on ajoute
 -- suivi_signalement à côté, et le participant l'appelle. L'ancienne
