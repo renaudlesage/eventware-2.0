@@ -53,6 +53,11 @@ export const GRAVITES = [
 
 const PRIORITES = ['P1', 'P2', 'P3']
 
+// Au-delà, la liste a l'air vivante alors qu'elle ne l'est plus : le
+// relevé passe en rouge. Trois cycles de rafraîchissement. (Retirée par
+// erreur avec l'ancienne carte au lot 2 — PC-OPS plantait au rendu.)
+const RELEVE_PERIME_MS = 30000
+
 export default function PcOps({ evenement, peut, toutPouvoir }) {
   const [signalements, setSignalements] = useState([])
   const [demandes, setDemandes] = useState({}) // signalement_id → demande créée
