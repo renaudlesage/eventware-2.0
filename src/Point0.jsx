@@ -49,10 +49,18 @@ export default function Point0({ evenement, onFait, setMessage }) {
     (c) => !province || c.province === province || c.nom === commune
   )
 
+  // « Aucun parcours » n'est pas un mode de suivi : c'est la nature de
+  // l'événement (`geometrie` = site fermé). Choisir un mode sur un site
+  // fermé le fait passer en « parcours » ; choisir « aucun » le remet en
+  // site fermé. Le module, lui, reste à l'exploitant.
   async function enregistrerMode(valeur) {
     setOccupeMode(true)
-    setModeParcours(valeur)
-    const refus = await modifierOuRefuser('evenements', { mode_parcours: valeur }, { id: evenement.id })
+    const champs =
+      valeur === 'aucun'
+        ? { geometrie: 'site_ferme' }
+        : { mode_parcours: valeur, geometrie: evenement.geometrie === 'site_ferme' ? 'parcours' : evenement.geometrie }
+    if (valeur !== 'aucun') setModeParcours(valeur)
+    const refus = await modifierOuRefuser('evenements', champs, { id: evenement.id })
     if (refus) setMessage({ type: 'erreur', texte: refus })
     else {
       onFait()
@@ -237,14 +245,18 @@ export default function Point0({ evenement, onFait, setMessage }) {
         </label>
         <select
           id="mode-parcours"
-          value={modeParcours}
+          value={evenement.geometrie === 'site_ferme' ? 'aucun' : modeParcours}
           disabled={occupeMode}
           onChange={(e) => enregistrerMode(e.target.value)}
         >
+          <option value="aucun">Aucun parcours — site fermé</option>
           <option value="groupes">Groupes encadrés — on suit qui est où</option>
           <option value="individuels">Individus isolés — on compte les passages</option>
         </select>
         <p className="aide">
+          <strong>Aucun parcours</strong> : une plaine, une salle, une fête de village. L'écran
+          Parcours et sa colonne de Situation disparaissent ; le module reste souscrit.
+          <br />
           <strong>Groupes encadrés</strong> : des groupes nommés, un accompagnateur joignable,
           un effectif connu. On sait lequel n'a pas pointé depuis trop longtemps.
           <br />

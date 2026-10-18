@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { aParcours } from './libelles'
 import { supabase } from './supabaseClient'
 import Dashboard from './Dashboard'
 import Memento from './Memento'
@@ -182,6 +183,8 @@ export default function Poste({ session, theme, setTheme }) {
 
   const visibles = ECRANS.filter((e) => {
     if (e.module && !courant?.modules?.[e.module]) return false
+    // Un site fermé n'a pas de parcours, module souscrit ou non (Point 0).
+    if (e.clef === 'parcours' && !aParcours(courant)) return false
     if (!moi) return false
     if (e.besoin === 'exploitant') return exploitant
     if (e.besoin === 'tout_pouvoir') return toutPouvoir

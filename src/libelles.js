@@ -61,6 +61,19 @@ export const STATUTS_TRANSPORT = [
   ['annulee', 'Annulée']
 ]
 
+/**
+ * Y a-t-il un parcours à suivre ? Deux conditions : le module (la
+ * souscription, réglée par l'exploitant) ET la nature de l'événement
+ * (réglée par le coordinateur dans Point 0 : un site fermé — plaine,
+ * salle, fête de village — n'a pas de parcours, même si le module est
+ * souscrit). Avant, seul le module comptait : un coordinateur de site
+ * fermé se voyait imposer « groupes ou individus » sans pouvoir dire
+ * « aucun » (Ren, 18/10).
+ */
+export function aParcours(evenement) {
+  return !!evenement?.modules?.parcours && evenement?.geometrie !== 'site_ferme'
+}
+
 /** (125) Où en est une course, dit par le chauffeur depuis Mon terrain. */
 export const ETAPES_TRANSPORT = [
   ['en_route', 'En route vers le départ'],
