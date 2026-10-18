@@ -36,9 +36,11 @@ export function Journal({ evenement, setMessage, moduleParDefaut = 'securite', p
   const [majeur, setMajeur] = useState(false)
   const [occupe, setOccupe] = useState(false)
 
-  // Policy `journal_creation` : `journal:creer` — chef d'équipe et
-  // bénévole n'ont que la lecture. Les deux écrans qui montent ce
-  // composant (Sécurité, Logistique) transmettent `peut`.
+  // Policy `journal_creation` : `journal:creer` — le coordinateur, et
+  // depuis la 124 le chef d'équipe sur les phases terrain (il tenait la
+  // main courante de son secteur dans BFMF) ; le bénévole lit. Les deux
+  // écrans qui montent ce composant (Sécurité, Logistique) transmettent
+  // `peut`.
   const peutInscrire = toutPouvoir || peut?.('journal', 'creer')
 
   async function charger() {

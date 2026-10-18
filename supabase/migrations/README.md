@@ -268,7 +268,15 @@ Le script s'est vérifié lui-même avant de valider : 0 écart de visibilité (
 
 Éprouvée en transaction annulée en deux passes (tranche A seule, puis A + B + C dans un bloc : `projeter_sur_trace` sur Rando VTT → « km 6,11 · après E3B · 87 m », `situation()` avec claims d'un membre, `situation_autorite()` et `contenu_public()` sur les jetons de Rando VTT). Appliquée en trois blocs `do` (A : DDL + fonctions ; B : `situation()` ; C : `situation_autorite()` + `contenu_public()`) et inscrite (version 20261017230000), puis vérifiée : colonne `doublon_de` et `capacite` présentes, `anon` sans EXECUTE sur `projeter_sur_trace`, `contenu_public` rend 13 traces sur Rando VTT, `situation_autorite` rend « km 0,17 · entre P0 et E1B · 57 m » sur la première intervention. L'application fusionnée juste après suppose la colonne `doublon_de`. Aucun DROP.
 
-## Ne jamais rejouer 088 → 123 par `db push` sans les lignes ci-dessus
+### 124 : appliquée le 18/10 (par Claude, via l'outil Supabase) — qui appeler au PC, main courante du chef d'équipe
+
+| Fichier | Fait |
+|---|---|
+| `20261018090000_124_interlocuteur_autorite_journal_chef_equipe.sql` | `contacts.role_autorite` (`interlocuteur` / `suppleant`, contrainte ; un contact désigné devient `visible_autorite` par déclencheur) ; `situation_autorite()` rend `interlocuteurs` ; `journal:creer` au chef d'équipe sur montage, exploitation et démontage, dans `matrice_permissions` (événements à venir) et dans `role_capacites` des rôles `chef_equipe` existants |
+
+Éprouvée en transaction annulée (contact de Rando VTT désigné interlocuteur → rendu par `situation_autorite`, `visible_autorite` passé à vrai ; 21 capacités `journal:creer` posées sur 7 rôles chef d'équipe). Appliquée en un bloc `do` (le `drop trigger if exists` du fichier remplacé par une garde `pg_trigger` dans le script passé à l'outil) et inscrite (version 20261018090000) ; vérifié : colonne et déclencheur présents, `journal:creer` posé sur les rôles chef d'équipe et dans le gabarit, `situation_autorite` rend la clé `interlocuteurs`. L'écran Partage › Annuaire, fusionné juste après, lit `role_autorite`.
+
+## Ne jamais rejouer 088 → 124 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

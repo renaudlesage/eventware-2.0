@@ -356,7 +356,7 @@ function ContactsAutorite({ evenement, setMessage }) {
   async function charger() {
     const { data, error } = await supabase
       .from('contacts')
-      .select('id, nom, organisation, fonction, telephone, categorie, visible_autorite')
+      .select('id, nom, organisation, fonction, telephone, categorie, visible_autorite, role_autorite')
       .eq('evenement_id', evenement.id)
       .is('deleted_at', null)
       .order('categorie', { nullsFirst: false })
@@ -379,7 +379,16 @@ function ContactsAutorite({ evenement, setMessage }) {
     else charger()
   }
 
+  // (124) Qui appeler au PC : un interlocuteur, un suppléant. Désigner
+  // rend visible (déclencheur) ; retirer le rôle ne décoche pas.
+  async function designer(c, role) {
+    const refus = await modifierOuRefuser('contacts', { role_autorite: role || null }, { id: c.id })
+    if (refus) setMessage({ type: 'erreur', texte: refus })
+    else charger()
+  }
+
   const visibles = contacts.filter((c) => c.visible_autorite).length
+  const interlocuteur = contacts.find((c) => c.role_autorite === 'interlocuteur')
 
   return (
     <section className="bloc">
@@ -389,6 +398,11 @@ function ContactsAutorite({ evenement, setMessage }) {
         sécurité, suppléant, direction de l'événement… Rien n'est coché par défaut —
         l'annuaire contient souvent des bénévoles qui n'ont pas à être appelés par une
         autorité. Les contacts s'importent dans Données › Référentiel.
+      </p>
+      <p className={`aide ${!interlocuteur ? 'alerte-texte' : ''}`}>
+        {interlocuteur
+          ? `Interlocuteur au PC : ${interlocuteur.nom}${interlocuteur.telephone ? ` · ${interlocuteur.telephone}` : ''}.`
+          : "Aucun interlocuteur désigné : l'autorité ne sait pas qui appeler. Choisis-le dans la colonne de droite."}
       </p>
       {contacts.length === 0 ? (
         <p className="vide">Aucun contact dans l'annuaire de l'événement.</p>
@@ -415,6 +429,18 @@ function ContactsAutorite({ evenement, setMessage }) {
                   <td>{[c.fonction, c.organisation].filter(Boolean).join(' · ')}</td>
                   <td className="mono">{c.telephone}</td>
                   <td>{c.categorie}</td>
+                  <td>
+                    <select
+                      value={c.role_autorite ?? ''}
+                      onChange={(e) => designer(c, e.target.value)}
+                      style={{ width: 'auto', margin: 0, fontSize: 12 }}
+                      aria-label="Rôle vis-à-vis de l'autorité"
+                    >
+                      <option value="">—</option>
+                      <option value="interlocuteur">interlocuteur au PC</option>
+                      <option value="suppleant">suppléant</option>
+                    </select>
+                  </td>
                 </tr>
               ))}
             </tbody>
