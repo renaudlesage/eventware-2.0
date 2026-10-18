@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { aParcours } from './libelles'
 import { supabase } from './supabaseClient'
 
 /**
@@ -100,7 +101,7 @@ export default function Mur({ evenement, onAller }) {
             <Detail l="Transports en cours" v={s.logistique?.transports_ouverts ?? 0} />
             <Detail l="Matériel sous seuil" v={(s.logistique?.sous_seuil ?? []).length} alerte={(s.logistique?.sous_seuil ?? []).length > 0} />
           </div>
-          {evenement.modules?.parcours ? (
+          {aParcours(evenement) ? (
             <div className="pave">
               <div className="pave-titre">Parcours</div>
               <span className="grand">{s.parcours?.personnes_sur_parcours ?? 0}</span>

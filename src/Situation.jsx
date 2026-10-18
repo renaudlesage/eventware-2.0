@@ -10,7 +10,7 @@ import { ecrireOuEmpiler } from './fileEcritures'
 import { jouerAlarme } from './alarme'
 import { situerSurTrace, libelleSurTrace } from './geometrie'
 import { CarteTactique, useTactique, Radio } from './ColonneSituation'
-import { libelleEtapeTransport } from './libelles'
+import { libelleEtapeTransport, aParcours } from './libelles'
 import { Accuses } from './Bandeau'
 
 /**
@@ -723,7 +723,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
           </ColonneDomaine>
         )}
 
-        {m.parcours && montre('parcours') && (
+        {aParcours(s.evenement) && montre('parcours') && (
           <ColonneDomaine
             teinte="mousse"
             icone="➜"
