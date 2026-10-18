@@ -9,6 +9,8 @@ import { ChevronDown } from 'lucide-react'
 import { ecrireOuEmpiler } from './fileEcritures'
 import { jouerAlarme } from './alarme'
 import { situerSurTrace, libelleSurTrace } from './geometrie'
+import { CarteTactique, useTactique, Radio } from './ColonneSituation'
+import { libelleEtapeTransport } from './libelles'
 import { Accuses } from './Bandeau'
 
 /**
@@ -52,7 +54,20 @@ const COLONNES_PAR_PHASE = {
   cloture:      ['logistique', 'preparation']
 }
 
+/** Vrai à partir de 1440 px : la colonne tactique vit à côté. */
+function useLarge() {
+  const [large, setLarge] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1440px)').matches)
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1440px)')
+    const f = (e) => setLarge(e.matches)
+    mq.addEventListener('change', f)
+    return () => mq.removeEventListener('change', f)
+  }, [])
+  return large
+}
+
 export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
+  const large = useLarge()
   const [s, setS] = useState(null)
   const [signalementsRecents, setSignalementsRecents] = useState([])
   const [equipes, setEquipes] = useState([])
@@ -340,9 +355,13 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
   // l'exploitation : mieux vaut trop montrer que rien du tout.
   const colonnes = COLONNES_PAR_PHASE[s.evenement?.phase] ?? COLONNES_PAR_PHASE.exploitation
   const montre = (clef) => colonnes.includes(clef)
-  const jalonsEnRetard = (s.jalons ?? []).filter(
-    (j) => j.echeance && new Date(j.echeance) < new Date()
-  ).length
+  // (125) Le compte du serveur — le même que le Mur et le bandeau
+  // d'état. Le calcul local sur les cinq prochains jalons n'est plus
+  // qu'un repli.
+  const jalonsEnRetard =
+    s.jalons_en_retard ?? (s.jalons ?? []).filter((j) => j.echeance && new Date(j.echeance) < new Date()).length
+  const etapes = s.parcours?.etapes ?? []
+  const etapesChargees = etapes.filter((e) => e.capacite > 0 && (e.charge ?? 0) >= 0.9 * e.capacite).length
 
   return (
     <div className="situation dom-indigo">
@@ -686,6 +705,8 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
                       {t.chauffeur ? ` · ${t.chauffeur}` : ' · sans chauffeur'}
                       {t.vehicule ? ` (${t.vehicule})` : ''}
                       {t.motif ? ` · ${t.motif}` : ''}
+                      {/* (125) Où en est la course, dit par le chauffeur. */}
+                      {t.etape && <span className={`jeton etape-${t.etape}`}>{libelleEtapeTransport(t.etape)}</span>}
                     </span>
                   </div>
                 ))}
@@ -711,6 +732,10 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
             onAller={onAller}
             compteurs={[
               { libelle: 'Sans nouvelles', valeur: s.parcours?.sans_nouvelles, etat: 'urgent' },
+              // (125) Une étape à 90 % de sa capacité : on freine les départs.
+              ...(etapes.some((e) => e.capacite > 0)
+                ? [{ libelle: 'Étapes chargées', valeur: etapesChargees || null, etat: 'urgent' }]
+                : []),
               // (122) En attente au départ et rentrés, en personnes :
               // les deux cadrans de BFMF qui manquaient.
               { libelle: 'En attente', valeur: s.parcours?.personnes_en_attente || null, etat: 'attente' },
@@ -718,6 +743,14 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
               { libelle: 'Rentrés', valeur: s.parcours?.personnes_rentrees ?? s.parcours?.arrives, etat: 'ok' }
             ]}
           >
+            {/* (125) Charge et capacité des étapes : barre à partir de
+                72 %, rouge à 100 %. Une étape sans capacité renseignée
+                n'a pas de barre — elle se règle dans l'import des lieux. */}
+            {etapes
+              .filter((e) => e.capacite > 0)
+              .map((e) => (
+                <JaugeEtape key={e.id} etape={e} />
+              ))}
             {(s.parcours?.groupes ?? []).length === 0 ? (
               <p className="moniteur-vide">Aucun groupe dehors.</p>
             ) : (
@@ -763,6 +796,11 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
           </ColonneDomaine>
         )}
       </div>
+
+      {/* (125) Sous 1440 px la colonne tactique n'existe pas : la carte
+          et le plan radio se replient ici, fermés par défaut, ouverts à
+          la demande — un portable de PC n'a pas la largeur du mur. */}
+      {!large && <TactiqueRepliee evenement={evenement} onAller={onAller} />}
 
       {/* --- 4. Le fil --- */}
 
@@ -930,6 +968,68 @@ export function ColonneDomaine({ teinte, icone, titre, lien, onAller, compteurs,
 }
 
 /** Présents contre capacité attendue, en barre : chaude dès 90 %. */
+/* (125) Une étape : charge / capacité, barre à partir de 72 %, rouge à
+   100 %. Les seuils de BFMF. */
+function JaugeEtape({ etape }) {
+  const taux = Math.min(1, (etape.charge ?? 0) / etape.capacite)
+  const niveau = taux >= 1 ? 'urgent' : taux >= 0.72 ? 'veille' : ''
+  return (
+    <div className={`moniteur-ligne jauge-ligne jauge-etape ${niveau}`}>
+      <strong>
+        {etape.code ? `${etape.code} · ` : ''}{etape.nom} {etape.charge ?? 0} / {etape.capacite}
+        {taux >= 0.72 ? ` · ${Math.round(taux * 100)} %` : ''}
+        {taux >= 1 ? ' · pleine' : ''}
+      </strong>
+      {taux >= 0.72 && (
+        <span className="barre" aria-hidden="true">
+          <span style={{ width: `${Math.round(taux * 100)}%` }} />
+        </span>
+      )}
+    </div>
+  )
+}
+
+/* (125) La carte tactique et le plan radio, repliés : les données ne
+   sont chargées qu'à l'ouverture — un écran projeté sous 1440 px ne
+   paie pas vingt requêtes de plus pour un bloc fermé. */
+function TactiqueRepliee({ evenement, onAller }) {
+  const [ouvert, setOuvert] = useState(() => {
+    try { return window.localStorage.getItem('situation.tactique') === '1' } catch { return false }
+  })
+  useEffect(() => {
+    try { window.localStorage.setItem('situation.tactique', ouvert ? '1' : '0') } catch {}
+  }, [ouvert])
+  return (
+    <section className={`panneau large tactique-repliee ${ouvert ? 'ouvert' : ''}`}>
+      <div className="entete-dashboard">
+        <h2>Carte tactique et radio</h2>
+        <button className="lien" onClick={() => setOuvert(!ouvert)}>
+          {ouvert ? 'Replier' : 'Déplier'}
+        </button>
+      </div>
+      {ouvert && <TactiqueContenu evenement={evenement} onAller={onAller} />}
+    </section>
+  )
+}
+
+function TactiqueContenu({ evenement, onAller }) {
+  const { fond, vif, lieux } = useTactique(evenement)
+  return (
+    <div className="tactique-contenu">
+      <div>
+        {!fond ? (
+          <p className="vide">Chargement de la carte…</p>
+        ) : (
+          <CarteTactique evenement={evenement} fond={fond} vif={vif} lieux={lieux} hauteur={360} />
+        )}
+      </div>
+      <div>
+        <Radio evenement={evenement} onAller={onAller} />
+      </div>
+    </div>
+  )
+}
+
 export function JaugeLigne({ presents, max }) {
   const taux = Math.min(1, presents / max)
   const chaud = taux >= 0.9

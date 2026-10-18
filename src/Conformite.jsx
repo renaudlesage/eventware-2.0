@@ -182,7 +182,7 @@ export default function Conformite({ evenement, exploitant, peut, toutPouvoir, s
         />
       )}
       {vue === 'referentiels' && (
-        <Referentiels evenement={evenement} exploitant={exploitant} setMessage={setMessage} />
+        <Referentiels evenement={evenement} exploitant={exploitant} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} />
       )}
       {vue === 'controles' && (
         <Controles
@@ -784,7 +784,12 @@ const PORTEES = [
   ['zone_secours', 'Zone de secours']
 ]
 
-function Referentiels({ evenement, exploitant, setMessage }) {
+function Referentiels({ evenement, exploitant, peut, toutPouvoir, setMessage }) {
+  // La policy referentiels_ecriture_organisation (052) exige
+  // `referentiels:creer` sur un événement de l'organisation : le bouton
+  // suit le même droit, au lieu de laisser un bénévole se faire refuser
+  // à l'envoi (point interne du comparatif BFMF 2026, vérifié le 18/10).
+  const peutAjouter = exploitant || toutPouvoir || peut?.('referentiels', 'creer')
   const [partages, setPartages] = useState([])
   const [propres, setPropres] = useState([])
   const [zone, setZone] = useState(undefined)
@@ -892,11 +897,13 @@ function Referentiels({ evenement, exploitant, setMessage }) {
         ))
       )}
 
-      <div className="ligne-boutons" style={{ marginTop: 12 }}>
-        <button onClick={() => setOuvrirNouveau(!ouvrirNouveau)}>
-          {ouvrirNouveau ? 'Fermer' : '+ Ajouter un référentiel local'}
-        </button>
-      </div>
+      {peutAjouter && (
+        <div className="ligne-boutons" style={{ marginTop: 12 }}>
+          <button onClick={() => setOuvrirNouveau(!ouvrirNouveau)}>
+            {ouvrirNouveau ? 'Fermer' : '+ Ajouter un référentiel local'}
+          </button>
+        </div>
+      )}
 
       {ouvrirNouveau && (
         <NouveauReferentiel

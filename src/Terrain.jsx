@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
-import { libelleStatut } from './libelles'
+import { libelleStatut, ETAPES_TRANSPORT, libelleEtapeTransport } from './libelles'
 import { texteErreur } from './erreurs'
 import { situerSurTrace, libelleSurTrace } from './geometrie'
 
@@ -39,12 +39,44 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
   const surTrace = (l) =>
     fond && l.latitude ? libelleSurTrace(situerSurTrace(fond.traces, fond.lieux, l.latitude, l.longitude)) : ''
 
+  // (125) Le détail des courses : mon_terrain rend une ligne générique
+  // (titre, détail, statut) ; le chauffeur a besoin du RDV, du contact à
+  // appeler, des adresses, et de dire où il en est. Une seconde requête
+  // sur les seules courses de la liste — redéfinir mon_terrain changerait
+  // son type de retour, donc exigerait un DROP (règle des migrations).
+  const [courses, setCourses] = useState({})
+
   async function charger() {
     const { data, error } = await supabase.rpc('mon_terrain', {
       p_evenement: evenement.id
     })
+    if (error) {
+      setMessage({ type: 'erreur', texte: texteErreur(error) })
+      return
+    }
+    setLignes(data ?? [])
+    const ids = (data ?? []).filter((l) => l.genre === 'transport').map((l) => l.id)
+    if (ids.length) {
+      const { data: c } = await supabase
+        .from('transports')
+        .select('id, etape, contact, souhaite_pour, attendu_le, adresse_depart, adresse_arrivee, volume_materiel, precisions')
+        .in('id', ids)
+      setCourses(Object.fromEntries((c ?? []).map((x) => [x.id, x])))
+    } else setCourses({})
+  }
+
+  // (125) L'étape d'une course : en route, chargé, retour, déposé. Un
+  // mot à la radio devient un fait horodaté au PC. Partir met aussi la
+  // course « en cours » si elle était seulement attribuée — on ne
+  // demande pas deux gestes pour dire qu'on démarre.
+  async function etape(l, valeur) {
+    const champs = { etape: valeur }
+    if (l.statut === 'attribuee' || l.statut === 'a_traiter') champs.statut = 'en_cours'
+    if (!l.pour_moi) champs.chauffeur_id = membre.id
+    const { error, count } = await supabase.from('transports').update(champs, { count: 'exact' }).eq('id', l.id)
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
-    else setLignes(data ?? [])
+    else if (count === 0) setMessage({ type: 'erreur', texte: 'Modification refusée : droits insuffisants.' })
+    else charger()
   }
 
   useEffect(() => {
@@ -172,6 +204,9 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
                   refuserait de toute façon, autant ne pas proposer. */}
               {!l.pour_moi && l.titulaire && <span>pris par {l.titulaire}</span>}
               {surTrace(l) && <span className="sur-trace">{surTrace(l)}</span>}
+              {l.genre === 'transport' && courses[l.id]?.etape && (
+                <span className={`jeton etape-${courses[l.id].etape}`}>{libelleEtapeTransport(courses[l.id].etape)}</span>
+              )}
               {l.latitude && (
                 <a
                   className="lien-externe"
@@ -183,6 +218,28 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
                 </a>
               )}
             </div>
+
+            {l.genre === 'transport' && courses[l.id] && (
+              <DetailCourse c={courses[l.id]} />
+            )}
+
+            {/* (125) Les quatre temps d'une course, pour le chauffeur.
+                Le dernier, « Déposé », n'est pas « Terminé » : il reste
+                à rentrer, et c'est le PC qui clôt. */}
+            {l.genre === 'transport' && (l.pour_moi || !l.titulaire) && l.statut !== 'resolue' && (
+              <div className="ligne-boutons etapes-course" style={{ marginTop: 8 }}>
+                {ETAPES_TRANSPORT.map(([v, lib]) => (
+                  <button
+                    key={v}
+                    className={courses[l.id]?.etape === v ? '' : 'discret'}
+                    disabled={courses[l.id]?.etape === v}
+                    onClick={() => etape(l, v)}
+                  >
+                    {lib}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {(l.pour_moi || !l.titulaire) && (
               <div className="ligne-boutons" style={{ marginTop: 10 }}>
@@ -213,6 +270,38 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
         « Je prends » t'attribue la tâche : le PC voit aussitôt qui s'en occupe, et personne
         n'y va à deux. C'est ce qui manquait au circuit jetons de 2026.
       </p>
+    </div>
+  )
+}
+
+
+/* (125) Ce qu'un chauffeur doit avoir sous les yeux : le RDV, qui
+   appeler, où aller — en un clic chacun. */
+function DetailCourse({ c }) {
+  const heure = (iso) => new Date(iso).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
+  const maps = (adresse) => `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(adresse)}`
+  if (!c.souhaite_pour && !c.attendu_le && !c.contact && !c.adresse_depart && !c.adresse_arrivee && !c.precisions) return null
+  return (
+    <div className="meta detail-course">
+      {c.souhaite_pour && <span>RDV {heure(c.souhaite_pour)}</span>}
+      {c.attendu_le && <span>attendu {heure(c.attendu_le)}</span>}
+      {c.contact && (
+        <a className="lien-externe" href={`tel:${c.contact.replace(/\s/g, '')}`}>
+          appeler {c.contact}
+        </a>
+      )}
+      {c.adresse_depart && (
+        <a className="lien-externe" href={maps(c.adresse_depart)} target="_blank" rel="noreferrer">
+          départ : {c.adresse_depart}
+        </a>
+      )}
+      {c.adresse_arrivee && (
+        <a className="lien-externe" href={maps(c.adresse_arrivee)} target="_blank" rel="noreferrer">
+          arrivée : {c.adresse_arrivee}
+        </a>
+      )}
+      {c.volume_materiel && c.volume_materiel !== 'aucun' && <span>matériel : {c.volume_materiel}</span>}
+      {c.precisions && <span>{c.precisions}</span>}
     </div>
   )
 }

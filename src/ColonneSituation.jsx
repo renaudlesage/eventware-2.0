@@ -211,7 +211,7 @@ export default function ColonneSituation({ evenement, palier, onAller }) {
  * chaque canal. La colonne de veille ne le montrait qu'au mur
  * (≥ 2200 px) ; sur l'écran projeté il manquait.
  */
-function Radio({ evenement, onAller }) {
+export function Radio({ evenement, onAller }) {
   const [radio, setRadio] = useState(null)
 
   useEffect(() => {

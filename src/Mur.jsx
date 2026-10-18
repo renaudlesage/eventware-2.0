@@ -58,7 +58,9 @@ export default function Mur({ evenement, onAller }) {
   const maxModule = Math.max(1, ...Object.values(parModule).map((x) => x.ouvertes ?? 0))
   const tenus = postes.filter((c) => c.manque === 0).length
   const couverture = postes.length ? Math.round((100 * tenus) / postes.length) : null
-  const retards = (s.jalons ?? []).filter((j) => j.echeance && new Date(j.echeance) < new Date()).length
+  // (125) Le compte du serveur, le même que la Situation et le bandeau ;
+  // le calcul local sur les cinq prochains jalons reste en repli.
+  const retards = s.jalons_en_retard ?? (s.jalons ?? []).filter((j) => j.echeance && new Date(j.echeance) < new Date()).length
 
   return (
     <>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { ecrireOuEmpiler } from './fileEcritures'
 import { texteErreur } from './erreurs'
-import { STATUTS_TRANSPORT, libelleStatutTransport } from './libelles'
+import { STATUTS_TRANSPORT, libelleStatutTransport, libelleEtapeTransport } from './libelles'
 
 /* ================================================================== */
 /* Transports                                                          */
@@ -35,6 +35,9 @@ export default function Transports({ evenement, peut, toutPouvoir, setMessage })
         .from('transports')
         .select('*, depart:depart_lieu_id(nom), arrivee:arrivee_lieu_id(nom), chauffeur:chauffeur_id(nom_affiche)')
         .eq('evenement_id', evenement.id)
+        // (125) Par heure de RDV, les courses sans RDV à la fin : c'est
+        // l'ordre dans lequel le dispatcheur les traite.
+        .order('souhaite_pour', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false }),
       supabase.from('lieux').select('id, code, nom').eq('evenement_id', evenement.id),
       supabase.rpc('chauffeurs_disponibles', { p_evenement: evenement.id })
@@ -141,7 +144,29 @@ export default function Transports({ evenement, peut, toutPouvoir, setMessage })
               {l.demandeur && <span>{l.demandeur}</span>}
               {l.chauffeur?.nom_affiche && <span>{l.chauffeur.nom_affiche}</span>}
               {l.vehicule && <span>{l.vehicule}</span>}
+              {/* (125) Où en est la course, dit par le chauffeur depuis
+                  Mon terrain — la pastille de BFMF. */}
+              {l.etape && <span className={`jeton etape-${l.etape}`}>{libelleEtapeTransport(l.etape)}</span>}
             </div>
+            {/* (125) Ce que le formulaire saisit depuis la 056 et que la
+                liste ne montrait pas : le RDV, l'heure attendue, le
+                contact, les adresses externes, le volume, les précisions.
+                Une course se lit entière sur sa carte, sans rouvrir le
+                formulaire. */}
+            <div className="meta transport-details">
+              {l.souhaite_pour && <span>RDV {heureCourte(l.souhaite_pour)}</span>}
+              {l.attendu_le && <span>attendu {heureCourte(l.attendu_le)}</span>}
+              {l.type_transport && <span>{l.type_transport}</span>}
+              {l.volume_materiel && l.volume_materiel !== 'aucun' && <span>matériel : {l.volume_materiel}</span>}
+              {l.contact && (
+                <a className="lien-externe" href={`tel:${l.contact.replace(/\s/g, '')}`}>
+                  {l.contact}
+                </a>
+              )}
+              {l.adresse_depart && <span>départ : {l.adresse_depart}</span>}
+              {l.adresse_arrivee && <span>arrivée : {l.adresse_arrivee}</span>}
+            </div>
+            {l.precisions && <p className="aide" style={{ margin: '4px 0' }}>{l.precisions}</p>}
 
             {(l.depart_libre || l.arrivee_libre) && (
               <div className="ligne-boutons" style={{ marginTop: 6 }}>
@@ -541,4 +566,8 @@ function PointDepartArrivee({ titre, lieux, valeur, onChange }) {
       )}
     </div>
   )
+}
+
+function heureCourte(iso) {
+  return new Date(iso).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
 }

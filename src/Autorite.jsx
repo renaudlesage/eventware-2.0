@@ -348,10 +348,15 @@ export default function Autorite({ jeton }) {
     (i) => i.gravite === 'critique' || i.gravite === 'grave' || i.priorite === 'P1'
   ).length
   const urgenceAlerte = (s.alertes ?? []).some((al) => al.niveau === 'urgence' || al.niveau === 'evacuation')
+  // (125) Une étape à 90 % de sa capacité met le niveau en vigilance :
+  // c'est le seuil de BFMF, et c'est là qu'on freine les départs.
+  const etapeChargee = (s.reperes ?? []).some(
+    (r) => r.type === 'etape' && r.capacite > 0 && (r.charge ?? 0) >= 0.9 * r.capacite
+  )
   const niveau =
     graves > 0 || urgenceAlerte || recherches.length > 0 || a.maydays_en_cours > 0
       ? 'alerte'
-      : interventions.length > 0 || (s.alertes ?? []).length > 0 || s.public?.groupes_sans_nouvelles > 0
+      : interventions.length > 0 || (s.alertes ?? []).length > 0 || s.public?.groupes_sans_nouvelles > 0 || etapeChargee
         ? 'vigilance'
         : 'normal'
 
