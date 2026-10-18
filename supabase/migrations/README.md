@@ -276,7 +276,15 @@ Le script s'est vérifié lui-même avant de valider : 0 écart de visibilité (
 
 Éprouvée en transaction annulée (contact de Rando VTT désigné interlocuteur → rendu par `situation_autorite`, `visible_autorite` passé à vrai ; 21 capacités `journal:creer` posées sur 7 rôles chef d'équipe). Appliquée en un bloc `do` (le `drop trigger if exists` du fichier remplacé par une garde `pg_trigger` dans le script passé à l'outil) et inscrite (version 20261018090000) ; vérifié : colonne et déclencheur présents, `journal:creer` posé sur les rôles chef d'équipe et dans le gabarit, `situation_autorite` rend la clé `interlocuteurs`. L'écran Partage › Annuaire, fusionné juste après, lit `role_autorite`.
 
-## Ne jamais rejouer 088 → 124 par `db push` sans les lignes ci-dessus
+### 125 : appliquée le 18/10 (par Claude, via l'outil Supabase) — restes du lot 2
+
+| Fichier | Fait |
+|---|---|
+| `20261018120000_125_etape_transport_capacite_jalons_retard.sql` | `transports.etape` (`en_route` / `charge` / `retour` / `depose`, posé par le chauffeur depuis Mon terrain) ; `situation()` : `jalons_en_retard` (un seul compte : à venir ou en cours, échéance passée — la Situation, le Mur et le bandeau d'état en faisaient trois différents), `parcours.etapes[]` (capacité et charge par étape), `logistique.transports[].etape / attendu_le` |
+
+Éprouvée en transaction annulée sur Rando VTT (0 jalon en retard, 3 étapes, course TRSP-004 avec `etape` et `attendu_le`), appliquée en un bloc `do` et inscrite (version 20261018120000) ; vérifié : colonne et contrainte présentes, `situation()` rend `jalons_en_retard` et `parcours.etapes`. L'application fusionnée juste après lit `transports.etape`.
+
+## Ne jamais rejouer 088 → 125 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

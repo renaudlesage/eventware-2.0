@@ -61,6 +61,18 @@ export const STATUTS_TRANSPORT = [
   ['annulee', 'Annulée']
 ]
 
+/** (125) Où en est une course, dit par le chauffeur depuis Mon terrain. */
+export const ETAPES_TRANSPORT = [
+  ['en_route', 'En route vers le départ'],
+  ['charge', 'Chargé — à bord'],
+  ['retour', 'Retour'],
+  ['depose', 'Déposé']
+]
+
+export function libelleEtapeTransport(code) {
+  return ETAPES_TRANSPORT.find(([v]) => v === code)?.[1] ?? code
+}
+
 export function libelleStatutTransport(code) {
   return STATUTS_TRANSPORT.find(([v]) => v === code)?.[1] ?? libelleStatut(code)
 }

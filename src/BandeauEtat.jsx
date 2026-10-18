@@ -45,7 +45,10 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
           .select('id', { count: 'exact', head: true })
           .eq('evenement_id', evenement.id)
           .is('deleted_at', null)
-          .eq('statut', 'a_venir')
+          // (125) Même définition que situation().jalons_en_retard :
+          // à venir OU en cours, échéance passée. La requête ne sert
+          // plus que de repli si la fonction serveur n'a pas la clé.
+          .in('statut', ['a_venir', 'en_cours'])
           .lt('echeance', maintenant)
       ]
       if (!encadre) {
@@ -75,7 +78,7 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
       if (!vivant) return
       const [sit, jal] = r
       if (!sit.error) setS(sit.data)
-      setRetards(jal.count ?? 0)
+      setRetards(sit.data?.jalons_en_retard ?? jal.count ?? 0)
       let i = 2
       if (!encadre) {
         const [ter, aff] = [r[i], r[i + 1]]

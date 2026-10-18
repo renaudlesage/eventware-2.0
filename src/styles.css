@@ -3073,3 +3073,19 @@ body.carte-plein-corps { overflow: hidden; }
 .interlocuteurs .carte { margin: 0; }
 .interlocuteurs .pave-titre { margin-top: 0; }
 .interlocuteurs .lien-externe { display: inline-block; margin-top: 6px; font-size: 16px; }
+
+/* Restes du lot 2 (125) : étapes d'une course, capacité des étapes,
+   tactique repliée sur la Situation sous 1440 px. */
+.jeton.etape-en_route { border-color: var(--etat-info); color: var(--etat-info); }
+.jeton.etape-charge { border-color: var(--etat-veille); color: var(--etat-veille); }
+.jeton.etape-retour { border-color: var(--etat-info); color: var(--etat-info); }
+.jeton.etape-depose { border-color: var(--etat-ok); color: var(--etat-ok); }
+.transport-details, .detail-course { margin-top: 4px; }
+.etapes-course button { font-size: 12px; padding: 4px 10px; }
+.jauge-etape.veille strong { color: var(--etat-veille); }
+.jauge-etape.veille .barre > span { background: var(--etat-veille); }
+.tactique-repliee .entete-dashboard { margin-bottom: 0; }
+.tactique-repliee.ouvert .entete-dashboard { margin-bottom: 10px; }
+.tactique-contenu { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+@media (max-width: 900px) { .tactique-contenu { grid-template-columns: 1fr; } }
+.tactique-contenu section { margin: 0; }
