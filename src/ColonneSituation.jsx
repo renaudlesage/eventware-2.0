@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { MapContainer, Polyline, Polygon, CircleMarker, Tooltip, Popup, useMap } from 'react-leaflet'
+import { MapContainer, Polyline, Polygon, CircleMarker, Marker, Tooltip, Popup, useMap } from 'react-leaflet'
+import L from 'leaflet'
+import { pictoSvg } from './pictos'
 import { FondCarte, ControlesCarte, useFondCarte } from './carte'
 import { supabase } from './supabaseClient'
 import { libelleStatut } from './libelles'
@@ -80,7 +82,7 @@ export function useTactique(evenement) {
       supabase.from('traces').select('id, nom, couleur, points').eq('evenement_id', evenement.id),
       supabase
         .from('elements_plan')
-        .select('id, code, nom, forme, categorie, geometrie, est_risque, confirme, organe_coupure')
+        .select('id, code, nom, forme, nature, picto, categorie, geometrie, centre_lat, centre_lon, rotation_deg, est_risque, confirme, organe_coupure')
         .eq('evenement_id', evenement.id)
         .is('deleted_at', null),
       supabase
@@ -309,8 +311,15 @@ export function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
   // Le dispositif fixe : secours et risques seulement. Les extincteurs,
   // câbles et bars rendent la carte illisible à cette taille.
   const elements = fond.elements.filter(
-    (e) => Array.isArray(e.geometrie) && e.geometrie.length && (e.est_risque || SECOURS.has(e.categorie))
+    (e) => e.nature !== 'picto' && Array.isArray(e.geometrie) && e.geometrie.length && (e.est_risque || SECOURS.has(e.categorie))
   )
+  // Les pictogrammes de sécurité posés sur le plan d'implantation (117) :
+  // DEA, poste de secours, sorties, PRV, extincteurs… Ils sont le
+  // dispositif tel qu'on le cherche des yeux sur le terrain ; la carte
+  // tactique les montrait en ronds gris, ou pas du tout (Ren, 18/10).
+  // Mêmes dessins que l'implantation, à taille fixe : ici on ne mesure
+  // pas, on repère.
+  const pictos = fond.elements.filter((e) => e.nature === 'picto' && e.picto && e.centre_lat != null && e.centre_lon != null)
 
   const nonGeolocalises =
     (vif?.signalements ?? []).length - signalements.length +
@@ -363,6 +372,25 @@ export function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
               </CircleMarker>
             )
           })}
+
+          {pictos.map((e) => (
+            <Marker
+              key={e.id}
+              position={[Number(e.centre_lat), Number(e.centre_lon)]}
+              icon={L.divIcon({
+                className: `impl-picto picto-tactique ${e.confirme ? '' : 'non-confirme'}`,
+                html: `<div style="transform:rotate(${Number(e.rotation_deg ?? 0)}deg)">${pictoSvg(e.picto, 22)}</div>`,
+                iconSize: [22, 22],
+                iconAnchor: [11, 11],
+                tooltipAnchor: [0, -11]
+              })}
+            >
+              <Tooltip direction="top">
+                {e.nom}
+                {e.confirme === false ? ' — non confirmé sur site' : ''}
+              </Tooltip>
+            </Marker>
+          ))}
 
           {reperes.map((l) => (
             <CircleMarker
@@ -458,6 +486,7 @@ export function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
         <li><span className="puce-carte puce-info" /> groupe (dernier pointage)</li>
         <li><span className="puce-carte puce-repere" /> étape, PC, poste</li>
         <li><span className="trait-risque" /> risque · <span className="trait-ok" /> dispositif confirmé</li>
+        {pictos.length > 0 && <li>pictogrammes : signalisation de sécurité du plan</li>}
       </ul>
       {nonGeolocalises > 0 && (
         <p className="aide">
