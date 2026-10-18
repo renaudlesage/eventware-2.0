@@ -61,6 +61,16 @@ ensuite, et ne jamais arriver en double.
 
 ---
 
+## Banc d'essai des écrans
+
+`node outils/banc-essai/lancer.mjs` monte chaque écran dans Chromium headless
+avec un faux client Supabase et rapporte toute erreur d'exécution. `vite build`
+ne voit pas un identifiant absent : PC-OPS a planté une soirée (17/10) pour une
+constante retirée par un script. À lancer avant de pousser un écran modifié.
+Il faut Playwright (`npm i -D playwright && npx playwright install chromium`).
+
+---
+
 ## Dashboard individuel
 
 Troisième morceau de la phase 2. Il apparaît sous chaque événement dont

@@ -440,6 +440,11 @@ export default function Autorite({ jeton }) {
         </div>
       ))}
 
+      {/* (124) Qui appeler, où se retrouver : en tête, sous les bandeaux,
+          quel que soit l'onglet. C'est la première chose qu'un
+          Dir-PC-Ops cherche en arrivant. */}
+      <Interlocuteurs s={s} />
+
       <div className="onglets onglets-autorite" role="tablist">
         {[
           ['situation', 'Situation'],
@@ -475,6 +480,39 @@ export default function Autorite({ jeton }) {
 /* ================================================================== */
 /* SITUATION                                                           */
 /* ================================================================== */
+
+function Interlocuteurs({ s }) {
+  const liste = s.interlocuteurs ?? []
+  const rencontre = (s.acces_secours ?? []).find((e) => e.categorie === 'point_rencontre_secours')
+  if (liste.length === 0 && !rencontre) return null
+  return (
+    <div className="interlocuteurs">
+      {liste.map((c, i) => (
+        <div className="carte" key={i}>
+          <div className="pave-titre">{c.role === 'suppleant' ? 'Suppléant' : 'Interlocuteur au PC'}</div>
+          <div className="titre">{c.nom}</div>
+          <div className="meta">
+            {c.fonction && <span>{c.fonction}</span>}
+            {c.organisation && <span>{c.organisation}</span>}
+          </div>
+          {c.telephone && (
+            <a className="lien-externe mono" href={`tel:${c.telephone.replace(/\s/g, '')}`}>
+              {c.telephone}
+            </a>
+          )}
+        </div>
+      ))}
+      {rencontre && (
+        <div className="carte">
+          <div className="pave-titre">Point de rencontre secours</div>
+          <div className="titre">{rencontre.nom}</div>
+          {rencontre.description && <div className="meta"><span>{rencontre.description}</span></div>}
+          <Gps position={rencontre.position} />
+        </div>
+      )}
+    </div>
+  )
+}
 
 function Situation({ s, maintenant, operationnel }) {
   const [tri, setTri] = useState('gravite')
