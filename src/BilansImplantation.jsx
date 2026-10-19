@@ -281,9 +281,11 @@ export default function BilansImplantation({ elements, evenement }) {
               <div className="prc-liens"><div>Alimente : <span>{conso.map((o) => o.nom).join(', ') || '—'}</span></div></div>
             </div>
           ))}
-          {eau.lignes.length === 0 && <p className="aide">Aucun point d'eau placé.</p>}
+          {eau.lignes.length === 0 && <p className="aide">Aucun point d'eau placé. Pose un raccordement eau ou un répartiteur (calque Eau), coche « Besoin d'eau » sur les postes, trace les conduites entre eux : le schéma se dessine tout seul.</p>}
           {eau.conduitesOrphelines.length > 0 && <p className="aide">Conduites non raccordées aux deux bouts : {eau.conduitesOrphelines.map((c) => c.code).join(', ')}.</p>}
-          {eau.lignes.length > 0 && <Unifilaire objets={objets} evenement={evenement} reseau="eau" />}
+          {/* (126) Le schéma de distribution d'eau, à l'instar de l'unifilaire : toujours là, avec le mode d'emploi quand il n'y a rien à dessiner. */}
+          <h4 className="prc-titre">Schéma de distribution d'eau</h4>
+          <Unifilaire objets={objets} evenement={evenement} reseau="eau" />
           {eau.orphelins.length > 0 && (
             <>
               <h4 className="prc-titre">Besoins non raccordés</h4>

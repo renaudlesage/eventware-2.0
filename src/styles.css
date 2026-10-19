@@ -3089,3 +3089,17 @@ body.carte-plein-corps { overflow: hidden; }
 .tactique-contenu { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
 @media (max-width: 900px) { .tactique-contenu { grid-template-columns: 1fr; } }
 .tactique-contenu section { margin: 0; }
+
+/* Éditeur d'implantation (126) : barre d'outils, liens, panneau. */
+.impl-outils { gap: 4px; }
+.impl-outil { display: inline-flex; align-items: center; gap: 5px; }
+.impl-outil.actif { background: var(--encre); color: var(--surface); border-color: var(--encre); }
+.impl-outil-nom { font-size: 12px; }
+@media (max-width: 900px) { .impl-outil-nom { display: none; } .impl-outil { padding: 6px 9px; } }
+.impl-props-tete { display: flex; align-items: center; gap: 6px; }
+.impl-props-fermer { margin-left: auto; font-size: 14px; }
+.impl-lien { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 6px; align-items: center; font-size: 12px; padding-bottom: 4px; border-bottom: 1px dashed var(--trait); }
+.impl-lien select, .impl-lien input { margin: 0; font-size: 12px; padding: 3px 6px; }
+.impl-lien-autre { font-weight: 600; }
+.impl-lien input { grid-column: 1 / 4; }
+.impl-lien-nouveau { border-bottom: none; }

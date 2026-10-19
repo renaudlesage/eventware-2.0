@@ -9,6 +9,7 @@ import { polygoneObjet, distancePoints, longueurLigne, jonctionsLigne, nombreMod
 import { pictoSvg } from './pictos'
 import { FONDS_CARTE, FondCarte, ControlesCarte, useFondCarte } from './carte'
 import { estDistributeur, courant, chuteTension, arbreElectrique } from './reseaux'
+import { AGENTS_EXTINCTION, libelleAgentExtinction, uniteExtinction } from './libelles'
 
 /**
  * Conception de l'implantation à l'échelle (migration 115, 15/10).
@@ -30,6 +31,13 @@ import { estDistributeur, courant, chuteTension, arbreElectrique } from './resea
  * Un objet sélectionné se déplace à la souris (glisser) ou, au doigt,
  * par « Déplacer » puis un clic. Les pictogrammes de sécurité (117) sont
  * des points dessinés à taille fixe, qui se glissent comme des marqueurs.
+ *
+ * Depuis le 19/10 (retour de Ren), une barre d'OUTILS explicite, comme
+ * dans un logiciel de dessin : la flèche sélectionne (et glisse), la
+ * main ne fait que déplacer la carte — au doigt, on ne sélectionne plus
+ * un chapiteau en voulant faire défiler —, le lien relie deux objets
+ * (`liens_plan`, 126 : « ce bar dépend de ce groupe »), la règle mesure.
+ * Choisir un équipement du catalogue reste un outil comme un autre.
  *
  * Les calques ne sont qu'un filtre d'affichage : chaque objet porte le
  * sien, et un calque masqué ne se sélectionne pas.
@@ -73,6 +81,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
   const modeCourant = useRef(mode)
   modeCourant.current = mode
   const [echelle, setEchelle] = useState(null) // mètres par centimètre de papier, à l'échelle affichée
+  const [liens, setLiens] = useState([]) // liens_plan de l'événement (126)
 
   const objets = useMemo(() => elements.filter((e) => e.centre_lat != null && e.largeur_m), [elements])
   const existants = useMemo(() => elements.filter((e) => e.centre_lat == null && (e.geometrie ?? []).length), [elements])
@@ -98,11 +107,39 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
     setUrls(Object.fromEntries(entrees))
   }
 
+  async function chargerLiens() {
+    const { data } = await supabase.from('liens_plan').select('*').eq('evenement_id', evenement.id)
+    setLiens(data ?? [])
+  }
+
   useEffect(() => {
     chargerCatalogue()
     chargerFonds()
+    chargerLiens()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evenement.id])
+
+  /* ---- liens entre objets (126) -------------------------------------- */
+
+  async function lier(deId, versId, nature = 'lie') {
+    if (!deId || !versId || deId === versId) return
+    const { error } = await supabase.from('liens_plan').insert({ evenement_id: evenement.id, de_id: deId, vers_id: versId, nature })
+    // 23505 : déjà liés — ce n'est pas une erreur, c'est déjà fait.
+    if (error && error.code !== '23505') setMessage({ type: 'erreur', texte: texteErreur(error) })
+    chargerLiens()
+  }
+
+  async function modifierLien(id, champs) {
+    const refus = await modifierOuRefuser('liens_plan', champs, { id })
+    if (refus) setMessage({ type: 'erreur', texte: refus })
+    else chargerLiens()
+  }
+
+  async function delier(id) {
+    const { error } = await supabase.from('liens_plan').delete().eq('id', id)
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    else chargerLiens()
+  }
 
   // Plein écran : Échap pour en sortir, et la page ne défile plus derrière.
   useEffect(() => {
@@ -162,6 +199,11 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
       accueil_public: fiche.accueil_public,
       distance_securite_m: fiche.distance_securite_m,
       description: fiche.description,
+      // (126) Un extincteur du catalogue arrive avec son agent et sa
+      // capacité ; un point d'eau avec son débit.
+      agent_extinction: fiche.agent_extinction ?? null,
+      capacite_extinction: fiche.capacite_extinction ?? null,
+      debit_l_min: fiche.debit_l_min ?? null,
       confirme: false,
       origine: 'humain'
     }
@@ -291,6 +333,12 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
   function clicCarte(latlng) {
     if (!mode) {
       setSelection(null)
+      return
+    }
+    // La main ne fait que déplacer la carte ; le lien attend un objet.
+    if (mode.type === 'main') return
+    if (mode.type === 'lier') {
+      setMode({ type: 'lier', de: null })
       return
     }
     if (mode.type === 'poser') {
@@ -462,15 +510,30 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
   return (
     <div className={`implantation mode-${mode?.type ?? 'libre'} ${plein ? 'impl-plein' : ''}`}>
       <div className="impl-barre">
-        <div className="ligne-boutons">
-          <button className={mode?.type === 'mesurer' ? '' : 'discret'} onClick={() => setMode(mode?.type === 'mesurer' ? null : { type: 'mesurer', points: [] })}>
-            Mesurer
-          </button>
+        <div className="ligne-boutons impl-outils" role="toolbar" aria-label="Outils">
+          {[
+            ['selection', '⬉', 'Sélection — clique un objet pour le régler, glisse-le pour le déplacer', !mode],
+            ['main', '✋', 'Main — déplace la carte sans toucher aux objets', mode?.type === 'main'],
+            ['lier', '🔗', 'Lier — clique un objet, puis un autre', mode?.type === 'lier'],
+            ['mesurer', '📏', 'Mesurer — deux clics, une distance', mode?.type === 'mesurer']
+          ].map(([k, icone, titre, actif]) => (
+            <button
+              key={k}
+              className={`impl-outil ${actif ? 'actif' : 'discret'}`}
+              title={titre}
+              aria-label={titre}
+              aria-pressed={actif}
+              onClick={() => setMode(k === 'selection' ? null : k === 'mesurer' ? { type: 'mesurer', points: [] } : k === 'lier' ? { type: 'lier', de: null } : { type: 'main' })}
+            >
+              <span aria-hidden="true">{icone}</span>
+              <span className="impl-outil-nom">{{ selection: 'Sélection', main: 'Main', lier: 'Lier', mesurer: 'Mesurer' }[k]}</span>
+            </button>
+          ))}
           <button className="discret" onClick={imprimer}>Imprimer le plan</button>
           {mode?.type === 'tracer' && (mode.points?.length ?? 0) >= 2 && (
             <button onClick={terminerTrace}>Terminer la ligne</button>
           )}
-          {mode && (
+          {mode && mode.type !== 'main' && mode.type !== 'lier' && mode.type !== 'mesurer' && (
             <button className="discret" onClick={() => setMode(null)}>
               Annuler {mode.type === 'poser' || mode.type === 'tracer' ? `(${mode.fiche.libelle})` : ''}
             </button>
@@ -507,7 +570,11 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
         {mode?.type === 'mesurer' && (mesure != null ? `Distance : ${fr(mesure, 1)} m. Clique pour mesurer à nouveau.` : 'Clique deux points sur la carte.')}
         {mode?.type === 'caler' && (mode.points?.length ? 'Puis le coin SUD-EST du plan.' : 'Clique le coin NORD-OUEST du plan sur la carte.')}
         {mode?.type === 'deplacer' && 'Clique sur la carte, là où doit aller l’objet sélectionné.'}
-        {!mode && 'Choisis un équipement dans le catalogue et pose-le. Sélectionne un objet pour le régler ; glisse-le pour le déplacer.'}
+        {mode?.type === 'main' && 'Main : la carte se déplace, les objets ne réagissent pas. Reprends la flèche pour sélectionner.'}
+        {mode?.type === 'lier' && (mode.de
+          ? `Lier « ${objets.find((x) => x.id === mode.de)?.nom ?? '…'} » à… clique le second objet (clic dans le vide : annuler).`
+          : 'Lier : clique le premier objet, puis le second. Le lien se règle (nature, note) dans les propriétés de l’un ou l’autre.')}
+        {!mode && 'Flèche : clique un objet pour le régler à droite, glisse-le pour le déplacer. Ou choisis un équipement dans le catalogue et pose-le.'}
       </p>
 
       <div className="impl-corps">
@@ -537,7 +604,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
                 )}
                 <span className="impl-fiche-nom">{f.libelle}{f.organisation_id ? ' ·' : ''}</span>
                 <span className="mono impl-fiche-dim">
-                  {f.reseau ? (f.reseau === 'electricite' ? `câble · ${fr(f.calibre_a, 0)} A` : `conduite · Ø ${fr(f.diametre_mm, 0)}`) : f.nature === 'ligne' ? `ligne · ${fr(f.largeur_m)} m` : f.nature === 'picto' ? 'picto' : `${fr(f.largeur_m)} × ${fr(f.longueur_m)}`}
+                  {f.reseau ? (f.reseau === 'electricite' ? `câble · ${fr(f.calibre_a, 0)} A` : `conduite · Ø ${fr(f.diametre_mm, 0)}`) : f.agent_extinction ? `${fr(f.capacite_extinction, 0)} ${uniteExtinction(f.agent_extinction)}` : f.nature === 'ligne' ? `ligne · ${fr(f.largeur_m)} m` : f.nature === 'picto' ? 'picto' : `${fr(f.largeur_m)} × ${fr(f.longueur_m)}`}
                 </span>
               </button>
             ))}
@@ -566,13 +633,43 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
                     accrocher(o, latlng)
                     return
                   }
-                  if (mode?.type === 'poser' || mode?.type === 'caler') return
+                  if (mode?.type === 'main' || mode?.type === 'poser' || mode?.type === 'caler') return
+                  if (mode?.type === 'lier') {
+                    // Premier clic : l'objet de départ ; second : on lie, et
+                    // on garde l'outil en main pour enchaîner.
+                    if (!mode.de) setMode({ type: 'lier', de: o.id })
+                    else {
+                      lier(mode.de, o.id)
+                      setMode({ type: 'lier', de: null })
+                    }
+                    setSelection(o.id)
+                    return
+                  }
                   setSelection(o.id)
                 }}
                 onGlisser={(latlng) => setBrouillon({ id: o.id, ...latlng })}
                 onDeposer={(latlng) => finDeplacement(o, latlng)}
               />
             ))}
+            {/* (126) Les liens libres : un trait pointillé de centre à centre. */}
+            {liens.map((l) => {
+              const a = objets.find((x) => x.id === l.de_id)
+              const b = objets.find((x) => x.id === l.vers_id)
+              if (!a || !b || !calquesVisibles.has(a.calque ?? 'infrastructures') || !calquesVisibles.has(b.calque ?? 'infrastructures')) return null
+              const actif = selection === l.de_id || selection === l.vers_id
+              return (
+                <Polyline
+                  key={l.id}
+                  positions={[[Number(a.centre_lat), Number(a.centre_lon)], [Number(b.centre_lat), Number(b.centre_lon)]]}
+                  pathOptions={{ color: actif ? '#10151b' : '#5d6874', weight: actif ? 2.5 : 1.5, dashArray: '3 5', opacity: 0.9 }}
+                  interactive={false}
+                >
+                  <Tooltip direction="center" className="etiquette-carte" permanent={actif}>
+                    {LIBELLE_LIEN[l.nature] ?? l.nature}{l.note ? ` · ${l.note}` : ''}
+                  </Tooltip>
+                </Polyline>
+              )
+            })}
             {mode?.type === 'mesurer' && mode.points?.length > 0 && (
               <>
                 {mode.points.map((p, i) => <CircleMarker key={i} center={p} radius={4} pathOptions={{ color: '#10151b', fillColor: '#fff', fillOpacity: 1 }} />)}
@@ -593,7 +690,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
                 </CircleMarker>
               </>
             )}
-            <Gestes onClic={clicCarte} onDoubleClic={mode?.type === 'tracer' ? terminerTrace : null} curseur={mode ? 'crosshair' : ''} />
+            <Gestes onClic={clicCarte} onDoubleClic={mode?.type === 'tracer' ? terminerTrace : null} curseur={mode?.type === 'main' ? 'grab' : mode ? 'crosshair' : ''} />
             <Redimension />
             <Echelle onEchelle={setEchelle} />
             <Cadrage objets={objets} />
@@ -614,8 +711,13 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
             <Proprietes
               o={selectionne}
               objets={objets}
+              liens={liens.filter((l) => l.de_id === selectionne.id || l.vers_id === selectionne.id)}
               peutModifier={peutModifier}
               peutCreer={peutCreer}
+              onFermer={() => setSelection(null)}
+              onLier={(versId, nature) => lier(selectionne.id, versId, nature)}
+              onModifierLien={modifierLien}
+              onDelier={delier}
               onModifier={(champs) => modifier(selectionne, champs)}
               onRaccorder={(champs) => raccorder(selectionne, champs)}
               onDeplacer={() => setMode({ type: 'deplacer' })}
@@ -710,6 +812,10 @@ function Cadrage({ objets }) {
   const fait = useRef(false)
   useEffect(() => {
     if (fait.current || !objets.length) return
+    // Un conteneur sans taille (onglet masqué, feuille de style pas encore
+    // là) fait boucler Leaflet dans fitBounds : on attend d'être visible.
+    const taille = carte.getSize()
+    if (!taille.x || !taille.y) return
     const pts = objets.flatMap((o) => polygoneObjet(o) ?? [])
     if (pts.length) {
       carte.fitBounds(pts, { padding: [40, 40], maxZoom: 19 })
@@ -816,7 +922,9 @@ function Objet({ o, selectionne, mParPx, peutModifier, onSelection, onGlisser, o
           }
         }}
       >
-        <Tooltip key={selectionne ? "fixe" : "survol"} direction="top" permanent={selectionne} className="etiquette-carte">{o.nom}</Tooltip>
+        <Tooltip key={selectionne ? "fixe" : "survol"} direction="top" permanent={selectionne} className="etiquette-carte">
+          {o.nom}{o.agent_extinction ? ` · ${libelleAgentExtinction(o.agent_extinction)}${o.capacite_extinction ? ` ${fr(o.capacite_extinction, 0)} ${uniteExtinction(o.agent_extinction)}` : ''}` : ''}
+        </Tooltip>
       </Marker>
     )
   }
@@ -884,8 +992,18 @@ function Objet({ o, selectionne, mParPx, peutModifier, onSelection, onGlisser, o
 /* ------------------------------------------------------------------ */
 /* Panneau de propriétés                                               */
 
-function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onRaccorder, onDeplacer, onDupliquer, onRetirer }) {
+const NATURES_LIEN = [
+  ['lie', 'lié à'],
+  ['alimente', 'alimente'],
+  ['dessert', 'dessert'],
+  ['fait_partie', 'fait partie de'],
+  ['acces', 'accès vers']
+]
+const LIBELLE_LIEN = Object.fromEntries(NATURES_LIEN)
+
+function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, onLier, onModifierLien, onDelier, onModifier, onRaccorder, onDeplacer, onDupliquer, onRetirer }) {
   const [f, setF] = useState(() => depuis(o))
+  const [nouveauLien, setNouveauLien] = useState({ vers: '', nature: 'lie' })
   useEffect(() => setF(depuis(o)), [o])
 
   function depuis(x) {
@@ -918,9 +1036,13 @@ function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onRaccorde
       type_cable: x.type_cable ?? '',
       diametre_mm: x.diametre_mm ?? '',
       de_id: x.de_id ?? '',
-      vers_id: x.vers_id ?? ''
+      vers_id: x.vers_id ?? '',
+      agent_extinction: x.agent_extinction ?? '',
+      capacite_extinction: x.capacite_extinction ?? '',
+      debit_l_min: x.debit_l_min ?? ''
     }
   }
+  const extincteur = o.categorie === 'extincteur'
 
   const lecture = !peutModifier
   const ligne = o.nature === 'ligne' && !o.reseau
@@ -956,6 +1078,7 @@ function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onRaccorde
       <div className="impl-props-tete">
         <span className="prc-jeton">{o.code}</span>
         <span className={`prc-jeton ${o.confirme ? '' : 'veille'}`}>{o.confirme ? 'confirmé sur site' : 'non confirmé'}</span>
+        <button className="lien impl-props-fermer" onClick={onFermer} aria-label="Désélectionner" title="Désélectionner (retour aux fonds de plan)">✕</button>
       </div>
       <label>
         Nom
@@ -1086,6 +1209,28 @@ function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onRaccorde
           </label>
         </div>
       )}
+      {extincteur && (
+        <>
+          <h4 className="prc-titre">Extincteur</h4>
+          <div className="impl-deux">
+            <label>
+              Agent d'extinction
+              <select value={f.agent_extinction} disabled={lecture} onChange={(e) => { envoyer('agent_extinction', e.target.value); onModifier({ agent_extinction: e.target.value || null }) }}>
+                <option value="">—</option>
+                {AGENTS_EXTINCTION.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </label>
+            <label>
+              Capacité ({uniteExtinction(f.agent_extinction)})
+              <input type="number" step="0.5" min="0.5" value={f.capacite_extinction} disabled={lecture} onChange={(e) => envoyer('capacite_extinction', e.target.value)} onBlur={() => valider('capacite_extinction', num)} />
+            </label>
+          </div>
+          <p className="aide">
+            Poudre ABC pour les chapiteaux et bars, CO₂ près des coffrets et régies, classe F aux friteuses. Le dossier de sécurité et la
+            page autorité comptent les extincteurs par agent.
+          </p>
+        </>
+      )}
       {ligne && <p className="aide">Le tracé se déplace d'un bloc (glisser ou « Déplacer ») ; pour le modifier, retire-le et retrace-le. Le dernier module peut être plus court.</p>}
       {picto && <p className="aide">Pictogramme dessiné à l'échelle du plan (entre 12 et 120 px à l’écran). La rotation oriente les flèches.</p>}
       {(o.forme_echelle !== 'cercle' || picto) && !ligne && !cable && !conduite && (
@@ -1167,6 +1312,12 @@ function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onRaccorde
         <label className="case-a-cocher"><input type="checkbox" checked={f.besoin_eau} disabled={lecture} onChange={(e) => { envoyer('besoin_eau', e.target.checked); onModifier({ besoin_eau: e.target.checked }) }} />Besoin d'eau</label>
         <label className="case-a-cocher"><input type="checkbox" checked={f.source_eau} disabled={lecture} onChange={(e) => { envoyer('source_eau', e.target.checked); onModifier({ source_eau: e.target.checked }) }} />Point d'eau</label>
       </div>
+      {(f.besoin_eau || f.source_eau) && (
+        <label>
+          {f.source_eau ? 'Débit fourni (l/min)' : 'Débit demandé (l/min)'}
+          <input type="number" step="1" min="0" value={f.debit_l_min} disabled={lecture} onChange={(e) => envoyer('debit_l_min', e.target.value)} onBlur={() => valider('debit_l_min', num)} placeholder={f.source_eau ? 'ex. 30 pour un robinet 3/4"' : 'ex. 6 pour un évier'} />
+        </label>
+      )}
       {f.besoin_eau && (
         <label>
           Raccordé à
@@ -1189,6 +1340,36 @@ function Proprietes({ o, objets, peutModifier, peutCreer, onModifier, onRaccorde
         <input type="number" step="0.5" min="0" value={f.distance_securite_m} disabled={lecture} onChange={(e) => envoyer('distance_securite_m', e.target.value)} onBlur={() => valider('distance_securite_m', (v) => Number(v) || 0)} />
       </label>
       </>)}
+
+      {/* (126) Les liens libres : ce que cet objet a à voir avec un autre. */}
+      <h4 className="prc-titre">Liens</h4>
+      {liens.length === 0 && <p className="aide" style={{ margin: 0 }}>Aucun lien. Outil « Lier » sur la carte, ou ci-dessous.</p>}
+      {liens.map((l) => {
+        const sortant = l.de_id === o.id
+        const autre = objets.find((x) => x.id === (sortant ? l.vers_id : l.de_id))
+        return (
+          <div key={l.id} className="impl-lien">
+            <select value={l.nature} disabled={lecture} onChange={(e) => onModifierLien(l.id, { nature: e.target.value })} aria-label="Nature du lien">
+              {NATURES_LIEN.map(([v, lib]) => <option key={v} value={v}>{sortant ? lib : `← ${lib}`}</option>)}
+            </select>
+            <span className="impl-lien-autre">{autre?.nom ?? '(objet retiré)'}</span>
+            <input key={`${l.id}-${l.note ?? ''}`} defaultValue={l.note ?? ''} disabled={lecture} placeholder="note" aria-label="Note du lien" onBlur={(e) => { if ((e.target.value || null) !== (l.note ?? null)) onModifierLien(l.id, { note: e.target.value || null }) }} />
+            {!lecture && <button className="lien danger-texte" onClick={() => onDelier(l.id)} aria-label="Retirer le lien">✕</button>}
+          </div>
+        )
+      })}
+      {!lecture && (
+        <div className="impl-lien impl-lien-nouveau">
+          <select value={nouveauLien.nature} onChange={(e) => setNouveauLien({ ...nouveauLien, nature: e.target.value })} aria-label="Nature du nouveau lien">
+            {NATURES_LIEN.map(([v, lib]) => <option key={v} value={v}>{lib}</option>)}
+          </select>
+          <select value={nouveauLien.vers} onChange={(e) => setNouveauLien({ ...nouveauLien, vers: e.target.value })} aria-label="Objet à lier">
+            <option value="">— un objet —</option>
+            {objets.filter((x) => x.id !== o.id && x.nature !== 'ligne').map((x) => <option key={x.id} value={x.id}>{x.nom}{x.code ? ` (${x.code})` : ''}</option>)}
+          </select>
+          <button className="discret" disabled={!nouveauLien.vers} onClick={() => { onLier(nouveauLien.vers, nouveauLien.nature); setNouveauLien({ vers: '', nature: 'lie' }) }}>Lier</button>
+        </div>
+      )}
 
       <h4 className="prc-titre">Métré</h4>
       <label>

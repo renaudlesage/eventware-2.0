@@ -6,6 +6,8 @@ import Autorite from '../../src/Autorite.jsx'
 import Participant from '../../src/Participant.jsx'
 import ColonneSituation from '../../src/ColonneSituation.jsx'
 import Logistique from '../../src/Logistique.jsx'
+import Implantation from '../../src/Implantation.jsx'
+import { DONNEES } from './faux-supabase.js'
 
 /**
  * Les écrans montés par le banc d'essai, avec un événement et un
@@ -23,7 +25,8 @@ export const ECRANS = {
   autorite: () => <Autorite jeton="jeton-essai" />,
   participant: () => <Participant jeton="jeton-essai" codeLieu={null} />,
   colonne: () => <ColonneSituation evenement={evenement} palier="large" onAller={() => {}} />,
-  logistique: () => <Logistique evenement={evenement} membre={membre} session={session} peut={peut} toutPouvoir />
+  logistique: () => <Logistique evenement={evenement} membre={membre} session={session} peut={peut} toutPouvoir />,
+  implantation: () => <Implantation evenement={evenement} elements={DONNEES.elements_plan.slice(0, Number(new URLSearchParams(location.search).get('n') ?? 99))} onRecharger={() => {}} peutCreer peutModifier setMessage={(m) => console.error('message', m?.texte)} />
 }
 
 const quoi = new URLSearchParams(location.search).get('ecran')

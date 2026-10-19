@@ -126,3 +126,21 @@ export const heure = (d) => {
     minute: '2-digit'
   })
 }
+
+/** (126) Les agents d'extinction, et l'unité de capacité qui va avec. */
+export const AGENTS_EXTINCTION = [
+  ['poudre_abc', 'Poudre ABC'],
+  ['poudre_bc', 'Poudre BC'],
+  ['eau', 'Eau pulvérisée'],
+  ['eau_additif', 'Eau + additif'],
+  ['mousse', 'Mousse'],
+  ['co2', 'CO₂'],
+  ['classe_f', 'Classe F (friture)'],
+  ['autre', 'Autre']
+]
+export function libelleAgentExtinction(code) {
+  return AGENTS_EXTINCTION.find(([v]) => v === code)?.[1] ?? code
+}
+export function uniteExtinction(agent) {
+  return agent === 'poudre_abc' || agent === 'poudre_bc' || agent === 'co2' ? 'kg' : 'L'
+}
