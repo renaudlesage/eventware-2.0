@@ -77,9 +77,24 @@ for (const ecran of ecrans) {
       const b = page.getByRole('button', { name: new RegExp('^' + outil) })
       if (await b.count()) await b.first().click()
     }
-    const objet = page.locator('.leaflet-interactive').first()
-    if (await objet.count()) { await objet.click({ force: true }); await page.waitForTimeout(600) }
+    // Un pictogramme (marqueur, cliquable au centre) ouvre les propriétés.
+    const picto = page.locator('.impl-picto').first()
+    if (await picto.count()) { await picto.click({ force: true }); await page.waitForTimeout(600) }
     if (!(await page.locator('.impl-props').count())) erreurs.push('propriétés non ouvertes après clic sur un objet')
+    // Le tracé : on clique exactement sur son premier sommet (le centre de
+    // la boîte d'un trait n'est pas sur le trait), puis les poignées.
+    const point = await page.evaluate(() => {
+      const chemin = [...document.querySelectorAll('path.leaflet-interactive')].find((c) => !c.getAttribute('fill') || c.getAttribute('fill') === 'none')
+      if (!chemin) return null
+      const m = /M\s*(-?[\d.]+)[ ,](-?[\d.]+)/.exec(chemin.getAttribute('d') ?? '')
+      if (!m) return null
+      const pt = chemin.ownerSVGElement.createSVGPoint()
+      pt.x = Number(m[1]); pt.y = Number(m[2])
+      const s = pt.matrixTransform(chemin.getScreenCTM())
+      return { x: s.x, y: s.y }
+    })
+    if (point) { await page.mouse.click(point.x, point.y); await page.waitForTimeout(600) }
+    if (!(await page.locator('.impl-sommet').count())) erreurs.push('poignées de sommets absentes sur le tracé sélectionné')
   }
   const texte = (await page.locator('#racine').innerText().catch(() => '')).replace(/\s+/g, ' ')
   if (!texte.trim()) erreurs.push('rien de rendu')

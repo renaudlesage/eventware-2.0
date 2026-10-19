@@ -3103,3 +3103,9 @@ body.carte-plein-corps { overflow: hidden; }
 .impl-lien-autre { font-weight: 600; }
 .impl-lien input { grid-column: 1 / 4; }
 .impl-lien-nouveau { border-bottom: none; }
+
+/* Édition des sommets d'un tracé (implantation). */
+.impl-sommet { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 2px solid #10151b; box-shadow: 0 1px 3px rgba(0,0,0,0.5); cursor: grab; }
+.impl-sommet.actif { background: #10151b; border-color: #fff; }
+.impl-milieu { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.7); border: 1.5px solid #10151b; cursor: copy; }
+.impl-sommets { display: flex; flex-direction: column; gap: 6px; }
