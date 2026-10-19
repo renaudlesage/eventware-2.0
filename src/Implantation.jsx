@@ -39,6 +39,11 @@ import { AGENTS_EXTINCTION, libelleAgentExtinction, uniteExtinction } from './li
  * (`liens_plan`, 126 : « ce bar dépend de ce groupe »), la règle mesure.
  * Choisir un équipement du catalogue reste un outil comme un autre.
  *
+ * Un tracé sélectionné (barrières, câble, conduite) montre ses sommets :
+ * on les glisse, on en insère un en cliquant le point intermédiaire, on en
+ * retire un par double-clic ou depuis le panneau. Avant (Ren, 19/10), il
+ * fallait retirer la ligne et la retracer pour déplacer un seul coin.
+ *
  * Les calques ne sont qu'un filtre d'affichage : chaque objet porte le
  * sien, et un calque masqué ne se sélectionne pas.
  */
@@ -82,6 +87,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
   modeCourant.current = mode
   const [echelle, setEchelle] = useState(null) // mètres par centimètre de papier, à l'échelle affichée
   const [liens, setLiens] = useState([]) // liens_plan de l'événement (126)
+  const [sommet, setSommet] = useState(null) // index du sommet actif du tracé sélectionné
 
   const objets = useMemo(() => elements.filter((e) => e.centre_lat != null && e.largeur_m), [elements])
   const existants = useMemo(() => elements.filter((e) => e.centre_lat == null && (e.geometrie ?? []).length), [elements])
@@ -293,6 +299,20 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
       if (r2) setMessage({ type: 'erreur', texte: r2 })
     }
     onRecharger()
+  }
+
+  /** Un tracé retouché : le centre suit, la longueur et le nombre de modules se recalculent. */
+  function modifierTrace(o, points) {
+    if (points.length < 2) return
+    const milieu = milieuLigne(points)
+    modifier(o, { geometrie: points, centre_lat: milieu[0], centre_lon: milieu[1] })
+  }
+
+  function retirerSommet(o, i) {
+    const pts = o.geometrie ?? []
+    if (pts.length <= 2) return
+    setSommet(null)
+    modifierTrace(o, pts.filter((_, k) => k !== i))
   }
 
   async function modifier(o, champs) {
@@ -634,6 +654,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
                     return
                   }
                   if (mode?.type === 'main' || mode?.type === 'poser' || mode?.type === 'caler') return
+                  if (o.id !== selection) setSommet(null)
                   if (mode?.type === 'lier') {
                     // Premier clic : l'objet de départ ; second : on lie, et
                     // on garde l'outil en main pour enchaîner.
@@ -649,6 +670,10 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
                 }}
                 onGlisser={(latlng) => setBrouillon({ id: o.id, ...latlng })}
                 onDeposer={(latlng) => finDeplacement(o, latlng)}
+                sommet={o.id === selection ? sommet : null}
+                onSommet={setSommet}
+                onGeometrie={(pts) => modifierTrace(o, pts)}
+                onRetirerSommet={(i) => retirerSommet(o, i)}
               />
             ))}
             {/* (126) Les liens libres : un trait pointillé de centre à centre. */}
@@ -714,7 +739,9 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
               liens={liens.filter((l) => l.de_id === selectionne.id || l.vers_id === selectionne.id)}
               peutModifier={peutModifier}
               peutCreer={peutCreer}
-              onFermer={() => setSelection(null)}
+              onFermer={() => { setSelection(null); setSommet(null) }}
+              sommet={sommet}
+              onRetirerSommet={(i) => retirerSommet(selectionne, i)}
               onLier={(versId, nature) => lier(selectionne.id, versId, nature)}
               onModifierLien={modifierLien}
               onDelier={delier}
@@ -833,14 +860,19 @@ function Existant({ e }) {
   return <CircleMarker center={g[0]} radius={4} pathOptions={{ ...style, fillOpacity: 0.6 }}><Tooltip>{e.nom}</Tooltip></CircleMarker>
 }
 
-function Objet({ o, selectionne, mParPx, peutModifier, onSelection, onGlisser, onDeposer }) {
+function Objet({ o, selectionne, mParPx, peutModifier, onSelection, onGlisser, onDeposer, sommet, onSommet, onGeometrie, onRetirerSommet }) {
   const carte = useMap()
   const couleur = COULEUR_CALQUE[o.calque] ?? '#5d6874'
   const glisse = useRef(null)
   const couche = useRef(null)
   const centre = [Number(o.centre_lat), Number(o.centre_lon)]
   const poly = o.nature === 'ligne' ? null : polygoneObjet(o)
-  const trace = o.nature === 'ligne' ? o.geometrie ?? [] : null
+  // Pendant qu'on glisse un sommet, le tracé suit la poignée : `apercu`
+  // est la version provisoire, écrite à la dépose seulement.
+  const [apercu, setApercu] = useState(null)
+  useEffect(() => setApercu(null), [o.geometrie])
+  const trace = o.nature === 'ligne' ? apercu ?? o.geometrie ?? [] : null
+  const editable = !!(trace && selectionne && peutModifier && onGeometrie)
 
   // Glisser à la souris : on coupe le déplacement de la carte le temps du
   // geste, et on écrit à la dépose seulement.
@@ -929,20 +961,88 @@ function Objet({ o, selectionne, mParPx, peutModifier, onSelection, onGlisser, o
     )
   }
 
+  // Les poignées d'un tracé sélectionné : un sommet se glisse (double-clic
+  // : retiré), un point intermédiaire se clique pour insérer un sommet.
+  function poignees() {
+    if (!editable) return null
+    const base = apercu ?? o.geometrie ?? []
+    return (
+      <>
+        {base.map((p, i) => (
+          <Marker
+            key={`s${i}-${base.length}`}
+            position={p}
+            draggable
+            zIndexOffset={1000}
+            icon={L.divIcon({ className: `impl-sommet ${sommet === i ? 'actif' : ''}`, iconSize: [14, 14], iconAnchor: [7, 7] })}
+            eventHandlers={{
+              click(e) {
+                L.DomEvent.stopPropagation(e)
+                onSommet?.(i)
+              },
+              dblclick(e) {
+                L.DomEvent.stopPropagation(e)
+                onRetirerSommet?.(i)
+              },
+              dragstart() {
+                onSommet?.(i)
+              },
+              drag(e) {
+                const q = e.target.getLatLng()
+                setApercu(base.map((x, k) => (k === i ? [q.lat, q.lng] : x)))
+              },
+              dragend(e) {
+                const q = e.target.getLatLng()
+                onGeometrie(base.map((x, k) => (k === i ? [q.lat, q.lng] : x)))
+              }
+            }}
+          >
+            <Tooltip direction="top" offset={[0, -8]} className="etiquette-carte">point {i + 1} / {base.length} — glisser ; double-clic : retirer</Tooltip>
+          </Marker>
+        ))}
+        {base.slice(1).map((p, i) => {
+          const a = base[i]
+          const m = [(a[0] + p[0]) / 2, (a[1] + p[1]) / 2]
+          return (
+            <Marker
+              key={`m${i}-${base.length}`}
+              position={m}
+              zIndexOffset={900}
+              icon={L.divIcon({ className: 'impl-milieu', iconSize: [10, 10], iconAnchor: [5, 5] })}
+              eventHandlers={{
+                click(e) {
+                  L.DomEvent.stopPropagation(e)
+                  const pts = [...base.slice(0, i + 1), m, ...base.slice(i + 1)]
+                  onSommet?.(i + 1)
+                  onGeometrie(pts)
+                }
+              }}
+            >
+              <Tooltip direction="top" offset={[0, -6]} className="etiquette-carte">cliquer : ajouter un point</Tooltip>
+            </Marker>
+          )
+        })}
+      </>
+    )
+  }
+
   if (trace && o.reseau) {
     if (trace.length < 2) return null
     const c = o.reseau === 'electricite' ? COULEUR_CALQUE.energie : COULEUR_CALQUE.eau
     return (
-      <Polyline
-        ref={couche}
-        positions={trace}
-        pathOptions={{ color: selectionne ? '#10151b' : c, weight: selectionne ? 5 : o.reseau === 'electricite' ? 3 : 3.5, dashArray: o.reseau === 'eau' ? '10 6' : o.confirme ? null : '2 6', lineCap: 'round' }}
-        eventHandlers={evenements}
-      >
-        <Tooltip key={selectionne ? 'fixe' : 'survol'} direction="center" permanent={selectionne} className="etiquette-carte">
-          {o.nom} · {fr(o.longueur_m, 0)} m
-        </Tooltip>
-      </Polyline>
+      <>
+        <Polyline
+          ref={couche}
+          positions={trace}
+          pathOptions={{ color: selectionne ? '#10151b' : c, weight: selectionne ? 5 : o.reseau === 'electricite' ? 3 : 3.5, dashArray: o.reseau === 'eau' ? '10 6' : o.confirme ? null : '2 6', lineCap: 'round' }}
+          eventHandlers={evenements}
+        >
+          <Tooltip key={selectionne ? 'fixe' : 'survol'} direction="center" permanent={selectionne} className="etiquette-carte">
+            {o.nom} · {fr(o.longueur_m, 0)} m
+          </Tooltip>
+        </Polyline>
+        {poignees()}
+      </>
     )
   }
 
@@ -964,6 +1064,7 @@ function Objet({ o, selectionne, mParPx, peutModifier, onSelection, onGlisser, o
         {jonctions.map((p, i) => (
           <CircleMarker key={i} center={p} radius={2.5} interactive={false} pathOptions={{ color: couleur, fillColor: '#fff', fillOpacity: 1, weight: 1.5 }} />
         ))}
+        {poignees()}
       </>
     )
   }
@@ -1001,7 +1102,7 @@ const NATURES_LIEN = [
 ]
 const LIBELLE_LIEN = Object.fromEntries(NATURES_LIEN)
 
-function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, onLier, onModifierLien, onDelier, onModifier, onRaccorder, onDeplacer, onDupliquer, onRetirer }) {
+function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, onLier, onModifierLien, onDelier, onModifier, onRaccorder, onDeplacer, onDupliquer, onRetirer, sommet, onRetirerSommet }) {
   const [f, setF] = useState(() => depuis(o))
   const [nouveauLien, setNouveauLien] = useState({ vers: '', nature: 'lie' })
   useEffect(() => setF(depuis(o)), [o])
@@ -1231,7 +1332,19 @@ function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, 
           </p>
         </>
       )}
-      {ligne && <p className="aide">Le tracé se déplace d'un bloc (glisser ou « Déplacer ») ; pour le modifier, retire-le et retrace-le. Le dernier module peut être plus court.</p>}
+      {(ligne || cable || conduite) && (
+        <div className="impl-sommets">
+          <p className="aide" style={{ margin: 0 }}>
+            Tracé : glisse un sommet pour le déplacer, clique un point intermédiaire pour en ajouter un, double-clic sur un sommet pour le
+            retirer. La ligne entière se déplace en la glissant (ou « Déplacer »).{ligne ? ' Le dernier module peut être plus court.' : ''}
+          </p>
+          {sommet != null && !lecture && (o.geometrie ?? []).length > 2 && (
+            <button className="discret danger-texte" onClick={() => onRetirerSommet?.(sommet)}>
+              Retirer le point {sommet + 1} / {(o.geometrie ?? []).length}
+            </button>
+          )}
+        </div>
+      )}
       {picto && <p className="aide">Pictogramme dessiné à l'échelle du plan (entre 12 et 120 px à l’écran). La rotation oriente les flèches.</p>}
       {(o.forme_echelle !== 'cercle' || picto) && !ligne && !cable && !conduite && (
         <div className="impl-rotation">
