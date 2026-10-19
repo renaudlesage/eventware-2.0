@@ -50,10 +50,13 @@ await esbuild.build({
   loader: { '.jsx': 'jsx', '.css': 'empty', '.svg': 'dataurl', '.png': 'dataurl' },
   logLevel: 'error'
 })
-fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><meta charset="utf-8"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
+// La vraie feuille de style : sans elle, une carte dans un conteneur sans
+// hauteur (taille 0 × 0) fait tourner Leaflet en boucle au cadrage, et la
+// page ne répond plus — ce n'est pas un bogue de l'écran.
+fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
 
 const demandes = process.argv.slice(2)
-const ecrans = demandes.length ? demandes : ['securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique']
+const ecrans = demandes.length ? demandes : ['securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation']
 const navigateur = await pw.chromium.launch()
 let echecs = 0
 for (const ecran of ecrans) {
@@ -64,8 +67,20 @@ for (const ecran of ecrans) {
     // Les tuiles de carte ne se chargent pas sans réseau : ce n'est pas une erreur de l'écran.
     if (m.type() === 'error' && !/net::|ERR_/.test(m.text())) erreurs.push('console : ' + m.text().split('\n')[0].slice(0, 200))
   })
-  await page.goto('file://' + path.join(sortie, 'page.html') + '?ecran=' + ecran)
+  // domcontentloaded : l'événement load attend les tuiles de carte, qui n'arrivent jamais sans réseau.
+  await page.goto('file://' + path.join(sortie, 'page.html') + '?ecran=' + ecran, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
+  // L'éditeur d'implantation : chaque outil, puis un objet cliqué pour
+  // ouvrir ses propriétés (liens, extincteur, eau).
+  if (ecran === 'implantation') {
+    for (const outil of ['Main', 'Lier', 'Mesurer', 'Sélection']) {
+      const b = page.getByRole('button', { name: new RegExp('^' + outil) })
+      if (await b.count()) await b.first().click()
+    }
+    const objet = page.locator('.leaflet-interactive').first()
+    if (await objet.count()) { await objet.click({ force: true }); await page.waitForTimeout(600) }
+    if (!(await page.locator('.impl-props').count())) erreurs.push('propriétés non ouvertes après clic sur un objet')
+  }
   const texte = (await page.locator('#racine').innerText().catch(() => '')).replace(/\s+/g, ' ')
   if (!texte.trim()) erreurs.push('rien de rendu')
   if (erreurs.length) echecs++

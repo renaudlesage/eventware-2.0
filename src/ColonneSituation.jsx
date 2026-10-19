@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { MapContainer, Polyline, Polygon, CircleMarker, Marker, Tooltip, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { pictoSvg } from './pictos'
+import { libelleAgentExtinction, uniteExtinction } from './libelles'
 import { FondCarte, ControlesCarte, useFondCarte } from './carte'
 import { supabase } from './supabaseClient'
 import { libelleStatut } from './libelles'
@@ -82,7 +83,7 @@ export function useTactique(evenement) {
       supabase.from('traces').select('id, nom, couleur, points').eq('evenement_id', evenement.id),
       supabase
         .from('elements_plan')
-        .select('id, code, nom, forme, nature, picto, categorie, geometrie, centre_lat, centre_lon, rotation_deg, est_risque, confirme, organe_coupure')
+        .select('id, code, nom, forme, nature, picto, categorie, geometrie, centre_lat, centre_lon, rotation_deg, est_risque, confirme, organe_coupure, agent_extinction, capacite_extinction')
         .eq('evenement_id', evenement.id)
         .is('deleted_at', null),
       supabase
@@ -387,6 +388,7 @@ export function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
             >
               <Tooltip direction="top">
                 {e.nom}
+                {e.agent_extinction ? ` — ${libelleAgentExtinction(e.agent_extinction)}${e.capacite_extinction ? ` ${Number(e.capacite_extinction)} ${uniteExtinction(e.agent_extinction)}` : ''}` : ''}
                 {e.confirme === false ? ' — non confirmé sur site' : ''}
               </Tooltip>
             </Marker>

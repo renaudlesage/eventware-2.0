@@ -110,7 +110,7 @@ export function arbreEau(objets) {
   for (const o of objets) {
     if (o.nature === 'ligne' || o.nature === 'picto') continue
     if (!o.source_eau && !o.besoin_eau && !o.raccord_eau) continue
-    noeuds.set(o.id, { o, enfants: [], conduite: parCible.get(o.id) ?? null })
+    noeuds.set(o.id, { o, enfants: [], conduite: parCible.get(o.id) ?? null, debitPropre: o.besoin_eau ? Number(o.debit_l_min) || 0 : 0, debitTotal: 0 })
   }
   const racines = []
   for (const n of noeuds.values()) {
@@ -118,6 +118,16 @@ export function arbreEau(objets) {
     if (parent && parent !== n) parent.enfants.push(n)
     else if (n.o.source_eau) racines.push(n)
   }
+  // (126) Le débit demandé remonte des postes vers la source, comme les
+  // kW dans l'arbre électrique : une source sait ce qu'on lui demande.
+  const vus = new Set()
+  function cumuler(n) {
+    if (vus.has(n)) return 0
+    vus.add(n)
+    n.debitTotal = n.debitPropre + n.enfants.reduce((s, e) => s + cumuler(e), 0)
+    return n.debitTotal
+  }
+  for (const r of racines) cumuler(r)
   return { racines, noeuds, conduites, conduitesOrphelines: conduites.filter((c) => !c.de_id || !c.vers_id) }
 }
 

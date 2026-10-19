@@ -48,7 +48,11 @@ function Boite({ n, x, y, reseau }) {
   const source = reseau === 'electricite' ? estSource(o) : !!o.source_eau && !o.raccord_eau
   const distrib = reseau === 'electricite' ? estDistributeur(o) : !!o.source_eau
   const charge = reseau === 'electricite' && Number(o.production_kva) > 0 ? n.kva / Number(o.production_kva) : null
-  const bord = charge != null && charge > 1 ? '#b3311d' : charge != null && charge > 0.8 ? '#a86a00' : source ? '#8a6212' : distrib ? '#23557f' : '#5d6874'
+  // (126) Eau : la charge d'une source est le débit demandé sur ce qu'elle fournit.
+  const chargeEau = reseau === 'eau' && source && Number(o.debit_l_min) > 0 ? (n.debitTotal ?? 0) / Number(o.debit_l_min) : null
+  const surcharge = (charge != null && charge > 1) || (chargeEau != null && chargeEau > 1)
+  const tendu = (charge != null && charge > 0.8) || (chargeEau != null && chargeEau > 0.8)
+  const bord = surcharge ? '#b3311d' : tendu ? '#a86a00' : source ? (reseau === 'eau' ? '#1f6ba8' : '#8a6212') : distrib ? '#23557f' : '#5d6874'
   const l1 = reseau === 'electricite'
     ? [o.tension_v ? `${o.tension_v} V` : null, o.phases ? (Number(o.phases) === 1 ? 'mono' : 'tri') : null, o.calibre_a ? `${fr(o.calibre_a, 0)} A` : null, o.differentiel_ma ? `Δ ${o.differentiel_ma} mA` : null].filter(Boolean).join(' · ')
     : [o.diametre_mm ? `Ø ${o.diametre_mm} mm` : null].filter(Boolean).join(' · ')
@@ -58,7 +62,13 @@ function Boite({ n, x, y, reseau }) {
         : distrib
           ? `${fr(n.kwTotal, 1)} kW · ${fr(n.intensite, 0)} A${n.chute ? ` · ΔU ${fr(n.chute, 1)} %` : ''}`
           : `${fr(n.kwPropre, 1)} kW · ${fr(n.intensite, 0)} A${n.chute ? ` · ΔU ${fr(n.chute, 1)} %` : ''}`)
-    : (o.besoin_eau ? 'besoin d’eau' : o.source_eau ? 'point d’eau' : '')
+    : (source
+        ? `point d’eau${Number(o.debit_l_min) > 0 ? ` ${fr(o.debit_l_min, 0)} l/min` : ''} — demandé ${fr(n.debitTotal ?? 0, 0)} l/min${chargeEau != null ? ` (${Math.round(chargeEau * 100)} %)` : ''}`
+        : o.source_eau
+          ? `répartiteur — ${fr(n.debitTotal ?? 0, 0)} l/min en aval`
+          : o.besoin_eau
+            ? `besoin d’eau${Number(o.debit_l_min) > 0 ? ` · ${fr(o.debit_l_min, 0)} l/min` : ''}`
+            : '')
   return (
     <g transform={`translate(${x},${y})`}>
       <rect width={L_BOITE} height={H_BOITE} rx={4} fill="#fff" stroke={bord} strokeWidth={source ? 2.5 : 1.5} />
@@ -154,6 +164,12 @@ export default function Unifilaire({ objets, evenement, reseau = 'electricite' }
           {places.map((n) => <Boite key={n.o.id} n={n} x={MARGE + n._x * PAS_X} y={MARGE + n._y * PAS_Y} reseau={reseau} />)}
         </svg>
       </div>
+      {reseau === 'eau' && (
+        <p className="aide">
+          Lecture : point d'eau (bande bleue) → répartiteurs → postes. Sur chaque liaison : la conduite tracée sur le plan et sa longueur. Une source
+          passe en orange à 80 % du débit qu'elle fournit, en rouge au-delà — renseigne le débit des points d'eau et le besoin des postes dans leurs propriétés.
+        </p>
+      )}
       {reseau === 'electricite' && (
         <p className="aide">
           Lecture : source (bande ocre) → coffrets (bleu) → postes. Sur chaque liaison : type et section du câble tracé sur le plan, longueur mesurée, et le calibre
