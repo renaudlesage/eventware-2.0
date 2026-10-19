@@ -284,13 +284,13 @@ Le script s'est vérifié lui-même avant de valider : 0 écart de visibilité (
 
 Éprouvée en transaction annulée sur Rando VTT (0 jalon en retard, 3 étapes, course TRSP-004 avec `etape` et `attendu_le`), appliquée en un bloc `do` et inscrite (version 20261018120000) ; vérifié : colonne et contrainte présentes, `situation()` rend `jalons_en_retard` et `parcours.etapes`. L'application fusionnée juste après lit `transports.etape`.
 
-### 126 : écrite le 19/10, PAS ENCORE APPLIQUÉE — liens entre objets du plan, extincteurs qualifiés, débit d'eau
+### 126 : appliquée le 19/10 (par Claude, via l'outil Supabase) — liens entre objets du plan, extincteurs qualifiés, débit d'eau
 
 | Fichier | Fait |
 |---|---|
 | `20261019090000_126_liens_extincteurs_debit_eau.sql` | `liens_plan` (lien libre entre deux objets du plan : lie, alimente, dessert, fait_partie, acces ; note ; RLS sur `plan_implantation`) ; `elements_plan.agent_extinction / capacite_extinction` (+ catalogue, six variantes d'extincteur seedées) ; `elements_plan.debit_l_min` (+ catalogue) pour la charge du réseau d'eau |
 
-Éprouvée en transaction annulée (6 variantes, 4 policies, 3 colonnes). À appliquer en un bloc `do` (le `do $p$` des policies est aplati pour l'outil), puis inscrire. **L'éditeur d'implantation lit `liens_plan` et les nouvelles colonnes : appliquer avant de fusionner.**
+Éprouvée en transaction annulée (6 variantes, 4 policies, 3 colonnes), appliquée en un bloc `do` (le `do $p$` des policies aplati pour l'outil) et inscrite (version 20261019090000) ; vérifié : table et policies présentes, variantes au catalogue, colonnes posées. L'éditeur d'implantation, fusionné juste après, lit `liens_plan` et ces colonnes.
 
 ## Ne jamais rejouer 088 → 126 par `db push` sans les lignes ci-dessus
 
