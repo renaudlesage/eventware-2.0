@@ -96,6 +96,11 @@ for (const ecran of ecrans) {
     if (point) { await page.mouse.click(point.x, point.y); await page.waitForTimeout(600) }
     if (!(await page.locator('.impl-sommet').count())) erreurs.push('poignées de sommets absentes sur le tracé sélectionné')
   }
+  // La carte vectorielle de l'autorité : présente, avec le plan dessus.
+  if (ecran === 'autorite') {
+    if (!(await page.locator('.carte-svg').count())) erreurs.push('carte vectorielle absente')
+    if (!(await page.locator('.carte-svg .carte-picto').count())) erreurs.push('pictogrammes du plan absents de la carte')
+  }
   const texte = (await page.locator('#racine').innerText().catch(() => '')).replace(/\s+/g, ' ')
   if (!texte.trim()) erreurs.push('rien de rendu')
   if (erreurs.length) echecs++

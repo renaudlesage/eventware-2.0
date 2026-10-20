@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { pictoInterieur } from './pictos'
+import { libelleAgentExtinction, uniteExtinction } from './libelles'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { appliquerIconeEvenement } from './logoPwa'
@@ -157,29 +159,72 @@ function libelleSurTrace(p) {
  * repères, les accès secours, et dessus les interventions et
  * recherches en cours. Projection équirectangulaire, comme le reste.
  */
+/** Couleur d'un calque du plan d'implantation sur la carte vectorielle. */
+const CALQUE_COULEUR = {
+  eau: 'var(--etat-info)',
+  energie: 'var(--etat-veille)',
+  securite: 'var(--etat-chaud)',
+  circulation: 'var(--sourdine)'
+}
+const centrePlan = (e) => (e.centre?.lat != null ? [e.centre.lat, e.centre.lon] : e.points?.[0])
+
 function CarteSvg({ s }) {
   const traces = (s.traces ?? []).filter((t) => (t.points ?? []).length > 1)
   const reperes = (s.reperes ?? []).filter((r) => r.position)
   const acces = (s.acces_secours ?? []).filter((e) => e.position)
   const interventions = (s.interventions ?? []).filter((i) => i.position)
   const recherches = (s.recherches ?? []).filter((r) => r.position)
+  // Le plan d'implantation (127) : un site sans parcours — un festival —
+  // n'a ni tracé ni lieu, mais un plan avec ses accès, ses extincteurs,
+  // ses hydrants. Sans lui, la carte restait vide sur BFMF 2026.
+  const plan = s.plan ?? []
+  const lignes = plan.filter((e) => e.nature === 'ligne' && (e.points ?? []).length > 1)
+  const zones = plan.filter((e) => e.nature === 'objet' && (e.points ?? []).length > 2)
+  const pictos = plan.filter((e) => e.nature === 'picto' && e.picto && centrePlan(e))
 
   const pts = [
     ...traces.flatMap((t) => t.points),
     ...reperes.map((r) => [r.position.lat, r.position.lon]),
-    ...interventions.map((i) => [i.position.lat, i.position.lon])
-  ].filter((p) => p[0] != null && p[1] != null)
-  if (pts.length < 2) return null
+    ...interventions.map((i) => [i.position.lat, i.position.lon]),
+    ...acces.map((e) => [e.position.lat, e.position.lon]),
+    ...recherches.map((r) => [r.position.lat, r.position.lon]),
+    ...lignes.flatMap((e) => e.points),
+    ...zones.flatMap((e) => e.points),
+    ...pictos.map(centrePlan)
+  ].filter((p) => p && p[0] != null && p[1] != null)
+  if (pts.length === 0)
+    return (
+      <section className="bloc">
+        <h2>Carte</h2>
+        <p className="vide">
+          Rien à dessiner : ni tracé, ni lieu positionné, ni objet sur le plan
+          d'implantation. La carte apparaît dès que le PC en pose.
+        </p>
+      </section>
+    )
 
   const lats = pts.map((p) => Number(p[0]))
   const lons = pts.map((p) => Number(p[1]))
   const lat0 = (Math.min(...lats) + Math.max(...lats)) / 2
   const kx = 111320 * Math.cos((lat0 * Math.PI) / 180)
   const ky = 111320
-  const minX = Math.min(...lons) * kx
-  const maxX = Math.max(...lons) * kx
-  const minY = Math.min(...lats) * ky
-  const maxY = Math.max(...lats) * ky
+  let minX = Math.min(...lons) * kx
+  let maxX = Math.max(...lons) * kx
+  let minY = Math.min(...lats) * ky
+  let maxY = Math.max(...lats) * ky
+  // Un seul point, ou une emprise minuscule : on garantit 150 m de côté,
+  // sinon le dessin devient une loupe sur un extincteur.
+  const MIN_M = 150
+  if (maxX - minX < MIN_M) {
+    const c = (minX + maxX) / 2
+    minX = c - MIN_M / 2
+    maxX = c + MIN_M / 2
+  }
+  if (maxY - minY < MIN_M) {
+    const c = (minY + maxY) / 2
+    minY = c - MIN_M / 2
+    maxY = c + MIN_M / 2
+  }
   const marge = Math.max(60, (maxX - minX) * 0.06, (maxY - minY) * 0.06)
   const L = maxX - minX + 2 * marge
   const H = maxY - minY + 2 * marge
@@ -197,8 +242,43 @@ function CarteSvg({ s }) {
   return (
     <section className="bloc">
       <h2>Carte</h2>
-      <svg className="carte-svg" viewBox={`0 0 ${L} ${H}`} role="img" aria-label="Carte du parcours et des interventions">
+      <svg className="carte-svg" viewBox={`0 0 ${L} ${H}`} role="img" aria-label="Carte du site, du parcours et des interventions">
         <rect x="0" y="0" width={L} height={H} fill="var(--surface)" />
+        {zones.map((e, k) => {
+          const couleur = CALQUE_COULEUR[e.calque] ?? 'var(--encre)'
+          const c = centrePlan(e)
+          return (
+            <g key={'z' + k} className="carte-zone">
+              <polygon
+                points={e.points.map((p) => `${X(p[1])},${Y(p[0])}`).join(' ')}
+                fill={e.est_risque ? 'var(--etat-chaud)' : couleur}
+                fillOpacity={e.accueil_public ? 0.25 : 0.14}
+                stroke={e.est_risque ? 'var(--etat-chaud)' : couleur}
+                strokeWidth={r(1)}
+                strokeLinejoin="round"
+              />
+              {(e.accueil_public || e.est_risque) && c && (
+                <text x={X(c[1])} y={Y(c[0]) + r(4)} fontSize={r(10)} textAnchor="middle" fill="var(--sourdine)">
+                  {e.code}
+                </text>
+              )}
+            </g>
+          )
+        })}
+        {lignes.map((e, k) => (
+          <polyline
+            key={'l' + k}
+            className="carte-ligne"
+            points={e.points.map((p) => `${X(p[1])},${Y(p[0])}`).join(' ')}
+            fill="none"
+            stroke={CALQUE_COULEUR[e.calque] ?? 'var(--sourdine)'}
+            strokeWidth={r(e.calque === 'circulation' ? 2 : 1.5)}
+            strokeDasharray={e.calque === 'circulation' ? `${r(4)} ${r(2)}` : undefined}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            opacity="0.9"
+          />
+        ))}
         {traces.map((t, k) => (
           <polyline
             key={k}
@@ -228,6 +308,21 @@ function CarteSvg({ s }) {
             </text>
           </g>
         ))}
+        {pictos.map((e, k) => {
+          const c = centrePlan(e)
+          const t = r(18)
+          return (
+            <g key={'p' + k} className="carte-picto" transform={`rotate(${Number(e.rotation_deg ?? 0)} ${X(c[1])} ${Y(c[0])})`}
+              opacity={e.confirme === false ? 0.55 : 1}>
+              <title>
+                {e.nom}
+                {e.agent_extinction ? ` — ${libelleAgentExtinction(e.agent_extinction)}${e.capacite_extinction ? ` ${Number(e.capacite_extinction)} ${uniteExtinction(e.agent_extinction)}` : ''}` : ''}
+              </title>
+              <svg x={X(c[1]) - t / 2} y={Y(c[0]) - t / 2} width={t} height={t} viewBox="0 0 100 100"
+                dangerouslySetInnerHTML={{ __html: pictoInterieur(e.picto) }} />
+            </g>
+          )
+        })}
         {recherches.map((rc, k) => (
           <g key={'q' + k}>
             <circle cx={X(rc.position.lon)} cy={Y(rc.position.lat)} r={r(12)} fill="none" stroke="var(--etat-veille)" strokeWidth={r(3)} strokeDasharray={`${r(4)} ${r(3)}`} />
@@ -256,6 +351,7 @@ function CarteSvg({ s }) {
         <li><span className="puce-carte puce-ok" /> sur place</li>
         <li><span className="puce-carte puce-repere" /> étape, PC, poste</li>
         <li><span className="carre-carte" /> accès secours</li>
+        {plan.length > 0 && <li><span className="trait-carte" /> plan d'implantation : zones, câbles, conduites, barrières, pictogrammes</li>}
       </ul>
       <p className="aide">
         Dessin livré avec la situation, lisible sans réseau. Le « Localiser » de chaque
