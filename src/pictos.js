@@ -91,13 +91,24 @@ const DESSINS = {
 
 export const PICTOS = Object.keys(DESSINS)
 
-/** Le SVG complet d'un pictogramme, en chaîne, à la taille demandée (px). */
-export function pictoSvg(cle, taille = 28) {
+/**
+ * L'intérieur d'un pictogramme (fond + dessin) dans son carré de 100,
+ * pour l'inscrire dans un SVG existant — la carte vectorielle de
+ * l'autorité le pose dans un <svg viewBox="0 0 100 100"> imbriqué.
+ */
+export function pictoInterieur(cle) {
   const d = DESSINS[cle]
   if (!d) return ''
   let fond
   if (d.forme === 'rond') fond = `<circle cx="50" cy="50" r="48" fill="${d.fond}" stroke="${NOIR}" stroke-width="2"/>`
   else if (d.forme === 'triangle') fond = `<path d="M50 4 L98 92 H2 Z" fill="${d.fond}" stroke="${NOIR}" stroke-width="4" stroke-linejoin="round"/>`
   else fond = `<rect x="2" y="2" width="96" height="96" rx="10" fill="${d.fond}" stroke="${NOIR}" stroke-width="2"/>`
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${taille}" height="${taille}" aria-hidden="true">${fond}${d.corps}</svg>`
+  return fond + d.corps
+}
+
+/** Le SVG complet d'un pictogramme, en chaîne, à la taille demandée (px). */
+export function pictoSvg(cle, taille = 28) {
+  const interieur = pictoInterieur(cle)
+  if (!interieur) return ''
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${taille}" height="${taille}" aria-hidden="true">${interieur}</svg>`
 }

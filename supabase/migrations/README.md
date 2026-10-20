@@ -292,7 +292,15 @@ Le script s'est vérifié lui-même avant de valider : 0 écart de visibilité (
 
 Éprouvée en transaction annulée (6 variantes, 4 policies, 3 colonnes), appliquée en un bloc `do` (le `do $p$` des policies aplati pour l'outil) et inscrite (version 20261019090000) ; vérifié : table et policies présentes, variantes au catalogue, colonnes posées. L'éditeur d'implantation, fusionné juste après, lit `liens_plan` et ces colonnes.
 
-## Ne jamais rejouer 088 → 126 par `db push` sans les lignes ci-dessus
+### 127 : à appliquer — le plan d'implantation sur la carte de l'autorité
+
+| Fichier | Fait |
+|---|---|
+| `20261020090000_127_plan_implantation_autorite.sql` | `situation_autorite()` redéfinie en entier (base : 124) + `plan` : chaque objet du plan d'implantation avec sa géométrie (lignes, zones, pictogrammes), son calque, son agent et sa capacité d'extinction. Pour la carte vectorielle du lien autorité, qui restait vide sur un site sans parcours (BFMF 2026 : ni tracé ni lieu, mais 34 objets sur le plan) |
+
+Éprouvée en transaction annulée sur BFMF2026 (34 objets, 8 pictos, 9 lignes). L'application fusionnée avant lit `plan` s'il est là et se cadre déjà sur les accès secours : la carte apparaît sans la migration, les pictos et les zones du plan avec.
+
+## Ne jamais rejouer 088 → 127 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`
