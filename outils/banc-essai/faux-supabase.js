@@ -22,7 +22,10 @@ function constructeur(table, fn) {
     mon_terrain: [{ genre: 'transport', id: 'tr1', reference: 'TRA-001', titre: 'Gare → Départ', priorite: 'P2', statut: 'attribuee', pour_moi: true }, { genre: 'mission', id: 'm1', reference: 'SEC-001', titre: 'Renfort', priorite: 'P1', statut: 'attribuee', latitude: 50.385, longitude: 5.62, pour_moi: true }],
     mes_capacites: [], jauge_courante: 10, couverture_creneaux: []
   }
-  const resultat = () => ({ data: fn === 'rpc' ? (RPC[table] ?? []) : (DONNEES[table] ?? []), error: null, count: (DONNEES[table] ?? []).length })
+  // ?site=1 : un site sans parcours ni lieu (un festival), pour voir une carte se cadrer sur le plan.
+  const site = typeof location !== 'undefined' && new URLSearchParams(location.search).get('site') === '1'
+  const lignes = () => (fn === 'rpc' ? (RPC[table] ?? []) : site && (table === 'traces' || table === 'lieux') ? [] : (DONNEES[table] ?? []))
+  const resultat = () => ({ data: lignes(), error: null, count: lignes().length })
   const b = new Proxy({}, {
     get(_, prop) {
       if (prop === 'then') return (res, rej) => Promise.resolve(resultat()).then(res, rej)
