@@ -445,7 +445,8 @@ export function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
 // ne doit pas sauter sous la souris de celui qui la regarde. On cadre
 // sur le PARCOURS et les lieux de l'événement, pas sur tout le plan : un
 // seul élément importé loin du site (une citerne à 30 km dans le KML de
-// Rando VTT) dézoomerait la carte jusqu'à la rendre inutile.
+// Rando VTT) dézoomerait la carte jusqu'à la rendre inutile. Sans
+// parcours ni lieu, c'est le plan qui cadre (Ren, 21/10 : « oui, centre »).
 function Cadrer({ fond, repli }) {
   const carte = useMap()
   useEffect(() => {
@@ -454,11 +455,23 @@ function Cadrer({ fond, repli }) {
       ...fond.traces.filter((t) => (t.points ?? []).length > 1).flatMap((t) => t.points.map((p) => [p[0], p[1]])),
       ...fond.lieux.filter((l) => l.latitude != null).map((l) => [l.latitude, l.longitude])
     ].filter(valide)
-    const pts = site.length > 1
-      ? site
-      : fond.elements.flatMap((e) => (Array.isArray(e.geometrie) ? e.geometrie : [])).filter(valide)
-    if (pts.length > 1) carte.fitBounds(pts, { padding: [20, 20], maxZoom: 16 })
-    else carte.setView(repli, 15)
+    if (site.length > 1) {
+      carte.fitBounds(site, { padding: [20, 20], maxZoom: 16 })
+      return
+    }
+    // (21/10) Un site sans parcours ni lieu — un festival — se cadre sur
+    // son plan d'implantation, au zoom où on lit les pictos. Un objet
+    // égaré à des kilomètres (un KML mal importé) est laissé de côté :
+    // on garde ce qui est à moins de 1,5 km du centre médian.
+    const plan = fond.elements.flatMap((e) => (Array.isArray(e.geometrie) ? e.geometrie : [])).filter(valide)
+    if (plan.length > 1) {
+      const med = (xs) => { const t = [...xs].sort((a, b) => a - b); return t[Math.floor(t.length / 2)] }
+      const centre = [med(plan.map((p) => Number(p[0]))), med(plan.map((p) => Number(p[1])))]
+      const proches = plan.filter((p) => carte.distance(centre, [Number(p[0]), Number(p[1])]) < 1500)
+      carte.fitBounds(proches.length > 1 ? proches : plan, { padding: [20, 20], maxZoom: 19 })
+      return
+    }
+    carte.setView(repli, 15)
   }, [fond])
   return null
 }
