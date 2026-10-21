@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { MapContainer, Polyline, Polygon, CircleMarker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, CircleMarker, useMap } from 'react-leaflet'
+import { useCalques, FiltreCalques, calqueDe } from './calques'
+import { CouchesPlan } from './couchesPlan'
 import { FondCarte, ControlesCarte, useFondCarte } from './carte'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
@@ -36,8 +38,6 @@ const ORDRE_SECOURS = [
   'sortie_secours'
 ]
 
-const COULEUR = (e) =>
-  e.est_risque ? '#a3341f' : e.confirme ? '#1d5c4f' : '#6b6862'
 
 export default function PlanImplantation({ evenement, membre, peut, toutPouvoir }) {
   const [elements, setElements] = useState([])
@@ -456,6 +456,8 @@ function Ajout({ evenement, position, onFait, setMessage }) {
 
 function Carte({ elements, evenement, position }) {
   const [fondCarte, setFondCarte] = useFondCarte('plan')
+  // (21/10) Le même dessin et les mêmes calques que la conception.
+  const [calques, basculer] = useCalques()
   const centre =
     elements[0]?.geometrie?.[0] ??
     (evenement.point_0_lat ? [evenement.point_0_lat, evenement.point_0_lon] : [50.38212, 5.61679])
@@ -463,58 +465,24 @@ function Carte({ elements, evenement, position }) {
   if (!elements.length) return <p className="vide">Aucun élément localisé.</p>
 
   return (
-    <div className="carte-conteneur" style={{ height: 380 }}>
-      <MapContainer center={centre} zoom={17}>
-        <FondCarte cle={fondCarte} />
-        <ControlesCarte fond={fondCarte} onFond={setFondCarte} />
-        {elements.map((e) => {
-          const g = e.geometrie
-          const couleur = COULEUR(e)
-          if (e.forme === 'point' || g.length === 1) {
-            return (
-              <CircleMarker
-                key={e.id}
-                center={g[0]}
-                radius={e.est_risque ? 9 : 6}
-                pathOptions={{ color: couleur, fillColor: couleur, fillOpacity: 0.75 }}
-              >
-                <Popup>
-                  <strong>{e.code}</strong> — {e.nom}
-                  <br />
-                  {libelleCat(e.categorie)}
-                  {e.organe_coupure && (
-                    <>
-                      <br />
-                      Coupure : {e.organe_coupure}
-                    </>
-                  )}
-                </Popup>
-              </CircleMarker>
-            )
-          }
-          if (e.forme === 'zone') {
-            return (
-              <Polygon key={e.id} positions={g} pathOptions={{ color: couleur, weight: 2 }}>
-                <Popup>{e.nom}</Popup>
-              </Polygon>
-            )
-          }
-          return (
-            <Polyline key={e.id} positions={g} pathOptions={{ color: couleur, weight: 3 }}>
-              <Popup>{e.nom}</Popup>
-            </Polyline>
-          )
-        })}
-        {position && (
-          <CircleMarker
-            center={[position.lat, position.lon]}
-            radius={5}
-            pathOptions={{ color: '#1d5c4f', fillColor: '#fff', fillOpacity: 1 }}
-          />
-        )}
-        <Cadrer elements={elements} />
-      </MapContainer>
-    </div>
+    <>
+      <FiltreCalques objets={elements} visibles={calques} onBasculer={basculer} />
+      <div className="carte-conteneur" style={{ height: 380 }}>
+        <MapContainer center={centre} zoom={17}>
+          <FondCarte cle={fondCarte} />
+          <ControlesCarte fond={fondCarte} onFond={setFondCarte} />
+          <CouchesPlan objets={elements.filter((e) => calques.has(calqueDe(e)))} />
+          {position && (
+            <CircleMarker
+              center={[position.lat, position.lon]}
+              radius={5}
+              pathOptions={{ color: '#1d5c4f', fillColor: '#fff', fillOpacity: 1 }}
+            />
+          )}
+          <Cadrer elements={elements} />
+        </MapContainer>
+      </div>
+    </>
   )
 }
 

@@ -10,6 +10,7 @@ import { pictoSvg } from './pictos'
 import { FONDS_CARTE, FondCarte, ControlesCarte, useFondCarte } from './carte'
 import { estDistributeur, courant, chuteTension, arbreElectrique } from './reseaux'
 import { AGENTS_EXTINCTION, libelleAgentExtinction, uniteExtinction } from './libelles'
+import { CALQUES, COULEUR_CALQUE, LIBELLE_CALQUE } from './calques'
 
 /**
  * Conception de l'implantation à l'échelle (migration 115, 15/10).
@@ -48,18 +49,9 @@ import { AGENTS_EXTINCTION, libelleAgentExtinction, uniteExtinction } from './li
  * sien, et un calque masqué ne se sélectionne pas.
  */
 
-export const CALQUES = [
-  ['infrastructures', 'Infrastructures', '#7a4fb0'],
-  ['restauration', 'Restauration', '#c25a12'],
-  ['energie', 'Énergie', '#8a6212'],
-  ['eau', 'Eau', '#1f6ba8'],
-  ['sanitaires', 'Sanitaires', '#17796f'],
-  ['logistique', 'Logistique', '#5d6874'],
-  ['securite', 'Sécurité', '#a8324a'],
-  ['circulation', 'Circulation', '#3f7a2e']
-]
-export const COULEUR_CALQUE = Object.fromEntries(CALQUES.map(([k, , c]) => [k, c]))
-export const LIBELLE_CALQUE = Object.fromEntries(CALQUES.map(([k, l]) => [k, l]))
+// Les calques vivent dans calques.jsx (21/10) : toutes les cartes les
+// partagent, avec le même filtre à cocher. Réexportés pour les bilans.
+export { CALQUES, COULEUR_CALQUE, LIBELLE_CALQUE }
 
 // Fonds de carte : partagés par toutes les cartes de l'app (carte.jsx).
 export { FONDS_CARTE }

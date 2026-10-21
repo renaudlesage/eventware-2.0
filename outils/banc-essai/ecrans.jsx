@@ -7,6 +7,7 @@ import Participant from '../../src/Participant.jsx'
 import ColonneSituation from '../../src/ColonneSituation.jsx'
 import Logistique from '../../src/Logistique.jsx'
 import Implantation from '../../src/Implantation.jsx'
+import PlanImplantation from '../../src/PlanImplantation.jsx'
 import { DONNEES } from './faux-supabase.js'
 
 /**
@@ -25,6 +26,7 @@ export const ECRANS = {
   autorite: () => <Autorite jeton="jeton-essai" />,
   participant: () => <Participant jeton="jeton-essai" codeLieu={null} />,
   colonne: () => <ColonneSituation evenement={evenement} palier="large" onAller={() => {}} />,
+  plan: () => <PlanImplantation evenement={evenement} membre={membre} peut={peut} toutPouvoir />,
   logistique: () => <Logistique evenement={evenement} membre={membre} session={session} peut={peut} toutPouvoir />,
   implantation: () => <Implantation evenement={evenement} elements={DONNEES.elements_plan.slice(0, Number(new URLSearchParams(location.search).get('n') ?? 99))} onRecharger={() => {}} peutCreer peutModifier setMessage={(m) => console.error('message', m?.texte)} />
 }

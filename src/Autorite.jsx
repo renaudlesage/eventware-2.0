@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { pictoInterieur } from './pictos'
+import { COULEUR_CALQUE, calqueDe, useCalques, FiltreCalques } from './calques'
 import { libelleAgentExtinction, uniteExtinction } from './libelles'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
@@ -159,13 +160,6 @@ function libelleSurTrace(p) {
  * repères, les accès secours, et dessus les interventions et
  * recherches en cours. Projection équirectangulaire, comme le reste.
  */
-/** Couleur d'un calque du plan d'implantation sur la carte vectorielle. */
-const CALQUE_COULEUR = {
-  eau: 'var(--etat-info)',
-  energie: 'var(--etat-veille)',
-  securite: 'var(--etat-chaud)',
-  circulation: 'var(--sourdine)'
-}
 const centrePlan = (e) => (e.centre?.lat != null ? [e.centre.lat, e.centre.lon] : e.points?.[0])
 
 function CarteSvg({ s }) {
@@ -177,10 +171,13 @@ function CarteSvg({ s }) {
   // Le plan d'implantation (127) : un site sans parcours — un festival —
   // n'a ni tracé ni lieu, mais un plan avec ses accès, ses extincteurs,
   // ses hydrants. Sans lui, la carte restait vide sur BFMF 2026.
+  // Les mêmes calques, couleurs et cases à cocher que la conception (21/10).
+  const [calques, basculerCalque] = useCalques()
   const plan = s.plan ?? []
-  const lignes = plan.filter((e) => e.nature === 'ligne' && (e.points ?? []).length > 1)
-  const zones = plan.filter((e) => e.nature === 'objet' && (e.points ?? []).length > 2)
-  const pictos = plan.filter((e) => e.nature === 'picto' && e.picto && centrePlan(e))
+  const planVisible = plan.filter((e) => calques.has(calqueDe(e)))
+  const lignes = planVisible.filter((e) => e.nature === 'ligne' && (e.points ?? []).length > 1)
+  const zones = planVisible.filter((e) => e.nature === 'objet' && (e.points ?? []).length > 2)
+  const pictos = planVisible.filter((e) => e.nature === 'picto' && e.picto && centrePlan(e))
 
   const pts = [
     ...traces.flatMap((t) => t.points),
@@ -242,19 +239,21 @@ function CarteSvg({ s }) {
   return (
     <section className="bloc">
       <h2>Carte</h2>
+      {plan.length > 0 && <FiltreCalques objets={plan} visibles={calques} onBasculer={basculerCalque} />}
       <svg className="carte-svg" viewBox={`0 0 ${L} ${H}`} role="img" aria-label="Carte du site, du parcours et des interventions">
         <rect x="0" y="0" width={L} height={H} fill="var(--surface)" />
         {zones.map((e, k) => {
-          const couleur = CALQUE_COULEUR[e.calque] ?? 'var(--encre)'
+          const couleur = COULEUR_CALQUE[calqueDe(e)] ?? '#5d6874'
           const c = centrePlan(e)
           return (
             <g key={'z' + k} className="carte-zone">
               <polygon
                 points={e.points.map((p) => `${X(p[1])},${Y(p[0])}`).join(' ')}
-                fill={e.est_risque ? 'var(--etat-chaud)' : couleur}
-                fillOpacity={e.accueil_public ? 0.25 : 0.14}
-                stroke={e.est_risque ? 'var(--etat-chaud)' : couleur}
-                strokeWidth={r(1)}
+                fill={couleur}
+                fillOpacity={0.35}
+                stroke={couleur}
+                strokeWidth={r(1.5)}
+                strokeDasharray={e.confirme ? undefined : `${r(5)} ${r(3)}`}
                 strokeLinejoin="round"
               />
               {(e.accueil_public || e.est_risque) && c && (
@@ -271,9 +270,9 @@ function CarteSvg({ s }) {
             className="carte-ligne"
             points={e.points.map((p) => `${X(p[1])},${Y(p[0])}`).join(' ')}
             fill="none"
-            stroke={CALQUE_COULEUR[e.calque] ?? 'var(--sourdine)'}
-            strokeWidth={r(e.calque === 'circulation' ? 2 : 1.5)}
-            strokeDasharray={e.calque === 'circulation' ? `${r(4)} ${r(2)}` : undefined}
+            stroke={COULEUR_CALQUE[calqueDe(e)] ?? '#5d6874'}
+            strokeWidth={r(3)}
+            strokeDasharray={e.categorie === 'point_eau' ? `${r(10)} ${r(6)}` : e.confirme ? undefined : `${r(8)} ${r(5)}`}
             strokeLinejoin="round"
             strokeLinecap="round"
             opacity="0.9"
@@ -351,7 +350,7 @@ function CarteSvg({ s }) {
         <li><span className="puce-carte puce-ok" /> sur place</li>
         <li><span className="puce-carte puce-repere" /> étape, PC, poste</li>
         <li><span className="carre-carte" /> accès secours</li>
-        {plan.length > 0 && <li><span className="trait-carte" /> plan d'implantation : zones, câbles, conduites, barrières, pictogrammes</li>}
+        {plan.length > 0 && <li><span className="trait-carte" /> plan d'implantation dans la couleur de son calque ; pointillé : non confirmé sur site</li>}
       </ul>
       <p className="aide">
         Dessin livré avec la situation, lisible sans réseau. Le « Localiser » de chaque
