@@ -56,11 +56,12 @@ await esbuild.build({
 fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
 
 const demandes = process.argv.slice(2)
-const ecrans = demandes.length ? demandes : ['securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation']
+const ecrans = demandes.length ? demandes : ['securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation', 'plan']
 const navigateur = await pw.chromium.launch()
 let echecs = 0
 for (const ecran of ecrans) {
-  const page = await navigateur.newPage({ viewport: { width: 1500, height: 900 } })
+  // Sous 1440 px, la Situation replie la carte tactique (au-dessus, elle vit dans la colonne) : on la teste repliée puis dépliée.
+  const page = await navigateur.newPage({ viewport: { width: ecran === 'situation' ? 1300 : 1500, height: 900 } })
   const erreurs = []
   page.on('pageerror', (e) => erreurs.push('exception : ' + e.message.split('\n')[0]))
   page.on('console', (m) => {
@@ -96,8 +97,34 @@ for (const ecran of ecrans) {
     if (point) { await page.mouse.click(point.x, point.y); await page.waitForTimeout(600) }
     if (!(await page.locator('.impl-sommet').count())) erreurs.push('poignées de sommets absentes sur le tracé sélectionné')
   }
-  // La carte vectorielle de l'autorité : présente, avec le plan dessus.
+  // Toutes les cartes dessinent le plan comme la conception : calques à
+  // cocher, pictogrammes ; décocher un calque retire ses objets.
+  if (ecran === 'plan') {
+    const onglet = page.getByRole('button', { name: /^Carte$/ })
+    if (await onglet.count()) await onglet.first().click()
+    await page.waitForTimeout(800)
+  }
+  if (ecran === 'situation') {
+    const deplier = page.getByRole('button', { name: /^Déplier$/ })
+    if (await deplier.count()) await deplier.first().click()
+    else erreurs.push('bouton Déplier absent sous 1440 px')
+    await page.waitForTimeout(1500)
+  }
+  if (['colonne', 'situation', 'plan'].includes(ecran)) {
+    if (!(await page.locator('.calques-carte').count())) erreurs.push('filtre des calques absent')
+    const avant = await page.locator('.leaflet-container .impl-picto').count()
+    if (!avant) erreurs.push('pictogrammes du plan absents de la carte')
+    const securite = page.locator('.calques-carte .impl-calque', { hasText: 'Sécurité' }).first()
+    if (await securite.count()) {
+      await securite.click()
+      await page.waitForTimeout(300)
+      if ((await page.locator('.leaflet-container .impl-picto').count()) >= avant && avant) erreurs.push('décocher Sécurité ne retire pas ses pictogrammes')
+      await securite.click()
+    }
+  }
+  // La carte vectorielle de l'autorité : présente, avec le plan dessus et ses calques.
   if (ecran === 'autorite') {
+    if (!(await page.locator('.calques-carte').count())) erreurs.push('filtre des calques absent')
     if (!(await page.locator('.carte-svg').count())) erreurs.push('carte vectorielle absente')
     if (!(await page.locator('.carte-svg .carte-picto').count())) erreurs.push('pictogrammes du plan absents de la carte')
   }

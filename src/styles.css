@@ -2804,6 +2804,9 @@ button.danger:disabled { opacity: 0.45; }
 .impl-calque input { width: auto; margin: 0; }
 .impl-calque.masque { opacity: 0.5; }
 .impl-calque .mono { font-size: 11px; color: var(--sourdine); }
+/* (21/10) Le même filtre sur la carte du plan, la carte tactique et la carte autorité. */
+.calques-carte { margin: 0 0 6px; }
+.carte-tactique + .calques-carte, .calques-carte + .carte-conteneur { margin-top: 4px; }
 .impl-pastille { display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--c, var(--sourdine)); flex-shrink: 0; }
 .impl-consigne { margin: 0; min-height: 1.4em; }
 .impl-corps { display: grid; grid-template-columns: 230px minmax(0, 1fr) 300px; gap: 12px; align-items: start; }

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MapContainer, Polyline, Polygon, CircleMarker, Marker, Tooltip, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { pictoSvg } from './pictos'
-import { libelleAgentExtinction, uniteExtinction } from './libelles'
+import { useCalques, FiltreCalques, calqueDe } from './calques'
+import { CouchesPlan } from './couchesPlan'
 import { FondCarte, ControlesCarte, useFondCarte } from './carte'
 import { supabase } from './supabaseClient'
 import { libelleStatut } from './libelles'
@@ -31,11 +31,6 @@ import { situerSurTrace, libelleSurTrace } from './geometrie'
 const RAFRAICHISSEMENT_MS = 20000
 const HORIZON_H = 2
 
-const SECOURS = new Set([
-  'point_rencontre_secours', 'prv', 'pma', 'aire_helico', 'point_rassemblement',
-  'point_transfert', 'noria', 'voie_engins', 'itineraire_evacuation', 'sortie_secours',
-  'poste_secours', 'dea', 'point_eau'
-])
 
 const NATURE = {
   malaise: 'Malaise', blessure: 'Blessure', danger: 'Danger',
@@ -83,7 +78,7 @@ export function useTactique(evenement) {
       supabase.from('traces').select('id, nom, couleur, points').eq('evenement_id', evenement.id),
       supabase
         .from('elements_plan')
-        .select('id, code, nom, forme, nature, picto, categorie, geometrie, centre_lat, centre_lon, rotation_deg, est_risque, confirme, organe_coupure, agent_extinction, capacite_extinction')
+        .select('id, code, nom, forme, forme_echelle, nature, picto, calque, categorie, geometrie, centre_lat, centre_lon, largeur_m, longueur_m, rotation_deg, reseau, quantite, est_risque, confirme, organe_coupure, agent_extinction, capacite_extinction')
         .eq('evenement_id', evenement.id)
         .is('deleted_at', null),
       supabase
@@ -309,18 +304,12 @@ export function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
   const reperes = fond.lieux.filter(
     (l) => l.latitude != null && ['etape', 'pc_ops', 'poste_secours', 'entree'].includes(l.type)
   )
-  // Le dispositif fixe : secours et risques seulement. Les extincteurs,
-  // câbles et bars rendent la carte illisible à cette taille.
-  const elements = fond.elements.filter(
-    (e) => e.nature !== 'picto' && Array.isArray(e.geometrie) && e.geometrie.length && (e.est_risque || SECOURS.has(e.categorie))
-  )
-  // Les pictogrammes de sécurité posés sur le plan d'implantation (117) :
-  // DEA, poste de secours, sorties, PRV, extincteurs… Ils sont le
-  // dispositif tel qu'on le cherche des yeux sur le terrain ; la carte
-  // tactique les montrait en ronds gris, ou pas du tout (Ren, 18/10).
-  // Mêmes dessins que l'implantation, à taille fixe : ici on ne mesure
-  // pas, on repère.
-  const pictos = fond.elements.filter((e) => e.nature === 'picto' && e.picto && e.centre_lat != null && e.centre_lon != null)
+  // (21/10) Tout le plan d'implantation, dessiné comme sur la carte de
+  // conception, avec ses calques à cocher — Ren : « les cartes doivent
+  // toutes s'afficher comme celle de conception ». Avant : secours et
+  // risques seuls, en ronds gris.
+  const [calques, basculerCalque] = useCalques()
+  const objetsPlan = fond.elements.filter((e) => Array.isArray(e.geometrie) && e.geometrie.length && calques.has(calqueDe(e)))
 
   const nonGeolocalises =
     (vif?.signalements ?? []).length - signalements.length +
@@ -328,6 +317,7 @@ export function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
 
   return (
     <>
+      <FiltreCalques objets={fond.elements} visibles={calques} onBasculer={basculerCalque} />
       <div className="carte-conteneur carte-tactique" style={{ height: hauteur }}>
         <MapContainer center={repli} zoom={14} zoomSnap={0.25} scrollWheelZoom={false}>
           <FondCarte cle={fondCarte} />
@@ -344,55 +334,7 @@ export function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
             ) : null
           )}
 
-          {elements.map((e) => {
-            const couleur = e.est_risque ? c.chaud : e.confirme ? c.ok : c.sourdine
-            const g = e.geometrie
-            if (e.forme === 'zone' && g.length > 2)
-              return (
-                <Polygon key={e.id} positions={g} pathOptions={{ color: couleur, weight: 2, fillOpacity: 0.1 }}>
-                  <Tooltip>{e.nom}</Tooltip>
-                </Polygon>
-              )
-            if (e.forme === 'ligne' && g.length > 1)
-              return (
-                <Polyline key={e.id} positions={g} pathOptions={{ color: couleur, weight: 3, dashArray: '6 4' }}>
-                  <Tooltip>{e.nom}</Tooltip>
-                </Polyline>
-              )
-            return (
-              <CircleMarker
-                key={e.id}
-                center={g[0]}
-                radius={e.est_risque ? 6 : 4}
-                pathOptions={{ color: couleur, fillColor: couleur, fillOpacity: 0.8, weight: 1 }}
-              >
-                <Tooltip>
-                  {e.nom}
-                  {e.organe_coupure ? ` — coupure : ${e.organe_coupure}` : ''}
-                </Tooltip>
-              </CircleMarker>
-            )
-          })}
-
-          {pictos.map((e) => (
-            <Marker
-              key={e.id}
-              position={[Number(e.centre_lat), Number(e.centre_lon)]}
-              icon={L.divIcon({
-                className: `impl-picto picto-tactique ${e.confirme ? '' : 'non-confirme'}`,
-                html: `<div style="transform:rotate(${Number(e.rotation_deg ?? 0)}deg)">${pictoSvg(e.picto, 22)}</div>`,
-                iconSize: [22, 22],
-                iconAnchor: [11, 11],
-                tooltipAnchor: [0, -11]
-              })}
-            >
-              <Tooltip direction="top">
-                {e.nom}
-                {e.agent_extinction ? ` — ${libelleAgentExtinction(e.agent_extinction)}${e.capacite_extinction ? ` ${Number(e.capacite_extinction)} ${uniteExtinction(e.agent_extinction)}` : ''}` : ''}
-                {e.confirme === false ? ' — non confirmé sur site' : ''}
-              </Tooltip>
-            </Marker>
-          ))}
+          <CouchesPlan objets={objetsPlan} />
 
           {reperes.map((l) => (
             <CircleMarker
@@ -487,8 +429,7 @@ export function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
         <li><span className="puce-carte puce-veille" /> mission P1 / P2</li>
         <li><span className="puce-carte puce-info" /> groupe (dernier pointage)</li>
         <li><span className="puce-carte puce-repere" /> étape, PC, poste</li>
-        <li><span className="trait-risque" /> risque · <span className="trait-ok" /> dispositif confirmé</li>
-        {pictos.length > 0 && <li>pictogrammes : signalisation de sécurité du plan</li>}
+        {objetsPlan.length > 0 && <li>plan d'implantation dans la couleur de son calque · pointillé : non confirmé sur site</li>}
       </ul>
       {nonGeolocalises > 0 && (
         <p className="aide">
