@@ -88,3 +88,5 @@ données de 2026, et il doit désormais être sans effet.
 
 Chaque opération, simulation comprise, laisse une ligne dans
 `journal_imports` avec le détail des rejets.
+
+Les tokens de design (couleurs d'état, teintes de domaine, thèmes jour et nuit, typographie) sont inventoriés dans [docs/design-tokens.md](docs/design-tokens.md).
