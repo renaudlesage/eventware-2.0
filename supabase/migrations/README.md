@@ -300,7 +300,7 @@ Le script s'est vérifié lui-même avant de valider : 0 écart de visibilité (
 
 Éprouvée en transaction annulée sur BFMF2026 (34 objets, 8 pictos, 9 lignes), appliquée en un bloc `do` et inscrite (version 20261020090000) ; vérifié : le jeton BFMF2026 rend 34 objets du plan (8 pictos, 9 lignes, 17 zones), 4 accès secours, 1 intervention. L'application lit `plan` s'il est là et se cadre aussi sur les accès secours.
 
-### 128 : à appliquer — exercices : site fermé, manques visibles, DEA éloigné
+### 128 : appliquée le 25/10 (par Claude, via l'outil Supabase) — exercices : site fermé, manques visibles, DEA éloigné
 
 | Fichier | Fait |
 |---|---|
@@ -308,7 +308,7 @@ Le script s'est vérifié lui-même avant de valider : 0 écart de visibilité (
 
 Éprouvée en transaction annulée (briefing du 25/10, critères d'acceptation) : Concert Buco avec `SECOURS, EVAC, ALERTE, RADIO` tire `ARRET_CARDIAQUE_SALLE`, `FOULE_SCENE`, `GAZ_RESTAURATION` (aucune trame de parcours), cite `DEAPICTO-01`, `SECOURS-01` et `RASSEMB-01`, `manques` = lieu_public, canal_urgence, risque_gaz, maitrise_gaz, groupe, nb_public, aucun `{champ}` non remplacé ; `avant_vol` rend `DEA_ELOIGNE` (186 m, ≈ 3 min) ; Rando VTT tire toujours `VICTIME_PARCOURS` et `avant_vol` rend `BRANCARDAGE_INCOHERENT` sur « Etape1-> Etape 2 » ; `anon` ne peut exécuter aucune des trois fonctions.
 
-**Pour l'appliquer depuis l'éditeur SQL Supabase** : coller le fichier entier (il commence par `begin;` et finit par `commit;`), exécuter, puis inscrire la version :
+Appliquée en un bloc `do` et inscrite (version 20261025090000) ; vérifié : neuf trames avec leurs géométries, `distance_m` présente, `anon` fermé. Pour la rejouer ailleurs depuis l'éditeur SQL : coller le fichier entier (il commence par `begin;` et finit par `commit;`), exécuter, puis inscrire la version :
 
 ```sql
 insert into supabase_migrations.schema_migrations (version, name, statements)
