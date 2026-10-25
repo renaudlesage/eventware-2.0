@@ -2939,6 +2939,13 @@ body.impl-plein-corps { overflow: hidden; }
 .exo-point { color: var(--etat-veille); }
 .exo-titre { font-size: 18px; margin: 0; }
 .exo-chrono { font-size: 20px; font-weight: 700; padding: 0 8px; }
+/* (128) Ce que le dispositif n'a pas encodé, sous les cadrans de la synthèse et à l'impression du conducteur. */
+.exo-manques { margin-top: 10px; }
+.exo-manques ul { margin: 4px 0 0; padding-left: 18px; }
+.exo-manques li { font-size: 13px; line-height: 1.6; }
+.exo-manques li .mono { font-size: 11px; margin-left: 6px; }
+.exo-impression { display: none; }
+body.impression-exercice .exo-impression { display: block; }
 .exo-bandeau-exercice { background: var(--etat-veille); color: var(--on-teinte); padding: 6px 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px; }
 .exo-stimuli { display: flex; flex-direction: column; gap: 8px; }
 .exo-stimulus { background: var(--surface); border: 1px solid var(--trait); border-left: 4px solid var(--trait); padding: 8px 12px; }
