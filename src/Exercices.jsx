@@ -478,6 +478,8 @@ function Exercice({ id, evenement, membre, peutModifier, setMessage, onRetour })
             })}
           </div>
           {x.statut === 'preparation' && <p className="aide">Relis, réécris ou retire ce qui ne convient pas (un piège trop sensible, un ton à ajuster). La grille se coche une fois l'exercice démarré.</p>}
+          {/* (128) À l'impression du conducteur, les manques suivent : l'animateur les a sous les yeux. */}
+          <NonEncode contexte={x.contexte} impression />
         </section>
       )}
 
@@ -497,7 +499,8 @@ function Exercice({ id, evenement, membre, peutModifier, setMessage, onRetour })
               )
             })}
           </div>
-          <p className="aide">Contexte lu dans le dispositif : {Object.entries(x.contexte ?? {}).map(([k, v]) => `${k} = ${v}`).join(' · ')}</p>
+          <p className="aide">Contexte lu dans le dispositif : {Object.entries(x.contexte ?? {}).filter(([k]) => k !== 'manques').map(([k, v]) => `${k} = ${v}`).join(' · ')}</p>
+          <NonEncode contexte={x.contexte} />
         </section>
       )}
 
@@ -570,6 +573,7 @@ function Exercice({ id, evenement, membre, peutModifier, setMessage, onRetour })
             <Cadran libelle="Écarts" v={ecarts.length} etat={ecarts.some((e) => e.gravite === 'critique') ? 'chaud' : ecarts.length ? 'veille' : ''} />
             <Cadran libelle="Durée réelle" v={x.debut_reel && x.fin_reel ? `${Math.round((new Date(x.fin_reel) - new Date(x.debut_reel)) / 60000)} min` : '—'} />
           </div>
+          <NonEncode contexte={x.contexte} />
           <h4 className="prc-titre">Par objectif</h4>
           <table className="tableau">
             <thead><tr><th>Objectif</th><th>Attendu</th><th>Fait</th><th>Non fait</th><th>Non observé</th></tr></thead>
@@ -635,6 +639,61 @@ function NouvelEcart({ onAjouter }) {
       <input value={c} onChange={(e) => setC(e.target.value)} placeholder="Écart constaté (dispositif, procédure, outil — pas une personne)" style={{ flex: 1, margin: 0 }} />
       <button disabled={!c.trim()} onClick={() => { onAjouter(c.trim()); setC('') }}>Ajouter</button>
     </div>
+  )
+}
+
+/**
+ * (128) Ce que le dispositif n'a pas encodé : les clés de contexte que
+ * le générateur a dû remplacer par un texte de repli. L'animateur doit
+ * le voir — c'est un résultat de l'exercice en soi. Les exercices
+ * générés avant la 128 n'ont pas de clé `manques` : rien ne s'affiche.
+ */
+const LIBELLES_MANQUES = {
+  canal_urgence: "Canal radio d'urgence",
+  nb_public: 'Fréquentation attendue (Point 0)',
+  lieu_public: 'Lieu public : scène, entrée, bar (Lieux)',
+  lieu_isole: 'Lieu isolé du parcours (Lieux positionnés)',
+  brancardage: 'Distance de brancardage (tronçons du parcours)',
+  risque_gaz: 'Installation à risque gaz (plan d\'implantation)',
+  maitrise_gaz: "Mesure de maîtrise de l'installation gaz",
+  rafales: 'Seuils de vent de la veille météo',
+  groupe: 'Groupe électrogène (plan d\'implantation)',
+  alimentes: 'Ce que le groupe électrogène alimente',
+  groupe_retard: 'Groupes de participants (Parcours)',
+  effectif_groupe: 'Effectif du groupe',
+  dernier_lieu: 'Dernier pointage du groupe',
+  dea: 'DEA sur le plan d\'implantation',
+  dea_distance: 'Position du DEA (distance au point 0)',
+  sortie: 'Sorties de secours (plan d\'implantation)',
+  rassemblement: 'Point de rassemblement (plan d\'implantation)',
+  borne: 'Borne ou bouche incendie (plan d\'implantation)',
+  extincteur: 'Extincteur (plan d\'implantation)',
+  point_0: 'Position du point 0'
+}
+
+export function manquesDe(contexte) {
+  const m = contexte?.manques
+  return Array.isArray(m) ? m : []
+}
+
+function NonEncode({ contexte, impression = false }) {
+  const manques = manquesDe(contexte)
+  if (!manques.length) return null
+  return (
+    <section className={`bloc exo-manques ${impression ? 'exo-impression' : ''}`}>
+      <h4 className="prc-titre">Non encodé dans Eventware</h4>
+      <p className="aide">
+        Le scénario a remplacé ces informations par un texte de repli : le dispositif ne les contient pas.
+        À encoder, ou à constater comme écart.
+      </p>
+      <ul>
+        {manques.map((k) => (
+          <li key={k}>
+            {LIBELLES_MANQUES[k] ?? k} <span className="mono sourdine">{k}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
