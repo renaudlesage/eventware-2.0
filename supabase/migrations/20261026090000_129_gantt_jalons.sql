@@ -200,7 +200,7 @@ returns table (jalon_id uuid, es date, ef date, ls date, lf date, marge_j intege
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   ev evenements%rowtype;
-  v_j date; v_fin_ev date; n int; i int := 0; v_change int;
+  v_j date; v_fin_ev date; n int; i int := 0; v_change int; v_appel uuid;
 begin
   if not a_permission(p_evenement, 'rh', 'lire') and not a_tout_pouvoir(p_evenement) then
     raise exception 'Lecture du planning non autorisée' using errcode = '42501';
@@ -209,15 +209,15 @@ begin
   v_j := ev.date_debut;
   v_fin_ev := coalesce(ev.date_demontage, ev.date_fin, ev.date_debut);
 
-  -- Une table temporaire par session, vidée à chaque appel (gantt()
-  -- et chemin_critique() peuvent tourner dans la même transaction) :
-  -- jamais de DROP, l'outil Supabase le refuse sans confirmation.
+  -- Une table temporaire par session, un jeton par appel (gantt() et
+  -- chemin_critique() peuvent tourner dans la même transaction) : ni
+  -- DROP ni DELETE, que l'outil Supabase tient pour destructifs.
   if to_regclass('pg_temp.cpm_129') is null then
-    create temp table cpm_129 (id uuid, d0 date, d1 date, duree int, es date, ef date, lf date) on commit drop;
+    create temp table cpm_129 (appel uuid, id uuid, d0 date, d1 date, duree int, es date, ef date, lf date) on commit drop;
   end if;
-  delete from cpm_129 where id is not null;
-  insert into cpm_129 (id, d0, d1, duree)
-    select j.id,
+  v_appel := gen_random_uuid();
+  insert into cpm_129 (appel, id, d0, d1, duree)
+    select v_appel, j.id,
            (coalesce(j.debut, j.echeance) at time zone 'Europe/Brussels')::date as d0,
            (j.echeance at time zone 'Europe/Brussels')::date as d1,
            case when j.statut = 'fait' then 0
@@ -225,23 +225,24 @@ begin
                                - (coalesce(j.debut, j.echeance) at time zone 'Europe/Brussels')::date) end
     from jalons j
     where j.evenement_id = p_evenement and j.deleted_at is null and j.statut <> 'annule' and j.echeance is not null;
-  select count(*) into n from cpm_129;
+  select count(*) into n from cpm_129 c where c.appel = v_appel;
 
   -- Passe avant : au plus tôt. Un jalon sans prédécesseur part de son
   -- début planifié ; les autres du plus tard entre leur début planifié
   -- et la fin de leurs prédécesseurs + battement.
   update cpm_129 c set es = c.d0, ef = c.d0 + c.duree
-   where not exists (select 1 from jalon_dependances d join cpm_129 p on p.id = d.precede_id where d.jalon_id = c.id);
+   where c.appel = v_appel
+     and not exists (select 1 from jalon_dependances d join cpm_129 p on p.id = d.precede_id and p.appel = v_appel where d.jalon_id = c.id);
   loop
     update cpm_129 c set es = x.es, ef = x.es + c.duree
       from (select d.jalon_id as id, greatest(min(c2.d0), max(p.ef + d.decalage_j)) as es
               from jalon_dependances d
-              join cpm_129 p on p.id = d.precede_id
-              join cpm_129 c2 on c2.id = d.jalon_id
+              join cpm_129 p on p.id = d.precede_id and p.appel = v_appel
+              join cpm_129 c2 on c2.id = d.jalon_id and c2.appel = v_appel
              where d.evenement_id = p_evenement
              group by d.jalon_id
             having bool_and(p.ef is not null)) x
-     where x.id = c.id and c.es is distinct from x.es;
+     where c.appel = v_appel and x.id = c.id and c.es is distinct from x.es;
     get diagnostics v_change = row_count;
     i := i + 1;
     exit when v_change = 0 or i > n + 1;
@@ -251,23 +252,24 @@ begin
   -- doit être fini pour J ; après J (démontage), pour la fin du démontage.
   if v_j is not null then
     update cpm_129 c set lf = case when c.ef <= v_j then v_j else greatest(c.ef, v_fin_ev) end
-     where not exists (select 1 from jalon_dependances d join cpm_129 s on s.id = d.jalon_id where d.precede_id = c.id);
+     where c.appel = v_appel
+       and not exists (select 1 from jalon_dependances d join cpm_129 s on s.id = d.jalon_id and s.appel = v_appel where d.precede_id = c.id);
     i := 0;
     loop
       update cpm_129 c set lf = x.lf
         from (select d.precede_id as id, min(s.lf - s.duree - d.decalage_j) as lf
-                from jalon_dependances d join cpm_129 s on s.id = d.jalon_id
+                from jalon_dependances d join cpm_129 s on s.id = d.jalon_id and s.appel = v_appel
                where d.evenement_id = p_evenement
                group by d.precede_id
               having bool_and(s.lf is not null)) x
-       where x.id = c.id and c.lf is distinct from x.lf;
+       where c.appel = v_appel and x.id = c.id and c.lf is distinct from x.lf;
       get diagnostics v_change = row_count;
       i := i + 1;
       exit when v_change = 0 or i > n + 1;
     end loop;
   end if;
 
-  return query select c.id, c.es, c.ef, (c.lf - c.duree)::date, c.lf, (c.lf - c.ef)::int from cpm_129 c;
+  return query select c.id, c.es, c.ef, (c.lf - c.duree)::date, c.lf, (c.lf - c.ef)::int from cpm_129 c where c.appel = v_appel;
 end $$;
 
 -- ---------------------------------------------------------------------
@@ -326,13 +328,13 @@ end $$;
 create or replace function public._recaler_jalons(p_evenement uuid, p_simuler boolean)
 returns table (touches integer, exemples text[])
 language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_appel uuid := gen_random_uuid();
 begin
   if to_regclass('pg_temp.recal_129') is null then
-    create temp table recal_129 (id uuid, libelle text, debut timestamptz, echeance timestamptz, n_debut timestamptz, n_fin timestamptz) on commit drop;
+    create temp table recal_129 (appel uuid, id uuid, libelle text, debut timestamptz, echeance timestamptz, n_debut timestamptz, n_fin timestamptz, change boolean) on commit drop;
   end if;
-  delete from recal_129 where id is not null;
-  insert into recal_129 (id, libelle, debut, echeance, n_debut, n_fin)
-    select j.id, j.libelle, j.debut, j.echeance,
+  insert into recal_129 (appel, id, libelle, debut, echeance, n_debut, n_fin)
+    select v_appel, j.id, j.libelle, j.debut, j.echeance,
       case when j.offset_debut_j is null or j.debut is null then j.debut
            else ((jour_ancre(p_evenement, j.ancre) + j.offset_debut_j)::timestamp
                  + (j.debut at time zone 'Europe/Brussels')::time) at time zone 'Europe/Brussels' end,
@@ -344,11 +346,11 @@ begin
       and j.statut in ('a_venir','en_cours')
       and (j.offset_debut_j is not null or j.offset_fin_j is not null)
       and jour_ancre(p_evenement, j.ancre) is not null;
-  delete from recal_129 r where r.n_debut is not distinct from r.debut and r.n_fin is not distinct from r.echeance;
+  update recal_129 r set change = (r.n_debut is distinct from r.debut or r.n_fin is distinct from r.echeance) where r.appel = v_appel;
   if not p_simuler then
-    update jalons j set debut = r.n_debut, echeance = r.n_fin from recal_129 r where r.id = j.id;
+    update jalons j set debut = r.n_debut, echeance = r.n_fin from recal_129 r where r.appel = v_appel and r.change and r.id = j.id;
   end if;
-  return query select count(*)::int, (array_agg(r.libelle order by r.n_fin))[1:5] from recal_129 r;
+  return query select count(*)::int, (array_agg(r.libelle order by r.n_fin))[1:5] from recal_129 r where r.appel = v_appel and r.change;
 end $$;
 
 create or replace function public.recaler_jalons(p_evenement uuid, p_simuler boolean default true)
@@ -369,7 +371,7 @@ returns table (deplaces integer, apres_j integer)
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   j jalons%rowtype; ev evenements%rowtype; s jalons%rowtype; d record;
-  v_cur uuid; v_besoin timestamptz; v_delta interval;
+  v_cur uuid; v_besoin timestamptz; v_delta interval; v_appel uuid;
   v_deplaces int := 0; v_apres int := 0;
 begin
   select * into j from jalons where id = p_jalon and deleted_at is null;
@@ -386,14 +388,14 @@ begin
 
   if p_entrainer then
     if to_regclass('pg_temp.file_129') is null then
-      create temp table file_129 (id uuid primary key, traite boolean not null default false) on commit drop;
+      create temp table file_129 (appel uuid, id uuid, traite boolean not null default false, primary key (appel, id)) on commit drop;
     end if;
-    delete from file_129 where id is not null;
-    insert into file_129 (id) values (p_jalon);
+    v_appel := gen_random_uuid();
+    insert into file_129 (appel, id) values (v_appel, p_jalon);
     loop
-      select f.id into v_cur from file_129 f where not f.traite limit 1;
+      select f.id into v_cur from file_129 f where f.appel = v_appel and not f.traite limit 1;
       exit when v_cur is null;
-      update file_129 set traite = true where id = v_cur;
+      update file_129 set traite = true where appel = v_appel and id = v_cur;
       for d in select dp.jalon_id, dp.decalage_j, p.echeance as fin_pred
                  from jalon_dependances dp join jalons p on p.id = dp.precede_id
                 where dp.precede_id = v_cur loop
@@ -407,7 +409,7 @@ begin
           if ev.date_debut is not null and ((s.echeance + v_delta) at time zone 'Europe/Brussels')::date > ev.date_debut then
             v_apres := v_apres + 1;
           end if;
-          insert into file_129 (id) values (s.id) on conflict (id) do update set traite = false;
+          insert into file_129 (appel, id) values (v_appel, s.id) on conflict (appel, id) do update set traite = false;
         end if;
       end loop;
     end loop;
