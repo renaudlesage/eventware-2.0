@@ -117,6 +117,9 @@ end $t$;
 update public.jalons j set ancre = ancre
  where j.deleted_at is null and j.echeance is not null and j.offset_fin_j is null
    and jour_ancre(j.evenement_id, j.ancre) is not null;
+-- Les jalons déjà faits (même supprimés, pour ne pas laisser d'écart)
+-- reçoivent 100 sans repasser par le déclencheur.
+update public.jalons set avancement = 100 where statut = 'fait' and avancement <> 100;
 
 -- ---------------------------------------------------------------------
 -- 3. Dépendances fin-à-début

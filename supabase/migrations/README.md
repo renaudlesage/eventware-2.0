@@ -318,7 +318,7 @@ on conflict (version) do nothing;
 
 Le bloc VÉRIFICATION en fin de fichier rejoue les critères d'acceptation en transaction annulée.
 
-### 129 : à appliquer — le Gantt de l'avant / après-événement (briefing du 26/10)
+### 129 : partie A appliquée le 26/10 (par Claude, via l'outil Supabase), reconduction à rejouer — le Gantt de l'avant / après-événement (briefing du 26/10)
 
 | Fichier | Fait |
 |---|---|
@@ -326,9 +326,11 @@ Le bloc VÉRIFICATION en fin de fichier rejoue les critères d'acceptation en tr
 
 Partie A (tout sauf `dupliquer_evenement`) éprouvée en transaction annulée sur Rando VTT (J = 11/11), sept points du briefing : marges A0 B0 C0 D1 E10 ; offsets A -11/-7, B -7/-3, C -3/0, D -7/-6 ; cycle refusé (« Dépendance circulaire ») ; A décalée de +5 j avec entraînement : 3 déplacés, 2 finissent après J (B 09→13/11, C 13→16/11, D 09→10/11), sans entraînement 0 ; J + 1 : recalage simulé 6 touchés, appliqué 6, A finit le 05/11 17:00 (heure conservée), re-simulation 0 ; `fait` ⇒ avancement 100 ; `gantt()` 8 lignes, 3 sur le chemin critique ; `anon` ne peut rien exécuter, `authenticated` ne voit pas `_recaler_jalons`.
 
-Partie B (`dupliquer_evenement`) : son corps hérite d'un `delete from role_capacites` que l'outil Supabase de Claude soumet à une confirmation d'une minute. À rejouer depuis l'éditeur SQL avec `../verifications/129-reconduction.sql` (transaction annulée, résultat attendu dans l'en-tête) avant ou après l'application.
+Partie A appliquée le 26/10 en un bloc `do` et inscrite (version 20261026090000, `statements` le dit) ; vérifié : six colonnes, table et quatre policies, huit fonctions, deux déclencheurs, les quatre jalons datés ont leurs offsets, un jalon fait (supprimé) remis à 100, `anon` fermé, `_recaler_jalons` fermée à `authenticated`, `gantt()` rend 3 lignes sur Rando VTT, recalage simulé 0.
 
-Pour l'appliquer depuis l'éditeur SQL : coller le fichier entier (il commence par `begin;` et finit par `commit;`), exécuter, puis inscrire la version :
+**Reste à faire par Ren dans l'éditeur SQL** : la section 8 (`dupliquer_evenement`) et la ligne `dupliquer_evenement` des droits (section 9). Son corps hérite d'un `delete from role_capacites` que l'outil Supabase de Claude soumet à une confirmation d'une minute, trois fois expirée. D'abord éprouver avec `../verifications/129-reconduction.sql` (il redéfinit la fonction à l'identique de la migration, la joue sur Rando VTT et annule tout ; résultat attendu dans l'en-tête), puis coller le fichier de migration entier : il est idempotent, la partie A déjà en place ne bouge pas, la section 8 s'installe, la version est déjà inscrite. Tant que ce n'est pas fait, la reconduction d'un événement fonctionne comme avant (dates décalées, sans offsets ni dépendances recopiés).
+
+Pour rejouer la migration entière ailleurs depuis l'éditeur SQL : coller le fichier entier (il commence par `begin;` et finit par `commit;`), exécuter, puis inscrire la version :
 
 ```sql
 insert into supabase_migrations.schema_migrations (version, name, statements)
