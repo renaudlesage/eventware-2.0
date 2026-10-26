@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { libelleStatut } from './libelles'
-import { texteErreur } from './erreurs'
+import { texteErreur, estDoublon } from './erreurs'
+import { slugDe, variantesSlug } from './slug'
 import { modifierOuRefuser } from './ecriture'
 // La liste des modules est celle du produit, partagée avec les Réglages :
 // la copie locale oubliait `preparation`, que la console ne pouvait donc
@@ -90,20 +91,23 @@ function Organisations({ setMessage }) {
     charger()
   }, [])
 
+  const [occupe, setOccupe] = useState(false)
   async function creer() {
-    if (!f.nom.trim()) return
-    const slug = f.nom
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-    const { error } = await supabase.from('organisations').insert({ ...f, slug })
+    if (occupe || !f.nom.trim()) return
+    setOccupe(true)
+    const nom = f.nom.trim()
+    let error = null
+    for (const slug of variantesSlug(slugDe(nom))) {
+      ;({ error } = await supabase.from('organisations').insert({ ...f, nom, slug }))
+      if (!error || !estDoublon(error)) break
+    }
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
+      setMessage({ type: 'succes', texte: `« ${nom} » est ouvert.` })
       setF({ nom: '', contact_nom: '', contact_email: '' })
       charger()
     }
+    setOccupe(false)
   }
 
   async function maj(id, champs) {
@@ -136,7 +140,7 @@ function Organisations({ setMessage }) {
           placeholder="E-mail"
           style={{ flex: '0 1 190px' }}
         />
-        <button disabled={!f.nom.trim()} onClick={creer}>
+        <button disabled={occupe || !f.nom.trim()} onClick={creer}>
           Ouvrir un client
         </button>
       </div>
@@ -359,29 +363,38 @@ function Evenements({ setMessage, onOuvrir }) {
       .then(({ data }) => setCommunes(data ?? []))
   }, [])
 
+  // (26/10) Deux envois pendant la même création — un double clic, un
+  // réseau lent — faisaient un deuxième insert sur le même identifiant :
+  // l'événement était créé, et l'écran annonçait « duplicate key ».
+  const [occupe, setOccupe] = useState(false)
   async function creer() {
-    if (!f.nom.trim() || !f.organisation_id) return
-    const slug = f.nom
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
+    if (occupe || !f.nom.trim() || !f.organisation_id) return
+    setOccupe(true)
+    const nom = f.nom.trim()
     // Les champs vides partent en `null` plutôt qu'en chaîne vide : une
     // date vide n'est pas une date, et une commune vide ne doit pas
     // ressembler à une commune renseignée.
-    const { error } = await supabase.from('evenements').insert({
+    const ligne = {
       ...f,
-      slug,
+      nom,
       commune: f.commune.trim() || null,
       date_debut: f.date_debut || null,
       date_fin: f.date_fin || null
-    })
+    }
+    // Un événement supprimé garde son identifiant : on suffixe plutôt
+    // que de refuser (slug.js).
+    let error = null
+    for (const slug of variantesSlug(slugDe(nom))) {
+      ;({ error } = await supabase.from('evenements').insert({ ...ligne, slug }))
+      if (!error || !estDoublon(error)) break
+    }
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
+      setMessage({ type: 'succes', texte: `« ${nom} » est créé en préparation — sélectionne-le dans le menu en haut de l'écran.` })
       setF({ ...f, nom: '', commune: '', date_debut: '', date_fin: '' })
       charger()
     }
+    setOccupe(false)
   }
 
   async function reattribuer(evenementId, organisationId) {
@@ -450,7 +463,7 @@ function Evenements({ setMessage, onOuvrir }) {
           onChange={(e) => setF({ ...f, date_fin: e.target.value })}
           title="Dernier jour"
         />
-        <button disabled={!f.nom.trim()} onClick={creer}>
+        <button disabled={occupe || !f.nom.trim()} onClick={creer}>
           Ouvrir
         </button>
       </div>

@@ -16,6 +16,7 @@ import ViderEvenement from './ViderEvenement'
 import { RESSOURCES } from './colonnesImport'
 import { PHASES, MODULES } from './referentielsProduit'
 import { texteErreur } from './erreurs'
+import { slugDe } from './slug'
 import { modifierOuRefuser } from './ecriture'
 import { useDrapeau } from './useDrapeau'
 
@@ -408,12 +409,7 @@ function Reconduire({ evenement, onFait }) {
 
   // Un slug se devine bien : c'est le nom, sans accent ni espace. Le
   // laisser saisir à la main n'apporterait qu'une occasion de le rater.
-  const slug = nom
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
+  const slug = slugDe(nom)
 
   async function reconduire() {
     setOccupe(true)

@@ -51,6 +51,16 @@ function contient(texte, liste) {
 }
 
 /**
+ * Vrai si l'erreur est un doublon sur une contrainte d'unicité
+ * (code 23505) : l'appelant peut réessayer avec une autre valeur, ou
+ * dire laquelle est prise.
+ */
+export function estDoublon(e) {
+  if (!e) return false
+  return e.code === '23505' || `${e.message ?? ''}`.toLowerCase().includes('duplicate key value')
+}
+
+/**
  * @param {Error|{message?: string, name?: string}} e
  * @returns {string} le message à montrer
  */
@@ -68,6 +78,13 @@ export function texteErreur(e) {
   }
   if (contient(brut, SESSION)) {
     return 'Session expirée — reconnectez-vous.'
+  }
+  // Un doublon (26/10) : « duplicate key value violates unique
+  // constraint "evenements_slug_key" » ne dit à personne que le nom
+  // est déjà pris — y compris par un élément supprimé, qui garde le
+  // sien.
+  if (estDoublon(e)) {
+    return 'Existe déjà : un autre enregistrement porte ce nom ou cet identifiant — un élément supprimé garde le sien. Choisissez un autre nom.'
   }
   return e.message || 'Une erreur est survenue.'
 }
