@@ -5,6 +5,7 @@ import VisibiliteJalon from './VisibiliteJalon'
 import { STATUTS_JALON, libelleStatutJalon, jalonEnRetard, supprimerJalon } from './jalons'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
+import FicheJalon from './FicheJalon'
 
 /**
  * Préparation — l'avant-événement.
@@ -41,6 +42,10 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
   const [membres, setMembres] = useState([])
   const [equipes, setEquipes] = useState([])
   const [compositions, setCompositions] = useState([])
+  // (129) Les dépendances et la ligne de gantt() de chaque jalon (marge,
+  // chemin critique), pour la fiche sous chaque ligne.
+  const [liens, setLiens] = useState([])
+  const [gantt, setGantt] = useState({})
   const [ouvert, setOuvert] = useState(null)
   const [creerGroupe, setCreerGroupe] = useState(false)
 
@@ -48,7 +53,7 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
   const peutEquipes = toutPouvoir || peut?.('equipes', 'creer')
 
   async function charger() {
-    const [g, a, mb, eq] = await Promise.all([
+    const [g, a, mb, eq, dp, gt] = await Promise.all([
       supabase
         .from('groupes_travail')
         .select('*, pilote:pilote_membre_id(nom_affiche)')
@@ -72,13 +77,17 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
         .from('equipes')
         .select('id, code, nom, groupe_travail_id')
         .eq('evenement_id', evenement.id)
-        .is('deleted_at', null)
+        .is('deleted_at', null),
+      supabase.from('jalon_dependances').select('*').eq('evenement_id', evenement.id),
+      supabase.rpc('gantt', { p_evenement: evenement.id })
     ])
     if (g.error) setMessage({ type: 'erreur', texte: texteErreur(g.error) })
     else setGroupes(g.data ?? [])
     setLignes(a.data ?? [])
     setMembres(mb.data ?? [])
     setEquipes(eq.data ?? [])
+    setLiens(dp.data ?? [])
+    setGantt(Object.fromEntries((Array.isArray(gt.data) ? gt.data : []).map((x) => [x.id, x])))
 
     // Composition des groupes de travail. Requête séparée : elle a
     // besoin des identifiants de groupes que la précédente vient de
@@ -186,7 +195,7 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
 
       {/* ---- Jalons de l'événement ---- */}
       <div className="pave-titre">Jalons de l'événement ({jalons.length})</div>
-      <Lignes
+      <Lignes toutes={lignes} liens={liens} gantt={gantt}
         nature="jalon"
         evenement={evenement}
         groupe={null}
@@ -309,7 +318,7 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
             </div>
 
             {ouvert === g.id && (
-              <Lignes
+              <Lignes toutes={lignes} liens={liens} gantt={gantt}
                 nature="action"
                 evenement={evenement}
                 groupe={g}
@@ -348,7 +357,7 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
  * sens — un jalon peut devenir l'action d'un groupe, une action peut
  * changer de groupe ou en sortir et redevenir un jalon.
  */
-function Lignes({ nature, evenement, groupe, lignes, membres, peutGerer, toutPouvoir, groupes, setMessage, onFait }) {
+function Lignes({ nature, evenement, groupe, lignes, toutes = lignes, liens = [], gantt = {}, membres, peutGerer, toutPouvoir, groupes, setMessage, onFait }) {
   const [ouvrir, setOuvrir] = useState(false)
   const [f, setF] = useState({ code: '', libelle: '', echeance: '', responsable_membre_id: '', critique: false })
 
@@ -438,6 +447,21 @@ function Lignes({ nature, evenement, groupe, lignes, membres, peutGerer, toutPou
                 peutGerer={peutGerer}
                 setMessage={setMessage}
               />
+
+              {/* (129) Début, avancement, « doit attendre », marge : la
+                  même fiche que le Gantt. En lecture, elle montre. */}
+              {(a.echeance || peutGerer) && (
+                <FicheJalon
+                  jalon={a}
+                  info={gantt[a.id]}
+                  lignes={toutes}
+                  liens={liens}
+                  evenement={evenement}
+                  peutModifier={peutGerer}
+                  onFait={onFait}
+                  setMessage={setMessage}
+                />
+              )}
 
               {peutGerer && (
                 <div className="ligne-boutons" style={{ marginTop: 6 }}>

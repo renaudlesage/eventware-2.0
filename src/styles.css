@@ -3120,3 +3120,71 @@ body.carte-plein-corps { overflow: hidden; }
 .impl-sommet.actif { background: #10151b; border-color: #fff; }
 .impl-milieu { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.7); border: 1.5px solid #10151b; cursor: copy; }
 .impl-sommets { display: flex; flex-direction: column; gap: 6px; }
+
+/* ------------------------------------------------------------------ */
+/* Gantt de l'avant / après-événement (129). Couleurs = états.         */
+.gantt { display: flex; flex-direction: column; gap: 8px; }
+.gantt-outils { align-items: center; }
+.gantt-cadre { position: relative; overflow: auto; border: 1px solid var(--trait); background: var(--surface); max-height: 72vh; display: flex; align-items: flex-start; }
+.gantt-colonne { position: sticky; left: 0; z-index: 2; flex: 0 0 auto; background: var(--surface); box-shadow: 2px 0 4px rgba(16, 21, 27, 0.08); }
+.gantt-svg { display: block; flex: 0 0 auto; font-size: 12px; user-select: none; }
+.gantt-fond { fill: var(--surface); }
+.gantt-groupe { fill: var(--surface-2); }
+.gantt-groupe-nom { fill: var(--encre); font-size: 12px; font-weight: 700; }
+.gantt-separateur { stroke: var(--trait); stroke-width: 1; opacity: 0.6; }
+.gantt-grille { stroke: var(--trait); stroke-width: 1; opacity: 0.5; }
+.gantt-grille.semaine { opacity: 1; }
+.gantt-axe-jour { fill: var(--sourdine); font-size: 10px; font-family: var(--mono); }
+.gantt-axe-mois { fill: var(--encre); font-size: 11px; font-weight: 600; }
+.gantt-bande { opacity: 0.12; }
+.gantt-bande.montage { fill: var(--dom-bronze); }
+.gantt-bande.exploitation { fill: var(--dom-azur); }
+.gantt-bande.demontage { fill: var(--dom-ardoise); }
+.gantt-bande-libelle { fill: var(--sourdine); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+.gantt-j { stroke: var(--encre); stroke-width: 2; }
+.gantt-j-libelle { fill: var(--encre); font-size: 11px; font-weight: 700; font-family: var(--mono); }
+.gantt-aujourdhui { stroke: var(--etat-info); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.gantt-libelle { fill: var(--encre); font-size: 12px; }
+.gantt-responsable { fill: var(--sourdine); font-size: 10px; font-family: var(--mono); }
+.gantt-barre { fill: var(--sourdine); opacity: 0.55; stroke: var(--surface); stroke-width: 1; }
+.gantt-avancement { fill: var(--sourdine); opacity: 0.9; }
+.gantt-losange { fill: var(--sourdine); stroke: var(--surface); stroke-width: 1; }
+.gantt-jalon.statut-en_cours .gantt-barre, .gantt-jalon.statut-en_cours .gantt-losange { fill: var(--etat-info); }
+.gantt-jalon.statut-en_cours .gantt-avancement { fill: var(--etat-info); }
+.gantt-jalon.statut-fait .gantt-barre, .gantt-jalon.statut-fait .gantt-losange, .gantt-jalon.statut-fait .gantt-avancement { fill: var(--etat-ok); }
+.gantt-jalon.statut-rate .gantt-barre, .gantt-jalon.statut-rate .gantt-losange { fill: var(--etat-chaud); }
+.gantt-jalon.en-retard .gantt-barre, .gantt-jalon.en-retard .gantt-losange, .gantt-jalon.en-retard .gantt-avancement { fill: var(--etat-chaud); }
+.gantt-jalon.critique .gantt-barre, .gantt-jalon.critique .gantt-losange { stroke: var(--encre); stroke-width: 2; }
+.gantt-jalon.selectionne .gantt-barre, .gantt-jalon.selectionne .gantt-losange { stroke: var(--etat-info); stroke-width: 2.5; opacity: 1; }
+.gantt-jalon.chemin .gantt-libelle { font-weight: 600; }
+.gantt-chemin { fill: var(--dom-bronze); }
+.gantt-poignee { fill: var(--encre); opacity: 0; cursor: ew-resize; }
+.gantt-jalon:hover .gantt-poignee, .gantt-jalon.selectionne .gantt-poignee { opacity: 0.35; }
+.gantt-lien path { stroke: var(--sourdine); stroke-width: 1.5; }
+.gantt-lien polygon { fill: var(--sourdine); }
+.gantt-lien.viole path { stroke: var(--etat-chaud); stroke-width: 2; }
+.gantt-lien.viole polygon { fill: var(--etat-chaud); }
+.gantt-lien.actif path { stroke: var(--etat-info); stroke-width: 2.5; }
+.gantt-bulle { position: absolute; z-index: 5; pointer-events: none; background: var(--surface); border: 1px solid var(--trait-fort); box-shadow: var(--ombre-flottant); padding: 6px 9px; font-size: 12px; max-width: 320px; line-height: 1.4; }
+.gantt-legende { margin-top: 0; }
+.puce-gantt-a-venir { background: var(--sourdine); border-color: var(--sourdine); opacity: 0.6; }
+.puce-gantt-en-cours { background: var(--etat-info); border-color: var(--etat-info); }
+.trait-gantt-chemin { display: inline-block; width: 14px; height: 0; border-top: 3px solid var(--dom-bronze); flex: 0 0 auto; }
+.trait-gantt-viole { display: inline-block; width: 14px; height: 0; border-top: 2px solid var(--etat-chaud); flex: 0 0 auto; }
+.gantt-liste .carte { margin-bottom: 6px; }
+
+/* La fiche d'un jalon (129) : dans le Gantt et sous chaque ligne de Préparation. */
+.fiche-jalon { border: 1px solid var(--trait); background: var(--surface-2); padding: 8px 10px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.fiche-jalon-tete { display: flex; align-items: center; gap: 8px; }
+.fiche-jalon-tete button { margin-left: auto; }
+.fiche-jalon-champs { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: flex-end; }
+.fiche-jalon-champs label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--sourdine); text-transform: uppercase; letter-spacing: 0.04em; }
+.fiche-jalon-champs input, .fiche-jalon-champs select { margin: 0; width: auto; font-size: 13px; text-transform: none; letter-spacing: normal; }
+.fiche-jalon-avancement { display: flex; align-items: center; gap: 6px; }
+.fiche-jalon-avancement input[type="range"] { width: 120px; }
+.fiche-jalon-liens { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.fiche-jalon-lien { display: inline-flex; align-items: center; gap: 3px; border: 1px solid var(--trait); border-radius: 4px; padding: 1px 6px; background: var(--surface); }
+.fiche-jalon-decalage { width: 48px !important; margin: 0 !important; padding: 1px 4px; font-size: 12px; }
+.fiche-jalon-ajout { display: inline-flex; align-items: center; gap: 4px; }
+.fiche-jalon-ajout select { margin: 0; width: auto; max-width: 260px; }
+@media (max-width: 700px) { .fiche-jalon-champs label { flex: 1 1 45%; } }

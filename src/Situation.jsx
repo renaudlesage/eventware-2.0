@@ -69,6 +69,15 @@ function useLarge() {
 export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
   const large = useLarge()
   const [s, setS] = useState(null)
+  // (129) Les jalons en retard qui pèsent sur le jour J, lus dans gantt().
+  const [critiquesEnRetard, setCritiquesEnRetard] = useState(null)
+  useEffect(() => {
+    let vivant = true
+    supabase.rpc('gantt', { p_evenement: evenement.id }).then(({ data }) => {
+      if (vivant) setCritiquesEnRetard(Array.isArray(data) ? data.filter((j) => j.en_retard && j.sur_chemin_critique).length : null)
+    })
+    return () => { vivant = false }
+  }, [evenement.id])
   const [signalementsRecents, setSignalementsRecents] = useState([])
   const [equipes, setEquipes] = useState([])
   // (123) Le fond pour dire où : la trace et les lieux, chargés une fois.
@@ -475,6 +484,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
             onAller={onAller}
             compteurs={[
               { libelle: 'En retard', valeur: jalonsEnRetard || null, etat: 'urgent' },
+              { libelle: 'dont chemin critique', valeur: critiquesEnRetard || null, etat: 'urgent' },
               { libelle: 'À venir', valeur: (s.jalons ?? []).length, etat: 'attente' }
             ]}
           >
