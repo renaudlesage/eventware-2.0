@@ -10,6 +10,7 @@ import DossierSecurite from './DossierSecurite'
 import MonCompte from './MonCompte'
 import LogoEvenement from './LogoEvenement'
 import Point0 from './Point0'
+import { conditionsGenerales, enregistrerConditionsGenerales } from './DemandesPrix'
 import Diffusion from './Diffusion'
 import VitrineAdmin from './VitrineAdmin'
 import ViderEvenement from './ViderEvenement'
@@ -206,6 +207,10 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
 
           {(toutPouvoir || peut?.('rh', 'modifier')) && (
             <RecalerPlanning evenement={evenement} setMessage={setMessage} />
+          )}
+
+          {(toutPouvoir || peut?.('logistique', 'modifier')) && evenement.organisation_id && (
+            <ConditionsGenerales organisation={evenement.organisation_id} setMessage={setMessage} />
           )}
 
           {toutPouvoir && (
@@ -586,5 +591,26 @@ function Compteurs({ evenementId, cle }) {
         </span>
       ))}
     </div>
+  )
+}
+
+/**
+ * (131) Les conditions générales imprimées au bas d'une demande de
+ * prix, saisies une fois pour l'organisation. Rangées dans le stockage
+ * local du navigateur, comme le rail et le thème : la base n'a pas
+ * encore de place pour un texte libre d'organisation (à faire quand
+ * les réglages d'organisation existeront).
+ */
+function ConditionsGenerales({ organisation, setMessage }) {
+  const [texte, setTexte] = useState(() => conditionsGenerales(organisation))
+  return (
+    <section className="bloc">
+      <h2>Demandes de prix — conditions générales</h2>
+      <p className="aide">Imprimées au bas de chaque demande de prix (Logistique › Demandes de prix › Imprimer). Propres à ce navigateur.</p>
+      <textarea rows={4} value={texte} onChange={(e) => setTexte(e.target.value)} placeholder="Paiement à 30 jours fin de mois ; matériel livré et repris par le fournisseur ; …" />
+      <div className="ligne-boutons">
+        <button className="discret" onClick={() => { enregistrerConditionsGenerales(organisation, texte); setMessage({ type: 'info', texte: 'Conditions générales enregistrées sur ce navigateur.' }) }}>Enregistrer</button>
+      </div>
+    </section>
   )
 }

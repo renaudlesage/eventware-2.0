@@ -87,3 +87,67 @@ export const NIVEAUX_ALERTE = [
   ['urgence', 'Urgence'],
   ['evacuation', 'Évacuation']
 ]
+
+/*
+ * (130) Catégories de fournisseurs : [code, libellé, exemples]. Codes
+ * stables (ils vivent dans `fournisseurs.categories` et
+ * `demandes_prix.categorie`), libellés modifiables. Les références
+ * réglementaires (`referentiels` / `referentiel_items`) ne sont pas
+ * faites pour une liste de catégories : celle-ci est un référentiel
+ * produit, comme CATEGORIES_PLAN.
+ */
+export const CATEGORIES_FOURNISSEUR = [
+  ['barrierage', 'Barriérage', 'Heras, Nadar, crash'],
+  ['energie', 'Énergie', 'groupes, coffrets, câblage'],
+  ['sanitaires', 'Sanitaires', ''],
+  ['tentes', 'Tentes', 'chapiteaux, tonnelles, podiums'],
+  ['sono_lumiere', 'Son et lumière', ''],
+  ['gardiennage', 'Gardiennage', 'sécurité privée agréée'],
+  ['secours', 'Secours', 'Croix-Rouge, ambulances privées, postes médicaux'],
+  ['restauration', 'Restauration', 'traiteur, foodtrucks, bar'],
+  ['boissons', 'Boissons', ''],
+  ['transport', 'Transport', 'navettes, camions'],
+  ['signaletique', 'Signalétique', 'impression, panneaux, pictos'],
+  ['dechets', 'Déchets', 'conteneurs, nettoyage'],
+  ['eau', 'Eau', 'citernes, raccordements'],
+  ['assurance', 'Assurance', ''],
+  ['autre', 'Autre', '']
+]
+export const libelleCategorieFournisseur = (code) =>
+  CATEGORIES_FOURNISSEUR.find(([c]) => c === code)?.[1] ?? code ?? ''
+
+/* (130) Verdict d'une évaluation post-événement. */
+export const VERDICTS_FOURNISSEUR = [
+  ['a_reprendre', 'À reprendre'],
+  ['sous_reserve', 'Sous réserve'],
+  ['a_eviter', 'À éviter']
+]
+export const libelleVerdict = (code) => VERDICTS_FOURNISSEUR.find(([c]) => c === code)?.[1] ?? code ?? ''
+
+/* (131) Cycle d'une demande de prix (statut dérivé, sauf « close »), d'une
+ * consultation et d'une commande. */
+export const STATUTS_DEMANDE_PRIX = [
+  ['brouillon', 'Brouillon'],
+  ['envoyee', 'Envoyée'],
+  ['comparaison', 'En comparaison'],
+  ['decidee', 'Décidée'],
+  ['close', 'Close']
+]
+export const STATUTS_CONSULTATION = [
+  ['a_envoyer', 'À envoyer'],
+  ['envoyee', 'Envoyée'],
+  ['relancee', 'Relancée'],
+  ['offre_recue', 'Offre reçue'],
+  ['retenue', 'Retenue'],
+  ['ecartee', 'Écartée'],
+  ['sans_reponse', 'Sans réponse']
+]
+export const STATUTS_COMMANDE = [
+  ['commandee', 'Commandée'],
+  ['livree', 'Livrée'],
+  ['facturee', 'Facturée'],
+  ['payee', 'Payée']
+]
+export const libelleDe = (liste, code) => liste.find(([c]) => c === code)?.[1] ?? code ?? ''
+export const TAUX_TVA = [21, 6, 0]
+export const UNITES_LIGNE = ['pièce', 'm', 'jour', 'h', 'forfait']

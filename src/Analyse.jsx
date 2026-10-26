@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import { DOMAINES } from './libelles'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
+import EvaluationsFournisseurs from './EvaluationsFournisseurs'
 
 const NATURES = [
   ['dysfonctionnement', 'Dysfonctionnement'],
@@ -55,7 +56,10 @@ export default function Analyse({ evenement, membre, peut, toutPouvoir }) {
       )}
 
       {onglet === 'synthese' ? (
-        <Synthese evenement={evenement} setMessage={setMessage} />
+        <>
+          <Synthese evenement={evenement} setMessage={setMessage} />
+          <EvaluationsFournisseurs evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} />
+        </>
       ) : (
         <Constats
           evenement={evenement}

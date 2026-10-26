@@ -3188,3 +3188,57 @@ body.carte-plein-corps { overflow: hidden; }
 .fiche-jalon-ajout { display: inline-flex; align-items: center; gap: 4px; }
 .fiche-jalon-ajout select { margin: 0; width: auto; max-width: 260px; }
 @media (max-width: 700px) { .fiche-jalon-champs label { flex: 1 1 45%; } }
+
+/* Annuaire des fournisseurs (130). Préfixe .four-                      */
+.four-carte .titre { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.four-inactif { opacity: 0.6; }
+.four-note { color: var(--etat-veille); font-size: 13px; white-space: nowrap; }
+.four-verdict { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; border: 1px solid var(--trait); }
+.four-verdict.verdict-a_reprendre { color: var(--etat-ok); border-color: var(--etat-ok); }
+.four-verdict.verdict-sous_reserve { color: var(--etat-veille); border-color: var(--etat-veille); }
+.four-verdict.verdict-a_eviter { color: var(--etat-chaud); border-color: var(--etat-chaud); }
+.four-fiche h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--sourdine); margin: 18px 0 6px; }
+.four-fiche-tete, .dp-fiche-tete { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
+.four-grille, .dp-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 12px; }
+.four-grille label, .dp-grille label { display: flex; flex-direction: column; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sourdine); }
+.four-grille input, .four-grille textarea, .four-grille select, .dp-grille input, .dp-grille textarea, .dp-grille select { margin-top: 2px; }
+.four-large, .dp-large { grid-column: 1 / -1; }
+.four-categories { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0 12px; margin: 6px 0; }
+.four-categories label.case-a-cocher { margin: 2px 0; }
+.four-contact { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--trait); font-size: 14px; }
+.four-evaluation { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 4px 0; font-size: 14px; }
+.four-historique tr.four-retenue td { font-weight: 600; }
+.four-etoiles button.lien { font-size: 16px; padding: 0 1px; color: var(--etat-veille); }
+.four-etoiles button.lien:disabled { cursor: default; }
+
+/* Demandes de prix (131). Préfixe .dp-. Une couleur dit un état.        */
+.dp-liste tr.dp-ligne { cursor: pointer; }
+.dp-liste tr.dp-ligne:hover td { background: var(--surface-2); }
+.dp-liste tr.selectionne td { background: var(--surface-2); }
+.dp-pastille { display: inline-block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 7px; border: 1px solid var(--trait); color: var(--sourdine); white-space: nowrap; }
+.dp-pastille.statut-envoyee, .dp-pastille.statut-relancee { color: var(--etat-info); border-color: var(--etat-info); }
+.dp-pastille.statut-comparaison, .dp-pastille.statut-offre_recue { color: var(--etat-veille); border-color: var(--etat-veille); }
+.dp-pastille.statut-decidee, .dp-pastille.statut-retenue { color: var(--etat-ok); border-color: var(--etat-ok); }
+.dp-pastille.statut-close, .dp-pastille.statut-ecartee { color: var(--sourdine); }
+.dp-pastille.statut-sans_reponse { color: var(--etat-chaud); border-color: var(--etat-chaud); }
+.dp-fiche h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--sourdine); margin: 18px 0 6px; }
+.dp-decision { padding: 8px 12px; border-left: 3px solid var(--etat-ok); background: var(--surface-2); font-size: 14px; }
+.dp-lignes input { margin: 0; padding: 4px 6px; }
+.dp-ajout-ligne select, .dp-ajout-consultation select { flex: 1 1 200px; }
+.dp-consultation { border: 1px solid var(--trait); padding: 8px 10px; margin-bottom: 8px; background: var(--surface); }
+.dp-consultation.statut-retenue { border-left: 3px solid var(--etat-ok); }
+.dp-consultation.statut-ecartee { opacity: 0.75; }
+.dp-consultation-tete { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.dp-consultation-corps { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; margin: 4px 0; align-items: center; }
+.dp-consultation-actions { margin-top: 6px; align-items: center; }
+.dp-montant { margin-left: auto; font-weight: 600; }
+.dp a.bouton { display: inline-block; padding: 7px 12px; background: var(--encre); color: var(--on-teinte, #fff); text-decoration: none; font-size: 14px; }
+.dp-offre { margin-top: 8px; padding: 8px; background: var(--surface-2); }
+.dp-offre input { margin: 0; padding: 4px 6px; }
+.dp-comparaison th.dp-retenue { color: var(--etat-ok); }
+.dp-comparaison td.dp-meilleur { color: var(--etat-ok); font-weight: 700; }
+.dp-comparaison tr.dp-total td { font-weight: 600; border-top: 2px solid var(--trait); }
+.dp-retenir { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.dp-retenir input { flex: 1 1 260px; margin: 0; }
+.dp-ecart { font-size: 16px; font-weight: 600; margin-top: 6px; color: var(--encre); text-transform: none; letter-spacing: 0; }
+.four-evaluations { margin-top: 16px; }

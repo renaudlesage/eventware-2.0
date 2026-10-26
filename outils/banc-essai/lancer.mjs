@@ -56,7 +56,7 @@ await esbuild.build({
 fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
 
 const demandes = process.argv.slice(2)
-const ecrans = demandes.length ? demandes : ['securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture']
+const ecrans = demandes.length ? demandes : ['securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture']
 const navigateur = await pw.chromium.launch()
 let echecs = 0
 for (const ecran of ecrans) {
@@ -165,6 +165,86 @@ for (const ecran of ecrans) {
     await los.click()
     await page.waitForTimeout(300)
     if (!(await page.locator('.fiche-jalon').count())) erreurs.push('la fiche ne s’ouvre pas au clic')
+  }
+  // (130) L'annuaire : trois fournisseurs, le filtre par catégorie, la fiche avec ses contacts.
+  if (ecran === 'fournisseurs') {
+    const n = await page.locator('.four-carte').count()
+    if (n !== 3) erreurs.push(`${n} fournisseurs (attendu 3)`)
+    await page.locator('.compteurs select').first().selectOption('energie')
+    await page.waitForTimeout(200)
+    const n2 = await page.locator('.four-carte').count()
+    if (n2 !== 1) erreurs.push(`${n2} fournisseurs en énergie (attendu 1)`)
+    await page.locator('.compteurs select').first().selectOption('')
+    await page.locator('.four-carte[data-nom="Barrières Lemaire"] button', { hasText: 'Ouvrir' }).click()
+    await page.waitForTimeout(400)
+    if (!(await page.locator('.four-fiche').count())) erreurs.push('la fiche ne s’ouvre pas')
+    const contacts = await page.locator('.four-fiche .four-contact').count()
+    if (contacts !== 3) erreurs.push(`${contacts} contacts dans la fiche (attendu 3 : le faux client rend toute la table)`)
+    if (!(await page.getByText('Importer (CSV)').count())) erreurs.push('import CSV absent pour qui gère')
+    await page.evaluate(() => { window.__appels = [] })
+    await page.locator('.four-carte[data-nom="Clôtures Dupont"] button', { hasText: 'Épingler' }).click()
+    await page.waitForTimeout(300)
+    const ep = await page.evaluate(() => (window.__appels ?? []).filter((a) => a.fn === 'epingler_fournisseur'))
+    if (ep.length !== 1 || ep[0].args.p_fournisseur !== 'f2') erreurs.push(`epingler_fournisseur : ${JSON.stringify(ep)}`)
+  }
+  if (ecran === 'fournisseurs-lecture') {
+    if (await page.getByText('Ajouter un fournisseur').count()) erreurs.push('bouton Ajouter visible sans droit de gérer')
+    if (await page.getByText('Importer (CSV)').count()) erreurs.push('import visible sans droit de gérer')
+    if (await page.getByText('Épingler').count()) erreurs.push('Épingler visible pour un lecteur')
+    await page.locator('.four-carte button', { hasText: 'Ouvrir' }).first().click()
+    await page.waitForTimeout(300)
+    if (!(await page.locator('.four-fiche input[disabled]').count())) erreurs.push('la fiche n’est pas en lecture seule')
+    if (await page.locator('.four-fiche button', { hasText: 'Enregistrer' }).count()) erreurs.push('Enregistrer visible en lecture')
+  }
+  // (131) Les demandes de prix : la liste, la fiche, la grille avec la meilleure valeur, Retenir qui exige un motif et appelle retenir_offre une fois, la saisie d'une offre par lignes.
+  if (ecran === 'demandes-prix') {
+    const n = await page.locator('.dp-liste tr.dp-ligne').count()
+    if (n !== 2) erreurs.push(`${n} demandes (attendu 2)`)
+    await page.locator('.dp-liste tr[data-reference="DP-01"]').click()
+    await page.waitForTimeout(500)
+    if (!(await page.locator('.dp-fiche').count())) erreurs.push('la fiche ne s’ouvre pas')
+    const lignes = await page.locator('.dp-lignes tbody tr').count()
+    if (lignes !== 3) erreurs.push(`${lignes} lignes (attendu 3)`)
+    const cons = await page.locator('.dp-consultation').count()
+    if (cons !== 2) erreurs.push(`${cons} consultations (attendu 2)`)
+    const colonnes = await page.locator('.dp-comparaison thead th').count()
+    if (colonnes !== 3) erreurs.push(`${colonnes} en-têtes de grille (attendu 3 : libellé + 2 offres)`)
+    const meilleurs = await page.locator('.dp-comparaison td.dp-meilleur').count()
+    if (meilleurs !== 4) erreurs.push(`${meilleurs} meilleures valeurs (attendu 4 : 3 lignes + total)`)
+    // Retenir : motif obligatoire, un seul appel.
+    await page.evaluate(() => { window.__appels = [] })
+    await page.locator('.dp-comparaison button', { hasText: 'Retenir' }).first().click()
+    await page.waitForTimeout(200)
+    if (!(await page.locator('.dp-retenir').count())) erreurs.push('la demande de motif ne s’ouvre pas')
+    if (!(await page.locator('.dp-retenir button', { hasText: 'Confirmer' }).isDisabled())) erreurs.push('Confirmer actif sans motif')
+    await page.locator('.dp-retenir input').fill('Moins cher, livraison comprise')
+    await page.locator('.dp-retenir button', { hasText: 'Confirmer' }).click()
+    await page.locator('.dp-retenir button', { hasText: 'Confirmer' }).click().catch(() => {})
+    await page.waitForTimeout(400)
+    const ret = await page.evaluate(() => (window.__appels ?? []).filter((a) => a.fn === 'retenir_offre'))
+    if (ret.length !== 1) erreurs.push(`retenir_offre appelé ${ret.length} fois (attendu 1)`)
+    else if (ret[0].args.p_consultation !== 'c1' || ret[0].args.p_motif !== 'Moins cher, livraison comprise') erreurs.push(`retenir_offre : ${JSON.stringify(ret[0].args)}`)
+    // Saisie d'une offre par lignes : le total suit.
+    await page.locator('.dp-consultation[data-fournisseur="Clôtures Dupont"] button', { hasText: 'offre' }).first().click()
+    await page.waitForTimeout(300)
+    if (!(await page.locator('.dp-offre').count())) erreurs.push('la saisie d’offre ne s’ouvre pas')
+    else {
+      const prix = page.locator('.dp-offre tbody tr').first().locator('input[type=number]').first()
+      await prix.fill('4')
+      await page.waitForTimeout(150)
+      const total = await page.locator('.dp-offre [data-total]').textContent().catch(() => null)
+      if (!total || !/40,00/.test(total)) erreurs.push(`total après saisie : ${total} (attendu 40,00 € pour 10 × 4)`)
+    }
+  }
+  if (ecran === 'demandes-prix-lecture') {
+    await page.locator('.dp-liste tr[data-reference="DP-01"]').click()
+    await page.waitForTimeout(500)
+    if (!(await page.locator('.dp-fiche').count())) erreurs.push('la fiche ne s’ouvre pas en lecture')
+    if (await page.locator('.dp-fiche button', { hasText: 'Retenir' }).count()) erreurs.push('Retenir visible en lecture')
+    if (await page.locator('.dp-ajout-ligne').count()) erreurs.push('ajout de ligne visible en lecture')
+    if (await page.locator('.dp-ajout-consultation').count()) erreurs.push('ajout de consultation visible en lecture')
+    if (await page.getByText('Nouvelle demande de prix').count()) erreurs.push('création visible en lecture')
+    if (await page.locator('.dp-fiche button', { hasText: 'Saisir' }).count()) erreurs.push('saisie d’offre visible en lecture')
   }
   if (ecran === 'gantt-lecture') {
     if (await page.locator('.gantt-svg .gantt-poignee').count()) erreurs.push('poignées visibles en lecture seule')

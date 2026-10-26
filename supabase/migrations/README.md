@@ -341,7 +341,38 @@ notify pgrst, 'reload schema';
 
 L'application en dépend : l'onglet « Avant / après » du Planning (ouvert par défaut hors exploitation) appelle `gantt()`, Préparation lit `jalon_dependances`, Réglages › Données appelle `recaler_jalons`.
 
-## Ne jamais rejouer 088 → 129 par `db push` sans les lignes ci-dessus
+### 130 : à appliquer — l'annuaire des fournisseurs, au niveau de l'organisation (briefing du 26/10)
+
+| Fichier | Fait |
+|---|---|
+| `20261027090000_130_fournisseurs.sql` | Première table métier au niveau organisation : `fournisseurs` (nom unique par organisation, insensible à la casse, sur les lignes vivantes ; `categories text[]` = codes de `CATEGORIES_FOURNISSEUR` dans referentielsProduit.js ; `actif`), `fournisseur_contacts` (un principal par fournisseur, déclencheur), `fournisseur_evaluations` (note 1..5, verdict, une par événement, fournisseur de la même organisation) ; `peut_gerer_annuaire(org)` (exploitant, ou `referentiels : modifier` sur un événement vivant de l'organisation) et `mes_droits_annuaire(org)` ; RLS : lecture `appartient_organisation`, écriture `peut_gerer_annuaire`, évaluations `analyse : creer` ; `annuaire(org, categorie)` (contact principal, nombre de contacts, moyenne des notes, dernier verdict ; les compteurs de consultations arrivent avec la 131) ; `epingler_fournisseur(evenement, fournisseur)` (copie dans `contacts`, code `FRN-01`, idempotent sur société + courriel, `origine = humain` faute de valeur « systeme ») ; `supprimer_logiquement` redéfinie en entier (base 100 / 110) avec les tables de l'annuaire, droit lu sur l'organisation ; droits retirés à PUBLIC et `anon` puis accordés à `authenticated` |
+
+Éprouvée en transaction annulée sur Bucolique Ferrières / Rando VTT : 3 fournisseurs, filtre barriérage 2, doublon de nom refusé (23505), bascule du contact principal, épinglage idempotent (un seul contact FRN), note moyenne 4.0 et verdict dans l'annuaire, fournisseur d'une autre organisation refusé à l'évaluation, un membre en lecture seule (rôle temporaire sur Test3) voit les 3 fournisseurs mais ne peut ni écrire (42501) ni épingler (42501), suppression logique d'un contact, `anon` fermé, rien dans `contenu_public`.
+
+### 131 : à appliquer — les demandes de prix, par événement (briefing du 26/10)
+
+| Fichier | Fait |
+|---|---|
+| `20261027100000_131_demandes_prix.sql` | Types `statut_demande_prix`, `statut_consultation`, `statut_commande` ; tables `demandes_prix` (référence `DP-01` par déclencheur copié de `REC-`, statut DÉRIVÉ, `jalon_id`), `demande_prix_lignes`, `consultations` (`evenement_id` dénormalisé, fournisseur de l'organisation de l'événement, `relances jsonb`, `montant_ht` recalculé depuis `offre_lignes` dès qu'il y en a), `offre_lignes`, `commandes` ; déclencheurs : statut de la demande déduit des consultations (une saisie directe est ramenée au statut dérivé, sauf `close`), jalon « Offres attendues — <objet> » créé au premier envoi si date limite, fait quand plus rien n'est attendu ou à la décision, suit la date limite / l'objet / le groupe, annulé si la demande est supprimée, commande livrée ⇒ demande close ; `marquer_envoyee`, `relancer`, `retenir_offre(consultation, motif)` (motif obligatoire, les autres écartées sauf sans réponse, commande ouverte, main courante `notable`) ; lectures `demandes_prix_vue`, `comparaison`, `suivi_demandes` (offres attendues, à relancer, à comparer, livraisons sous 7 jours), `budget_fournisseurs` (pas de colonne « édition précédente » : `evenements` n'a pas de `reconduit_de`), `historique_fournisseur` ; `annuaire` redéfinie avec les vrais compteurs ; `supprimer_logiquement` redéfinie avec les tables de 131 ; `dupliquer_evenement` redéfinie en entier (base 129) : les demandes décidées ou closes reviennent en brouillon avec lignes et consultations à envoyer, date limite décalée, sans montants ; droits retirés à PUBLIC et `anon`, `statut_demande_derive` fermée aussi à `authenticated` |
+
+Partie A (tout sauf `dupliquer_evenement`) éprouvée en transaction annulée, avec la 130 devant elle, scénario du briefing (§ 3.8) : DP-01 en brouillon, consultation hors organisation refusée (23514), deux envois ⇒ statut `envoyee` et jalon « Offres attendues — Barriérage / a_venir / date limite / fournisseur », 2 offres attendues au suivi, relance, offre A par lignes recalculée à 135.00, offre B forfait, statut `comparaison`, jalon fait, grille 2 colonnes et 3 lignes, 1 à comparer, décision sans motif refusée (23514), `retenir_offre(A)` ⇒ B écartée, demande `decidee` avec motif, commande `commandee`, 1 ligne de main courante, 1 livraison au suivi, vue (2 offres, meilleure 135, retenu Lemaire), budget barriérage 135.00 HT / 163.35 TTC, annuaire 1/1, statut forcé à brouillon ramené à `decidee`, commande livrée ⇒ `close`, DP-02 : date limite déplacée ⇒ jalon suit, supprimée ⇒ jalon annulé ; un membre `logistique : lire` voit la vue mais ne crée pas (42501), ne retient pas (42501), ne modifie rien (0 ligne) ; `anon` fermé ; rien dans `contenu_public`.
+
+Partie B (`dupliquer_evenement`) : même raison que pour la 129 (le `delete from role_capacites` hérité de la 047 déclenche la confirmation de l'outil). À rejouer par Ren dans l'éditeur SQL avec `../verifications/131-reconduction.sql` (résultat attendu dans l'en-tête), puis coller le fichier de migration entier.
+
+Pour appliquer les deux depuis l'éditeur SQL : coller chaque fichier entier (`begin;` … `commit;`), dans l'ordre 130 puis 131, puis inscrire les versions :
+
+```sql
+insert into supabase_migrations.schema_migrations (version, name, statements)
+values
+  ('20261027090000', '130_fournisseurs',  array['-- appliquée manuellement via l''éditeur SQL']),
+  ('20261027100000', '131_demandes_prix', array['-- appliquée manuellement via l''éditeur SQL'])
+on conflict (version) do nothing;
+notify pgrst, 'reload schema';
+```
+
+L'application en dépend : Logistique › Fournisseurs appelle `annuaire()` et `mes_droits_annuaire()`, Logistique › Demandes de prix appelle `demandes_prix_vue()` et `comparaison()`, le pavé « Demandes de prix » de Mon poste appelle `suivi_demandes()`, Analyse lit `consultations` et `fournisseur_evaluations`.
+
+## Ne jamais rejouer 088 → 131 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

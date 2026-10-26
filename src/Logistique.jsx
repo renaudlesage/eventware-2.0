@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Missions } from './Missions'
 import { Journal } from './Journal'
 import Radio from './Radio'
@@ -6,6 +6,8 @@ import Stocks from './Stocks'
 import Attributions from './Attributions'
 import Jauge from './Jauge'
 import Transports from './Transports'
+import Fournisseurs from './Fournisseurs'
+import DemandesPrix from './DemandesPrix'
 
 const ONGLETS = [
   ['interventions', 'Demandes'],
@@ -14,12 +16,21 @@ const ONGLETS = [
   ['radio', 'Matrice radio'],
   ['jauge', 'Jauge'],
   ['transports', 'Transports'],
+  // (130, 131) L'annuaire de l'organisation et les demandes de prix de l'événement.
+  ['fournisseurs', 'Fournisseurs'],
+  ['demandes_prix', 'Demandes de prix'],
   ['journal', 'Main courante']
 ]
 
-export default function Logistique({ evenement, membre, peut, toutPouvoir }) {
+export default function Logistique({ evenement, membre, peut, toutPouvoir, ongletCible }) {
   const [onglet, setOnglet] = useState('interventions')
   const [message, setMessage] = useState(null)
+
+  // Navigation ciblée depuis un autre écran (le pavé « Demandes de
+  // prix » de Mon poste) : on ouvre directement le bon onglet.
+  useEffect(() => {
+    if (ongletCible && ONGLETS.some(([k]) => k === ongletCible)) setOnglet(ongletCible)
+  }, [ongletCible])
 
   return (
     <div className="bloc securite dom-bronze">
@@ -91,6 +102,12 @@ export default function Logistique({ evenement, membre, peut, toutPouvoir }) {
           toutPouvoir={toutPouvoir}
           setMessage={setMessage}
         />
+      )}
+      {onglet === 'fournisseurs' && (
+        <Fournisseurs evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} />
+      )}
+      {onglet === 'demandes_prix' && (
+        <DemandesPrix evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} />
       )}
       {onglet === 'journal' && (
         <Journal
