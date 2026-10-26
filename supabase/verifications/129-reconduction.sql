@@ -9,8 +9,10 @@
 -- par `raise exception 'DRY RUN B OK …'` : rien n'est écrit, le message
 -- d'erreur porte le résultat.
 --
--- Attendu : A 29/10/27→03/11/27 off -12/-7 debut, B 03/11→07/11 off -7/-3,
---           C 14/11→15/11 off 2/3 fin ; dépendances recopiées : 2.
+-- Attendu (J source 11/11/26, fin 11/11/26 ; cible 10/11/27 → 12/11/27) :
+--   A 30/10/27→03/11/27 off -11/-7 debut, B 03/11→07/11 off -7/-3 debut,
+--   C 13/11→14/11 off 1/2 fin, avancement 0 ; dépendances recopiées : 2.
+-- Rejoué par Ren le 26/10 dans l'éditeur SQL : conforme.
 --
 -- Pourquoi ici et pas via l'outil Supabase de Claude : le corps de
 -- `dupliquer_evenement` (hérité de la 047) contient un `delete from
@@ -241,5 +243,5 @@ grant execute on function public.dupliquer_evenement(uuid, text, text, date, dat
   select string_agg(j.code || ' ' || to_char(j.debut at time zone 'Europe/Brussels', 'DD/MM/YY') || '→' || to_char(j.echeance at time zone 'Europe/Brussels', 'DD/MM/YY') || ' off ' || coalesce(j.offset_debut_j::text,'-') || '/' || coalesce(j.offset_fin_j::text,'-') || ' ' || j.ancre || ' av ' || j.avancement, ' | ' order by j.code)
     into reconduit from jalons j where j.evenement_id = nouveau and j.code like 'T129%';
   select count(*) into n_dep_new from jalon_dependances where evenement_id = nouveau;
-  raise exception E'DRY RUN B OK\nreconduction (attendu A 29/10/27→03/11/27 off -12/-7 debut, B 03/11→07/11 off -7/-3, C 14/11→15/11 off 2/3 fin) : %\ndépendances recopiées (attendu 2) : %', reconduit, n_dep_new;
+  raise exception E'DRY RUN B OK\nreconduction (attendu A 30/10/27→03/11/27 off -11/-7 debut, B 03/11→07/11 off -7/-3 debut, C 13/11→14/11 off 1/2 fin, av 0) : %\ndépendances recopiées (attendu 2) : %', reconduit, n_dep_new;
 end $m$;
