@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from './supabaseClient'
-import { texteErreur } from './erreurs'
+import { texteErreur, estDoublon } from './erreurs'
+import { slugDe } from './slug'
 import { modifierOuRefuser } from './ecriture'
 import { GEOMETRIES } from './referentielsProduit'
 
@@ -74,8 +75,14 @@ export function CreationEvenement({ onFait, setMessage }) {
 
   async function creer() {
     setOccupe(true)
-    const { error } = await supabase.from('evenements').insert({ nom, slug, geometrie })
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const { error } = await supabase.from('evenements').insert({ nom: nom.trim(), slug: slug.trim(), geometrie })
+    if (error)
+      setMessage({
+        type: 'erreur',
+        texte: estDoublon(error)
+          ? `L'identifiant « ${slug.trim()} » est déjà pris, par un événement existant ou supprimé : change-le.`
+          : texteErreur(error)
+      })
     else {
       setNom('')
       setSlug('')
@@ -91,14 +98,7 @@ export function CreationEvenement({ onFait, setMessage }) {
           value={nom}
           onChange={(e) => {
             setNom(e.target.value)
-            setSlug(
-              e.target.value
-                .toLowerCase()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-|-$/g, '')
-            )
+            setSlug(slugDe(e.target.value))
           }}
           placeholder="Nom de l'événement"
         />
