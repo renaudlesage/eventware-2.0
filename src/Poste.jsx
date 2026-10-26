@@ -545,7 +545,7 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
         />
       )
     case 'planning':
-      return <Planning evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} onAller={aller} />
+      return <Planning evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} onAller={onAller} />
     case 'securite':
       return (
         <Securite
