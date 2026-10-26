@@ -289,7 +289,8 @@ begin
   if not a_permission(p_evenement, 'rh', 'lire') and not a_tout_pouvoir(p_evenement) then
     raise exception 'Lecture du planning non autorisée' using errcode = '42501';
   end if;
-  select * into ev from evenements where id = p_evenement;
+  -- `e.id`, pas `id` : la colonne de sortie du même nom rend le mot ambigu.
+  select * into ev from evenements e where e.id = p_evenement;
   v_tout := a_tout_pouvoir(p_evenement);
   return query
   select x.* from (
@@ -371,7 +372,7 @@ returns table (deplaces integer, apres_j integer)
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   j jalons%rowtype; ev evenements%rowtype; s jalons%rowtype; d record;
-  v_cur uuid; v_besoin timestamptz; v_delta interval; v_appel uuid;
+  v_cur uuid; v_jours int; v_appel uuid;
   v_deplaces int := 0; v_apres int := 0;
 begin
   select * into j from jalons where id = p_jalon and deleted_at is null;
@@ -387,8 +388,13 @@ begin
   if ev.date_debut is not null and (p_fin at time zone 'Europe/Brussels')::date > ev.date_debut then v_apres := 1; end if;
 
   if p_entrainer then
+    -- Parcours en largeur des successeurs. La contrainte se lit en
+    -- jours (comme le chemin critique) : un successeur ne commence pas
+    -- un jour avant « fin du prédécesseur + battement » ; on le pousse
+    -- de jours entiers, ses heures restent les siennes. Un jalon poussé
+    -- deux fois (par deux prédécesseurs) compte une fois.
     if to_regclass('pg_temp.file_129') is null then
-      create temp table file_129 (appel uuid, id uuid, traite boolean not null default false, primary key (appel, id)) on commit drop;
+      create temp table file_129 (appel uuid, id uuid, traite boolean not null default false, bouge boolean not null default false, primary key (appel, id)) on commit drop;
     end if;
     v_appel := gen_random_uuid();
     insert into file_129 (appel, id) values (v_appel, p_jalon);
@@ -396,23 +402,23 @@ begin
       select f.id into v_cur from file_129 f where f.appel = v_appel and not f.traite limit 1;
       exit when v_cur is null;
       update file_129 set traite = true where appel = v_appel and id = v_cur;
-      for d in select dp.jalon_id, dp.decalage_j, p.echeance as fin_pred
+      for d in select dp.jalon_id, dp.decalage_j, (p.echeance at time zone 'Europe/Brussels')::date as fin_pred
                  from jalon_dependances dp join jalons p on p.id = dp.precede_id
                 where dp.precede_id = v_cur loop
         select * into s from jalons where id = d.jalon_id and deleted_at is null and statut in ('a_venir','en_cours');
         if s.id is null or s.echeance is null then continue; end if;
-        v_besoin := d.fin_pred + make_interval(days => d.decalage_j);
-        if coalesce(s.debut, s.echeance) < v_besoin then
-          v_delta := v_besoin - coalesce(s.debut, s.echeance);
-          update jalons set debut = debut + v_delta, echeance = echeance + v_delta where id = s.id;
-          v_deplaces := v_deplaces + 1;
-          if ev.date_debut is not null and ((s.echeance + v_delta) at time zone 'Europe/Brussels')::date > ev.date_debut then
-            v_apres := v_apres + 1;
-          end if;
-          insert into file_129 (appel, id) values (v_appel, s.id) on conflict (appel, id) do update set traite = false;
+        v_jours := (d.fin_pred + d.decalage_j) - (coalesce(s.debut, s.echeance) at time zone 'Europe/Brussels')::date;
+        if v_jours > 0 then
+          update jalons set debut = debut + make_interval(days => v_jours), echeance = echeance + make_interval(days => v_jours) where id = s.id;
+          insert into file_129 (appel, id, bouge) values (v_appel, s.id, true)
+            on conflict (appel, id) do update set traite = false, bouge = true;
         end if;
       end loop;
     end loop;
+    select count(*) into v_deplaces from file_129 f where f.appel = v_appel and f.bouge;
+    select count(*) into v_apres from file_129 f join jalons jj on jj.id = f.id
+     where f.appel = v_appel and (f.bouge or f.id = p_jalon)
+       and ev.date_debut is not null and (jj.echeance at time zone 'Europe/Brussels')::date > ev.date_debut;
   end if;
   return query select v_deplaces, v_apres;
 end $$;
