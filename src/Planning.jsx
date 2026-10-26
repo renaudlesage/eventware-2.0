@@ -6,6 +6,7 @@ import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import VisibiliteJalon from './VisibiliteJalon'
 import { STATUTS_JALON, libelleStatutJalon, jalonEnRetard, supprimerJalon } from './jalons'
+import Gantt from './Gantt'
 
 /**
  * Planning.
@@ -45,13 +46,15 @@ const ICONES = {
   transport: Car
 }
 
-export default function Planning({ evenement, peut, toutPouvoir }) {
+export default function Planning({ evenement, peut, toutPouvoir, onAller }) {
   const [programme, setProgramme] = useState([])
   const [jalons, setJalons] = useState([])
   const [transports, setTransports] = useState([])
   const [now, setNow] = useState(new Date())
   const [jourActif, setJourActif] = useState(0)
-  const [onglet, setOnglet] = useState('frise')
+  // (129) Avant le jour J, c'est le Gantt qu'on vient voir ; le jour J,
+  // la frise. L'onglet par défaut suit la phase.
+  const [onglet, setOnglet] = useState(() => (evenement.phase === 'exploitation' ? 'frise' : 'gantt'))
   const [ouvrir, setOuvrir] = useState(false)
   const [message, setMessage] = useState(null)
 
@@ -163,7 +166,8 @@ export default function Planning({ evenement, peut, toutPouvoir }) {
 
       <div className="onglets">
         {[
-          ['frise', 'Frise'],
+          ['gantt', 'Avant / après'],
+          ['frise', 'Jour J'],
           ['jalons', 'Jalons']
         ].map(([k, l]) => (
           <button
@@ -180,6 +184,10 @@ export default function Planning({ evenement, peut, toutPouvoir }) {
         <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
           {message.texte}
         </div>
+      )}
+
+      {onglet === 'gantt' && (
+        <Gantt evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} onAller={onAller} />
       )}
 
       {onglet === 'jalons' && (

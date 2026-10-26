@@ -204,6 +204,10 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
 
           <ImportKml evenement={evenement} setMessage={setMessage} />
 
+          {(toutPouvoir || peut?.('rh', 'modifier')) && (
+            <RecalerPlanning evenement={evenement} setMessage={setMessage} />
+          )}
+
           {toutPouvoir && (
             <ViderEvenement
               evenement={evenement}
@@ -392,6 +396,65 @@ function DatesEvenement({ evenement, onFait, setMessage }) {
       <button disabled={occupe || incoherent} onClick={enregistrer}>
         {enregistre ? 'Enregistré ✓' : 'Enregistrer les dates'}
       </button>
+    </section>
+  )
+}
+
+/**
+ * (129) Recaler le planning sur les dates de l'événement : chaque jalon
+ * garde sa position en jours par rapport à son ancre (J, fin, montage,
+ * démontage) ; quand les dates changent, on réécrit ses dates depuis
+ * ces offsets. Jamais automatique : on compte d'abord, on applique
+ * sur confirmation.
+ */
+function RecalerPlanning({ evenement, setMessage }) {
+  const [simulation, setSimulation] = useState(null)
+  const [occupe, setOccupe] = useState(false)
+
+  async function simuler() {
+    setOccupe(true)
+    const { data, error } = await supabase.rpc('recaler_jalons', { p_evenement: evenement.id, p_simuler: true })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    else setSimulation(Array.isArray(data) ? data[0] : data)
+    setOccupe(false)
+  }
+  async function appliquer() {
+    setOccupe(true)
+    const { data, error } = await supabase.rpc('recaler_jalons', { p_evenement: evenement.id, p_simuler: false })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    else {
+      const r = Array.isArray(data) ? data[0] : data
+      setMessage({ type: 'succes', texte: `${r?.touches ?? 0} jalon(s) recalé(s) sur les dates de l'événement.` })
+      setSimulation(null)
+    }
+    setOccupe(false)
+  }
+
+  return (
+    <section className="bloc">
+      <h2>Recaler le planning sur les dates de l'événement</h2>
+      <p className="aide" style={{ marginTop: 0 }}>
+        Chaque jalon connaît sa place en jours par rapport au jour J (ou à la fin, au montage, au démontage).
+        Si les dates de l'événement ont changé, ceci replace les jalons à venir ou en cours ; les faits et annulés ne bougent pas.
+      </p>
+      {simulation ? (
+        simulation.touches > 0 ? (
+          <>
+            <p>
+              <strong>{simulation.touches}</strong> jalon(s) seraient recalés
+              {simulation.exemples?.length ? ` : ${simulation.exemples.join(', ')}${simulation.touches > simulation.exemples.length ? '…' : ''}` : ''}.
+            </p>
+            <div className="ligne-boutons">
+              <button disabled={occupe} onClick={appliquer}>Recaler {simulation.touches} jalon(s)</button>
+              <button className="discret" onClick={() => setSimulation(null)}>Annuler</button>
+            </div>
+          </>
+        ) : (
+          <p className="aide">Rien à recaler : les jalons sont déjà aux dates de l'événement.</p>
+        )
+      ) : (
+        <button className="discret" disabled={occupe} onClick={simuler}>Compter les jalons à recaler</button>
+      )}
     </section>
   )
 }

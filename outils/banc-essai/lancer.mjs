@@ -56,7 +56,7 @@ await esbuild.build({
 fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
 
 const demandes = process.argv.slice(2)
-const ecrans = demandes.length ? demandes : ['securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation', 'plan']
+const ecrans = demandes.length ? demandes : ['securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture']
 const navigateur = await pw.chromium.launch()
 let echecs = 0
 for (const ecran of ecrans) {
@@ -121,6 +121,55 @@ for (const ecran of ecrans) {
       if ((await page.locator('.leaflet-container .impl-picto').count()) >= avant && avant) erreurs.push('décocher Sécurité ne retire pas ses pictogrammes')
       await securite.click()
     }
+  }
+  // (129) Le Gantt : barres, losanges, une flèche violée, le trait J entre
+  // un jalon d'avant et un jalon d'après ; glisser une barre appelle
+  // deplacer_jalon une seule fois, avec des dates décalées d'autant.
+  if (ecran === 'gantt') {
+    const barres = await page.locator('.gantt-svg .gantt-barre').count()
+    const losanges = await page.locator('.gantt-svg .gantt-losange').count()
+    if (barres !== 5) erreurs.push(`${barres} barres (attendu 5)`)
+    if (losanges !== 3) erreurs.push(`${losanges} losanges (attendu 3)`)
+    if (!(await page.locator('.gantt-svg .gantt-lien.viole').count())) erreurs.push('aucune flèche de dépendance violée')
+    const pos = await page.evaluate(() => {
+      const j = document.querySelector('.gantt-svg .gantt-j')
+      const barres = [...document.querySelectorAll('.gantt-svg:not(.gantt-svg-colonne) .gantt-jalon')].map((g) => ({ code: g.dataset.code, r: g.querySelector('.gantt-barre') ?? g.querySelector('.gantt-losange') }))
+      const x = (el) => el.tagName === 'rect' ? Number(el.getAttribute('x')) + Number(el.getAttribute('width')) : Number(el.getAttribute('points').split(' ')[0].split(',')[0])
+      const avant = barres.find((b) => b.code?.startsWith('GJ-03'))
+      const apres = barres.find((b) => b.code?.startsWith('GJ-07'))
+      return { j: j ? Number(j.getAttribute('x1')) : null, avant: avant ? x(avant.r) : null, apres: apres ? Number(apres.r.getAttribute('x')) : null }
+    })
+    if (pos.j == null || !(pos.avant < pos.j && pos.j < pos.apres)) erreurs.push(`trait J mal placé : ${JSON.stringify(pos)}`)
+    if (!(await page.locator('.gantt-outils input[type=checkbox]').first().count())) erreurs.push('interrupteur Entraîner absent')
+    // Glisser GJ-03 de deux jours (18 px par jour).
+    const barre = page.locator('.gantt-svg .gantt-jalon.statut-en_cours .gantt-barre').first()
+    const b = await barre.boundingBox()
+    await page.evaluate(() => { window.__appels = [] })
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(b.x + b.width / 2 + 20, b.y + b.height / 2, { steps: 4 })
+    await page.mouse.move(b.x + b.width / 2 + 36, b.y + b.height / 2, { steps: 4 })
+    await page.mouse.up()
+    await page.waitForTimeout(500)
+    const appels = await page.evaluate(() => (window.__appels ?? []).filter((a) => a.fn === 'deplacer_jalon'))
+    if (appels.length !== 1) erreurs.push(`deplacer_jalon appelé ${appels.length} fois (attendu 1)`)
+    else {
+      const a = appels[0].args
+      const dFin = (new Date(a.p_fin) - new Date('2026-10-15T17:00:00+01:00')) / 86400000
+      const dDebut = (new Date(a.p_debut) - new Date('2026-10-01T09:00:00+01:00')) / 86400000
+      if (dFin !== 2 || dDebut !== 2) erreurs.push(`décalage ${dDebut} / ${dFin} jours (attendu 2 / 2)`)
+      if (a.p_entrainer !== true) erreurs.push('p_entrainer devrait être vrai par défaut')
+    }
+    // Clic sans glisser : la fiche s'ouvre.
+    const los = page.locator('.gantt-svg .gantt-losange').first()
+    await los.click()
+    await page.waitForTimeout(300)
+    if (!(await page.locator('.fiche-jalon').count())) erreurs.push('la fiche ne s’ouvre pas au clic')
+  }
+  if (ecran === 'gantt-lecture') {
+    if (await page.locator('.gantt-svg .gantt-poignee').count()) erreurs.push('poignées visibles en lecture seule')
+    if (await page.getByText('Entraîner les suivantes').count()) erreurs.push('interrupteur Entraîner visible en lecture seule')
+    if (!(await page.locator('.gantt-svg .gantt-barre').count())) erreurs.push('Gantt absent en lecture')
   }
   // La carte vectorielle de l'autorité : présente, avec le plan dessus et ses calques.
   if (ecran === 'autorite') {

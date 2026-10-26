@@ -9,18 +9,49 @@ export const DONNEES = {
   traces: [{ id: 't1', nom: 'Boucle', couleur: null, points: [[50.38, 5.61, 300], [50.39, 5.62, 310], [50.395, 5.63, 320]] }],
   lieux: [{ id: 'l1', code: 'E1', nom: 'Étape 1', type: 'etape', latitude: 50.385, longitude: 5.615, pk_km: 1.2, capacite: null }, { id: 'l2', code: 'P0', nom: 'Point 0', type: 'pc_ops', latitude: 50.38, longitude: 5.61, pk_km: 0 }],
   liens_plan: [{ id: 'li1', evenement_id: 'ev1', de_id: 'ep3', vers_id: 'ep2', nature: 'alimente', note: 'câble 3G2,5' }], catalogue_equipements: [{ id: 'cat1', code: 'EXT6ABC', libelle: 'Extincteur poudre ABC 6 kg', calque: 'securite', categorie: 'extincteur', forme: 'cercle', largeur_m: 0.5, longueur_m: 0.5, nature: 'picto', picto: 'extincteur', agent_extinction: 'poudre_abc', capacite_extinction: 6 }, { id: 'cat2', code: 'CHAP', libelle: 'Chapiteau 6 × 12 m', calque: 'infrastructures', categorie: 'autre', forme: 'rect', largeur_m: 6, longueur_m: 12 }], fonds_plan: [], elements_plan: [{ id: 'ep5', code: 'BAR1', nom: 'Barrière Heras (3,5 m)', nature: 'ligne', calque: 'circulation', categorie: 'perimetre', forme: 'ligne', forme_echelle: 'rect', centre_lat: 50.3856, centre_lon: 5.6156, largeur_m: 3.5, longueur_m: 40, quantite: 12, rotation_deg: 0, geometrie: [[50.3855, 5.6152], [50.3858, 5.6158], [50.3854, 5.6162]], confirme: false }, { id: 'ep3', code: 'GE1', nom: 'Groupe 60 kVA', nature: 'objet', calque: 'energie', categorie: 'groupe_electrogene', forme_echelle: 'rect', centre_lat: 50.3858, centre_lon: 5.6158, largeur_m: 2, longueur_m: 4, rotation_deg: 0, production_kva: 60, puissance_kw: 0, geometrie: [[50.3858, 5.6158], [50.3858, 5.6159], [50.3859, 5.6159]], confirme: true, source_eau: false, besoin_eau: false }, { id: 'ep4', code: 'EXT1', nom: 'Extincteur poudre ABC 6 kg', nature: 'picto', picto: 'extincteur', calque: 'securite', categorie: 'extincteur', forme_echelle: 'cercle', centre_lat: 50.3857, centre_lon: 5.6157, largeur_m: 0.5, longueur_m: 0.5, rotation_deg: 0, agent_extinction: 'poudre_abc', capacite_extinction: 6, geometrie: [[50.3857, 5.6157]], confirme: false }, { id: 'ep1', code: 'DEA1', nom: 'DEA', nature: 'picto', picto: 'extincteur', categorie: 'dea', geometrie: [[50.386, 5.616]], centre_lat: 50.386, centre_lon: 5.616, rotation_deg: 0, confirme: true }, { id: 'ep2', code: 'PRV', nom: 'PRV', nature: 'objet', forme: 'zone', calque: 'securite', categorie: 'prv', forme_echelle: 'rect', centre_lat: 50.3861, centre_lon: 5.6162, largeur_m: 5, longueur_m: 5, rotation_deg: 0, geometrie: [[50.3861, 5.6161], [50.3862, 5.6163], [50.386, 5.6164]], confirme: true, besoin_eau: true, debit_l_min: 6 }],
-  membres_evenement: [{ user_id: 'u1', nom_affiche: 'Ren' }],
+  membres_evenement: [{ id: 'mb1', user_id: 'u1', nom_affiche: 'Ren' }],
   equipes: [{ id: 'e1', code: 'A', nom: 'Alpha' }],
   maydays: [], groupes: [], transports: [{ id: 'tr1', reference: 'TRA-001', priorite: 'P2', statut: 'attribuee', nb_personnes: 3, motif: 'Navette gare', souhaite_pour: new Date().toISOString(), contact: '0477 11 22 33', adresse_depart: 'Gare de Ferrières', etape: 'en_route', depart: null, arrivee: null, chauffeur: null, depart_libre: 'Gare', arrivee_libre: 'Départ' }], programme: [], jalons: [], journal: [], recherches: [], canaux_radio: [], attributions: [], alertes: [], alertes_accuses: [], mission_commentaires: [], objets_plan: [], moyens_premiers_secours: [], veille_meteo: [], passages: []
 }
-function constructeur(table, fn) {
+const J = '2026-11-11'
+const jalonGantt = (n, groupe, debut, fin, extra = {}) => ({
+  id: 'gj' + n, code: 'GJ-0' + n, libelle: ['Dossier commune', 'Avis zone de secours', 'Commande chapiteau', 'Montage chapiteau', 'Montage scène', 'Briefing bénévoles', 'Démontage', 'Bilan'][n - 1],
+  debut: debut ? new Date(debut + 'T09:00:00+01:00').toISOString() : null, fin: new Date(fin + 'T17:00:00+01:00').toISOString(),
+  phase: 'preparation', groupe_travail_id: groupe === 'A' ? 'gt1' : groupe === 'B' ? 'gt2' : null, groupe_nom: groupe === 'A' ? 'Sécurité' : groupe === 'B' ? 'Logistique' : null,
+  groupe_ordre: groupe === 'A' ? 1 : 2, groupe_pilote: groupe === 'A' ? 'Ren' : null, responsable: 'Ren', responsable_membre_id: null,
+  statut: 'a_venir', avancement: 0, critique: false, en_retard: false, sur_chemin_critique: false, marge_j: 5, predecesseurs: [], successeurs: [],
+  offset_debut_j: null, offset_fin_j: null, ancre: 'debut', phase_cible: null, visibilite: 'membres', commentaire: null, ...extra
+})
+export const GANTT = [
+  jalonGantt(1, 'A', '2026-09-01', '2026-09-20', { statut: 'fait', avancement: 100, marge_j: 10 }),
+  jalonGantt(2, 'A', null, '2026-10-05', { successeurs: ['gj4'] }),
+  jalonGantt(3, 'B', '2026-10-01', '2026-10-15', { statut: 'en_cours', avancement: 40, successeurs: ['gj4'] }),
+  jalonGantt(4, 'B', '2026-11-08', '2026-11-10', { predecesseurs: ['gj2', 'gj3'], successeurs: ['gj5'], sur_chemin_critique: true, marge_j: 0, phase: 'montage' }),
+  jalonGantt(5, 'B', '2026-11-09', '2026-11-10', { predecesseurs: ['gj4'], critique: true, phase: 'montage', sur_chemin_critique: true, marge_j: 0 }),
+  jalonGantt(6, null, null, '2026-11-10', { phase: 'montage' }),
+  jalonGantt(7, 'B', '2026-11-12', '2026-11-13', { phase: 'demontage', predecesseurs: ['gj5'] }),
+  jalonGantt(8, null, null, '2026-11-20', { phase: 'demontage' })
+]
+export const DEPENDANCES = [
+  { id: 'd1', evenement_id: 'ev1', jalon_id: 'gj4', precede_id: 'gj2', decalage_j: 0 },
+  { id: 'd2', evenement_id: 'ev1', jalon_id: 'gj4', precede_id: 'gj3', decalage_j: 0 },
+  { id: 'd3', evenement_id: 'ev1', jalon_id: 'gj5', precede_id: 'gj4', decalage_j: 0 }, // violée : GJ-05 commence avant la fin de GJ-04
+  { id: 'd4', evenement_id: 'ev1', jalon_id: 'gj7', precede_id: 'gj5', decalage_j: 1 }
+]
+DONNEES.jalon_dependances = DEPENDANCES
+
+function constructeur(table, fn, args) {
+  // Les appels RPC sont notés, pour que le banc vérifie ce que l'écran a envoyé.
+  if (fn === 'rpc' && typeof window !== 'undefined') (window.__appels ||= []).push({ fn: table, args })
   const RPC = {
     situation: { evenement: { nom: 'Essai', phase: 'exploitation', geometrie: 'parcours', modules: { securite: true, logistique: true, parcours: true } }, alertes: [], signalements: { ouverts: 1, non_pris_en_charge: 1, total: 3, derniers: [] }, missions: { ouvertes: 1, p1: 1, par_module: {} }, parcours: { en_route: 0, groupes: [], sans_nouvelles: 0, etapes: [{ id: 'l1', code: 'E1', nom: 'Étape 1', pk_km: 1.2, capacite: 50, charge: 46 }] }, jalons_en_retard: 2, logistique: { jauge: 10, sous_seuil: [], transports: [{ id: 'tr1', reference: 'TRA-001', statut: 'en_cours', priorite: 'P2', depart: 'Gare', arrivee: 'Départ', nb_personnes: 3, etape: 'charge', chauffeur: 'Ren' }], transports_ouverts: 1 }, rh: {}, recherches: [], jalons: [], journal: [] },
     situation_autorite: { destinataire: { libelle: 'Bourgmestre', niveau: 'operationnel' }, evenement: { nom: 'Essai', phase: 'exploitation', geometrie: 'parcours', point_0: { lat: 50.38, lon: 5.61 } }, alertes: [], activite: {}, interventions: [{ source: 'signalement', reference: 'SOS-001', heure: new Date().toISOString(), nature: 'malaise', gravite: 'grave', statut: 'recu', position: { lat: 50.3845, lon: 5.6215 }, sur_trace: { km: 1.1, ecart_m: 40, avant: { code: 'P0' }, apres: { code: 'E1' } }, doublons: 1 }], recherches: [], public: { groupes: [] }, meteo: {}, acces_secours: [{ code: 'PRS', nom: 'PRS', categorie: 'point_rencontre_secours', position: { lat: 50.381, lon: 5.611 } }], traces: [{ nom: 'Boucle', points: [[50.38, 5.61], [50.39, 5.62]] }], reperes: [{ code: 'E1', nom: 'Étape 1', type: 'etape', pk_km: 1.2, capacite: 50, charge: 60, position: { lat: 50.385, lon: 5.615 } }], segments: [], ressources: {}, installations_risque: [], programme: [], radio: [], contacts: [], documents: [], interlocuteurs: [{ role: 'interlocuteur', nom: 'J. Grosjean', fonction: 'Directeur', telephone: '0477 88 89 99' }], plan: [{ code: 'CAB-01', nom: 'Câble', nature: 'ligne', calque: 'energie', points: [[50.3842, 5.6212], [50.3844, 5.6216]] }, { code: 'CHAP-01', nom: 'Chapiteau', nature: 'objet', calque: 'infrastructures', accueil_public: true, points: [[50.3846, 5.6210], [50.3846, 5.6214], [50.3848, 5.6214], [50.3848, 5.6210]], centre: { lat: 50.3847, lon: 5.6212 } }, { code: 'EXT-01', nom: 'Extincteur', nature: 'picto', picto: 'extincteur', calque: 'securite', agent_extinction: 'poudre_abc', capacite_extinction: 6, centre: { lat: 50.3843, lon: 5.6218 } }] },
     contenu_public: { evenement: { nom: 'Essai' }, alertes: [], lieux: [], traces: [{ nom: 'Boucle', points: [[50.38, 5.61], [50.39, 5.62]] }], programme: [], jalons: [], communications: [] },
     evenement_public: [{ nom: 'Essai', sos_actif: true }],
     mon_terrain: [{ genre: 'transport', id: 'tr1', reference: 'TRA-001', titre: 'Gare → Départ', priorite: 'P2', statut: 'attribuee', pour_moi: true }, { genre: 'mission', id: 'm1', reference: 'SEC-001', titre: 'Renfort', priorite: 'P1', statut: 'attribuee', latitude: 50.385, longitude: 5.62, pour_moi: true }],
-    mes_capacites: [], jauge_courante: 10, couverture_creneaux: []
+    mes_capacites: [], jauge_courante: 10, couverture_creneaux: [],
+    // (129) Huit jalons dans deux groupes, quatre dépendances dont une violée (GJ-05 commence avant la fin de GJ-04).
+    gantt: GANTT, deplacer_jalon: [{ deplaces: 2, apres_j: 1 }], recaler_jalons: [{ touches: 3, exemples: ['Chapiteau', 'Scène'] }]
   }
   // ?site=1 : un site sans parcours ni lieu (un festival), pour voir une carte se cadrer sur le plan.
   const site = typeof location !== 'undefined' && new URLSearchParams(location.search).get('site') === '1'
@@ -37,7 +68,7 @@ function constructeur(table, fn) {
 }
 export const supabase = {
   from: (t) => constructeur(t),
-  rpc: (f) => constructeur(f, 'rpc'),
+  rpc: (f, args) => constructeur(f, 'rpc', args),
   auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) },
   storage: { from: () => ({ createSignedUrl: async () => ({ data: { signedUrl: null } }), getPublicUrl: () => ({ data: { publicUrl: '' } }), upload: async () => ({ error: null }), remove: async () => ({}) }) },
   channel: () => ({ on() { return this }, subscribe() { return this } }),

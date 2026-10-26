@@ -8,6 +8,7 @@ import ColonneSituation from '../../src/ColonneSituation.jsx'
 import Logistique from '../../src/Logistique.jsx'
 import Implantation from '../../src/Implantation.jsx'
 import PlanImplantation from '../../src/PlanImplantation.jsx'
+import Planning from '../../src/Planning.jsx'
 import { DONNEES } from './faux-supabase.js'
 
 /**
@@ -26,6 +27,10 @@ export const ECRANS = {
   autorite: () => <Autorite jeton="jeton-essai" />,
   participant: () => <Participant jeton="jeton-essai" codeLieu={null} />,
   colonne: () => <ColonneSituation evenement={evenement} palier="large" onAller={() => {}} />,
+  // (129) Le Gantt : en préparation, l'onglet par défaut du Planning. Les dates de l'événement posent les bandes et le trait J.
+  gantt: () => <Planning evenement={{ ...evenement, phase: 'preparation', date_debut: '2026-11-11', date_fin: '2026-11-11', date_montage: '2026-11-09', date_demontage: '2026-11-13' }} peut={peut} toutPouvoir onAller={() => {}} />,
+  // Le même, pour un membre qui ne fait que lire : ni poignées, ni entraînement.
+  'gantt-lecture': () => <Planning evenement={{ ...evenement, phase: 'preparation', date_debut: '2026-11-11', date_fin: '2026-11-11' }} peut={(r, a) => a === 'lire'} toutPouvoir={false} onAller={() => {}} />,
   plan: () => <PlanImplantation evenement={evenement} membre={membre} peut={peut} toutPouvoir />,
   logistique: () => <Logistique evenement={evenement} membre={membre} session={session} peut={peut} toutPouvoir />,
   implantation: () => <Implantation evenement={evenement} elements={DONNEES.elements_plan.slice(0, Number(new URLSearchParams(location.search).get('n') ?? 99))} onRecharger={() => {}} peutCreer peutModifier setMessage={(m) => console.error('message', m?.texte)} />
