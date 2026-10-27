@@ -374,7 +374,15 @@ notify pgrst, 'reload schema';
 
 L'application en dépend : Logistique › Fournisseurs appelle `annuaire()` et `mes_droits_annuaire()`, Logistique › Demandes de prix appelle `demandes_prix_vue()` et `comparaison()`, le pavé « Demandes de prix » de Mon poste appelle `suivi_demandes()`, Analyse lit `consultations` et `fournisseur_evaluations`.
 
-## Ne jamais rejouer 088 → 131 par `db push` sans les lignes ci-dessus
+### 132 : appliquée le 27/10 (par Claude, via l'outil Supabase) — catalogue du plan : secours et eau
+
+| Fichier | Fait |
+|---|---|
+| `20261028090000_132_catalogue_secours_eau.sql` | Cinq objets de plus dans le catalogue standard du plan d'implantation : `POINTEAUNAT` point d'eau naturel (eau, source), `POMPE` pompe à eau (eau, source), `HELIJOUR` zone d'atterrissage suggérée de jour 25 × 25 m, `HELINUIT` zone d'atterrissage nocturne 40 × 40 m, `CABMED` cabinet médical 3 × 4 m (sécurité, accueil du public). Catégories existantes (`point_eau`, `aire_helico`, `poste_secours`), insertion gardée par « n'existe pas encore » |
+
+Éprouvée en transaction annulée (5 insérées, 0 à la rejouer), appliquée et inscrite (version 20261028090000) ; vérifié : les cinq codes sont dans le catalogue standard.
+
+## Ne jamais rejouer 088 → 132 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`
