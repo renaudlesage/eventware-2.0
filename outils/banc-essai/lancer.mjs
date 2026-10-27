@@ -259,6 +259,22 @@ for (const ecran of ecrans) {
     if (!(await page.locator('.point-0-marqueur').count())) erreurs.push('marqueur absent après le clic')
     if (await page.locator('button', { hasText: 'Enregistrer le point 0' }).isDisabled()) erreurs.push('Enregistrer inactif après le clic')
   }
+  // (27/10) Le catalogue s'élargit à la poignée.
+  if (ecran === 'implantation') {
+    const poignee = page.locator('.impl-poignee')
+    if (!(await poignee.count())) erreurs.push('poignée du catalogue absente')
+    else {
+      const avant = await page.locator('.impl-catalogue').evaluate((el) => el.getBoundingClientRect().width)
+      const b = await poignee.boundingBox()
+      await page.mouse.move(b.x + b.width / 2, b.y + 40)
+      await page.mouse.down()
+      await page.mouse.move(b.x + b.width / 2 + 120, b.y + 40, { steps: 5 })
+      await page.mouse.up()
+      await page.waitForTimeout(200)
+      const apres = await page.locator('.impl-catalogue').evaluate((el) => el.getBoundingClientRect().width)
+      if (!(apres > avant + 100)) erreurs.push(`catalogue : ${avant} → ${apres} px (attendu +120)`)
+    }
+  }
   if (ecran === 'gantt-lecture') {
     if (await page.locator('.gantt-svg .gantt-poignee').count()) erreurs.push('poignées visibles en lecture seule')
     if (await page.getByText('Entraîner les suivantes').count()) erreurs.push('interrupteur Entraîner visible en lecture seule')
