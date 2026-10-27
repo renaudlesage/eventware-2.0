@@ -298,7 +298,11 @@ for (const ecran of ecrans) {
         const angle2 = await img.evaluate((el) => Number((el.style.transform.match(/rotate\(([-\d.]+)rad\)/) ?? [])[1]))
         if (!(Math.abs(angle2 * 180 / Math.PI - 65) < 1)) erreurs.push(`angle après réglage ${(angle2 * 180 / Math.PI).toFixed(1)}° (attendu 65°)`)
       }
-      // Glisser le fond : il suit la souris, la carte ne bouge pas.
+      // Glisser le fond : il suit la souris, la carte ne bouge pas. Le curseur revient
+      // à 20° d'abord : l'aperçu de rotation n'est pas écrit par le faux client, et le
+      // glisser repart des coins enregistrés.
+      await page.locator('.impl-fond-reglages input[type=range]').fill('20')
+      await page.waitForTimeout(200)
       const avantX = await img.evaluate((el) => el.getBoundingClientRect().left)
       const carteAvant = await page.locator('.leaflet-map-pane').evaluate((el) => el.style.transform)
       const bi = await img.boundingBox()
