@@ -155,6 +155,8 @@ function Contenu({ clef, ...p }) {
       return <PaveMateriel {...p} />
     case 'mes_constats':
       return <PaveMesConstats {...p} />
+    case 'demandes_prix':
+      return <PaveDemandesPrix {...p} />
     default:
       return null
   }
@@ -562,6 +564,47 @@ function PaveMateriel({ evenement, onAller }) {
             <span className="mono">
               {m.quantite} {m.unite ?? ''} · seuil {m.seuil_alerte}
             </span>
+          </div>
+        ))
+      )}
+    </Bloc>
+  )
+}
+
+/* (131) Le suivi des demandes de prix, lu par `suivi_demandes`. */
+const SUIVI_DP = [
+  ['offres_attendues', 'offres attendues', 'attente'],
+  ['a_relancer', 'à relancer', 'urgent'],
+  ['a_comparer', 'à comparer', 'cours'],
+  ['livraison', 'livraisons à venir', 'attente']
+]
+function PaveDemandesPrix({ evenement, onAller }) {
+  const [lignes, setLignes] = useState(null)
+  useEffect(() => {
+    let vivant = true
+    supabase.rpc('suivi_demandes', { p_evenement: evenement.id }).then(({ data }) => {
+      if (vivant) setLignes(data ?? [])
+    })
+    return () => {
+      vivant = false
+    }
+  }, [evenement.id])
+  const n = (c) => (lignes ?? []).filter((l) => l.categorie === c).length
+  return (
+    <Bloc
+      clef="demandes_prix"
+      onAller={onAller}
+      compteurs={SUIVI_DP.map(([c, l, etat]) => ({ libelle: l, valeur: lignes ? n(c) : null, etat: n(c) ? etat : 'ok' }))}
+    >
+      {lignes === null ? (
+        <p className="moniteur-vide">…</p>
+      ) : !lignes.length ? (
+        <p className="moniteur-vide">Rien en attente.</p>
+      ) : (
+        lignes.map((l, i) => (
+          <div className={`moniteur-ligne ${l.categorie === 'a_relancer' ? 'urgent' : ''}`} key={i}>
+            <strong>{l.reference} {l.objet}</strong>
+            <span className="mono">{SUIVI_DP.find(([c]) => c === l.categorie)?.[1]}{l.fournisseur ? ` · ${l.fournisseur}` : ''} · {l.detail}</span>
           </div>
         ))
       )}

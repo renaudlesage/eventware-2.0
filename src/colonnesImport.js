@@ -192,3 +192,25 @@ export function validerLigne(clef, brute) {
 
   return { valeurs, erreurs }
 }
+
+/*
+ * (130) L'annuaire des fournisseurs s'importe aussi, mais il est au
+ * niveau de l'organisation et se reconnaît au nom, pas à un code :
+ * il ne passe pas par RESSOURCES (import par événement) mais par
+ * Fournisseurs.jsx, avec ce modèle de colonnes. Les catégories sont
+ * séparées par « | ».
+ */
+export const COLONNES_FOURNISSEURS = [
+  { champ: 'nom', obligatoire: true },
+  { champ: 'tva' },
+  { champ: 'adresse' },
+  { champ: 'telephone' },
+  { champ: 'email' },
+  { champ: 'categories' },
+  { champ: 'contact_nom' },
+  { champ: 'contact_fonction' },
+  { champ: 'contact_telephone' },
+  { champ: 'contact_email' },
+  { champ: 'notes' }
+]
+export const modeleCsvFournisseurs = () => COLONNES_FOURNISSEURS.map((c) => c.champ).join(';') + '\n'

@@ -137,7 +137,7 @@ export default function Poste({ session, theme, setTheme }) {
         // correctement enregistré en base. `date_debut`, `date_fin` et
         // la fréquentation manquaient — d'où des champs qui
         // s'affichaient vides et un avertissement qui ne partait jamais.
-        'id, nom, slug, geometrie, phase, jeton_public, point_0_lat, point_0_lon, province, commune, organisation_id, mode_parcours, modules, logo_url, date_debut, date_fin, frequentation_min, frequentation_max, membres_evenement(id, role, user_id, nom_affiche, perimetre, paves, equipe_id)'
+        'id, nom, slug, geometrie, phase, jeton_public, point_0_lat, point_0_lon, province, commune, organisation_id, mode_parcours, modules, logo_url, date_debut, date_fin, date_montage, date_demontage, frequentation_min, frequentation_max, membres_evenement(id, role, user_id, nom_affiche, perimetre, paves, equipe_id)'
       )
       .order('nom')
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
@@ -559,7 +559,7 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
       )
     case 'logistique':
       return (
-        <Logistique evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} />
+        <Logistique evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} ongletCible={ongletCible} />
       )
     case 'parcours':
       return <Parcours evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} />

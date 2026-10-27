@@ -10,6 +10,7 @@ import DossierSecurite from './DossierSecurite'
 import MonCompte from './MonCompte'
 import LogoEvenement from './LogoEvenement'
 import Point0 from './Point0'
+import { conditionsGenerales, enregistrerConditionsGenerales } from './DemandesPrix'
 import Diffusion from './Diffusion'
 import VitrineAdmin from './VitrineAdmin'
 import ViderEvenement from './ViderEvenement'
@@ -108,6 +109,8 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
 
       {panneau === 'dispositif' && (
         <>
+          <IdentiteEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
+
           <LogoEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
 
           <Point0 evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
@@ -206,6 +209,10 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
 
           {(toutPouvoir || peut?.('rh', 'modifier')) && (
             <RecalerPlanning evenement={evenement} setMessage={setMessage} />
+          )}
+
+          {(toutPouvoir || peut?.('logistique', 'modifier')) && evenement.organisation_id && (
+            <ConditionsGenerales organisation={evenement.organisation_id} setMessage={setMessage} />
           )}
 
           {toutPouvoir && (
@@ -340,9 +347,70 @@ function Completude({ evenement }) {
   )
 }
 
+/**
+ * Le nom, la commune et la fréquentation se réglaient à la création
+ * (Plateforme) et plus jamais ensuite : un nom mal tapé restait. Ils
+ * s'éditent ici, par qui a tout pouvoir (policy `evenements_modification`).
+ * L'identifiant d'URL (slug) ne bouge pas : les liens déjà diffusés
+ * (vitrine, autorité, QR) restent bons.
+ */
+function IdentiteEvenement({ evenement, onFait, setMessage }) {
+  const [v, setV] = useState({ nom: evenement.nom ?? '', commune: evenement.commune ?? '', frequentation_min: evenement.frequentation_min ?? '', frequentation_max: evenement.frequentation_max ?? '' })
+  const [communes, setCommunes] = useState([])
+  const [occupe, setOccupe] = useState(false)
+  const [enregistre, setEnregistre] = useDrapeau()
+  useEffect(() => {
+    setV({ nom: evenement.nom ?? '', commune: evenement.commune ?? '', frequentation_min: evenement.frequentation_min ?? '', frequentation_max: evenement.frequentation_max ?? '' })
+  }, [evenement.id, evenement.nom, evenement.commune, evenement.frequentation_min, evenement.frequentation_max])
+  useEffect(() => {
+    supabase.from('communes').select('nom').order('nom').then(({ data }) => setCommunes(data ?? []))
+  }, [])
+
+  async function enregistrer() {
+    if (!v.nom.trim()) return
+    setOccupe(true)
+    const refus = await modifierOuRefuser('evenements', {
+      nom: v.nom.trim(),
+      commune: v.commune.trim() || null,
+      frequentation_min: v.frequentation_min === '' ? null : Number(v.frequentation_min),
+      frequentation_max: v.frequentation_max === '' ? null : Number(v.frequentation_max)
+    }, { id: evenement.id })
+    if (refus) setMessage({ type: 'erreur', texte: refus })
+    else { onFait?.(); setEnregistre() }
+    setOccupe(false)
+  }
+
+  return (
+    <section className="bloc">
+      <h2>Identité</h2>
+      <div className="grille-champs dp-grille">
+        <label className="dp-large">Nom<input value={v.nom} onChange={(e) => setV({ ...v, nom: e.target.value })} /></label>
+        <label>Commune
+          <input list="communes-reglages" value={v.commune} onChange={(e) => setV({ ...v, commune: e.target.value })} placeholder="Commune" />
+          <datalist id="communes-reglages">
+            {communes.map((c) => <option key={c.nom} value={c.nom} />)}
+          </datalist>
+        </label>
+        <label>Fréquentation attendue, de<input type="number" min="0" value={v.frequentation_min} onChange={(e) => setV({ ...v, frequentation_min: e.target.value })} /></label>
+        <label>à<input type="number" min="0" value={v.frequentation_max} onChange={(e) => setV({ ...v, frequentation_max: e.target.value })} /></label>
+      </div>
+      <p className="aide">
+        L&rsquo;identifiant d&rsquo;URL (<span className="mono">{evenement.slug}</span>) ne change pas : les liens déjà diffusés restent valables.
+      </p>
+      <button disabled={occupe || !v.nom.trim()} onClick={enregistrer}>
+        {enregistre ? 'Enregistré ✓' : 'Enregistrer'}
+      </button>
+    </section>
+  )
+}
+
 function DatesEvenement({ evenement, onFait, setMessage }) {
   const [debut, setDebut] = useState(evenement.date_debut ?? '')
   const [fin, setFin] = useState(evenement.date_fin ?? '')
+  // (129) Montage et démontage : les bandes du Gantt et les ancres des
+  // jalons en dépendent ; ils ne se réglaient nulle part.
+  const [montage, setMontage] = useState(evenement.date_montage ?? '')
+  const [demontage, setDemontage] = useState(evenement.date_demontage ?? '')
 
   // L'état initial est figé au premier rendu : sans cette
   // resynchronisation, changer d'événement dans le menu du haut
@@ -350,7 +418,9 @@ function DatesEvenement({ evenement, onFait, setMessage }) {
   useEffect(() => {
     setDebut(evenement.date_debut ?? '')
     setFin(evenement.date_fin ?? '')
-  }, [evenement.id, evenement.date_debut, evenement.date_fin])
+    setMontage(evenement.date_montage ?? '')
+    setDemontage(evenement.date_demontage ?? '')
+  }, [evenement.id, evenement.date_debut, evenement.date_fin, evenement.date_montage, evenement.date_demontage])
   const [occupe, setOccupe] = useState(false)
   const [enregistre, setEnregistre] = useDrapeau()
 
@@ -358,7 +428,7 @@ function DatesEvenement({ evenement, onFait, setMessage }) {
     setOccupe(true)
     const { error, count } = await supabase
       .from('evenements')
-      .update({ date_debut: debut || null, date_fin: fin || null }, { count: 'exact' })
+      .update({ date_debut: debut || null, date_fin: fin || null, date_montage: montage || null, date_demontage: demontage || null }, { count: 'exact' })
       .eq('id', evenement.id)
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) {
@@ -373,7 +443,7 @@ function DatesEvenement({ evenement, onFait, setMessage }) {
   // Une fin antérieure au début n'est pas une faute de frappe rare :
   // c'est ce qu'on tape quand on remplit le second champ avant le
   // premier. Autant le dire avant l'enregistrement.
-  const incoherent = debut && fin && fin < debut
+  const incoherent = (debut && fin && fin < debut) || (montage && debut && montage > debut) || (demontage && fin && demontage < fin)
 
   return (
     <section className="bloc">
@@ -384,13 +454,15 @@ function DatesEvenement({ evenement, onFait, setMessage }) {
         lors d&rsquo;une reconduction.
       </p>
 
-      <div className="saisie-rapide">
-        <input type="date" value={debut} onChange={(e) => setDebut(e.target.value)} />
-        <input type="date" value={fin} onChange={(e) => setFin(e.target.value)} />
+      <div className="grille-champs dp-grille">
+        <label>Premier jour<input type="date" value={debut} onChange={(e) => setDebut(e.target.value)} /></label>
+        <label>Dernier jour<input type="date" value={fin} onChange={(e) => setFin(e.target.value)} /></label>
+        <label>Début du montage<input type="date" value={montage} onChange={(e) => setMontage(e.target.value)} /></label>
+        <label>Fin du démontage<input type="date" value={demontage} onChange={(e) => setDemontage(e.target.value)} /></label>
       </div>
 
       {incoherent && (
-        <p className="alerte-texte">Le dernier jour précède le premier.</p>
+        <p className="alerte-texte">Dates dans le désordre : montage ≤ premier jour ≤ dernier jour ≤ démontage.</p>
       )}
 
       <button disabled={occupe || incoherent} onClick={enregistrer}>
@@ -586,5 +658,26 @@ function Compteurs({ evenementId, cle }) {
         </span>
       ))}
     </div>
+  )
+}
+
+/**
+ * (131) Les conditions générales imprimées au bas d'une demande de
+ * prix, saisies une fois pour l'organisation. Rangées dans le stockage
+ * local du navigateur, comme le rail et le thème : la base n'a pas
+ * encore de place pour un texte libre d'organisation (à faire quand
+ * les réglages d'organisation existeront).
+ */
+function ConditionsGenerales({ organisation, setMessage }) {
+  const [texte, setTexte] = useState(() => conditionsGenerales(organisation))
+  return (
+    <section className="bloc">
+      <h2>Demandes de prix — conditions générales</h2>
+      <p className="aide">Imprimées au bas de chaque demande de prix (Logistique › Demandes de prix › Imprimer). Propres à ce navigateur.</p>
+      <textarea rows={4} value={texte} onChange={(e) => setTexte(e.target.value)} placeholder="Paiement à 30 jours fin de mois ; matériel livré et repris par le fournisseur ; …" />
+      <div className="ligne-boutons">
+        <button className="discret" onClick={() => { enregistrerConditionsGenerales(organisation, texte); setMessage({ type: 'info', texte: 'Conditions générales enregistrées sur ce navigateur.' }) }}>Enregistrer</button>
+      </div>
+    </section>
   )
 }

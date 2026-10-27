@@ -114,6 +114,17 @@ export const PAVES = {
     besoin: ['missions', 'creer'],
     obligatoire: []
   },
+  demandes_prix: {
+    libelle: 'Demandes de prix',
+    teinte: 'bronze',
+    icone: '€',
+    lien: ['logistique', 'demandes_prix'],
+    module: 'logistique',
+    // (131) Offres attendues, à relancer, à comparer, livraisons à
+    // venir : du suivi pour qui pilote les achats, pas pour le terrain.
+    besoin: ['logistique', 'lire'],
+    obligatoire: []
+  },
   mes_constats: {
     libelle: 'Mes constats',
     teinte: 'ardoise',
