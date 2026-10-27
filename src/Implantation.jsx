@@ -5,7 +5,7 @@ import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser, supprimerOuRefuser } from './ecriture'
 import { CATEGORIES_PLAN } from './referentielsProduit'
-import { polygoneObjet, distancePoints, longueurLigne, jonctionsLigne, nombreModules, milieuLigne, translaterLigne, contientPoint, coinsRectangle, versLocal } from './geometrie'
+import { polygoneObjet, surfaceObjet, distancePoints, longueurLigne, jonctionsLigne, nombreModules, milieuLigne, translaterLigne, contientPoint, coinsRectangle, versLocal } from './geometrie'
 import { pictoSvg } from './pictos'
 import { dxfVersImage, dwgVersDxf, estDxf, estDwg, CONSEIL_DWG } from './dxfFond'
 import { FONDS_CARTE, FondCarte, ControlesCarte, useFondCarte } from './carte'
@@ -60,6 +60,8 @@ export { CALQUES, COULEUR_CALQUE, LIBELLE_CALQUE }
 export { FONDS_CARTE }
 
 const num = (v) => (v === '' || v == null ? null : Number(String(v).replace(',', '.')))
+// Ordre de dessin : emprises, puis tracés, puis pictogrammes (marqueurs, de toute façon au-dessus).
+const rangDessin = (o) => (o.nature === 'picto' ? 2 : o.nature === 'ligne' ? 1 : 0)
 const fr = (x, d = 1) => (x == null ? '—' : Number(x).toFixed(d).replace('.', ','))
 
 /**
@@ -205,6 +207,8 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
   const [fondCarte, setFondCarte] = useFondCarte('implantation', 'satellite')
   const [plein, setPlein] = useState(false)
   const [selection, setSelection] = useState(null)
+  // (27/10) Les noms des emprises superposées sous le dernier clic, quand il y en a plusieurs.
+  const [pile, setPile] = useState(null)
   const [mode, setMode] = useState(null) // {type:'poser', fiche} | {type:'tracer', fiche, points} | {type:'mesurer', points} | {type:'caler', fond, points} | {type:'deplacer'}
   const [recherche, setRecherche] = useState('')
   // (27/10) Largeur du catalogue, réglable à la souris et mémorisée sur
@@ -737,7 +741,13 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
       (!filtreCalque || f.calque === filtreCalque) &&
       (!recherche || `${f.libelle} ${f.code}`.toLowerCase().includes(recherche.toLowerCase()))
   )
+  // (27/10) Dessinées de la plus grande à la plus petite emprise, pour
+  // qu'une table dans un chapiteau reste cliquable ; les tracés et les
+  // pictogrammes après, comme avant.
   const visibles = objets.filter((o) => calquesVisibles.has(o.calque ?? 'infrastructures'))
+    .map((o, i) => [o, i])
+    .sort(([a, i], [b, j]) => (rangDessin(a) - rangDessin(b)) || (surfaceObjet(b) - surfaceObjet(a)) || (i - j))
+    .map(([o]) => o)
   const mesure = mode?.type === 'mesurer' && mode.points?.length === 2 ? distancePoints(mode.points[0], mode.points[1]) : null
   const trace = mode?.type === 'tracer' && mode.points?.length ? { longueur: longueurLigne(mode.points), n: nombreModules(longueurLigne(mode.points), Number(mode.fiche.largeur_m)) } : null
   // Mètres par pixel à l'écran, pour dessiner les pictogrammes à l'échelle.
@@ -882,7 +892,22 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
                     return
                   }
                   if (mode?.type === 'main' || mode?.type === 'poser' || mode?.type === 'caler') return
-                  if (o.id !== selection) setSommet(null)
+                  // Un clic sur des emprises superposées : la plus petite
+                  // d'abord, puis, clic après clic au même endroit, celles
+                  // de dessous. Sans ça, l'objet sous un autre était hors
+                  // d'atteinte.
+                  let cible = o
+                  if (!mode && latlng && o.nature !== 'ligne' && o.nature !== 'picto') {
+                    const p = [latlng.lat, latlng.lng]
+                    const pile = visibles.filter((x) => x.nature !== 'ligne' && x.nature !== 'picto' && contientPoint(polygoneObjet(avecBrouillon(x)), p))
+                      .sort((a, b) => surfaceObjet(a) - surfaceObjet(b))
+                    if (pile.length > 1) {
+                      const i = pile.findIndex((x) => x.id === selection)
+                      cible = pile[i >= 0 ? (i + 1) % pile.length : 0]
+                      setPile(pile.map((x) => x.nom))
+                    } else setPile(null)
+                  } else setPile(null)
+                  if (cible.id !== selection) setSommet(null)
                   if (mode?.type === 'lier') {
                     // Premier clic : l'objet de départ ; second : on lie, et
                     // on garde l'outil en main pour enchaîner.
@@ -894,7 +919,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
                     setSelection(o.id)
                     return
                   }
-                  setSelection(o.id)
+                  setSelection(cible.id)
                 }}
                 onGlisser={(latlng) => setBrouillon({ id: o.id, ...latlng })}
                 onDeposer={(latlng) => finDeplacement(o, latlng)}
@@ -946,7 +971,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
             <Gestes onClic={clicCarte} onDoubleClic={mode?.type === 'tracer' ? terminerTrace : null} curseur={mode?.type === 'main' ? 'grab' : mode ? 'crosshair' : ''} />
             <Redimension />
             <Echelle onEchelle={setEchelle} />
-            <Cadrage objets={objets} />
+            <Cadrage objets={objets} point0={evenement.point_0_lat != null && evenement.point_0_lon != null ? [Number(evenement.point_0_lat), Number(evenement.point_0_lon)] : null} />
           </MapContainer>
           <div className="impl-legende">
             <strong>{evenement.nom}</strong>
@@ -978,6 +1003,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
               onDeplacer={() => setMode({ type: 'deplacer' })}
               onDupliquer={() => dupliquer(selectionne)}
               onRetirer={() => retirer(selectionne)}
+              pile={pile}
             />
           ) : (
             <Fonds
@@ -1000,9 +1026,11 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
   )
 }
 
+// (27/10) Le point 0 d'abord : c'est la référence de l'événement, la carte
+// s'ouvre dessus, zoomée. Sans point 0, le premier objet ; sans rien, Ferrières.
 function centreParDefaut(evenement, objets) {
+  if (evenement.point_0_lat != null && evenement.point_0_lon != null) return [Number(evenement.point_0_lat), Number(evenement.point_0_lon)]
   if (objets.length) return [Number(objets[0].centre_lat), Number(objets[0].centre_lon)]
-  if (evenement.point_0_lat) return [evenement.point_0_lat, evenement.point_0_lon]
   return [50.38212, 5.61679]
 }
 
@@ -1066,21 +1094,30 @@ function Echelle({ onEchelle }) {
   return null
 }
 
-function Cadrage({ objets }) {
+// À l'ouverture : centrée et zoomée sur le point 0 quand il existe (27/10 :
+// avant, la carte s'ajustait à tous les objets, et un plan étalé s'ouvrait
+// vu de très haut) ; sinon ajustée aux objets.
+function Cadrage({ objets, point0 }) {
   const carte = useMap()
   const fait = useRef(false)
   useEffect(() => {
-    if (fait.current || !objets.length) return
+    if (fait.current) return
     // Un conteneur sans taille (onglet masqué, feuille de style pas encore
     // là) fait boucler Leaflet dans fitBounds : on attend d'être visible.
     const taille = carte.getSize()
     if (!taille.x || !taille.y) return
+    if (point0) {
+      carte.setView(point0, 18)
+      fait.current = true
+      return
+    }
+    if (!objets.length) return
     const pts = objets.flatMap((o) => polygoneObjet(o) ?? [])
     if (pts.length) {
       carte.fitBounds(pts, { padding: [40, 40], maxZoom: 19 })
       fait.current = true
     }
-  }, [carte, objets])
+  }, [carte, objets, point0])
   return null
 }
 
@@ -1334,7 +1371,7 @@ const NATURES_LIEN = [
 ]
 const LIBELLE_LIEN = Object.fromEntries(NATURES_LIEN)
 
-function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, onLier, onModifierLien, onDelier, onModifier, onRaccorder, onDeplacer, onDupliquer, onRetirer, sommet, onRetirerSommet }) {
+function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, onLier, onModifierLien, onDelier, onModifier, onRaccorder, onDeplacer, onDupliquer, onRetirer, sommet, onRetirerSommet, pile }) {
   const [f, setF] = useState(() => depuis(o))
   const [nouveauLien, setNouveauLien] = useState({ vers: '', nature: 'lie' })
   useEffect(() => setF(depuis(o)), [o])
@@ -1413,6 +1450,11 @@ function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, 
         <span className={`prc-jeton ${o.confirme ? '' : 'veille'}`}>{o.confirme ? 'confirmé sur site' : 'non confirmé'}</span>
         <button className="lien impl-props-fermer" onClick={onFermer} aria-label="Désélectionner" title="Désélectionner (retour aux fonds de plan)">✕</button>
       </div>
+      {pile && pile.length > 1 && (
+        <p className="aide impl-pile" style={{ margin: 0 }}>
+          {pile.length} emprises superposées ici ({pile.join(', ')}) : un clic de plus au même endroit passe à celle de dessous.
+        </p>
+      )}
       {peutModifier && (
         <div className="ligne-boutons impl-actions">
           <button className="discret" onClick={onDeplacer}>Déplacer</button>

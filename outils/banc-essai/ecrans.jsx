@@ -41,7 +41,8 @@ export const ECRANS = {
   'fournisseurs-lecture': () => <Logistique evenement={{ ...evenement, phase: 'preparation', organisation_id: 'org1' }} membre={membre} peut={(r, a) => a === 'lire'} toutPouvoir={false} ongletCible="fournisseurs" />,
   'demandes-prix': () => <Logistique evenement={{ ...evenement, phase: 'preparation', organisation_id: 'org1', date_debut: '2026-11-11', date_fin: '2026-11-11' }} membre={membre} peut={peut} toutPouvoir ongletCible="demandes_prix" />,
   'demandes-prix-lecture': () => <Logistique evenement={{ ...evenement, phase: 'preparation', organisation_id: 'org1' }} membre={membre} peut={(r, a) => a === 'lire'} toutPouvoir={false} ongletCible="demandes_prix" />,
-  implantation: () => <Implantation evenement={evenement} elements={DONNEES.elements_plan.slice(0, Number(new URLSearchParams(location.search).get('n') ?? 99))} onRecharger={() => {}} peutCreer peutModifier setMessage={(m) => console.error('message', m?.texte)} />
+  // (27/10) Le point 0 au milieu des objets : la carte s'ouvre dessus, zoomée, et les objets restent à l'écran.
+  implantation: () => <Implantation evenement={{ ...evenement, point_0_lat: 50.3859, point_0_lon: 5.616 }} elements={DONNEES.elements_plan.slice(0, Number(new URLSearchParams(location.search).get('n') ?? 99))} onRecharger={() => {}} peutCreer peutModifier setMessage={(m) => console.error('message', m?.texte)} />
 }
 
 const quoi = new URLSearchParams(location.search).get('ecran')

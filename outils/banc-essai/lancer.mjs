@@ -86,6 +86,22 @@ for (const ecran of ecrans) {
     const picto = page.locator('.impl-picto').first()
     if (await picto.count()) { await picto.click({ force: true }); await page.waitForTimeout(600) }
     if (!(await page.locator('.impl-props').count())) erreurs.push('propriétés non ouvertes après clic sur un objet')
+    // (27/10) La table dans le PRV : les emprises sont dessinées de la plus grande à la plus petite, la petite est
+    // donc cliquable ; un second clic au même endroit passe au PRV, un troisième revient à la table.
+    {
+      const emprises = page.locator('path.leaflet-interactive[fill]:not([fill="none"])')
+      const n = await emprises.count()
+      const derniere = emprises.nth(n - 1)
+      const nomSelectionne = () => page.locator('.impl-props input').first().inputValue()
+      await derniere.click({ force: true }); await page.waitForTimeout(300)
+      if ((await nomSelectionne()) !== 'Table pliante') erreurs.push(`premier clic : « ${await nomSelectionne()} » (attendu la table, dessinée au-dessus du PRV)`)
+      if (!(await page.locator('.impl-pile').count())) erreurs.push('la fiche ne signale pas les emprises superposées')
+      await derniere.click({ force: true }); await page.waitForTimeout(300)
+      if ((await nomSelectionne()) !== 'PRV') erreurs.push(`second clic : « ${await nomSelectionne()} » (attendu le PRV, dessous)`)
+      await derniere.click({ force: true }); await page.waitForTimeout(300)
+      if ((await nomSelectionne()) !== 'Table pliante') erreurs.push(`troisième clic : « ${await nomSelectionne()} » (attendu la table à nouveau)`)
+      await page.keyboard.press('Escape').catch(() => {})
+    }
     // Le tracé : on clique exactement sur son premier sommet (le centre de
     // la boîte d'un trait n'est pas sur le trait), puis les poignées.
     const point = await page.evaluate(() => {
@@ -369,10 +385,12 @@ for (const ecran of ecrans) {
       await page.locator('button', { hasText: 'Terminer le déplacement' }).first().click().catch(() => {})
       // Suppr retire l'objet sélectionné (confirmation acceptée).
       page.once('dialog', (d) => d.accept())
-      await page.locator('.impl-fiche').first().click().catch(() => {})
-      const objet = page.locator('.leaflet-interactive').first()
-      await objet.click({ force: true }).catch(() => {})
+      // Outil Sélection, puis la plus petite emprise (dessinée en dernier, donc atteignable) : la table.
+      await page.getByRole('button', { name: /^Sélection/ }).first().click().catch(() => {})
+      const emprisesSuppr = page.locator('path.leaflet-interactive[fill]:not([fill="none"])')
+      await emprisesSuppr.nth((await emprisesSuppr.count()) - 1).click({ force: true }).catch(() => {})
       await page.waitForTimeout(200)
+      if ((await page.locator('.impl-props input').first().inputValue().catch(() => null)) !== 'Table pliante') erreurs.push('Suppr : la table n’est pas sélectionnée avant la touche')
       await page.evaluate(() => { window.__appels = [] })
       await page.keyboard.press('Delete')
       await page.waitForTimeout(300)

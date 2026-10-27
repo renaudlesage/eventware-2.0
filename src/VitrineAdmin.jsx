@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
+import { LIBELLE_CALQUE } from './calques'
+
+const libelleCalque = (k) => LIBELLE_CALQUE[k ?? 'infrastructures'] ?? k ?? 'infrastructures'
 
 /**
  * Ce que voit le public — administration.
@@ -39,15 +42,33 @@ export default function Vitrine({ evenement, setMessage }) {
         ))}
       </div>
 
-      {vue === 'lieux' && <Publiables
-        evenement={evenement}
-        setMessage={setMessage}
-        table="lieux"
-        libelle={(l) => `${l.code} · ${l.nom}`}
-        detail={(l) => l.type}
-        ordre="code"
-        avertissement="Les lieux opérationnels — PC Ops, PRV, voies de secours, zones techniques — n'ont rien à faire ici. Ne publie que ce qu'un participant doit pouvoir trouver."
-      />}
+      {vue === 'lieux' && (
+        <>
+          <Publiables
+            evenement={evenement}
+            setMessage={setMessage}
+            table="lieux"
+            libelle={(l) => `${l.code} · ${l.nom}`}
+            detail={(l) => l.type}
+            ordre="code"
+            avertissement="Les lieux opérationnels — PC Ops, PRV, voies de secours, zones techniques — n'ont rien à faire ici. Ne publie que ce qu'un participant doit pouvoir trouver."
+            vide="Aucun lieu dans le référentiel (Données › Référentiel)."
+          />
+          {/* (136) Les objets posés sur la carte de conception : chapiteaux, bars, parkings… publiés à la position de leur centre. */}
+          <h3 style={{ marginTop: 18 }}>Objets du plan d'implantation</h3>
+          <Publiables
+            evenement={evenement}
+            setMessage={setMessage}
+            table="elements_plan"
+            filtrer={(q) => q.neq('nature', 'ligne').not('centre_lat', 'is', null)}
+            libelle={(o) => `${o.code ? `${o.code} · ` : ''}${o.nom}`}
+            detail={(o) => libelleCalque(o.calque)}
+            ordre="nom"
+            avertissement="Un chapiteau, un bar, un parking, l'entrée : ce que le participant cherche. Les groupes électrogènes, coffrets, extincteurs et le QG sécurité restent entre nous."
+            vide="Aucun objet sur le plan (Plan › Conception). Les tracés — barrières, câbles — ne se publient pas."
+          />
+        </>
+      )}
 
       {vue === 'programme' && <Publiables
         evenement={evenement}
@@ -69,15 +90,15 @@ export default function Vitrine({ evenement, setMessage }) {
 }
 
 /** Liste cochable, commune aux lieux et au programme. */
-function Publiables({ evenement, setMessage, table, libelle, detail, ordre, avertissement }) {
+function Publiables({ evenement, setMessage, table, libelle, detail, ordre, avertissement, filtrer = (q) => q, vide }) {
   const [lignes, setLignes] = useState(null)
 
   async function charger() {
-    const { data, error } = await supabase
+    const { data, error } = await filtrer(supabase
       .from(table)
       .select('*')
       .eq('evenement_id', evenement.id)
-      .is('deleted_at', null)
+      .is('deleted_at', null))
       .order(ordre)
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else setLignes(data ?? [])
@@ -110,6 +131,7 @@ function Publiables({ evenement, setMessage, table, libelle, detail, ordre, aver
           Publiés <strong>{publies}</strong> sur {lignes.length}
         </span>
       </div>
+      {lignes.length === 0 && vide && <p className="vide">{vide}</p>}
 
       {lignes.map((l) => (
         <label className="case-confirme" key={l.id} style={{ margin: '4px 0' }}>

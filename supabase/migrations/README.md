@@ -404,7 +404,23 @@ values ('20261028110000', '134_catalogue_pictos_seuls', array['-- appliquée man
 on conflict (version) do nothing;
 ```
 
-## Ne jamais rejouer 088 → 134 par `db push` sans les lignes ci-dessus
+### 135 : appliquée le 27/10 (par Claude, via l'outil Supabase) — catalogue : loge, bureau de production, QG sécurité
+
+| Fichier | Fait |
+|---|---|
+| `20261029090000_135_catalogue_production_securite.sql` | Dans le calque infrastructures du catalogue standard : `LOGE` (la loge artistes existait en logistique : elle passe en infrastructures, ordre 26, même code, objets posés inchangés), `BUREAUPROD` bureau de production 6 × 3 m (2 kW, ordre 27), `QGSECU` QG sécurité 6 × 3 m (3 kW, ordre 28) |
+
+Appliquée et inscrite (version 20261029090000) ; vérifié : les trois codes en infrastructures, ordres 26, 27, 28.
+
+### 136 : appliquée le 27/10 (par Claude, via l'outil Supabase) — objets du plan publiables
+
+| Fichier | Fait |
+|---|---|
+| `20261029100000_136_objets_plan_publics.sql` | `elements_plan.public` (booléen, faux par défaut) ; `contenu_public()` ajoute à ses « lieux » les objets du plan cochés publics (hors tracés), à la position de leur centre, même forme que les lieux du référentiel |
+
+Appliquée et inscrite (version 20261029100000) ; répétition : un objet coché compte un lieu de plus, un tracé coché aucun. La vitrine n'a pas changé, « Ce que voit le public › Lieux » liste maintenant aussi les objets du plan.
+
+## Ne jamais rejouer 088 → 136 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`
