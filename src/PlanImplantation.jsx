@@ -507,21 +507,36 @@ const TYPES_MOYENS = [
   ['extincteur', 'Extincteurs']
 ]
 
+// (27/10) Ce que le plan d'implantation compte lui-même : les DEA et les
+// extincteurs posés sur la carte de conception, par catégorie. Un tracé
+// (ligne) porte une quantité ; un objet ou un pictogramme compte un.
+const CATEGORIE_MOYEN = { dea: 'dea', extincteur: 'extincteur' }
+export function compterSurPlan(elements) {
+  const compte = { dea: 0, extincteur: 0 }
+  for (const e of elements ?? []) {
+    const type = Object.keys(CATEGORIE_MOYEN).find((t) => CATEGORIE_MOYEN[t] === e.categorie)
+    if (type) compte[type] += e.nature === 'ligne' ? Number(e.quantite ?? 1) || 1 : 1
+  }
+  return compte
+}
+
 export function Effectifs({ evenement, peut, toutPouvoir, setMessage }) {
   const [min, setMin] = useState(evenement.frequentation_min ?? '')
   const [max, setMax] = useState(evenement.frequentation_max ?? '')
   const [enregistre, setEnregistre] = useDrapeau()
   const [moyens, setMoyens] = useState([])
+  const [surPlan, setSurPlan] = useState(null)
 
   const peutMoyens = toutPouvoir || peut?.('plan_implantation', 'creer')
 
   async function charger() {
-    const { data } = await supabase
-      .from('moyens_premiers_secours')
-      .select('*')
-      .eq('evenement_id', evenement.id)
-      .order('type')
-    setMoyens(data ?? [])
+    const [m, p] = await Promise.all([
+      supabase.from('moyens_premiers_secours').select('*').eq('evenement_id', evenement.id).order('type'),
+      // Sans droit de lire le plan, la liste revient vide : on ne montre rien.
+      supabase.from('elements_plan').select('categorie, nature, quantite').eq('evenement_id', evenement.id).is('deleted_at', null)
+    ])
+    setMoyens(m.data ?? [])
+    setSurPlan(p.error ? null : compterSurPlan(p.data))
   }
 
   useEffect(() => {
@@ -600,29 +615,43 @@ export function Effectifs({ evenement, peut, toutPouvoir, setMessage }) {
 
       <div className="pave-titre" style={{ marginTop: 18 }}>Moyens de première intervention</div>
       <p className="aide" style={{ marginTop: -2 }}>
-        Un compte, pas une localisation — les DEA et extincteurs situés sur le plan restent
-        des points sur la carte. Ici, combien il y en a au total.
+        Un compte, pas une localisation. Les DEA et extincteurs posés sur la carte de conception
+        sont comptés à part : quand le plan en compte plus que le total saisi, « Reprendre »
+        aligne le total sur le plan (ceux posés plus ceux non placés se saisissent à la main).
       </p>
       {/* Le compte se lit par tout membre ; seul le champ de saisie
           dépend de `plan_implantation:creer`, la capacité que la policy
           `moyens_secours_ecriture` exige (103). */}
-      {TYPES_MOYENS.map(([type, libelle]) => (
+      {TYPES_MOYENS.map(([type, libelle]) => {
+        const quantite = moyens.find((m) => m.type === type)?.quantite ?? 0
+        const plan = surPlan && type in CATEGORIE_MOYEN ? surPlan[type] : null
+        return (
         <div className="saisie-rapide" key={type}>
           <span style={{ flex: 1 }}>{libelle}</span>
+          {plan != null && (
+            <span className={`aide moyens-plan ${plan > quantite ? 'alerte-texte' : ''}`} style={{ margin: 0 }}>
+              {plan} sur le plan
+              {peutMoyens && plan !== quantite && plan > 0 && (
+                <> · <button className="lien" onClick={() => majQuantite(type, plan)}>Reprendre</button></>
+              )}
+            </span>
+          )}
           {peutMoyens ? (
             <input
+              key={`${type}-${quantite}`}
               type="number"
-              defaultValue={moyens.find((m) => m.type === type)?.quantite ?? 0}
+              defaultValue={quantite}
               onBlur={(e) => majQuantite(type, Number(e.target.value) || 0)}
               style={{ flex: '0 1 90px' }}
             />
           ) : (
             <span className="mono" style={{ flex: '0 1 90px', textAlign: 'right' }}>
-              {moyens.find((m) => m.type === type)?.quantite ?? 0}
+              {quantite}
             </span>
           )}
         </div>
-      ))}
+        )
+      })}
     </>
   )
 }

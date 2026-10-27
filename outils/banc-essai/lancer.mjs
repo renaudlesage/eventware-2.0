@@ -75,6 +75,15 @@ for (const ecran of ecrans) {
   // domcontentloaded : l'événement load attend les tuiles de carte, qui n'arrivent jamais sans réseau.
   await page.goto('file://' + path.join(sortie, 'page.html') + '?ecran=' + ecran, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
+  // (27/10) Sécurité › Effectifs : les DEA et extincteurs du plan sont comptés (1 et 1 dans le faux plan), « Reprendre » proposé.
+  if (ecran === 'securite') {
+    await page.getByRole('button', { name: /^Effectifs/ }).first().click().catch(() => {})
+    await page.waitForTimeout(500)
+    const comptes = await page.locator('.moyens-plan').allTextContents()
+    if (comptes.length !== 2) erreurs.push(`Effectifs : ${comptes.length} comptes du plan (attendu 2 : DEA, extincteurs)`)
+    else if (!comptes.every((t) => /^1 sur le plan/.test(t))) erreurs.push(`Effectifs : comptes du plan ${JSON.stringify(comptes)} (attendu 1 et 1)`)
+    if (!(await page.locator('.moyens-plan button', { hasText: 'Reprendre' }).count())) erreurs.push('Effectifs : « Reprendre » absent alors que le plan en compte plus que le total')
+  }
   // L'éditeur d'implantation : chaque outil, puis un objet cliqué pour
   // ouvrir ses propriétés (liens, extincteur, eau).
   if (ecran === 'implantation') {

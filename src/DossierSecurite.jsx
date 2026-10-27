@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { compterSurPlan } from './PlanImplantation'
 import {
   Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell,
   WidthType, AlignmentType
@@ -281,7 +282,9 @@ async function construireDocument(evenement) {
   if (!moyens?.length) {
     enfants.push(aCompleter('aucun moyen dénombré dans Plan → Effectifs.'))
   } else {
-    enfants.push(tableau(['Type', 'Quantité'], moyens.map((m) => [m.type, m.quantite])))
+    // (27/10) Et ce que le plan d'implantation localise lui-même.
+    const surPlan = compterSurPlan(elementsPlan)
+    enfants.push(tableau(['Type', 'Quantité', 'Dont localisés sur le plan'], moyens.map((m) => [m.type, m.quantite, m.type in surPlan ? String(surPlan[m.type]) : '—'])))
   }
 
   // §11 Contrôles préalables — exigences applicables du référentiel
