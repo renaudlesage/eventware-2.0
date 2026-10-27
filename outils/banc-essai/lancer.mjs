@@ -274,6 +274,31 @@ for (const ecran of ecrans) {
       const apres = await page.locator('.impl-catalogue').evaluate((el) => el.getBoundingClientRect().width)
       if (!(apres > avant + 100)) erreurs.push(`catalogue : ${avant} → ${apres} px (attendu +120)`)
     }
+
+    // (27/10) Le fond de plan tourné : l'image porte une rotation, les réglages la changent.
+    // Page rechargée : les étapes précédentes laissent un objet sélectionné, et ses propriétés prennent la place du panneau Fonds.
+    await page.goto('file://' + path.join(sortie, 'page.html') + '?ecran=' + ecran, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(2000)
+    const img = page.locator('.leaflet-image-layer')
+    if (!(await img.count())) erreurs.push('fond de plan absent de la carte')
+    else {
+      const tr = await img.evaluate((el) => el.style.transform)
+      if (!/rotate\(/.test(tr)) erreurs.push(`fond sans rotation : ${tr}`)
+      const angle = await img.evaluate((el) => Number((el.style.transform.match(/rotate\(([-\d.]+)rad\)/) ?? [])[1]))
+      if (!(Math.abs(angle * 180 / Math.PI - 20) < 1)) erreurs.push(`angle du fond ${(angle * 180 / Math.PI).toFixed(1)}° (attendu 20°)`)
+      const rot = page.locator('.impl-fond-reglages input[type=range]')
+      if (!(await rot.count())) erreurs.push('réglage de rotation absent')
+      else {
+        const l = await page.locator('.impl-fond-dims input').first().inputValue()
+        const h = await page.locator('.impl-fond-dims input').nth(1).inputValue()
+        if (!(Math.abs(Number(l) - 60) < 0.5 && Math.abs(Number(h) - 30) < 0.5)) erreurs.push(`mesures du fond ${l} × ${h} (attendu 60 × 30)`)
+        if (Math.abs(Number(await rot.inputValue()) - 20) > 0.6) erreurs.push(`rotation lue ${await rot.inputValue()} (attendu 20)`)
+        await rot.fill('65')
+        await page.waitForTimeout(300)
+        const angle2 = await img.evaluate((el) => Number((el.style.transform.match(/rotate\(([-\d.]+)rad\)/) ?? [])[1]))
+        if (!(Math.abs(angle2 * 180 / Math.PI - 65) < 1)) erreurs.push(`angle après réglage ${(angle2 * 180 / Math.PI).toFixed(1)}° (attendu 65°)`)
+      }
+    }
   }
   if (ecran === 'gantt-lecture') {
     if (await page.locator('.gantt-svg .gantt-poignee').count()) erreurs.push('poignées visibles en lecture seule')

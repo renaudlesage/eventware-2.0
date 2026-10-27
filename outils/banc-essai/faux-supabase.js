@@ -17,6 +17,8 @@ export const DONNEES = {
   fournisseur_evaluations: [{ id: 'ev1', fournisseur_id: 'f1', evenement_id: 'ev0', note: 4, verdict: 'a_reprendre', commentaire: 'ponctuel', created_at: '2025-11-12T10:00:00Z', evenements: { nom: 'Rando VTT 2025' } }],
   demande_prix_lignes: [{ id: 'dl1', demande_id: 'dp1', ordre: 1, designation: 'Barrière Heras 3,5 m', quantite: 10, unite: 'pièce', precision: null, materiel_id: null }, { id: 'dl2', demande_id: 'dp1', ordre: 2, designation: 'Pied béton', quantite: 5, unite: 'pièce', precision: null, materiel_id: null }, { id: 'dl3', demande_id: 'dp1', ordre: 3, designation: 'Transport aller-retour', quantite: 1, unite: 'forfait', precision: 'livraison vendredi 8 h', materiel_id: null }],
   consultations: [], offre_lignes: [], commandes: [], journal_imports: [], groupes_travail: [{ id: 'gt2', nom: 'Logistique', ordre: 2 }],
+  // (27/10) Un fond de plan de 60 × 30 m tourné de 20°, pour voir l'image tournée et ses réglages.
+  fonds_plan: [{ id: 'fp1', evenement_id: 'ev1', nom: 'plan-proprio.png', chemin: 'ev1/plan.png', coins: { no: [50.3858188, 5.6152751], ne: [50.3856344, 5.6160694], so: [50.3855656, 5.6151306] }, opacite: 0.6, visible: true, updated_at: '2026-10-27T10:00:00Z' }],
   materiel: [{ id: 'mat1', code: 'HER-01', nom: 'Barrière Heras 3,5 m', unite: 'pièce', categorie: 'barriérage' }],
   maydays: [], groupes: [], transports: [{ id: 'tr1', reference: 'TRA-001', priorite: 'P2', statut: 'attribuee', nb_personnes: 3, motif: 'Navette gare', souhaite_pour: new Date().toISOString(), contact: '0477 11 22 33', adresse_depart: 'Gare de Ferrières', etape: 'en_route', depart: null, arrivee: null, chauffeur: null, depart_libre: 'Gare', arrivee_libre: 'Départ' }], programme: [], jalons: [], journal: [], recherches: [], canaux_radio: [], attributions: [], alertes: [], alertes_accuses: [], mission_commentaires: [], objets_plan: [], moyens_premiers_secours: [], veille_meteo: [], passages: []
 }
@@ -99,7 +101,7 @@ export const supabase = {
   from: (t) => constructeur(t),
   rpc: (f, args) => constructeur(f, 'rpc', args),
   auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) },
-  storage: { from: () => ({ createSignedUrl: async () => ({ data: { signedUrl: null } }), getPublicUrl: () => ({ data: { publicUrl: '' } }), upload: async () => ({ error: null }), remove: async () => ({}) }) },
+  storage: { from: () => ({ createSignedUrl: async () => ({ data: { signedUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEklEQVQIW2P8z8DwnwEIGGEMAD/0A/8MO6tKAAAAAElFTkSuQmCC' } }), getPublicUrl: () => ({ data: { publicUrl: '' } }), upload: async () => ({ error: null }), remove: async () => ({}) }) },
   channel: () => ({ on() { return this }, subscribe() { return this } }),
   removeChannel() {}
 }

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, Polygon, Polyline, CircleMarker, Marker, ImageOverlay, Tooltip, useMap, useMapEvents } from 'react-leaflet'
+import { MapContainer, Polygon, Polyline, CircleMarker, Marker, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser, supprimerOuRefuser } from './ecriture'
 import { CATEGORIES_PLAN } from './referentielsProduit'
-import { polygoneObjet, distancePoints, longueurLigne, jonctionsLigne, nombreModules, milieuLigne, translaterLigne, contientPoint } from './geometrie'
+import { polygoneObjet, distancePoints, longueurLigne, jonctionsLigne, nombreModules, milieuLigne, translaterLigne, contientPoint, coinsRectangle, versLocal } from './geometrie'
 import { pictoSvg } from './pictos'
 import { FONDS_CARTE, FondCarte, ControlesCarte, useFondCarte } from './carte'
 import { estDistributeur, courant, chuteTension, arbreElectrique } from './reseaux'
@@ -25,7 +25,9 @@ import { CALQUES, COULEUR_CALQUE, LIBELLE_CALQUE } from './calques'
  *   poser    — un équipement choisi dans le catalogue, au clic ;
  *   mesurer  — deux clics, une distance ;
  *   caler    — deux clics (coin nord-ouest puis sud-est) pour poser un
- *              plan du terrain en transparence sous la carte.
+ *              plan du terrain en transparence sous la carte ; ensuite
+ *              (27/10) il se tourne et se met à l'échelle depuis le
+ *              panneau Fonds de plan (rotation, largeur, hauteur en m).
  *   tracer   — une ligne de barrières (117) : clic après clic, double-clic
  *              ou « Terminer » pour la fermer ; la base en déduit le
  *              nombre de modules.
@@ -59,6 +61,80 @@ export { FONDS_CARTE }
 const num = (v) => (v === '' || v == null ? null : Number(String(v).replace(',', '.')))
 const fr = (x, d = 1) => (x == null ? '—' : Number(x).toFixed(d).replace('.', ','))
 
+/**
+ * (27/10) Un fond de plan qui tourne. Leaflet ne sait poser une image
+ * que dans un rectangle nord-sud ; ici l'image est posée par ses trois
+ * coins (nord-ouest, nord-est, sud-ouest) : on la place au premier, on
+ * la dimensionne sur les deux vecteurs, on la tourne de l'angle du
+ * bord nord. Repris du principe de Leaflet.ImageOverlay.Rotated, sans
+ * le cisaillement : nos coins forment toujours un rectangle.
+ */
+const ImageTournee = L.ImageOverlay.extend({
+  initialize(url, coins, options) {
+    this._url = url
+    this._no = L.latLng(coins.no)
+    this._ne = L.latLng(coins.ne)
+    this._so = L.latLng(coins.so)
+    this._bounds = L.latLngBounds([this._no, this._ne, this._so])
+    L.setOptions(this, options)
+  },
+  _poser(point, scale) {
+    const img = this._image
+    const no = point ?? this._map.latLngToLayerPoint(this._no)
+    L.DomUtil.setTransform(img, no, scale)
+    img.style.transformOrigin = '0 0'
+    img.style.transform += ` rotate(${this._angle()}rad)`
+  },
+  _angle() {
+    const pNo = this._map.latLngToLayerPoint(this._no)
+    const pNe = this._map.latLngToLayerPoint(this._ne)
+    return Math.atan2(pNe.y - pNo.y, pNe.x - pNo.x)
+  },
+  _reset() {
+    if (!this._image || !this._map) return
+    const pNo = this._map.latLngToLayerPoint(this._no)
+    const pNe = this._map.latLngToLayerPoint(this._ne)
+    const pSo = this._map.latLngToLayerPoint(this._so)
+    this._image.style.width = `${pNe.distanceTo(pNo)}px`
+    this._image.style.height = `${pSo.distanceTo(pNo)}px`
+    this._poser(pNo)
+  },
+  _animateZoom(e) {
+    if (!this._image || !this._map) return
+    const no = this._map._latLngToNewLayerPoint(this._no, e.zoom, e.center)
+    this._poser(no, this._map.getZoomScale(e.zoom))
+  }
+})
+
+function FondTourne({ url, coins, opacite }) {
+  const carte = useMap()
+  const cle = JSON.stringify(coins)
+  useEffect(() => {
+    const couche = new ImageTournee(url, coins, { opacity: opacite, interactive: false })
+    couche.addTo(carte)
+    return () => { couche.remove() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carte, url, cle, opacite])
+  return null
+}
+
+/** Centre, largeur, hauteur (m) et rotation (°, sens horaire) d'un fond, depuis ses trois coins. */
+export function mesuresFond(coins) {
+  const centre = [(coins.ne[0] + coins.so[0]) / 2, (coins.ne[1] + coins.so[1]) / 2]
+  const v = versLocal(coins.ne, coins.no)
+  return {
+    centre,
+    largeur: distancePoints(coins.no, coins.ne),
+    hauteur: distancePoints(coins.no, coins.so),
+    rotation: (-Math.atan2(v.y, v.x) * 180) / Math.PI
+  }
+}
+/** Les trois coins d'un fond depuis ses mesures (l'inverse de mesuresFond). */
+export function coinsFond({ centre, largeur, hauteur, rotation }) {
+  const c = coinsRectangle(centre, largeur, hauteur, rotation)
+  return { no: c[0], ne: c[1], so: c[3] }
+}
+
 export default function Implantation({ evenement, elements, onRecharger, peutCreer, peutModifier, setMessage }) {
   const [catalogue, setCatalogue] = useState([])
   const [fonds, setFonds] = useState([])
@@ -91,6 +167,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
   }
   const [filtreCalque, setFiltreCalque] = useState('')
   const [brouillon, setBrouillon] = useState(null) // objet en cours de déplacement (centre provisoire)
+  const [apercuFond, setApercuFond] = useState(null) // {id, coins} : un fond qu'on tourne ou redimensionne, avant l'écriture
   // Le double-clic de fin de tracé arrive avant que les gestionnaires de
   // la carte aient vu le dernier clic : on lit le mode courant, pas celui
   // du rendu qui a attaché le gestionnaire.
@@ -650,7 +727,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
             <FondCarte cle={fondCarte} />
             <ControlesCarte fond={fondCarte} onFond={setFondCarte} pleinEcran={plein} onPleinEcran={setPlein} />
             {fonds.filter((f) => f.visible && urls[f.id]).map((f) => (
-              <ImageOverlay key={f.id + f.updated_at} url={urls[f.id]} bounds={[[f.coins.so[0], f.coins.no[1]], [f.coins.no[0], f.coins.ne[1]]]} opacity={Number(f.opacite)} />
+              <FondTourne key={f.id} url={urls[f.id]} coins={apercuFond?.id === f.id ? apercuFond.coins : f.coins} opacite={Number(f.opacite)} />
             ))}
             {existantsVisibles && existants.map((e) => <Existant key={e.id} e={e} />)}
             {visibles.map((o) => (
@@ -770,8 +847,10 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
               peutModifier={peutModifier}
               onAjouter={ajouterFond}
               onCaler={(f) => setMode({ type: 'caler', fond: f.id, points: [] })}
-              onModifier={modifierFond}
+              onModifier={(id, champs) => { setApercuFond(null); modifierFond(id, champs) }}
+              onApercu={(id, coins) => setApercuFond(coins ? { id, coins } : null)}
               onRetirer={retirerFond}
+              urls={urls}
             />
           )}
         </aside>
@@ -1520,13 +1599,74 @@ function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, 
 /* ------------------------------------------------------------------ */
 /* Fonds de plan                                                       */
 
-function Fonds({ fonds, peutCreer, peutModifier, onAjouter, onCaler, onModifier, onRetirer }) {
+/**
+ * (27/10) Orienter et mettre à l'échelle un fond : rotation en degrés,
+ * largeur et hauteur en mètres, proportions gardées par défaut (et
+ * reprises de l'image elle-même sur demande). L'aperçu suit le geste ;
+ * la base n'est écrite qu'au relâchement.
+ */
+function ReglagesFond({ fond, url, onApercu, onModifier }) {
+  const base = mesuresFond(fond.coins)
+  const [v, setV] = useState(() => ({ largeur: base.largeur.toFixed(1), hauteur: base.hauteur.toFixed(1), rotation: base.rotation.toFixed(1) }))
+  const [proportions, setProportions] = useState(true)
+  useEffect(() => {
+    const m = mesuresFond(fond.coins)
+    setV({ largeur: m.largeur.toFixed(1), hauteur: m.hauteur.toFixed(1), rotation: m.rotation.toFixed(1) })
+  }, [fond.coins, fond.updated_at])
+
+  const coinsDe = (x) => coinsFond({ centre: base.centre, largeur: Number(x.largeur) || base.largeur, hauteur: Number(x.hauteur) || base.hauteur, rotation: Number(x.rotation) || 0 })
+  function changer(champ, valeur) {
+    let n = { ...v, [champ]: valeur }
+    if (proportions && (champ === 'largeur' || champ === 'hauteur') && Number(valeur) > 0 && base.largeur > 0 && base.hauteur > 0) {
+      const ratio = base.hauteur / base.largeur
+      n = champ === 'largeur' ? { ...n, hauteur: (Number(valeur) * ratio).toFixed(1) } : { ...n, largeur: (Number(valeur) / ratio).toFixed(1) }
+    }
+    setV(n)
+    onApercu(fond.id, coinsDe(n))
+  }
+  function ecrire() {
+    onModifier(fond.id, { coins: coinsDe(v) })
+  }
+  function proportionsImage() {
+    if (!url) return
+    const img = new Image()
+    img.onload = () => {
+      if (!img.naturalWidth) return
+      const n = { ...v, hauteur: ((Number(v.largeur) || base.largeur) * img.naturalHeight / img.naturalWidth).toFixed(1) }
+      setV(n)
+      onModifier(fond.id, { coins: coinsDe(n) })
+    }
+    img.src = url
+  }
+
+  return (
+    <div className="impl-fond-reglages">
+      <label>
+        Rotation {v.rotation}°
+        <input type="range" min="-180" max="180" step="0.5" value={v.rotation} onChange={(e) => changer('rotation', e.target.value)} onMouseUp={ecrire} onTouchEnd={ecrire} onKeyUp={(e) => ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) && ecrire()} />
+      </label>
+      <div className="impl-fond-dims">
+        <label>Largeur (m)<input type="number" step="0.1" min="0.1" value={v.largeur} onChange={(e) => changer('largeur', e.target.value)} onBlur={ecrire} /></label>
+        <label>Hauteur (m)<input type="number" step="0.1" min="0.1" value={v.hauteur} onChange={(e) => changer('hauteur', e.target.value)} onBlur={ecrire} /></label>
+      </div>
+      <div className="ligne-boutons">
+        <label className="case-a-cocher" style={{ margin: 0 }}>
+          <input type="checkbox" checked={proportions} onChange={(e) => setProportions(e.target.checked)} /> garder les proportions
+        </label>
+        <button className="lien" onClick={proportionsImage} disabled={!url} title="Reprend le rapport largeur / hauteur de l'image envoyée">proportions de l'image</button>
+      </div>
+    </div>
+  )
+}
+
+function Fonds({ fonds, peutCreer, peutModifier, onAjouter, onCaler, onModifier, onApercu, onRetirer, urls = {} }) {
   return (
     <div className="impl-fonds">
       <h3 className="prc-titre">Fonds de plan</h3>
       <p className="aide">
         Une image du terrain (plan du propriétaire, relevé, croquis) posée en transparence sous
-        la carte. Après l'envoi, clique son coin nord-ouest puis son coin sud-est sur la carte.
+        la carte. Après l'envoi, clique son coin nord-ouest puis son coin sud-est sur la carte ;
+        puis tourne-la et règle sa taille en mètres ci-dessous.
       </p>
       {fonds.map((f) => (
         <div key={f.id} className="impl-fond">
@@ -1545,6 +1685,7 @@ function Fonds({ fonds, peutCreer, peutModifier, onAjouter, onCaler, onModifier,
                 Opacité
                 <input type="range" min="0.1" max="1" step="0.1" defaultValue={f.opacite} onMouseUp={(e) => onModifier(f.id, { opacite: Number(e.target.value) })} onTouchEnd={(e) => onModifier(f.id, { opacite: Number(e.target.value) })} />
               </label>
+              <ReglagesFond fond={f} url={urls[f.id]} onApercu={onApercu} onModifier={onModifier} />
               <div className="ligne-boutons">
                 <button className="discret" onClick={() => onCaler(f)}>Recaler</button>
                 <button className="discret danger-texte" onClick={() => { if (window.confirm(`Retirer le fond « ${f.nom} » ?`)) onRetirer(f) }}>Retirer</button>
