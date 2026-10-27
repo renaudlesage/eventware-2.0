@@ -86,6 +86,33 @@ const DESSINS = {
     fond: BLEU,
     forme: 'carre',
     corps: `<g fill="none" stroke="${BLANC}" stroke-width="8" stroke-linecap="round"><circle cx="44" cy="20" r="7" fill="${BLANC}" stroke="none"/><path d="M44 32 V58 H66 L76 80"/><path d="M34 46 C20 50 16 66 24 76 C32 86 48 84 54 74"/></g>`
+  },
+  // (133, 27/10) Secours et eau : prise d'eau naturelle, pompe,
+  // aires d'hélicoptère de jour et de nuit, cabinet médical.
+  eau_naturelle: {
+    fond: BLEU,
+    forme: 'carre',
+    corps: `<g fill="none" stroke="${BLANC}" stroke-width="7" stroke-linecap="round"><path d="M12 50 C22 40 30 40 40 50 S58 60 68 50 S86 40 90 46"/><path d="M12 70 C22 60 30 60 40 70 S58 80 68 70 S86 60 90 66"/></g><path d="M50 12 C50 22 60 28 60 36 C60 42 55 46 50 46 C45 46 40 42 40 36 C40 28 50 22 50 12 Z" fill="${BLANC}"/>`
+  },
+  pompe: {
+    fond: BLEU,
+    forme: 'carre',
+    corps: `<g fill="${BLANC}"><circle cx="40" cy="56" r="20"/><rect x="40" y="30" width="46" height="10" rx="3"/><rect x="78" y="30" width="10" height="30"/><rect x="18" y="76" width="44" height="8" rx="3"/></g><circle cx="40" cy="56" r="8" fill="${BLEU}"/><path d="M40 48 L48 56 L40 64 L32 56 Z" fill="${BLANC}"/>`
+  },
+  helico_jour: {
+    fond: BLEU,
+    forme: 'carre',
+    corps: `<circle cx="50" cy="50" r="36" fill="none" stroke="${BLANC}" stroke-width="6"/><path d="M34 26 V74 M66 26 V74 M34 50 H66" fill="none" stroke="${BLANC}" stroke-width="10" stroke-linecap="round"/>`
+  },
+  helico_nuit: {
+    fond: NOIR,
+    forme: 'carre',
+    corps: `<circle cx="50" cy="50" r="36" fill="none" stroke="${JAUNE}" stroke-width="6"/><path d="M34 26 V74 M66 26 V74 M34 50 H66" fill="none" stroke="${JAUNE}" stroke-width="10" stroke-linecap="round"/><g fill="${JAUNE}"><circle cx="14" cy="14" r="5"/><circle cx="86" cy="14" r="5"/><circle cx="14" cy="86" r="5"/><circle cx="86" cy="86" r="5"/></g>`
+  },
+  cabinet_medical: {
+    fond: VERT,
+    forme: 'carre',
+    corps: `<path d="M40 14 H60 V40 H86 V60 H60 V86 H40 V60 H14 V40 H40 Z" fill="${BLANC}"/><g fill="none" stroke="${VERT}" stroke-width="5" stroke-linecap="round"><path d="M40 30 V44 C40 52 44 58 50 58 C56 58 60 52 60 44 V30"/><path d="M50 58 V66 C50 72 56 74 60 74"/></g><circle cx="65" cy="74" r="5" fill="${VERT}"/>`
   }
 }
 
