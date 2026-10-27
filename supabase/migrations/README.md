@@ -420,7 +420,7 @@ Appliquée et inscrite (version 20261029090000) ; vérifié : les trois codes en
 
 Appliquée et inscrite (version 20261029100000) ; répétition : un objet coché compte un lieu de plus, un tracé coché aucun. La vitrine n'a pas changé, « Ce que voit le public › Lieux » liste maintenant aussi les objets du plan.
 
-### 137 : à appliquer par Ren dans l'éditeur SQL — les objets du plan sont des lieux
+### 137 : appliquée le 27/10 par Ren dans l'éditeur SQL — les objets du plan sont des lieux
 
 | Fichier | Fait |
 |---|---|
