@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { aParcours } from './libelles'
 import { supabase } from './supabaseClient'
 import Dashboard from './Dashboard'
@@ -114,6 +114,16 @@ export default function Poste({ session, theme, setTheme }) {
     setOngletCible(sousOnglet ?? null)
   }
   const [message, setMessage] = useState(null)
+  // (27/10) Sur un téléphone, le message vit en haut de la page et un
+  // formulaire en bas : une erreur arrivait hors de vue, et « Ajouter »
+  // semblait ne rien faire. Une erreur invisible se fait voir.
+  const messageRef = useRef(null)
+  useEffect(() => {
+    const el = messageRef.current
+    if (!el || message?.type !== 'erreur') return
+    const r = el.getBoundingClientRect()
+    if (r.bottom < 0 || r.top > window.innerHeight) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [message])
   // Le rail déplié en permanence est un réglage de la personne, rangé
   // comme le thème : dans le stockage local, pas dans l'événement.
   const [railEpingle, setRailEpingle] = useState(
@@ -271,7 +281,7 @@ export default function Poste({ session, theme, setTheme }) {
       )}
 
       {message && (
-        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
+        <div ref={messageRef} className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
           {message.texte}
         </div>
       )}

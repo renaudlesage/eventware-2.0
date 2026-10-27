@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabaseClient'
 import PiecesJointes from './PiecesJointes'
 import VisibiliteJalon from './VisibiliteJalon'
 import { STATUTS_JALON, libelleStatutJalon, jalonEnRetard, supprimerJalon } from './jalons'
-import { texteErreur } from './erreurs'
+import { texteErreur, estDoublon } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import FicheJalon from './FicheJalon'
 
@@ -360,12 +360,28 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
 function Lignes({ nature, evenement, groupe, lignes, toutes = lignes, liens = [], gantt = {}, membres, peutGerer, toutPouvoir, groupes, setMessage, onFait }) {
   const [ouvrir, setOuvrir] = useState(false)
   const [f, setF] = useState({ code: '', libelle: '', echeance: '', responsable_membre_id: '', critique: false })
+  // (27/10) Ce qui a cassé sur le téléphone de Ren : « Ajouter » ne
+  // faisait rien. Le code COM existait déjà, la base refusait le
+  // doublon, et l'erreur s'affichait tout en haut de l'écran, hors de
+  // vue. Désormais le doublon se voit avant d'envoyer, l'erreur se lit
+  // sous le formulaire, et un code libre est proposé.
+  const [erreur, setErreur] = useState(null)
+  const codesPris = useMemo(() => new Set(toutes.map((x) => String(x.code ?? '').toUpperCase())), [toutes])
+  const codeTape = f.code.trim().toUpperCase()
+  const pris = codeTape ? toutes.find((x) => String(x.code ?? '').toUpperCase() === codeTape) : null
+  function codeLibre(base) {
+    const racine = (base || 'X').replace(/-\d+$/, '')
+    let n = 2
+    while (codesPris.has(`${racine}-${n}`)) n++
+    return `${racine}-${n}`
+  }
 
   const estJalon = nature === 'jalon'
 
   async function creer() {
     if (!f.code.trim() || !f.libelle.trim()) return
     if (estJalon && !f.echeance) return
+    setErreur(null)
     const { error } = await supabase.from('jalons').insert({
       evenement_id: evenement.id,
       code: f.code.trim(),
@@ -378,9 +394,17 @@ function Lignes({ nature, evenement, groupe, lignes, toutes = lignes, liens = []
       critique: estJalon ? f.critique : false,
       groupe_travail_id: groupe?.id ?? null
     })
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
-    else {
+    if (error) {
+      // Un doublon que la liste ne montrait pas : une ligne supprimée
+      // garde son code.
+      const texte = estDoublon(error)
+        ? `Le code « ${f.code.trim()} » est déjà pris sur cet événement, peut-être par une ligne supprimée.`
+        : texteErreur(error)
+      setErreur({ texte, proposition: estDoublon(error) ? codeLibre(codeTape) : null })
+      setMessage({ type: 'erreur', texte })
+    } else {
       setF({ code: '', libelle: '', echeance: '', responsable_membre_id: '', critique: false })
+      setErreur(null)
       setOuvrir(false)
       onFait()
     }
@@ -594,12 +618,24 @@ function Lignes({ nature, evenement, groupe, lignes, toutes = lignes, liens = []
                   </label>
                 )}
                 <button
-                  disabled={!f.code.trim() || !f.libelle.trim() || (estJalon && !f.echeance)}
+                  disabled={!f.code.trim() || !f.libelle.trim() || (estJalon && !f.echeance) || !!pris}
                   onClick={creer}
                 >
                   Ajouter
                 </button>
               </div>
+              {pris && (
+                <p className="aide alerte-texte prep-doublon">
+                  Le code « {codeTape} » est déjà pris par « {pris.libelle} »{pris.groupe_travail_id && groupes.find((g) => g.id === pris.groupe_travail_id) ? ` (${groupes.find((g) => g.id === pris.groupe_travail_id).nom})` : ''}.{' '}
+                  <button className="lien" onClick={() => setF({ ...f, code: codeLibre(codeTape) })}>Utiliser {codeLibre(codeTape)}</button>
+                </p>
+              )}
+              {erreur && !pris && (
+                <p className="aide alerte-texte prep-erreur">
+                  {erreur.texte}{' '}
+                  {erreur.proposition && <button className="lien" onClick={() => { setF({ ...f, code: erreur.proposition }); setErreur(null) }}>Utiliser {erreur.proposition}</button>}
+                </p>
+              )}
               <p className="aide">
                 {estJalon
                   ? "Un jalon a toujours une date : c'est elle qui compte. Il apparaît dans la frise du Planning ; confié à quelqu'un, dans son écran « Mes missions »."
