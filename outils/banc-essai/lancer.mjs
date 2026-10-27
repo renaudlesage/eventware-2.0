@@ -303,6 +303,12 @@ for (const ecran of ecrans) {
       // glisser repart des coins enregistrés.
       await page.locator('.impl-fond-reglages input[type=range]').fill('20')
       await page.waitForTimeout(200)
+      // Sans « Déplacer », glisser sur l'image déplace la carte, pas le fond.
+      const curseurAvant = await img.evaluate((el) => el.style.cursor)
+      if (curseurAvant === 'move') erreurs.push('le fond est glissable sans avoir cliqué Déplacer')
+      await page.locator('.impl-fond button', { hasText: 'Déplacer' }).first().click()
+      await page.waitForTimeout(200)
+      if (!(await page.getByText('Terminer le déplacement').count())) erreurs.push('Déplacer n’active pas l’outil')
       const avantX = await img.evaluate((el) => el.getBoundingClientRect().left)
       const carteAvant = await page.locator('.leaflet-map-pane').evaluate((el) => el.style.transform)
       const bi = await img.boundingBox()
@@ -316,8 +322,17 @@ for (const ecran of ecrans) {
       const carteApres = await page.locator('.leaflet-map-pane').evaluate((el) => el.style.transform)
       await page.mouse.up()
       await page.waitForTimeout(300)
-      const ecrits = await page.evaluate(() => (window.__appels ?? []).length)
-      void ecrits
+      // Suppr retire l'objet sélectionné (confirmation acceptée).
+      page.once('dialog', (d) => d.accept())
+      await page.locator('.impl-fiche').first().click().catch(() => {})
+      const objet = page.locator('.leaflet-interactive').first()
+      await objet.click({ force: true }).catch(() => {})
+      await page.waitForTimeout(200)
+      await page.evaluate(() => { window.__appels = [] })
+      await page.keyboard.press('Delete')
+      await page.waitForTimeout(300)
+      const suppr = await page.evaluate(() => (window.__appels ?? []).filter((a) => a.fn === 'supprimer_logiquement'))
+      if (suppr.length !== 1 || suppr[0].args?.p_table !== 'elements_plan') erreurs.push(`Suppr : ${JSON.stringify(suppr)} (attendu un appel supprimer_logiquement sur elements_plan)`)
       if (!(Math.abs(apresX - avantX - 100) < 8)) erreurs.push(`glisser du fond : ${(apresX - avantX).toFixed(0)} px (attendu 100)`)
       if (carteAvant !== carteApres) erreurs.push('la carte a bougé pendant le glisser du fond')
     }

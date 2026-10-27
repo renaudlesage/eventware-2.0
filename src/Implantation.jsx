@@ -295,6 +295,23 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
     else chargerLiens()
   }
 
+  // (27/10) Suppr ou Retour arrière retire l'objet sélectionné, hors d'un
+  // champ de saisie, après confirmation — le bouton Retirer des propriétés
+  // était au bout d'un long panneau.
+  useEffect(() => {
+    if (!selectionne || !peutModifier) return
+    const touche = (e) => {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return
+      const cible = e.target
+      if (cible && (cible.tagName === 'INPUT' || cible.tagName === 'TEXTAREA' || cible.tagName === 'SELECT' || cible.isContentEditable)) return
+      e.preventDefault()
+      if (window.confirm(`Retirer « ${selectionne.nom} » du plan ?`)) retirer(selectionne)
+    }
+    window.addEventListener('keydown', touche)
+    return () => window.removeEventListener('keydown', touche)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectionne?.id, peutModifier])
+
   // Plein écran : Échap pour en sortir, et la page ne défile plus derrière.
   useEffect(() => {
     if (!plein) return
@@ -499,6 +516,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
   /* ---- gestes carte ------------------------------------------------ */
 
   function clicCarte(latlng) {
+    if (mode?.type === 'deplacer-fond') return
     if (!mode) {
       setSelection(null)
       return
@@ -723,7 +741,8 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
           {mode?.type === 'tracer' && (mode.points?.length ?? 0) >= 2 && (
             <button onClick={terminerTrace}>Terminer la ligne</button>
           )}
-          {mode && mode.type !== 'main' && mode.type !== 'lier' && mode.type !== 'mesurer' && (
+          {mode?.type === 'deplacer-fond' && <button onClick={() => setMode(null)}>Terminer le déplacement</button>}
+          {mode && mode.type !== 'main' && mode.type !== 'lier' && mode.type !== 'mesurer' && mode.type !== 'deplacer-fond' && (
             <button className="discret" onClick={() => setMode(null)}>
               Annuler {mode.type === 'poser' || mode.type === 'tracer' ? `(${mode.fiche.libelle})` : ''}
             </button>
@@ -764,7 +783,8 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
         {mode?.type === 'lier' && (mode.de
           ? `Lier « ${objets.find((x) => x.id === mode.de)?.nom ?? '…'} » à… clique le second objet (clic dans le vide : annuler).`
           : 'Lier : clique le premier objet, puis le second. Le lien se règle (nature, note) dans les propriétés de l’un ou l’autre.')}
-        {!mode && `Flèche : clique un objet pour le régler à droite, glisse-le pour le déplacer. Ou choisis un équipement dans le catalogue et pose-le.${fonds.length && peutModifier ? ' Un fond de plan se glisse aussi à la souris.' : ''}`}
+        {mode?.type === 'deplacer-fond' && 'Déplacer le fond : clique dessus et glisse-le sur la carte, autant de fois qu\u2019il faut ; « Terminer » quand il est en place.'}
+        {!mode && 'Flèche : clique un objet pour le régler à droite, glisse-le pour le déplacer. Ou choisis un équipement dans le catalogue et pose-le.'}
       </p>
 
       <div className="impl-corps" style={{ '--impl-catalogue': `${largeurCatalogue}px` }}>
@@ -810,7 +830,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
             <ControlesCarte fond={fondCarte} onFond={setFondCarte} pleinEcran={plein} onPleinEcran={setPlein} />
             {fonds.filter((f) => f.visible && urls[f.id]).map((f) => (
               <FondTourne key={f.id} url={urls[f.id]} coins={apercuFond?.id === f.id ? apercuFond.coins : f.coins} opacite={Number(f.opacite)}
-                onDeplacer={peutModifier && !mode ? deplacerFond(f) : null} />
+                onDeplacer={peutModifier && mode?.type === 'deplacer-fond' && mode.fond === f.id ? deplacerFond(f) : null} />
             ))}
             {existantsVisibles && existants.map((e) => <Existant key={e.id} e={e} />)}
             {visibles.map((o) => (
@@ -930,6 +950,8 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
               peutModifier={peutModifier}
               onAjouter={ajouterFond}
               onCaler={(f) => setMode({ type: 'caler', fond: f.id, points: [] })}
+              onDeplacerFond={(f) => setMode(f ? { type: 'deplacer-fond', fond: f.id } : null)}
+              deplace={mode?.type === 'deplacer-fond' ? mode.fond : null}
               onModifier={(id, champs) => { setApercuFond(null); modifierFond(id, champs) }}
               onApercu={(id, coins) => setApercuFond(coins ? { id, coins } : null)}
               onRetirer={retirerFond}
@@ -1355,6 +1377,14 @@ function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, 
         <span className={`prc-jeton ${o.confirme ? '' : 'veille'}`}>{o.confirme ? 'confirmé sur site' : 'non confirmé'}</span>
         <button className="lien impl-props-fermer" onClick={onFermer} aria-label="Désélectionner" title="Désélectionner (retour aux fonds de plan)">✕</button>
       </div>
+      {peutModifier && (
+        <div className="ligne-boutons impl-actions">
+          <button className="discret" onClick={onDeplacer}>Déplacer</button>
+          {peutCreer && <button className="discret" onClick={onDupliquer}>Dupliquer</button>}
+          <button className="discret danger-texte" onClick={() => { if (window.confirm(`Retirer « ${o.nom} » du plan ?`)) onRetirer() }}>Retirer</button>
+          <span className="aide" style={{ margin: 0 }}>ou touche Suppr</span>
+        </div>
+      )}
       <label>
         Nom
         <input value={f.nom} disabled={lecture} onChange={(e) => envoyer('nom', e.target.value)} onBlur={() => valider('nom')} />
@@ -1668,13 +1698,6 @@ function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, 
         <textarea rows={2} value={f.description} disabled={lecture} onChange={(e) => envoyer('description', e.target.value)} onBlur={() => valider('description')} />
       </label>
 
-      {peutModifier && (
-        <div className="ligne-boutons impl-actions">
-          <button className="discret" onClick={onDeplacer}>Déplacer</button>
-          {peutCreer && <button className="discret" onClick={onDupliquer}>Dupliquer</button>}
-          <button className="discret danger-texte" onClick={() => { if (window.confirm(`Retirer « ${o.nom} » du plan ?`)) onRetirer() }}>Retirer</button>
-        </div>
-      )}
     </div>
   )
 }
@@ -1742,14 +1765,14 @@ function ReglagesFond({ fond, url, onApercu, onModifier }) {
   )
 }
 
-function Fonds({ fonds, peutCreer, peutModifier, onAjouter, onCaler, onModifier, onApercu, onRetirer, urls = {} }) {
+function Fonds({ fonds, peutCreer, peutModifier, onAjouter, onCaler, onDeplacerFond, deplace, onModifier, onApercu, onRetirer, urls = {} }) {
   return (
     <div className="impl-fonds">
       <h3 className="prc-titre">Fonds de plan</h3>
       <p className="aide">
         Une image du terrain (plan du propriétaire, relevé, croquis) posée en transparence sous
         la carte. Après l'envoi, clique son coin nord-ouest puis son coin sud-est sur la carte ;
-        puis glisse-la à la souris, tourne-la et règle sa taille en mètres ci-dessous.
+        puis « Déplacer » pour la glisser à la souris, et tourne-la et règle sa taille en mètres ci-dessous.
       </p>
       {fonds.map((f) => (
         <div key={f.id} className="impl-fond">
@@ -1770,6 +1793,7 @@ function Fonds({ fonds, peutCreer, peutModifier, onAjouter, onCaler, onModifier,
               </label>
               <ReglagesFond fond={f} url={urls[f.id]} onApercu={onApercu} onModifier={onModifier} />
               <div className="ligne-boutons">
+                <button className={deplace === f.id ? '' : 'discret'} onClick={() => onDeplacerFond(deplace === f.id ? null : f)}>{deplace === f.id ? 'Terminer le déplacement' : 'Déplacer'}</button>
                 <button className="discret" onClick={() => onCaler(f)}>Recaler</button>
                 <button className="discret danger-texte" onClick={() => { if (window.confirm(`Retirer le fond « ${f.nom} » ?`)) onRetirer(f) }}>Retirer</button>
               </div>
