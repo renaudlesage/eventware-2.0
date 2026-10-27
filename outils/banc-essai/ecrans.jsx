@@ -38,6 +38,9 @@ export const ECRANS = {
   logistique: () => <Logistique evenement={evenement} membre={membre} session={session} peut={peut} toutPouvoir />,
   // (130, 131) L'annuaire de l'organisation et les demandes de prix, en préparation ; puis pour un membre qui ne fait que lire.
   fournisseurs: () => <Logistique evenement={{ ...evenement, phase: 'preparation', organisation_id: 'org1', date_debut: '2026-11-11', date_fin: '2026-11-11' }} membre={membre} peut={peut} toutPouvoir ongletCible="fournisseurs" />,
+  // (138) L'inventaire de l'organisation, en gestion puis en lecture.
+  inventaire: () => <Logistique evenement={{ ...evenement, phase: 'preparation', organisation_id: 'org1' }} membre={membre} peut={peut} toutPouvoir ongletCible="inventaire" />,
+  'inventaire-lecture': () => <Logistique evenement={{ ...evenement, phase: 'preparation', organisation_id: 'org1' }} membre={membre} peut={(r, a) => a === 'lire'} toutPouvoir={false} ongletCible="inventaire" />,
   'fournisseurs-lecture': () => <Logistique evenement={{ ...evenement, phase: 'preparation', organisation_id: 'org1' }} membre={membre} peut={(r, a) => a === 'lire'} toutPouvoir={false} ongletCible="fournisseurs" />,
   'demandes-prix': () => <Logistique evenement={{ ...evenement, phase: 'preparation', organisation_id: 'org1', date_debut: '2026-11-11', date_fin: '2026-11-11' }} membre={membre} peut={peut} toutPouvoir ongletCible="demandes_prix" />,
   'demandes-prix-lecture': () => <Logistique evenement={{ ...evenement, phase: 'preparation', organisation_id: 'org1' }} membre={membre} peut={(r, a) => a === 'lire'} toutPouvoir={false} ongletCible="demandes_prix" />,

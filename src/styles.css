@@ -3258,3 +3258,30 @@ body.carte-plein-corps { overflow: hidden; }
 .impl-fond-dims { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .impl-fond-dims input { margin: 0; }
 .leaflet-image-layer { will-change: transform; }
+
+/* Inventaire de l'organisation (138). Préfixe .inv-                     */
+.inv-tableau-outils { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 6px; }
+.inv-th { cursor: pointer; user-select: none; white-space: nowrap; }
+.inv-th.actif { color: var(--texte); }
+.inv-th.num, .tableau td.num { text-align: right; }
+.inv-filtres th { padding: 2px 4px; }
+.inv-filtres input { margin: 0; padding: 2px 6px; font-size: 12px; width: 100%; min-width: 60px; }
+.inv-sorti { color: var(--etat-veille); font-weight: 600; }
+.inv-statut { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; border: 1px solid var(--trait); white-space: nowrap; }
+.inv-statut.sorti { color: var(--etat-veille); border-color: var(--etat-veille); }
+.inv-statut.en_retard { color: var(--etat-chaud); border-color: var(--etat-chaud); }
+.inv-statut.rendu { color: var(--etat-ok); border-color: var(--etat-ok); }
+.inv-ligne-retard td:first-child { box-shadow: inset 3px 0 0 var(--etat-chaud); }
+.inv-fiche-corps { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.inv-fiche-corps .four-grille { flex: 1 1 420px; }
+.inv-etiquette { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; border: 1px solid var(--trait); background: #fff; color: #000; }
+.inv-choix { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 12px; margin-bottom: 10px; }
+.inv-planche { display: flex; flex-wrap: wrap; gap: 10px; }
+.inv-etiquette-carte { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px; border: 1px dashed var(--trait); background: #fff; color: #000; font-size: 12px; max-width: 220px; text-align: center; }
+.inv-etiquette-nom { font-size: 11px; }
+.inv-video { width: 100%; max-width: 420px; border: 1px solid var(--trait); margin: 8px 0; }
+@media print {
+  .inv .onglets, .inv-etiquettes .ligne-boutons, .inv-etiquettes .aide, .inv-choix, .rail, .bandeau, .colonne-droite { display: none !important; }
+  .inv-planche { gap: 6mm; }
+  .inv-etiquette-carte { border: 1px dashed #999; break-inside: avoid; }
+}

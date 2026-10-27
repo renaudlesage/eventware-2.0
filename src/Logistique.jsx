@@ -8,6 +8,7 @@ import Jauge from './Jauge'
 import Transports from './Transports'
 import Fournisseurs from './Fournisseurs'
 import DemandesPrix from './DemandesPrix'
+import Inventaire from './Inventaire'
 
 const ONGLETS = [
   ['interventions', 'Demandes'],
@@ -19,6 +20,8 @@ const ONGLETS = [
   // (130, 131) L'annuaire de l'organisation et les demandes de prix de l'événement.
   ['fournisseurs', 'Fournisseurs'],
   ['demandes_prix', 'Demandes de prix'],
+  // (138) Le matériel de l'organisation : inventaire, prêts et locations.
+  ['inventaire', 'Matériel'],
   ['journal', 'Main courante']
 ]
 
@@ -108,6 +111,9 @@ export default function Logistique({ evenement, membre, peut, toutPouvoir, ongle
       )}
       {onglet === 'demandes_prix' && (
         <DemandesPrix evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} />
+      )}
+      {onglet === 'inventaire' && (
+        <Inventaire evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} />
       )}
       {onglet === 'journal' && (
         <Journal

@@ -100,12 +100,14 @@ export default function Poste({ session, theme, setTheme }) {
   const [courantId, setCourantId] = useState(
     () => localStorage.getItem('eventware.evenement') ?? null
   )
-  const [ecran, setEcran] = useState('situation')
+  // (138) Arrivée par l'étiquette d'un article (?materiel=INV-0001) : droit sur Logistique › Matériel.
+  const parEtiquette = new URLSearchParams(window.location.search).has('materiel')
+  const [ecran, setEcran] = useState(parEtiquette ? 'logistique' : 'situation')
   const [compteOuvert, setCompteOuvert] = useState(false)
   // Sous-onglet demandé lors d'une navigation ciblée — ex. le pavé
   // « Signalements ouverts » doit ouvrir directement Sécurité sur son
   // onglet Signalements, pas sur l'onglet par défaut.
-  const [ongletCible, setOngletCible] = useState(null)
+  const [ongletCible, setOngletCible] = useState(parEtiquette ? 'inventaire' : null)
 
   function aller(clef, sousOnglet) {
     setEcran(clef)
