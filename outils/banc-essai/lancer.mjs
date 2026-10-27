@@ -56,7 +56,7 @@ await esbuild.build({
 fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
 
 const demandes = process.argv.slice(2)
-const ecrans = demandes.length ? demandes : ['securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'point0']
+const ecrans = demandes.length ? demandes : ['securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0']
 const navigateur = await pw.chromium.launch()
 let echecs = 0
 for (const ecran of ecrans) {
@@ -75,6 +75,66 @@ for (const ecran of ecrans) {
   // domcontentloaded : l'événement load attend les tuiles de carte, qui n'arrivent jamais sans réseau.
   await page.goto('file://' + path.join(sortie, 'page.html') + '?ecran=' + ecran, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
+  // (138) Matériel : tri et filtre par colonne, prêts, formulaire de sortie, étiquettes, scanner ; puis en lecture.
+  if (ecran === 'inventaire') {
+    const lignes = () => page.locator('.inv-tableau tbody tr')
+    if ((await lignes().count()) !== 3) erreurs.push(`${await lignes().count()} articles (attendu 3)`)
+    const premier = () => page.locator('.inv-tableau tbody tr').first().locator('td').nth(1).innerText()
+    await page.locator('.inv-th', { hasText: 'Valeur HTVA' }).click()
+    await page.waitForTimeout(200)
+    if (!/Table pliante/.test(await premier())) erreurs.push(`tri par valeur croissante : premier « ${await premier()} » (attendu la table à 45 €)`)
+    await page.locator('.inv-th', { hasText: 'Valeur HTVA' }).click()
+    await page.waitForTimeout(200)
+    if (!/Sono/.test(await premier())) erreurs.push(`tri par valeur décroissante : premier « ${await premier()} » (attendu la sono à 900 €)`)
+    await page.locator('.inv-filtres input').nth(1).fill('tente')
+    await page.waitForTimeout(200)
+    if ((await lignes().count()) !== 1) erreurs.push(`filtre « tente » : ${await lignes().count()} ligne(s) (attendu 1)`)
+    await page.getByText('Effacer les filtres').click()
+    await page.waitForTimeout(200)
+    if (!(await page.locator('.inv-sortir').count())) erreurs.push('bouton Sortir absent pour qui gère')
+    if (!(await page.getByText('Ajouter un article').count())) erreurs.push('Ajouter un article absent pour qui gère')
+    // La fiche d'un article : QR et bouton NFC.
+    await page.locator('.inv-tableau tbody tr').first().locator('button.lien').first().click()
+    await page.waitForTimeout(300)
+    if (!(await page.locator('.inv-fiche svg').count())) erreurs.push('QR absent de la fiche')
+    if (!(await page.getByText('Écrire une puce NFC').count())) erreurs.push('bouton NFC absent de la fiche')
+    await page.locator('.inv-fiche button', { hasText: 'Fermer' }).click()
+    // Les prêts : deux lignes, une en retard, Retour sur la ligne sortie seulement.
+    await page.getByRole('button', { name: /^Prêts et locations/ }).click()
+    await page.waitForTimeout(300)
+    if ((await lignes().count()) !== 2) erreurs.push(`${await lignes().count()} sorties (attendu 2)`)
+    if ((await page.locator('.inv-statut.en_retard').count()) !== 1) erreurs.push('la location en retard n’est pas marquée')
+    if ((await page.locator('.inv-retour').count()) !== 1) erreurs.push(`${await page.locator('.inv-retour').count()} boutons Retour (attendu 1 : la sortie en cours)`)
+    await page.getByText('Nouveau prêt ou location').click()
+    await page.waitForTimeout(300)
+    const options = await page.locator('.inv-fiche select').first().locator('option').count()
+    if (options !== 4) erreurs.push(`${options} options dans le choix du matériel (attendu 4 : vide + 3 articles)`)
+    await page.locator('.inv-fiche select').first().selectOption('in2')
+    await page.locator('.inv-fiche select').nth(1).selectOption('location')
+    await page.locator('.inv-fiche input[type=date]').nth(1).fill('2026-11-03')
+    await page.locator('.inv-fiche input[type=date]').first().fill('2026-11-01')
+    await page.waitForTimeout(200)
+    if (!(await page.getByText(/proposé : 80,00/).count())) erreurs.push('prix de location proposé absent ou faux (attendu 80,00 € : 2 jours × 40 €)')
+    await page.locator('.inv-fiche button', { hasText: 'Annuler' }).click()
+    // Étiquettes : trois QR ; scanner : saisie du code ouvre la fiche.
+    await page.getByRole('button', { name: /^Étiquettes/ }).click()
+    await page.waitForTimeout(300)
+    if ((await page.locator('.inv-etiquette-carte svg').count()) !== 3) erreurs.push(`${await page.locator('.inv-etiquette-carte svg').count()} étiquettes (attendu 3)`)
+    await page.getByRole('button', { name: /^Scanner/ }).click()
+    await page.waitForTimeout(300)
+    await page.locator('.inv-scanner input').fill('https://exemple.be/?materiel=INV-0003')
+    await page.locator('.inv-scanner button[type=submit]').click()
+    await page.waitForTimeout(300)
+    if (!(await page.locator('.inv-fiche', { hasText: 'Table pliante' }).count())) erreurs.push('le code scanné n’ouvre pas la fiche de l’article')
+  }
+  if (ecran === 'inventaire-lecture') {
+    if (await page.getByText('Ajouter un article').count()) erreurs.push('Ajouter un article visible en lecture')
+    if (await page.locator('.inv-sortir').count()) erreurs.push('Sortir visible en lecture')
+    await page.getByRole('button', { name: /^Prêts et locations/ }).click()
+    await page.waitForTimeout(300)
+    if (await page.locator('.inv-retour').count()) erreurs.push('Retour visible en lecture')
+    if (await page.getByText('Nouveau prêt ou location').count()) erreurs.push('Nouveau prêt visible en lecture')
+  }
   // (27/10) Sécurité › Effectifs : les DEA et extincteurs du plan sont comptés (1 et 1 dans le faux plan), « Reprendre » proposé.
   if (ecran === 'securite') {
     await page.getByRole('button', { name: /^Effectifs/ }).first().click().catch(() => {})

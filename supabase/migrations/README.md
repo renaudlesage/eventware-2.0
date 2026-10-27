@@ -434,7 +434,15 @@ values ('20261029110000', '137_objets_plan_lieux', array['-- appliquée manuelle
 on conflict (version) do nothing;
 ```
 
-## Ne jamais rejouer 088 → 137 par `db push` sans les lignes ci-dessus
+### 138 : appliquée le 27/10 (par Claude, via l'outil Supabase) — inventaire de l'organisation, prêts et locations
+
+| Fichier | Fait |
+|---|---|
+| `20261030090000_138_inventaire_organisation.sql` | `inventaire` (organisation : code INV-0001 automatique, description, catégorie, quantité, emplacement, valeur HTVA, prix de location par jour) et `prets_inventaire` (loueur, article, quantité, prêt ou location, sortie, retour prévu, retour, prix, responsable). Vues `inventaire_etat` (sorti, disponible) et `prets_inventaire_vue` (statut : sorti, en retard, rendu). Lecture pour les membres de l'organisation, écriture avec `peut_gerer_annuaire`. `supprimer_logiquement` élargie aux deux tables ; un article encore sorti ne se retire pas |
+
+Répétition : codes INV-0001 et INV-0002, disponible 1 sur 4 avec 3 sortis, statut en retard, retrait refusé tant que sorti puis accepté, autre organisation ne lit rien. Appliquée et inscrite (version 20261030090000).
+
+## Ne jamais rejouer 088 → 138 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

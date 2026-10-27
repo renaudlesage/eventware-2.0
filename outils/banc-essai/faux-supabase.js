@@ -14,6 +14,18 @@ export const DONNEES = {
   membres_evenement: [{ id: 'mb1', user_id: 'u1', nom_affiche: 'Ren' }],
   equipes: [{ id: 'e1', code: 'A', nom: 'Alpha' }],
   // (130, 131) L'annuaire et une demande de prix en comparaison.
+  // (138) L'inventaire de l'organisation : trois articles, une location en retard et un prêt rendu.
+  inventaire_etat: [
+    { id: 'in1', organisation_id: 'org1', code: 'INV-0001', description: 'Tente 3 × 3 m blanche', categorie: 'tentes', quantite: 4, emplacement: 'Hangar, étagère B', valeur_htva: 250, prix_location: 15, actif: true, sorti: 3, disponible: 1, nb_prets: 1 },
+    { id: 'in2', organisation_id: 'org1', code: 'INV-0002', description: 'Sono 2 × 300 W', categorie: 'sono', quantite: 1, emplacement: 'Local technique', valeur_htva: 900, prix_location: 40, actif: true, sorti: 0, disponible: 1, nb_prets: 1 },
+    { id: 'in3', organisation_id: 'org1', code: 'INV-0003', description: 'Table pliante 1,8 m', categorie: 'mobilier', quantite: 20, emplacement: 'Hangar', valeur_htva: 45, prix_location: null, actif: true, sorti: 0, disponible: 20, nb_prets: 0 }
+  ],
+  inventaire: [{ id: 'in1', code: 'INV-0001' }],
+  prets_inventaire_vue: [
+    { id: 'pr1', organisation_id: 'org1', inventaire_id: 'in1', materiel_code: 'INV-0001', materiel: 'Tente 3 × 3 m blanche', quantite: 3, nature: 'location', loueur: 'Comité des fêtes', loueur_contact: '0470 00 00 09', date_sortie: '2026-10-10', date_retour_prevue: '2026-10-20', date_retour: null, prix: 450, responsable: 'Ren', statut: 'en_retard' },
+    { id: 'pr2', organisation_id: 'org1', inventaire_id: 'in2', materiel_code: 'INV-0002', materiel: 'Sono 2 × 300 W', quantite: 1, nature: 'pret', loueur: 'École communale', loueur_contact: null, date_sortie: '2026-09-01', date_retour_prevue: '2026-09-03', date_retour: '2026-09-03', prix: 0, responsable: 'Ren', statut: 'rendu' }
+  ],
+  prets_inventaire: [],
   organisations: [{ id: 'org1', nom: 'Bucolique Ferrières', contact_nom: 'Ren', contact_email: 'ren@exemple.be', contact_tel: null }],
   fournisseur_contacts: [{ id: 'fc1', fournisseur_id: 'f1', nom: 'Sophie Lemaire', fonction: 'planning', telephone: '0470 00 00 02', email: 'sophie@lemaire.be', principal: true }, { id: 'fc2', fournisseur_id: 'f1', nom: 'Marc Lemaire', fonction: 'commercial', telephone: null, email: 'marc@lemaire.be', principal: false }, { id: 'fc3', fournisseur_id: 'f2', nom: 'Jean Dupont', fonction: null, telephone: null, email: 'jean@dupont.be', principal: true }],
   fournisseur_evaluations: [{ id: 'ev1', fournisseur_id: 'f1', evenement_id: 'ev0', note: 4, verdict: 'a_reprendre', commentaire: 'ponctuel', created_at: '2025-11-12T10:00:00Z', evenements: { nom: 'Rando VTT 2025' } }],
