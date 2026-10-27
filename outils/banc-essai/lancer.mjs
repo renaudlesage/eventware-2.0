@@ -340,9 +340,32 @@ for (const ecran of ecrans) {
         if (!(dxf.octets > 1000)) erreurs.push(`DXF : PNG de ${dxf.octets} octets`)
       }
       if (!messages.some((t) => /^DXF converti : 3 entités, 60,0 × 30,0 m/.test(t))) erreurs.push(`message de conversion DXF absent ou faux : ${JSON.stringify(messages)}`)
-      await page.locator('.impl-envoi input').setInputFiles({ name: 'plan.dwg', mimeType: 'application/octet-stream', buffer: Buffer.from('AC1032') })
-      await page.waitForTimeout(300)
-      if (!messages.some((t) => /format fermé/.test(t) && /DXF/.test(t))) erreurs.push(`DWG : pas de message d’explication : ${JSON.stringify(messages)}`)
+      // Un DWG passe par le serveur (api/dwg-vers-dxf) : ici simulé, il « rend » le DXF de la fixture ; puis un refus du serveur.
+      await page.locator('button', { hasText: 'Terminer le déplacement' }).first().click().catch(() => {})
+      // La page vient de file:// : une adresse relative n'y part pas, on remplace fetch pour celle-là.
+      await page.evaluate((t) => {
+        window.__dxfConverti = t
+        window.__dxf = null
+        window.__appelsApi = []
+        window.__reponseApi = { status: 200, body: { ok: true } }
+        const vrai = window.fetch
+        window.fetch = (url, options) => {
+          if (url !== '/api/dwg-vers-dxf') return vrai(url, options)
+          window.__appelsApi.push(JSON.parse(options.body))
+          return Promise.resolve(new Response(JSON.stringify(window.__reponseApi.body), { status: window.__reponseApi.status, headers: { 'content-type': 'application/json' } }))
+        }
+      }, fs.readFileSync(path.join(process.cwd(), 'outils', 'banc-essai', 'fixtures', 'plan.dxf'), 'utf8'))
+      await page.locator('.impl-envoi input').setInputFiles(path.join(process.cwd(), 'outils', 'banc-essai', 'fixtures', 'plan.dwg'))
+      await page.waitForTimeout(1500)
+      const appelsApi = await page.evaluate(() => window.__appelsApi)
+      if (appelsApi.length !== 1) erreurs.push(`DWG : ${appelsApi.length} appel(s) au service (attendu 1)`)
+      else if (!/\/storage\/v1\/object\/sign\/plans\/.*\.dwg/.test(appelsApi[0].source) || !/\/storage\/v1\/object\/upload\/sign\/plans\/.*\.dxf/.test(appelsApi[0].destination)) erreurs.push(`DWG : adresses passées au service : ${JSON.stringify(appelsApi[0])}`)
+      if (!messages.some((t) => /^DWG converti : 3 entités, 60,0 × 30,0 m/.test(t))) erreurs.push(`DWG : message de conversion absent ou faux : ${JSON.stringify(messages)}`)
+      await page.locator('button', { hasText: 'Terminer le déplacement' }).first().click().catch(() => {})
+      await page.evaluate(() => { window.__reponseApi = { status: 422, body: { erreur: 'Ce DWG n’a pas pu être lu.' } } })
+      await page.locator('.impl-envoi input').setInputFiles(path.join(process.cwd(), 'outils', 'banc-essai', 'fixtures', 'plan.dwg'))
+      await page.waitForTimeout(800)
+      if (!messages.some((t) => /^Ce DWG n’a pas pu être lu\. Tu peux aussi enregistrer le dessin en DXF/.test(t))) erreurs.push(`DWG refusé : message absent : ${JSON.stringify(messages)}`)
       await page.locator('button', { hasText: 'Terminer le déplacement' }).first().click().catch(() => {})
       // Suppr retire l'objet sélectionné (confirmation acceptée).
       page.once('dialog', (d) => d.accept())

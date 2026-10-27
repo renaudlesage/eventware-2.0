@@ -13,9 +13,11 @@ import { Helper } from 'dxf'
  * hauteur en mètres : le fond arrive à l'échelle, il ne reste qu'à le
  * placer.
  *
- * Le DWG, lui, est un format binaire fermé d'Autodesk : pas de lecteur
- * fiable et libre dans un navigateur (le seul existant est une
- * compilation de libredwg, 12 Mo, GPL). On demande l'export en DXF.
+ * Le DWG, lui, est un format binaire fermé d'Autodesk : le seul lecteur
+ * libre (libredwg, 12 Mo en WebAssembly, GPL-3) n'a pas sa place dans
+ * le navigateur. Il tourne sur le serveur (api/dwg-vers-dxf.js) : on y
+ * dépose le DWG par le stockage, on en reçoit un DXF, et le DXF suit
+ * le chemin ci-dessus.
  */
 
 // $INSUNITS → mètres. 0 ou absent : on devine.
@@ -25,8 +27,47 @@ const LIBELLES = { 1: 'pouces', 2: 'pieds', 3: 'milles', 4: 'millimètres', 5: '
 export const estDxf = (fichier) => /\.dxf$/i.test(fichier?.name ?? '')
 export const estDwg = (fichier) => /\.dwg$/i.test(fichier?.name ?? '')
 
-export const MESSAGE_DWG =
-  'Le DWG est un format fermé d’Autodesk qu’un navigateur ne sait pas lire. Enregistre le dessin en DXF (AutoCAD : Enregistrer sous → DXF ; LibreCAD, QCAD ou DraftSight le font aussi, gratuitement), puis importe le DXF : il arrivera à l’échelle.'
+export const CONSEIL_DWG =
+  'Tu peux aussi enregistrer le dessin en DXF (AutoCAD : Enregistrer sous → DXF ; LibreCAD, QCAD ou DraftSight le font aussi, gratuitement) et importer le DXF.'
+
+/**
+ * Convertit un DWG en DXF par le serveur : dépôt du DWG dans le
+ * compartiment, appel de la fonction avec deux adresses signées (lire le
+ * DWG, écrire le DXF), relecture du DXF, ménage. Rend un pseudo-fichier
+ * que dxfVersImage accepte.
+ * @param {File} fichier le DWG
+ * @param {string} dossier le préfixe de stockage (l'id de l'événement)
+ * @param {object} compartiment supabase.storage.from('plans')
+ */
+export async function dwgVersDxf(fichier, dossier, compartiment, { api = '/api/dwg-vers-dxf' } = {}) {
+  const base = `${dossier}/conversion-${Date.now()}`
+  const cheminDwg = `${base}.dwg`
+  const cheminDxf = `${base}.dxf`
+  const menage = () => compartiment.remove([cheminDwg, cheminDxf]).catch(() => {})
+  const { error: e1 } = await compartiment.upload(cheminDwg, fichier, { upsert: true, contentType: 'application/octet-stream' })
+  if (e1) throw new Error(`Dépôt du DWG impossible : ${e1.message ?? e1}`)
+  try {
+    const [lecture, ecriture] = await Promise.all([compartiment.createSignedUrl(cheminDwg, 300), compartiment.createSignedUploadUrl(cheminDxf)])
+    if (lecture.error || !lecture.data?.signedUrl) throw new Error('Adresse de lecture du DWG refusée.')
+    if (ecriture.error || !ecriture.data?.signedUrl) throw new Error('Adresse d’écriture du DXF refusée.')
+    const reponse = await fetch(api, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ source: lecture.data.signedUrl, destination: ecriture.data.signedUrl })
+    }).catch(() => null)
+    if (!reponse) throw new Error('Le service de conversion ne répond pas.')
+    if (!reponse.ok) {
+      const corps = await reponse.json().catch(() => null)
+      throw new Error(corps?.erreur ?? `Le service de conversion a échoué (${reponse.status}).`)
+    }
+    const { data, error: e2 } = await compartiment.download(cheminDxf)
+    if (e2 || !data) throw new Error('Le DXF converti n’a pas pu être relu.')
+    const texte = await data.text()
+    return { name: fichier.name.replace(/\.dwg$/i, '.dxf'), text: async () => texte, octetsDwg: fichier.size, octetsDxf: texte.length }
+  } finally {
+    menage()
+  }
+}
 
 /**
  * Convertit un fichier DXF en PNG, avec ses mesures.

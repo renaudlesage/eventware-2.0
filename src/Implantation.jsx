@@ -7,7 +7,7 @@ import { modifierOuRefuser, supprimerOuRefuser } from './ecriture'
 import { CATEGORIES_PLAN } from './referentielsProduit'
 import { polygoneObjet, distancePoints, longueurLigne, jonctionsLigne, nombreModules, milieuLigne, translaterLigne, contientPoint, coinsRectangle, versLocal } from './geometrie'
 import { pictoSvg } from './pictos'
-import { dxfVersImage, estDxf, estDwg, MESSAGE_DWG } from './dxfFond'
+import { dxfVersImage, dwgVersDxf, estDxf, estDwg, CONSEIL_DWG } from './dxfFond'
 import { FONDS_CARTE, FondCarte, ControlesCarte, useFondCarte } from './carte'
 import { estDistributeur, courant, chuteTension, arbreElectrique } from './reseaux'
 import { AGENTS_EXTINCTION, libelleAgentExtinction, uniteExtinction } from './libelles'
@@ -625,19 +625,26 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
 
   async function ajouterFond(fichier) {
     if (!fichier) return
-    if (estDwg(fichier)) {
-      setMessage({ type: 'erreur', texte: MESSAGE_DWG })
-      return
-    }
     // (27/10) Un DXF est converti en PNG ici, et arrive avec ses mesures.
+    // Un DWG passe d'abord par le serveur, qui en fait un DXF.
     let contenu = fichier
     let nom = fichier.name
     let mesures = null
-    if (estDxf(fichier)) {
+    let dessin = fichier
+    if (estDwg(fichier)) {
+      setMessage({ type: 'info', texte: 'Conversion du DWG sur le serveur…' })
       try {
-        mesures = await dxfVersImage(fichier)
+        dessin = await dwgVersDxf(fichier, evenement.id, supabase.storage.from('plans'))
+      } catch (e) {
+        setMessage({ type: 'erreur', texte: `${texteErreur(e)} ${CONSEIL_DWG}` })
+        return
+      }
+    }
+    if (estDxf(dessin)) {
+      try {
+        mesures = await dxfVersImage(dessin)
         contenu = mesures.blob
-        nom = fichier.name.replace(/\.dxf$/i, '.png')
+        nom = dessin.name.replace(/\.dxf$/i, '.png')
         window.__banc?.dxf?.(mesures)
       } catch (e) {
         setMessage({ type: 'erreur', texte: texteErreur(e) })
@@ -666,7 +673,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
     else {
       await chargerFonds()
       if (mesures) {
-        setMessage({ type: 'info', texte: `DXF converti : ${mesures.entites} entités, ${fr(mesures.largeurM)} × ${fr(mesures.hauteurM)} m (unité du dessin : ${mesures.unite}). Il est à l\u2019échelle : glisse-le en place, tourne-le si besoin.` })
+        setMessage({ type: 'info', texte: `${estDwg(fichier) ? 'DWG' : 'DXF'} converti : ${mesures.entites} entités, ${fr(mesures.largeurM)} × ${fr(mesures.hauteurM)} m (unité du dessin : ${mesures.unite}). Il est à l\u2019échelle : glisse-le en place, tourne-le si besoin.` })
         setMode({ type: 'deplacer-fond', fond: data.id })
       } else {
         setMode({ type: 'caler', fond: data.id, points: [] })
@@ -1802,8 +1809,8 @@ function Fonds({ fonds, peutCreer, peutModifier, onAjouter, onCaler, onDeplacerF
         Une image du terrain (plan du propriétaire, relevé, croquis) posée en transparence sous
         la carte. Après l'envoi, clique son coin nord-ouest puis son coin sud-est sur la carte ;
         puis « Déplacer » pour la glisser à la souris, et tourne-la et règle sa taille en mètres ci-dessous.
-        Un DXF (export de tout logiciel de dessin) arrive déjà à l'échelle : il n'y a qu'à le placer.
-        Le DWG, format fermé d'Autodesk, est à enregistrer en DXF d'abord.
+        Un DXF ou un DWG (export de tout logiciel de dessin) arrive déjà à l'échelle : il n'y a qu'à le placer.
+        Le DWG passe par le serveur, compte quelques secondes.
       </p>
       {fonds.map((f) => (
         <div key={f.id} className="impl-fond">
@@ -1834,7 +1841,7 @@ function Fonds({ fonds, peutCreer, peutModifier, onAjouter, onCaler, onDeplacerF
       ))}
       {peutCreer && (
         <label className="impl-envoi">
-          Ajouter un fond (PNG, JPG, DXF)
+          Ajouter un fond (PNG, JPG, DXF, DWG)
           <input type="file" accept="image/png,image/jpeg,image/webp,.dxf,.dwg,application/dxf,image/vnd.dxf" onChange={(e) => { onAjouter(e.target.files?.[0]); e.target.value = '' }} />
         </label>
       )}
