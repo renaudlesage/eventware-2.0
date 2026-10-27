@@ -7,6 +7,7 @@ import { modifierOuRefuser, supprimerOuRefuser } from './ecriture'
 import { CATEGORIES_PLAN } from './referentielsProduit'
 import { polygoneObjet, distancePoints, longueurLigne, jonctionsLigne, nombreModules, milieuLigne, translaterLigne, contientPoint, coinsRectangle, versLocal } from './geometrie'
 import { pictoSvg } from './pictos'
+import { dxfVersImage, estDxf, estDwg, MESSAGE_DWG } from './dxfFond'
 import { FONDS_CARTE, FondCarte, ControlesCarte, useFondCarte } from './carte'
 import { estDistributeur, courant, chuteTension, arbreElectrique } from './reseaux'
 import { AGENTS_EXTINCTION, libelleAgentExtinction, uniteExtinction } from './libelles'
@@ -624,24 +625,52 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
 
   async function ajouterFond(fichier) {
     if (!fichier) return
-    const chemin = `${evenement.id}/${Date.now()}-${fichier.name.replace(/[^A-Za-z0-9._-]/g, '_')}`
-    const { error: e1 } = await supabase.storage.from('plans').upload(chemin, fichier, { upsert: true })
+    if (estDwg(fichier)) {
+      setMessage({ type: 'erreur', texte: MESSAGE_DWG })
+      return
+    }
+    // (27/10) Un DXF est converti en PNG ici, et arrive avec ses mesures.
+    let contenu = fichier
+    let nom = fichier.name
+    let mesures = null
+    if (estDxf(fichier)) {
+      try {
+        mesures = await dxfVersImage(fichier)
+        contenu = mesures.blob
+        nom = fichier.name.replace(/\.dxf$/i, '.png')
+        window.__banc?.dxf?.(mesures)
+      } catch (e) {
+        setMessage({ type: 'erreur', texte: texteErreur(e) })
+        return
+      }
+    }
+    const chemin = `${evenement.id}/${Date.now()}-${nom.replace(/[^A-Za-z0-9._-]/g, '_')}`
+    const { error: e1 } = await supabase.storage.from('plans').upload(chemin, contenu, { upsert: true, contentType: mesures ? 'image/png' : fichier.type || undefined })
     if (e1) {
       setMessage({ type: 'erreur', texte: texteErreur(e1) })
       return
     }
-    // Posé d'abord autour du Point 0 (ou du premier objet), à caler ensuite.
+    // Posé autour du Point 0 (ou du premier objet) : une image, à caler
+    // ensuite ; un DXF, déjà à l'échelle, à déplacer seulement.
     const c = centreParDefaut(evenement, objets)
     const d = 0.001
+    const coins = mesures
+      ? coinsFond({ centre: c, largeur: mesures.largeurM, hauteur: mesures.hauteurM, rotation: 0 })
+      : { no: [c[0] + d, c[1] - d], ne: [c[0] + d, c[1] + d], so: [c[0] - d, c[1] - d] }
     const { data, error } = await supabase
       .from('fonds_plan')
-      .insert({ evenement_id: evenement.id, nom: fichier.name, chemin, coins: { no: [c[0] + d, c[1] - d], ne: [c[0] + d, c[1] + d], so: [c[0] - d, c[1] - d] } })
+      .insert({ evenement_id: evenement.id, nom: fichier.name, chemin, coins })
       .select('id')
       .single()
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
       await chargerFonds()
-      setMode({ type: 'caler', fond: data.id, points: [] })
+      if (mesures) {
+        setMessage({ type: 'info', texte: `DXF converti : ${mesures.entites} entités, ${fr(mesures.largeurM)} × ${fr(mesures.hauteurM)} m (unité du dessin : ${mesures.unite}). Il est à l\u2019échelle : glisse-le en place, tourne-le si besoin.` })
+        setMode({ type: 'deplacer-fond', fond: data.id })
+      } else {
+        setMode({ type: 'caler', fond: data.id, points: [] })
+      }
     }
   }
 
@@ -1773,6 +1802,8 @@ function Fonds({ fonds, peutCreer, peutModifier, onAjouter, onCaler, onDeplacerF
         Une image du terrain (plan du propriétaire, relevé, croquis) posée en transparence sous
         la carte. Après l'envoi, clique son coin nord-ouest puis son coin sud-est sur la carte ;
         puis « Déplacer » pour la glisser à la souris, et tourne-la et règle sa taille en mètres ci-dessous.
+        Un DXF (export de tout logiciel de dessin) arrive déjà à l'échelle : il n'y a qu'à le placer.
+        Le DWG, format fermé d'Autodesk, est à enregistrer en DXF d'abord.
       </p>
       {fonds.map((f) => (
         <div key={f.id} className="impl-fond">
@@ -1803,8 +1834,8 @@ function Fonds({ fonds, peutCreer, peutModifier, onAjouter, onCaler, onDeplacerF
       ))}
       {peutCreer && (
         <label className="impl-envoi">
-          Ajouter un fond (PNG, JPG)
-          <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => { onAjouter(e.target.files?.[0]); e.target.value = '' }} />
+          Ajouter un fond (PNG, JPG, DXF)
+          <input type="file" accept="image/png,image/jpeg,image/webp,.dxf,.dwg,application/dxf,image/vnd.dxf" onChange={(e) => { onAjouter(e.target.files?.[0]); e.target.value = '' }} />
         </label>
       )}
       {!fonds.length && !peutCreer && <p className="aide">Aucun fond.</p>}
