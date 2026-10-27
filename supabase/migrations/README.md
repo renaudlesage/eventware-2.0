@@ -390,13 +390,13 @@ L'application en dépend : Logistique › Fournisseurs appelle `annuaire()` et `
 
 Appliquée et inscrite (version 20261028100000) ; vérifié : les cinq codes portent leur pictogramme.
 
-### 134 : à appliquer par Ren dans l'éditeur SQL — catalogue : les pictogrammes seuls
+### 134 : appliquée le 27/10 par Ren dans l'éditeur SQL — catalogue : les pictogrammes seuls
 
 | Fichier | Fait |
 |---|---|
 | `20261028110000_134_catalogue_pictos_seuls.sql` | Retire du catalogue standard les cinq objets à l'échelle de la 132 (`POINTEAUNAT`, `POMPE`, `HELIJOUR`, `HELINUIT`, `CABMED`), doublons de leurs pictogrammes ; les objets déjà posés restent (clé vers le catalogue mise à nul, `on delete set null`) ; les pictogrammes perdent le suffixe « (picto) » |
 
-Un `delete` de lignes du catalogue : l'outil Supabase de Claude le soumet à une confirmation d'une minute, expirée. À coller dans l'éditeur SQL (le fichier entier, `begin;` … `commit;`), puis inscrire :
+Un `delete` de lignes du catalogue : l'outil Supabase de Claude le soumet à une confirmation d'une minute, expirée ; collée par Ren dans l'éditeur SQL et inscrite. Vérifié : cinq entrées restantes, sans « (picto) », les deux zones nocturnes posées sur BFMF 2027 toujours là. Pour rejouer ailleurs, coller le fichier entier puis inscrire :
 
 ```sql
 insert into supabase_migrations.schema_migrations (version, name, statements)
