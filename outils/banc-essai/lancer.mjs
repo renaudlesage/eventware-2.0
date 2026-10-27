@@ -298,6 +298,24 @@ for (const ecran of ecrans) {
         const angle2 = await img.evaluate((el) => Number((el.style.transform.match(/rotate\(([-\d.]+)rad\)/) ?? [])[1]))
         if (!(Math.abs(angle2 * 180 / Math.PI - 65) < 1)) erreurs.push(`angle après réglage ${(angle2 * 180 / Math.PI).toFixed(1)}° (attendu 65°)`)
       }
+      // Glisser le fond : il suit la souris, la carte ne bouge pas.
+      const avantX = await img.evaluate((el) => el.getBoundingClientRect().left)
+      const carteAvant = await page.locator('.leaflet-map-pane').evaluate((el) => el.style.transform)
+      const bi = await img.boundingBox()
+      await page.mouse.move(bi.x + bi.width * 0.5, bi.y + bi.height * 0.5)
+      await page.mouse.down()
+      await page.mouse.move(bi.x + bi.width * 0.5 + 60, bi.y + bi.height * 0.5, { steps: 4 })
+      await page.mouse.move(bi.x + bi.width * 0.5 + 100, bi.y + bi.height * 0.5, { steps: 4 })
+      await page.waitForTimeout(200)
+      // Mesuré avant le relâchement : le faux client ne garde pas l'écriture, l'image reviendrait à ses coins d'origine.
+      const apresX = await img.evaluate((el) => el.getBoundingClientRect().left)
+      const carteApres = await page.locator('.leaflet-map-pane').evaluate((el) => el.style.transform)
+      await page.mouse.up()
+      await page.waitForTimeout(300)
+      const ecrits = await page.evaluate(() => (window.__appels ?? []).length)
+      void ecrits
+      if (!(Math.abs(apresX - avantX - 100) < 8)) erreurs.push(`glisser du fond : ${(apresX - avantX).toFixed(0)} px (attendu 100)`)
+      if (carteAvant !== carteApres) erreurs.push('la carte a bougé pendant le glisser du fond')
     }
   }
   if (ecran === 'gantt-lecture') {
