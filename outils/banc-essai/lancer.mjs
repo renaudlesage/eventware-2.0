@@ -56,7 +56,7 @@ await esbuild.build({
 fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
 
 const demandes = process.argv.slice(2)
-const ecrans = demandes.length ? demandes : ['securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture']
+const ecrans = demandes.length ? demandes : ['securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'point0']
 const navigateur = await pw.chromium.launch()
 let echecs = 0
 for (const ecran of ecrans) {
@@ -245,6 +245,19 @@ for (const ecran of ecrans) {
     if (await page.locator('.dp-ajout-consultation').count()) erreurs.push('ajout de consultation visible en lecture')
     if (await page.getByText('Nouvelle demande de prix').count()) erreurs.push('création visible en lecture')
     if (await page.locator('.dp-fiche button', { hasText: 'Saisir' }).count()) erreurs.push('saisie d’offre visible en lecture')
+  }
+  // Le point 0 : un clic sur la carte remplit les champs et pose le marqueur.
+  if (ecran === 'point0') {
+    if (await page.locator('.point-0-marqueur').count()) erreurs.push('marqueur présent sans point 0')
+    const carte = page.locator('.point-0-carte .leaflet-container')
+    const b = await carte.boundingBox()
+    await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2)
+    await page.waitForTimeout(400)
+    const lat = await page.locator('input[placeholder^="Latitude"]').inputValue()
+    const lon = await page.locator('input[placeholder^="Longitude"]').inputValue()
+    if (!(Number(lat) > 49 && Number(lat) < 52 && Number(lon) > 2 && Number(lon) < 7)) erreurs.push(`clic sur la carte : ${lat}, ${lon} (attendu en Belgique)`)
+    if (!(await page.locator('.point-0-marqueur').count())) erreurs.push('marqueur absent après le clic')
+    if (await page.locator('button', { hasText: 'Enregistrer le point 0' }).isDisabled()) erreurs.push('Enregistrer inactif après le clic')
   }
   if (ecran === 'gantt-lecture') {
     if (await page.locator('.gantt-svg .gantt-poignee').count()) erreurs.push('poignées visibles en lecture seule')
