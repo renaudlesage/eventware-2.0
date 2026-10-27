@@ -341,7 +341,7 @@ notify pgrst, 'reload schema';
 
 L'application en dépend : l'onglet « Avant / après » du Planning (ouvert par défaut hors exploitation) appelle `gantt()`, Préparation lit `jalon_dependances`, Réglages › Données appelle `recaler_jalons`.
 
-### 130 : à appliquer — l'annuaire des fournisseurs, au niveau de l'organisation (briefing du 26/10)
+### 130 : appliquée le 27/10 (par Claude, via l'outil Supabase) — l'annuaire des fournisseurs, au niveau de l'organisation (briefing du 26/10)
 
 | Fichier | Fait |
 |---|---|
@@ -349,7 +349,7 @@ L'application en dépend : l'onglet « Avant / après » du Planning (ouvert par
 
 Éprouvée en transaction annulée sur Bucolique Ferrières / Rando VTT : 3 fournisseurs, filtre barriérage 2, doublon de nom refusé (23505), bascule du contact principal, épinglage idempotent (un seul contact FRN), note moyenne 4.0 et verdict dans l'annuaire, fournisseur d'une autre organisation refusé à l'évaluation, un membre en lecture seule (rôle temporaire sur Test3) voit les 3 fournisseurs mais ne peut ni écrire (42501) ni épingler (42501), suppression logique d'un contact, `anon` fermé, rien dans `contenu_public`.
 
-### 131 : à appliquer — les demandes de prix, par événement (briefing du 26/10)
+### 131 : partie A appliquée le 27/10 (par Claude, via l'outil Supabase), reconduction à rejouer — les demandes de prix, par événement (briefing du 26/10)
 
 | Fichier | Fait |
 |---|---|
@@ -357,9 +357,11 @@ L'application en dépend : l'onglet « Avant / après » du Planning (ouvert par
 
 Partie A (tout sauf `dupliquer_evenement`) éprouvée en transaction annulée, avec la 130 devant elle, scénario du briefing (§ 3.8) : DP-01 en brouillon, consultation hors organisation refusée (23514), deux envois ⇒ statut `envoyee` et jalon « Offres attendues — Barriérage / a_venir / date limite / fournisseur », 2 offres attendues au suivi, relance, offre A par lignes recalculée à 135.00, offre B forfait, statut `comparaison`, jalon fait, grille 2 colonnes et 3 lignes, 1 à comparer, décision sans motif refusée (23514), `retenir_offre(A)` ⇒ B écartée, demande `decidee` avec motif, commande `commandee`, 1 ligne de main courante, 1 livraison au suivi, vue (2 offres, meilleure 135, retenu Lemaire), budget barriérage 135.00 HT / 163.35 TTC, annuaire 1/1, statut forcé à brouillon ramené à `decidee`, commande livrée ⇒ `close`, DP-02 : date limite déplacée ⇒ jalon suit, supprimée ⇒ jalon annulé ; un membre `logistique : lire` voit la vue mais ne crée pas (42501), ne retient pas (42501), ne modifie rien (0 ligne) ; `anon` fermé ; rien dans `contenu_public`.
 
-Partie B (`dupliquer_evenement`) : même raison que pour la 129 (le `delete from role_capacites` hérité de la 047 déclenche la confirmation de l'outil). À rejouer par Ren dans l'éditeur SQL avec `../verifications/131-reconduction.sql` (résultat attendu dans l'en-tête), puis coller le fichier de migration entier.
+Appliquées le 27/10 en un seul bloc `do` (130 entière, 131 sans sa section 12) et inscrites (versions 20261027090000 et 20261027100000, `statements` le dit) ; vérifié : 8 tables, 3 types, 26 policies, 24 fonctions, 17 déclencheurs, `annuaire()` avec les compteurs de la 131, `anon` fermé, `statut_demande_derive` fermée à `authenticated`, annuaire et demandes vides sur Bucolique Ferrières / Rando VTT, `dupliquer_evenement` encore en version 129.
 
-Pour appliquer les deux depuis l'éditeur SQL : coller chaque fichier entier (`begin;` … `commit;`), dans l'ordre 130 puis 131, puis inscrire les versions :
+**Reste à faire par Ren dans l'éditeur SQL** : la section 12 de la 131 (`dupliquer_evenement`), même raison que pour la 129 (le `delete from role_capacites` hérité de la 047 déclenche la confirmation de l'outil). D'abord éprouver avec `../verifications/131-reconduction.sql` (résultat attendu dans l'en-tête), puis coller le fichier de migration 131 entier : idempotent, la partie A déjà en place ne bouge pas, la section 12 s'installe, la version est déjà inscrite. Tant que ce n'est pas fait, reconduire un événement ne recopie pas ses demandes de prix.
+
+Pour rejouer les deux ailleurs depuis l'éditeur SQL : coller chaque fichier entier (`begin;` … `commit;`), dans l'ordre 130 puis 131, puis inscrire les versions :
 
 ```sql
 insert into supabase_migrations.schema_migrations (version, name, statements)
