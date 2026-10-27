@@ -3,7 +3,7 @@ import Papa from 'papaparse'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { libelleStatut } from './libelles'
-import { RESSOURCES, validerLigne, modeleCsv, normaliserEntete, colonnesManquantes } from './colonnesImport'
+import { RESSOURCES, validerLigne, modeleCsv, exempleCsv, normaliserEntete, colonnesManquantes } from './colonnesImport'
 
 const MODES = [
   ['ajouter', 'Ajouter seulement', "Les codes déjà présents sont laissés intacts."],
@@ -276,6 +276,10 @@ export default function ImportCsv({ evenementId, phase, peut, toutPouvoir, onFai
         <button className="lien" onClick={() => telechargerModele(clef)}>
           Télécharger un modèle vide
         </button>
+        {' · '}
+        <button className="lien" onClick={() => telechargerModele(clef, true)}>
+          Télécharger un exemple rempli
+        </button>
       </p>
 
       <label htmlFor="fichier">Fichier CSV</label>
@@ -359,12 +363,12 @@ export default function ImportCsv({ evenementId, phase, peut, toutPouvoir, onFai
   )
 }
 
-function telechargerModele(clef) {
-  const blob = new Blob([modeleCsv(clef)], { type: 'text/csv;charset=utf-8' })
+function telechargerModele(clef, rempli = false) {
+  const blob = new Blob([rempli ? exempleCsv(clef) : modeleCsv(clef)], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `modele-${clef}.csv`
+  a.download = `${rempli ? 'exemple' : 'modele'}-${clef}.csv`
   a.click()
   URL.revokeObjectURL(url)
 }

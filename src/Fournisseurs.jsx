@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser, supprimerOuRefuser } from './ecriture'
 import { CATEGORIES_FOURNISSEUR, libelleCategorieFournisseur, libelleVerdict, STATUTS_CONSULTATION, libelleDe } from './referentielsProduit'
-import { COLONNES_FOURNISSEURS, modeleCsvFournisseurs, normaliserEntete, normaliser } from './colonnesImport'
+import { COLONNES_FOURNISSEURS, modeleCsvFournisseurs, exempleCsvFournisseurs, normaliserEntete, normaliser } from './colonnesImport'
 
 /**
  * Annuaire des fournisseurs (130) — niveau organisation.
@@ -410,11 +410,11 @@ function ImportFournisseurs({ organisation, evenement, existants, setMessage, on
     setOccupe(false)
   }
 
-  function telechargerModele() {
-    const url = URL.createObjectURL(new Blob(['﻿' + modeleCsvFournisseurs()], { type: 'text/csv;charset=utf-8' }))
+  function telechargerModele(rempli = false) {
+    const url = URL.createObjectURL(new Blob([rempli ? exempleCsvFournisseurs() : '\ufeff' + modeleCsvFournisseurs()], { type: 'text/csv;charset=utf-8' }))
     const a = document.createElement('a')
     a.href = url
-    a.download = 'fournisseurs.csv'
+    a.download = rempli ? 'exemple-fournisseurs.csv' : 'modele-fournisseurs.csv'
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -425,7 +425,9 @@ function ImportFournisseurs({ organisation, evenement, existants, setMessage, on
       <p className="aide">
         Colonnes : <span className="mono">{COLONNES_FOURNISSEURS.map((c) => c.champ).join(' ; ')}</span>. Les catégories sont séparées par « | » (codes ou libellés).
         Un nom déjà dans l'annuaire est mis à jour si tu le demandes, jamais doublonné.{' '}
-        <button className="lien" onClick={telechargerModele}>Télécharger le modèle</button>
+        <button className="lien" onClick={() => telechargerModele(false)}>Télécharger le modèle vide</button>
+        {' · '}
+        <button className="lien" onClick={() => telechargerModele(true)}>Télécharger un exemple rempli</button>
       </p>
       <div className="saisie-rapide">
         <input type="file" accept=".csv,text/csv" onChange={(e) => e.target.files?.[0] && analyser(e.target.files[0])} />
