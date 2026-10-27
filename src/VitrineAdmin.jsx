@@ -48,6 +48,7 @@ export default function Vitrine({ evenement, setMessage }) {
             evenement={evenement}
             setMessage={setMessage}
             table="lieux"
+            filtrer={(q) => q.is('element_plan_id', null)}
             libelle={(l) => `${l.code} · ${l.nom}`}
             detail={(l) => l.type}
             ordre="code"

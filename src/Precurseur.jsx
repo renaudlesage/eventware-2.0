@@ -467,7 +467,9 @@ function Dependances({ evenement, d, peutRegler, onFait }) {
       <p className="aide">
         « B dépend de A » : quand A se charge, une part de sa charge se reporte sur B (le poids,
         de 0,1 à 1). Exemple : la scène dépend du groupe électrogène à 0,6. Sans dépendance
-        décrite, aucune grappe ne peut apparaître.
+        décrite, aucune grappe ne peut apparaître. Les liens tracés sur la carte de conception
+        (Plan › Conception, outil Lier) arrivent ici d'eux-mêmes, marqués « carte » : « alimente »
+        à 0,6, « lié à » à 0,5 dans les deux sens.
       </p>
       {erreur && <div className="message erreur">{erreur}</div>}
 
@@ -485,7 +487,10 @@ function Dependances({ evenement, d, peutRegler, onFait }) {
               </div>
               <div className="prc-ligne-droite">
                 <span className="mono">×{fr(x.poids, 1)}</span>
-                {peutRegler && (
+                {/* (137) Reflet d'un lien de la carte de conception : il se retire sur la carte, pas ici. */}
+                {x.lien_plan_id ? (
+                  <span className="prc-jeton" title="Dépendance déduite d'un lien de la carte de conception : retire le lien sur la carte pour la faire disparaître.">carte</span>
+                ) : peutRegler && (
                   <button
                     className="discret"
                     disabled={occupe}

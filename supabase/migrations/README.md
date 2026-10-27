@@ -420,7 +420,21 @@ Appliquée et inscrite (version 20261029090000) ; vérifié : les trois codes en
 
 Appliquée et inscrite (version 20261029100000) ; répétition : un objet coché compte un lieu de plus, un tracé coché aucun. La vitrine n'a pas changé, « Ce que voit le public › Lieux » liste maintenant aussi les objets du plan.
 
-## Ne jamais rejouer 088 → 136 par `db push` sans les lignes ci-dessus
+### 137 : à appliquer par Ren dans l'éditeur SQL — les objets du plan sont des lieux
+
+| Fichier | Fait |
+|---|---|
+| `20261029110000_137_objets_plan_lieux.sql` | `lieux.element_plan_id` : chaque objet du plan (nature `objet`) a son reflet dans `lieux`, tenu par déclencheur (code, nom, position, type déduit de la catégorie ; éteint avec l'objet). `prc_dependances.lien_plan_id` : chaque lien de la carte devient une dépendance de charge entre les deux reflets (« alimente » 0,6, « lié à » 0,5 dans les deux sens), emportée avec le lien. Rattrapage de l'existant. Déclencheurs `security definer` |
+
+Contient un `delete from` et des `drop trigger if exists` : l'outil Supabase de Claude la soumet à une confirmation qui expire. Marche à suivre : coller `supabase/verifications/137-repetition.sql` (répétition à blanc, annulée par un `raise`, résultat attendu dans l'en-tête), puis le fichier de migration en entier, puis inscrire :
+
+```sql
+insert into supabase_migrations.schema_migrations (version, name, statements)
+values ('20261029110000', '137_objets_plan_lieux', array['-- appliquée manuellement via l''éditeur SQL'])
+on conflict (version) do nothing;
+```
+
+## Ne jamais rejouer 088 → 137 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`
