@@ -9,6 +9,7 @@ import Logistique from '../../src/Logistique.jsx'
 import Implantation from '../../src/Implantation.jsx'
 import PlanImplantation from '../../src/PlanImplantation.jsx'
 import Planning from '../../src/Planning.jsx'
+import Point0 from '../../src/Point0.jsx'
 import { DONNEES } from './faux-supabase.js'
 
 /**
@@ -31,6 +32,8 @@ export const ECRANS = {
   gantt: () => <Planning evenement={{ ...evenement, phase: 'preparation', date_debut: '2026-11-11', date_fin: '2026-11-11', date_montage: '2026-11-09', date_demontage: '2026-11-13' }} peut={peut} toutPouvoir onAller={() => {}} />,
   // Le même, pour un membre qui ne fait que lire : ni poignées, ni entraînement.
   'gantt-lecture': () => <Planning evenement={{ ...evenement, phase: 'preparation', date_debut: '2026-11-11', date_fin: '2026-11-11' }} peut={(r, a) => a === 'lire'} toutPouvoir={false} onAller={() => {}} />,
+  // Le point 0 posé sur la carte (Réglages › Dispositif), sans point encore enregistré.
+  point0: () => <Point0 evenement={{ ...evenement, point_0_lat: null, point_0_lon: null }} onFait={() => {}} setMessage={(m) => console.error('message', m?.texte)} />,
   plan: () => <PlanImplantation evenement={evenement} membre={membre} peut={peut} toutPouvoir />,
   logistique: () => <Logistique evenement={evenement} membre={membre} session={session} peut={peut} toutPouvoir />,
   // (130, 131) L'annuaire de l'organisation et les demandes de prix, en préparation ; puis pour un membre qui ne fait que lire.

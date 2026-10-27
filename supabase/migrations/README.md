@@ -349,7 +349,7 @@ L'application en dépend : l'onglet « Avant / après » du Planning (ouvert par
 
 Éprouvée en transaction annulée sur Bucolique Ferrières / Rando VTT : 3 fournisseurs, filtre barriérage 2, doublon de nom refusé (23505), bascule du contact principal, épinglage idempotent (un seul contact FRN), note moyenne 4.0 et verdict dans l'annuaire, fournisseur d'une autre organisation refusé à l'évaluation, un membre en lecture seule (rôle temporaire sur Test3) voit les 3 fournisseurs mais ne peut ni écrire (42501) ni épingler (42501), suppression logique d'un contact, `anon` fermé, rien dans `contenu_public`.
 
-### 131 : partie A appliquée le 27/10 (par Claude, via l'outil Supabase), reconduction à rejouer — les demandes de prix, par événement (briefing du 26/10)
+### 131 : appliquée le 27/10 (partie A par Claude via l'outil Supabase, reconduction par Ren dans l'éditeur SQL) — les demandes de prix, par événement (briefing du 26/10)
 
 | Fichier | Fait |
 |---|---|
@@ -359,7 +359,7 @@ Partie A (tout sauf `dupliquer_evenement`) éprouvée en transaction annulée, a
 
 Appliquées le 27/10 en un seul bloc `do` (130 entière, 131 sans sa section 12) et inscrites (versions 20261027090000 et 20261027100000, `statements` le dit) ; vérifié : 8 tables, 3 types, 26 policies, 24 fonctions, 17 déclencheurs, `annuaire()` avec les compteurs de la 131, `anon` fermé, `statut_demande_derive` fermée à `authenticated`, annuaire et demandes vides sur Bucolique Ferrières / Rando VTT, `dupliquer_evenement` encore en version 129.
 
-**Reste à faire par Ren dans l'éditeur SQL** : la section 12 de la 131 (`dupliquer_evenement`), même raison que pour la 129 (le `delete from role_capacites` hérité de la 047 déclenche la confirmation de l'outil). D'abord éprouver avec `../verifications/131-reconduction.sql` (résultat attendu dans l'en-tête), puis coller le fichier de migration 131 entier : idempotent, la partie A déjà en place ne bouge pas, la section 12 s'installe, la version est déjà inscrite. Tant que ce n'est pas fait, reconduire un événement ne recopie pas ses demandes de prix.
+Section 12 (`dupliquer_evenement`) appliquée par Ren le 27/10 dans l'éditeur SQL, même raison que pour la 129 (le `delete from role_capacites` hérité de la 047 déclenche la confirmation de l'outil) : d'abord `../verifications/131-reconduction.sql` (conforme : DP-01 brouillon 31/10/27, 3 lignes, 2 consultations à envoyer, aucun montant, pas de jalon), puis la section 12 avec ses lignes de droits ; vérifié : corps 131 en place, `security definer`, `anon` fermé, `authenticated` autorisé, aucun résidu d'essai.
 
 Pour rejouer les deux ailleurs depuis l'éditeur SQL : coller chaque fichier entier (`begin;` … `commit;`), dans l'ordre 130 puis 131, puis inscrire les versions :
 

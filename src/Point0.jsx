@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
+import { MapContainer, Marker, useMap, useMapEvents } from 'react-leaflet'
+import L from 'leaflet'
 import { supabase } from './supabaseClient'
+import { FondCarte, ControlesCarte, useFondCarte } from './carte'
 import { modifierOuRefuser } from './ecriture'
 import { useDrapeau } from './useDrapeau'
 
@@ -154,6 +157,8 @@ export default function Point0({ evenement, onFait, setMessage }) {
         </button>
       </div>
 
+      <CartePoint0 lat={lat} lon={lon} onChoix={(la, lo) => { setLat(la.toFixed(5)); setLon(lo.toFixed(5)) }} />
+
       <button disabled={occupe || !lat || !lon} onClick={enregistrer}>
         Enregistrer le point 0
       </button>
@@ -274,4 +279,63 @@ export default function Point0({ evenement, onFait, setMessage }) {
       )}
     </section>
   )
+}
+
+/* ------------------------------------------------------------------ */
+
+// Le centre de la Belgique, pour une carte sans point 0 encore posé.
+const CENTRE_BELGIQUE = [50.5, 4.7]
+const ICONE_POINT_0 = L.divIcon({ className: 'point-0-marqueur', iconSize: [22, 22], iconAnchor: [11, 11] })
+
+/**
+ * Poser le point 0 sur la carte (27/10, retour de Ren) : un clic le
+ * place, le marqueur se tire à la souris, les champs suivent. Les
+ * coordonnées restent éditables au clavier ; rien n'est écrit tant
+ * qu'on n'a pas enregistré.
+ */
+function CartePoint0({ lat, lon, onChoix }) {
+  const [fond, setFond] = useFondCarte('point0', 'plan')
+  const la = Number(lat)
+  const lo = Number(lon)
+  const pose = Number.isFinite(la) && Number.isFinite(lo) && lat !== '' && lon !== ''
+  return (
+    <>
+    <div className="carte-conteneur point-0-carte">
+      <MapContainer center={pose ? [la, lo] : CENTRE_BELGIQUE} zoom={pose ? 15 : 8} scrollWheelZoom={false}>
+        <FondCarte cle={fond} />
+        <ControlesCarte fond={fond} onFond={setFond} />
+        <ClicPoint0 onChoix={onChoix} />
+        <SuivrePoint0 position={pose ? [la, lo] : null} />
+        {pose && (
+          <Marker
+            position={[la, lo]}
+            icon={ICONE_POINT_0}
+            draggable
+            eventHandlers={{ dragend: (e) => { const p = e.target.getLatLng(); onChoix(p.lat, p.lng) } }}
+          />
+        )}
+      </MapContainer>
+    </div>
+    <p className="aide" style={{ margin: '-6px 0 10px' }}>
+      Clique sur la carte pour poser le point 0, ou tire le marqueur. Les coordonnées ci-dessus suivent.
+    </p>
+    </>
+  )
+}
+
+function ClicPoint0({ onChoix }) {
+  useMapEvents({ click: (e) => onChoix(e.latlng.lat, e.latlng.lng) })
+  return null
+}
+
+// Quand les coordonnées sont tapées (ou viennent de « ma position »),
+// la carte vient voir le point, sans sauter à chaque glisser.
+function SuivrePoint0({ position }) {
+  const carte = useMap()
+  useEffect(() => {
+    if (!position) return
+    if (!carte.getBounds().pad(-0.2).contains(position)) carte.setView(position, Math.max(carte.getZoom(), 14))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [position?.[0], position?.[1]])
+  return null
 }

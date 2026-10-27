@@ -3242,3 +3242,7 @@ body.carte-plein-corps { overflow: hidden; }
 .dp-retenir input { flex: 1 1 260px; margin: 0; }
 .dp-ecart { font-size: 16px; font-weight: 600; margin-top: 6px; color: var(--encre); text-transform: none; letter-spacing: 0; }
 .four-evaluations { margin-top: 16px; }
+
+/* Point 0 posé sur la carte (Réglages › Dispositif).                   */
+.point-0-carte { height: 320px; margin-top: 4px; }
+.point-0-marqueur { width: 22px; height: 22px; border-radius: 50%; background: var(--etat-chaud); border: 3px solid #fff; box-shadow: 0 0 0 2px var(--etat-chaud), 0 2px 6px rgba(0,0,0,0.4); cursor: grab; }
