@@ -63,10 +63,14 @@ for (const ecran of ecrans) {
   // Sous 1440 px, la Situation replie la carte tactique (au-dessus, elle vit dans la colonne) : on la teste repliée puis dépliée.
   const page = await navigateur.newPage({ viewport: { width: ecran === 'situation' ? 1300 : 1500, height: 900 } })
   const erreurs = []
+  // Les messages que l'Implantation adresse à l'utilisateur (setMessage) arrivent ici préfixés « message » : on les garde à part.
+  const messages = []
   page.on('pageerror', (e) => erreurs.push('exception : ' + e.message.split('\n')[0]))
   page.on('console', (m) => {
+    if (m.type() !== 'error') return
+    if (/^message /.test(m.text())) { messages.push(m.text().slice(8)); return }
     // Les tuiles de carte ne se chargent pas sans réseau : ce n'est pas une erreur de l'écran.
-    if (m.type() === 'error' && !/net::|ERR_/.test(m.text())) erreurs.push('console : ' + m.text().split('\n')[0].slice(0, 200))
+    if (!/net::|ERR_/.test(m.text())) erreurs.push('console : ' + m.text().split('\n')[0].slice(0, 200))
   })
   // domcontentloaded : l'événement load attend les tuiles de carte, qui n'arrivent jamais sans réseau.
   await page.goto('file://' + path.join(sortie, 'page.html') + '?ecran=' + ecran, { waitUntil: 'domcontentloaded' })
@@ -322,6 +326,47 @@ for (const ecran of ecrans) {
       const carteApres = await page.locator('.leaflet-map-pane').evaluate((el) => el.style.transform)
       await page.mouse.up()
       await page.waitForTimeout(300)
+      // (27/10) Un DXF de 60 000 × 30 000 mm devient un PNG de 60 × 30 m ; un DWG est refusé avec le conseil d'export.
+      await page.locator('button', { hasText: 'Terminer le déplacement' }).first().click().catch(() => {})
+      await page.evaluate(() => { window.__banc = { dxf: (m) => { window.__dxf = { largeurM: m.largeurM, hauteurM: m.hauteurM, entites: m.entites, pixels: m.pixels, octets: m.blob?.size } } } })
+      await page.locator('.impl-envoi input').setInputFiles(path.join(process.cwd(), 'outils', 'banc-essai', 'fixtures', 'plan.dxf'))
+      await page.waitForTimeout(1500)
+      const dxf = await page.evaluate(() => window.__dxf)
+      if (!dxf) erreurs.push('DXF non converti')
+      else {
+        if (Math.abs(dxf.largeurM - 60) > 0.01 || Math.abs(dxf.hauteurM - 30) > 0.01) erreurs.push(`DXF : ${dxf.largeurM} × ${dxf.hauteurM} m (attendu 60 × 30)`)
+        if (dxf.entites !== 3) erreurs.push(`DXF : ${dxf.entites} entités (attendu 3)`)
+        if (!(dxf.pixels?.[0] === 4096 && dxf.pixels?.[1] === 2048)) erreurs.push(`DXF : image ${dxf.pixels} (attendu 4096 × 2048)`)
+        if (!(dxf.octets > 1000)) erreurs.push(`DXF : PNG de ${dxf.octets} octets`)
+      }
+      if (!messages.some((t) => /^DXF converti : 3 entités, 60,0 × 30,0 m/.test(t))) erreurs.push(`message de conversion DXF absent ou faux : ${JSON.stringify(messages)}`)
+      // Un DWG passe par le serveur (api/dwg-vers-dxf) : ici simulé, il « rend » le DXF de la fixture ; puis un refus du serveur.
+      await page.locator('button', { hasText: 'Terminer le déplacement' }).first().click().catch(() => {})
+      // La page vient de file:// : une adresse relative n'y part pas, on remplace fetch pour celle-là.
+      await page.evaluate((t) => {
+        window.__dxfConverti = t
+        window.__dxf = null
+        window.__appelsApi = []
+        window.__reponseApi = { status: 200, body: { ok: true } }
+        const vrai = window.fetch
+        window.fetch = (url, options) => {
+          if (url !== '/api/dwg-vers-dxf') return vrai(url, options)
+          window.__appelsApi.push(JSON.parse(options.body))
+          return Promise.resolve(new Response(JSON.stringify(window.__reponseApi.body), { status: window.__reponseApi.status, headers: { 'content-type': 'application/json' } }))
+        }
+      }, fs.readFileSync(path.join(process.cwd(), 'outils', 'banc-essai', 'fixtures', 'plan.dxf'), 'utf8'))
+      await page.locator('.impl-envoi input').setInputFiles(path.join(process.cwd(), 'outils', 'banc-essai', 'fixtures', 'plan.dwg'))
+      await page.waitForTimeout(1500)
+      const appelsApi = await page.evaluate(() => window.__appelsApi)
+      if (appelsApi.length !== 1) erreurs.push(`DWG : ${appelsApi.length} appel(s) au service (attendu 1)`)
+      else if (!/\/storage\/v1\/object\/sign\/plans\/.*\.dwg/.test(appelsApi[0].source) || !/\/storage\/v1\/object\/upload\/sign\/plans\/.*\.dxf/.test(appelsApi[0].destination)) erreurs.push(`DWG : adresses passées au service : ${JSON.stringify(appelsApi[0])}`)
+      if (!messages.some((t) => /^DWG converti : 3 entités, 60,0 × 30,0 m/.test(t))) erreurs.push(`DWG : message de conversion absent ou faux : ${JSON.stringify(messages)}`)
+      await page.locator('button', { hasText: 'Terminer le déplacement' }).first().click().catch(() => {})
+      await page.evaluate(() => { window.__reponseApi = { status: 422, body: { erreur: 'Ce DWG n’a pas pu être lu.' } } })
+      await page.locator('.impl-envoi input').setInputFiles(path.join(process.cwd(), 'outils', 'banc-essai', 'fixtures', 'plan.dwg'))
+      await page.waitForTimeout(800)
+      if (!messages.some((t) => /^Ce DWG n’a pas pu être lu\. Tu peux aussi enregistrer le dessin en DXF/.test(t))) erreurs.push(`DWG refusé : message absent : ${JSON.stringify(messages)}`)
+      await page.locator('button', { hasText: 'Terminer le déplacement' }).first().click().catch(() => {})
       // Suppr retire l'objet sélectionné (confirmation acceptée).
       page.once('dialog', (d) => d.accept())
       await page.locator('.impl-fiche').first().click().catch(() => {})

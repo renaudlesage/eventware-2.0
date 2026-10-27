@@ -101,7 +101,10 @@ export const supabase = {
   from: (t) => constructeur(t),
   rpc: (f, args) => constructeur(f, 'rpc', args),
   auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) },
-  storage: { from: () => ({ createSignedUrl: async () => ({ data: { signedUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEklEQVQIW2P8z8DwnwEIGGEMAD/0A/8MO6tKAAAAAElFTkSuQmCC' } }), getPublicUrl: () => ({ data: { publicUrl: '' } }), upload: async () => ({ error: null }), remove: async () => ({}) }) },
+  storage: { from: () => ({ createSignedUrl: async (chemin) => ({ data: { signedUrl: /\.dwg$/.test(chemin ?? '') ? `https://kunvnnfejhnuhflycyfz.supabase.co/storage/v1/object/sign/plans/${chemin}?token=x` : 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEklEQVQIW2P8z8DwnwEIGGEMAD/0A/8MO6tKAAAAAElFTkSuQmCC' } }), getPublicUrl: () => ({ data: { publicUrl: '' } }), upload: async () => ({ error: null }), remove: async () => ({}),
+    // (27/10) Conversion DWG : adresses signées du projet, et le DXF « converti » est celui que le banc a glissé dans window.__dxfConverti.
+    createSignedUploadUrl: async (chemin) => ({ data: { signedUrl: `https://kunvnnfejhnuhflycyfz.supabase.co/storage/v1/object/upload/sign/plans/${chemin}?token=x`, token: 'x', path: chemin } }),
+    download: async () => ({ data: new Blob([window.__dxfConverti ?? ''], { type: 'application/dxf' }) }) }) },
   channel: () => ({ on() { return this }, subscribe() { return this } }),
   removeChannel() {}
 }
