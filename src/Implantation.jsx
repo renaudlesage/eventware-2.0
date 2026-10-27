@@ -70,6 +70,25 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
   const [selection, setSelection] = useState(null)
   const [mode, setMode] = useState(null) // {type:'poser', fiche} | {type:'tracer', fiche, points} | {type:'mesurer', points} | {type:'caler', fond, points} | {type:'deplacer'}
   const [recherche, setRecherche] = useState('')
+  // (27/10) Largeur du catalogue, réglable à la souris et mémorisée sur
+  // le poste : à 230 px, les libellés longs se coupaient.
+  const [largeurCatalogue, setLargeurCatalogue] = useState(() => {
+    const v = Number(localStorage.getItem('implantation.catalogue.largeur'))
+    return v >= 180 && v <= 600 ? v : 230
+  })
+  function redimensionnerCatalogue(e) {
+    e.preventDefault()
+    const x0 = e.clientX
+    const l0 = largeurCatalogue
+    const bouge = (m) => setLargeurCatalogue(Math.min(600, Math.max(180, l0 + m.clientX - x0)))
+    const fin = () => {
+      window.removeEventListener('pointermove', bouge)
+      window.removeEventListener('pointerup', fin)
+      setLargeurCatalogue((l) => { localStorage.setItem('implantation.catalogue.largeur', String(l)); return l })
+    }
+    window.addEventListener('pointermove', bouge)
+    window.addEventListener('pointerup', fin)
+  }
   const [filtreCalque, setFiltreCalque] = useState('')
   const [brouillon, setBrouillon] = useState(null) // objet en cours de déplacement (centre provisoire)
   // Le double-clic de fin de tracé arrive avant que les gestionnaires de
@@ -589,8 +608,9 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
         {!mode && 'Flèche : clique un objet pour le régler à droite, glisse-le pour le déplacer. Ou choisis un équipement dans le catalogue et pose-le.'}
       </p>
 
-      <div className="impl-corps">
+      <div className="impl-corps" style={{ '--impl-catalogue': `${largeurCatalogue}px` }}>
         <aside className="impl-catalogue">
+          <div className="impl-poignee" onPointerDown={redimensionnerCatalogue} title="Tire pour élargir le catalogue" aria-hidden="true" />
           <h3 className="prc-titre">Catalogue</h3>
           <input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Chercher…" aria-label="Chercher dans le catalogue" />
           <select value={filtreCalque} onChange={(e) => setFiltreCalque(e.target.value)} aria-label="Calque">
@@ -614,7 +634,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
                 ) : (
                   <span className="impl-pastille" />
                 )}
-                <span className="impl-fiche-nom">{f.libelle}{f.organisation_id ? ' ·' : ''}</span>
+                <span className="impl-fiche-nom" title={f.description ? `${f.libelle} — ${f.description}` : f.libelle}>{f.libelle}{f.organisation_id ? ' ·' : ''}</span>
                 <span className="mono impl-fiche-dim">
                   {f.reseau ? (f.reseau === 'electricite' ? `câble · ${fr(f.calibre_a, 0)} A` : `conduite · Ø ${fr(f.diametre_mm, 0)}`) : f.agent_extinction ? `${fr(f.capacite_extinction, 0)} ${uniteExtinction(f.agent_extinction)}` : f.nature === 'ligne' ? `ligne · ${fr(f.largeur_m)} m` : f.nature === 'picto' ? 'picto' : `${fr(f.largeur_m)} × ${fr(f.longueur_m)}`}
                 </span>
