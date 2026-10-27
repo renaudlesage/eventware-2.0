@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import Papa from 'papaparse'
 import { QRCodeSVG } from 'qrcode.react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser, supprimerOuRefuser } from './ecriture'
 import { euros } from './Fournisseurs'
+import { COLONNES_INVENTAIRE, modeleCsvInventaire, exempleCsvInventaire, normaliserEntete, normaliser } from './colonnesImport'
 
 /**
  * (138) Le matériel de l'organisation : inventaire, prêts et locations.
@@ -46,6 +48,7 @@ export default function Inventaire({ evenement, membre, peut, toutPouvoir, setMe
   const [vue, setVue] = useState('inventaire')
   const [ouvert, setOuvert] = useState(null)        // id d'article
   const [creation, setCreation] = useState(false)
+  const [importer, setImporter] = useState(false)
   const [sortie, setSortie] = useState(null)        // { article } : nouveau prêt
   const demande = useRef(new URLSearchParams(window.location.search).get('materiel'))
 
@@ -101,13 +104,17 @@ export default function Inventaire({ evenement, membre, peut, toutPouvoir, setMe
         <FicheArticle article={null} organisation={organisation} prets={[]} peutGerer setMessage={setMessage}
           onFermer={() => setCreation(false)} onFait={charger} />
       )}
+      {importer && (
+        <ImportInventaire organisation={organisation} evenement={evenement} existants={articles} setMessage={setMessage}
+          onFait={() => { setImporter(false); charger() }} onFermer={() => setImporter(false)} />
+      )}
       {sortie && (
         <FormPret organisation={organisation} articles={articles} article={sortie.article} membre={membre} setMessage={setMessage}
           onFermer={() => setSortie(null)} onFait={() => { setSortie(null); charger() }} />
       )}
 
-      {vue === 'inventaire' && !article && !creation && (
-        <TableInventaire articles={articles} peutGerer={peutGerer} onOuvrir={(a) => setOuvert(a.id)} onCreer={() => setCreation(true)} onSortir={(a) => setSortie({ article: a })} organisation={organisation} />
+      {vue === 'inventaire' && !article && !creation && !importer && (
+        <TableInventaire articles={articles} peutGerer={peutGerer} onOuvrir={(a) => setOuvert(a.id)} onCreer={() => setCreation(true)} onImporter={() => setImporter(true)} onSortir={(a) => setSortie({ article: a })} organisation={organisation} />
       )}
       {vue === 'prets' && !sortie && (
         <TablePrets prets={prets} peutGerer={peutGerer} setMessage={setMessage} onFait={charger} onNouveau={() => setSortie({ article: null })} onArticle={(id) => { setOuvert(id); setVue('inventaire') }} />
@@ -205,7 +212,7 @@ const echapper = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;
 /* ------------------------------------------------------------------ */
 /* L'inventaire                                                        */
 
-function TableInventaire({ articles, peutGerer, onOuvrir, onCreer, onSortir }) {
+function TableInventaire({ articles, peutGerer, onOuvrir, onCreer, onImporter, onSortir }) {
   const colonnes = [
     { clef: 'code', libelle: 'Code', rendu: (a) => <button className="lien mono" onClick={() => onOuvrir(a)}>{a.code}</button> },
     { clef: 'description', libelle: 'Description', rendu: (a) => <button className="lien" onClick={() => onOuvrir(a)}><strong>{a.description}</strong></button> },
@@ -222,6 +229,7 @@ function TableInventaire({ articles, peutGerer, onOuvrir, onCreer, onSortir }) {
     <>
       <div className="ligne-boutons" style={{ marginBottom: 8 }}>
         {peutGerer && <button onClick={onCreer}>Ajouter un article</button>}
+        {peutGerer && <button className="discret" onClick={onImporter}>Importer (CSV)</button>}
         <span className="aide" style={{ margin: 0, alignSelf: 'center' }}>Valeur totale HTVA : <strong>{euros(total)}</strong></span>
       </div>
       <Tableau colonnes={colonnes} lignes={articles} cle={(a) => a.id} vide="Aucun article : l'inventaire se remplit avec « Ajouter un article »." titre="Inventaire du matériel" impression={`Valeur totale HTVA ${euros(total)}`} classeLigne={(a) => (a.actif ? '' : 'four-inactif')} />
@@ -465,6 +473,160 @@ function FormPret({ organisation, articles, article, membre, setMessage, onFerme
       <div className="ligne-boutons" style={{ marginTop: 10 }}>
         <button onClick={enregistrer} disabled={occupe}>Enregistrer la sortie</button>
       </div>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Import CSV, comme l'annuaire (130)                                  */
+
+const nombre = (t) => {
+  if (t == null || String(t).trim() === '') return null
+  const n = Number(String(t).replace(/\s/g, '').replace(',', '.').replace(/€/g, ''))
+  return Number.isFinite(n) ? n : NaN
+}
+
+function ImportInventaire({ organisation, evenement, existants, setMessage, onFait, onFermer }) {
+  const [analyse, setAnalyse] = useState(null)
+  const [mode, setMode] = useState('ajouter')
+  const [nomFichier, setNomFichier] = useState(null)
+  const [occupe, setOccupe] = useState(false)
+  const [bilan, setBilan] = useState(null)
+  const parCode = useMemo(() => new Map(existants.map((a) => [a.code.toUpperCase(), a])), [existants])
+  const parDescription = useMemo(() => new Map(existants.map((a) => [normaliser(a.description), a])), [existants])
+
+  function analyser(fichier) {
+    setBilan(null)
+    setNomFichier(fichier.name)
+    Papa.parse(fichier, {
+      header: true, skipEmptyLines: true, transformHeader: normaliserEntete,
+      complete: (res) => {
+        const entetes = res.meta.fields ?? []
+        if (!entetes.includes('description')) {
+          setMessage({ type: 'erreur', texte: `Colonne « description » absente. En-têtes lues : ${entetes.join(' ; ') || 'aucune'}. Attendu : ${COLONNES_INVENTAIRE.map((c) => c.champ).join(' ; ')}.` })
+          return
+        }
+        const vus = new Set()
+        const lignes = res.data.map((b, i) => {
+          const description = (b.description ?? '').trim()
+          const code = (b.code ?? '').trim().toUpperCase()
+          const erreurs = []
+          if (!description) erreurs.push('description manquante')
+          const cle = code || normaliser(description)
+          if (cle && vus.has(cle)) erreurs.push('article en double dans le fichier')
+          vus.add(cle)
+          const quantite = b.quantite == null || String(b.quantite).trim() === '' ? 1 : nombre(b.quantite)
+          const valeur = nombre(b.valeur_htva)
+          const prix = nombre(b.prix_location)
+          if (Number.isNaN(quantite) || (quantite != null && (quantite < 0 || !Number.isInteger(quantite)))) erreurs.push('quantité : un entier positif attendu')
+          if (Number.isNaN(valeur) || (valeur != null && valeur < 0)) erreurs.push('valeur_htva : un montant attendu')
+          if (Number.isNaN(prix) || (prix != null && prix < 0)) erreurs.push('prix_location : un montant attendu')
+          if (code && !/^INV-\d{3,}$/.test(code)) erreurs.push('code : INV-0001 attendu, ou vide pour en recevoir un')
+          const existant = (code && parCode.get(code)) || (!code && parDescription.get(normaliser(description))) || null
+          if (code && !existant) erreurs.push(`code ${code} inconnu dans l'inventaire (laisse-le vide pour créer)`)
+          return {
+            numero: i + 2, erreurs, existant,
+            statut: erreurs.length ? 'rejete' : existant ? 'existant' : 'nouveau',
+            valeurs: {
+              description, categorie: b.categorie || null, quantite: quantite ?? 1, emplacement: b.emplacement || null,
+              valeur_htva: valeur, prix_location: prix, notes: b.notes || null
+            }
+          }
+        })
+        setAnalyse({ lignes, entetes })
+      },
+      error: (e) => setMessage({ type: 'erreur', texte: texteErreur(e) })
+    })
+  }
+
+  async function appliquer() {
+    setOccupe(true)
+    const valides = analyse.lignes.filter((l) => l.statut !== 'rejete')
+    const nouveaux = valides.filter((l) => !l.existant)
+    const existantsL = valides.filter((l) => l.existant)
+    let creees = 0, modifiees = 0, refusees = 0
+    try {
+      if (mode !== 'ignorer' && nouveaux.length) {
+        const { error } = await supabase.from('inventaire')
+          .insert(nouveaux.map((l) => ({ ...l.valeurs, organisation_id: organisation, origine: 'import' })))
+        if (error) throw error
+        creees = nouveaux.length
+      }
+      if (mode === 'mettre_a_jour') {
+        for (const l of existantsL) {
+          const refus = await modifierOuRefuser('inventaire', l.valeurs, { id: l.existant.id })
+          if (refus) refusees++
+          else modifiees++
+        }
+      }
+      const resultat = {
+        lues: analyse.lignes.length, creees, modifiees,
+        ignorees: mode === 'ajouter' ? existantsL.length : mode === 'ignorer' ? valides.length : 0,
+        rejetees: analyse.lignes.length - valides.length
+      }
+      await supabase.from('journal_imports').insert({
+        evenement_id: evenement.id, ressource: 'inventaire', fichier: nomFichier, mode,
+        lignes_lues: resultat.lues, lignes_creees: resultat.creees, lignes_modifiees: resultat.modifiees,
+        lignes_ignorees: resultat.ignorees, lignes_rejetees: resultat.rejetees,
+        detail: { rejets: analyse.lignes.filter((l) => l.statut === 'rejete').map((l) => ({ ligne: l.numero, erreurs: l.erreurs })) }
+      })
+      setBilan(resultat)
+      if (refusees) setMessage({ type: 'erreur', texte: `${refusees} ligne(s) refusée(s) : vos droits ne permettent pas de modifier l'inventaire.` })
+      setAnalyse(null)
+      onFait()
+    } catch (e) {
+      setMessage({ type: 'erreur', texte: texteErreur(e) })
+    }
+    setOccupe(false)
+  }
+
+  function telechargerModele(rempli = false) {
+    const url = URL.createObjectURL(new Blob([rempli ? exempleCsvInventaire() : '\ufeff' + modeleCsvInventaire()], { type: 'text/csv;charset=utf-8' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = rempli ? 'exemple-inventaire.csv' : 'modele-inventaire.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className="formulaire four-import inv-import">
+      <div className="four-fiche-tete">
+        <h3 style={{ margin: 0 }}>Importer des articles</h3>
+        <button className="discret" onClick={onFermer}>Fermer l’import</button>
+      </div>
+      <p className="aide">
+        Colonnes : <span className="mono">{COLONNES_INVENTAIRE.map((c) => c.champ).join(' ; ')}</span>. Le code reste vide pour un nouvel article (il en reçoit un) ;
+        un code INV-xxxx ou une description déjà dans l'inventaire désigne l'article existant, mis à jour si tu le demandes, jamais doublonné. Montants avec virgule ou point.{' '}
+        <button className="lien" onClick={() => telechargerModele(false)}>Télécharger le modèle vide</button>
+        {' · '}
+        <button className="lien" onClick={() => telechargerModele(true)}>Télécharger un exemple rempli</button>
+      </p>
+      <div className="saisie-rapide">
+        <input type="file" accept=".csv,text/csv" onChange={(e) => e.target.files?.[0] && analyser(e.target.files[0])} />
+        <select value={mode} onChange={(e) => setMode(e.target.value)} style={{ width: 'auto', marginBottom: 0 }}>
+          <option value="ajouter">Ajouter les nouveaux seulement</option>
+          <option value="mettre_a_jour">Ajouter et mettre à jour les existants</option>
+          <option value="ignorer">Analyser sans écrire</option>
+        </select>
+      </div>
+      {analyse && (
+        <>
+          <p className="inv-import-bilan">
+            {analyse.lignes.filter((l) => l.statut === 'nouveau').length} à créer, {analyse.lignes.filter((l) => l.statut === 'existant').length} déjà connus, {analyse.lignes.filter((l) => l.statut === 'rejete').length} rejetés.
+          </p>
+          {analyse.lignes.filter((l) => l.statut === 'rejete').map((l) => (
+            <p key={l.numero} className="aide alerte">ligne {l.numero} : {l.erreurs.join(', ')}</p>
+          ))}
+          <div className="ligne-boutons">
+            <button onClick={appliquer} disabled={occupe}>Appliquer</button>
+            <button className="discret" onClick={() => setAnalyse(null)}>Annuler</button>
+          </div>
+        </>
+      )}
+      {bilan && (
+        <p className="aide">Import terminé : {bilan.creees} créé(s), {bilan.modifiees} mis à jour, {bilan.ignorees} ignoré(s), {bilan.rejetees} rejeté(s).</p>
+      )}
     </div>
   )
 }

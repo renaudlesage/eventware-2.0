@@ -258,3 +258,27 @@ export const exempleCsvFournisseurs = () =>
     ['Barrières Lemaire', 'BE 0123.456.789', 'Rue du Dépôt 4, 4000 Liège', '04 111 11 11', 'info@lemaire.be', 'barrierage|signaletique', 'Sophie Lemaire', 'planning', '0470 00 00 02', 'sophie@lemaire.be', 'Livraison le vendredi, reprise le lundi'].map(csvChamp).join(';'),
     ['Énergie Mobile', '', '', '', 'contact@energie-mobile.be', 'energie', 'Marc Peeters', 'commercial', '', 'marc@energie-mobile.be', ''].map(csvChamp).join(';')
   ].join('\n') + '\n'
+
+/*
+ * (138) L'inventaire de l'organisation, même logique que l'annuaire :
+ * un article se reconnaît à son code INV-xxxx s'il est donné, sinon à
+ * sa description. Les montants acceptent la virgule décimale.
+ */
+export const COLONNES_INVENTAIRE = [
+  { champ: 'code' },
+  { champ: 'description', obligatoire: true },
+  { champ: 'categorie' },
+  { champ: 'quantite' },
+  { champ: 'emplacement' },
+  { champ: 'valeur_htva' },
+  { champ: 'prix_location' },
+  { champ: 'notes' }
+]
+export const modeleCsvInventaire = () => COLONNES_INVENTAIRE.map((c) => c.champ).join(';') + '\n'
+export const exempleCsvInventaire = () =>
+  '\ufeff' + [
+    COLONNES_INVENTAIRE.map((c) => c.champ).join(';'),
+    ['', 'Tente 3 × 3 m blanche', 'tentes', '4', 'Hangar, étagère B', '250', '15', 'Piquets et sardines dans le sac'].map(csvChamp).join(';'),
+    ['', 'Sono 2 × 300 W avec table de mixage', 'sono', '1', 'Local technique', '900', '40', ''].map(csvChamp).join(';'),
+    ['', 'Table pliante 1,8 m', 'mobilier', '20', 'Hangar', '45', '', ''].map(csvChamp).join(';')
+  ].join('\n') + '\n'

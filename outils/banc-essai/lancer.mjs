@@ -93,6 +93,18 @@ for (const ecran of ecrans) {
     await page.waitForTimeout(200)
     if (!(await page.locator('.inv-sortir').count())) erreurs.push('bouton Sortir absent pour qui gère')
     if (!(await page.getByText('Ajouter un article').count())) erreurs.push('Ajouter un article absent pour qui gère')
+    // L'import CSV : un fichier de trois lignes, dont un code connu, une description connue et une quantité fausse.
+    await page.getByText('Importer (CSV)').click()
+    await page.waitForTimeout(200)
+    if (!(await page.getByText('Télécharger un exemple rempli').count())) erreurs.push('import : exemple rempli absent')
+    const csv = 'code;description;categorie;quantite;emplacement;valeur_htva;prix_location;notes\nINV-0001;Tente 3 × 3 m blanche;tentes;5;Hangar;250,00;15;\n;Sono 2 × 300 W;sono;1;;900;40;\n;Groupe électrogène 3 kVA;énergie;1;Remorque;1 200,50;60;\n;Bâche 6 × 4;tentes;deux;;;;'
+    await page.locator('.inv-import input[type=file]').setInputFiles({ name: 'inventaire.csv', mimeType: 'text/csv', buffer: Buffer.from('\ufeff' + csv, 'utf8') })
+    await page.waitForTimeout(600)
+    const bilanImport = (await page.locator('.inv-import-bilan').textContent().catch(() => '')) ?? ''
+    if (!/^1 à créer, 2 déjà connus, 1 rejetés/.test(bilanImport.trim())) erreurs.push(`import : « ${bilanImport.trim()} » (attendu 1 à créer, 2 déjà connus, 1 rejetés)`)
+    if (!(await page.getByText(/quantité : un entier positif attendu/).count())) erreurs.push('import : la quantité « deux » n’est pas rejetée')
+    await page.locator('.inv-import button', { hasText: 'Fermer l’import' }).click()
+    await page.waitForTimeout(200)
     // La fiche d'un article : QR et bouton NFC.
     await page.locator('.inv-tableau tbody tr').first().locator('button.lien').first().click()
     await page.waitForTimeout(300)
@@ -130,6 +142,7 @@ for (const ecran of ecrans) {
   if (ecran === 'inventaire-lecture') {
     if (await page.getByText('Ajouter un article').count()) erreurs.push('Ajouter un article visible en lecture')
     if (await page.locator('.inv-sortir').count()) erreurs.push('Sortir visible en lecture')
+    if (await page.getByText('Importer (CSV)').count()) erreurs.push('Importer (CSV) visible en lecture')
     await page.getByRole('button', { name: /^Prêts et locations/ }).click()
     await page.waitForTimeout(300)
     if (await page.locator('.inv-retour').count()) erreurs.push('Retour visible en lecture')
