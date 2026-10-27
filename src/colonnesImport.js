@@ -88,6 +88,44 @@ export function modeleCsv(clef) {
   return RESSOURCES[clef].colonnes.map((c) => c.champ).join(';') + '\n'
 }
 
+/*
+ * (27/10) Un exemple rempli par référentiel : deux lignes plausibles,
+ * dans l'ordre des colonnes, pour qu'on voie le format attendu (codes,
+ * listes fermées, nombres avec point ou virgule) avant de remplir le
+ * sien. Les valeurs sont celles d'une rando VTT et d'un festival ; on
+ * les remplace, on n'en garde aucune.
+ */
+const EXEMPLES = {
+  lieux: [
+    ['PC0', 'PC opérationnel', 'pc_ops', '50.38212', '5.61679', '245', '0', '', 'Salle communale, entrée côté parking'],
+    ['E1', 'Ravitaillement 1', 'etape', '50.39105', '5.62844', '310', '12,4', '150', 'Carrefour du bois, eau et fruits']
+  ],
+  equipes: [
+    ['A', 'Alpha', 'Signaleurs du départ', '#1d5fb5'],
+    ['SEC', 'Secours', 'Poste de secours et brancardage', '#c8102e']
+  ],
+  types_mission: [
+    ['SIGNAL', 'Signalisation à poser', 'parcours', 'P3', '30', 'Panneaux, rubalise, flèches'],
+    ['EVAC', 'Évacuation d\u2019un blessé', 'secours', 'P1', '10', 'Quad ou brancard selon l\u2019accès']
+  ],
+  materiel: [
+    ['GOB-01', 'Gobelets réutilisables', 'consommables', '2000', 'pièce', '300'],
+    ['RAD-01', 'Radio portative', 'radios', '24', 'pièce', '4']
+  ],
+  contacts: [
+    ['CMD-01', 'Jean Dupont', 'Zone de secours', 'Officier de liaison', '0470 00 00 01', 'j.dupont@zone.be', 'secours', 'le jour J'],
+    ['BGM-01', 'Marie Lambert', 'Commune', 'Bourgmestre', '04 111 11 11', 'bourgmestre@commune.be', 'autorite', 'joignable 8 h – 20 h']
+  ]
+}
+
+/** Exemple CSV téléchargeable : en-têtes + deux lignes remplies, avec BOM pour Excel. */
+export function exempleCsv(clef) {
+  const entete = RESSOURCES[clef].colonnes.map((c) => c.champ).join(';')
+  const lignes = (EXEMPLES[clef] ?? []).map((l) => l.map(csvChamp).join(';'))
+  return '\ufeff' + [entete, ...lignes].join('\n') + '\n'
+}
+const csvChamp = (v) => (/[;"\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
+
 /**
  * Autres noms acceptés pour une colonne. Un fichier sorti d'un tableur
  * ou d'un GPS ne dit pas « latitude » : il dit Lat, LAT, ou « Latitude
@@ -214,3 +252,9 @@ export const COLONNES_FOURNISSEURS = [
   { champ: 'notes' }
 ]
 export const modeleCsvFournisseurs = () => COLONNES_FOURNISSEURS.map((c) => c.champ).join(';') + '\n'
+export const exempleCsvFournisseurs = () =>
+  '\ufeff' + [
+    COLONNES_FOURNISSEURS.map((c) => c.champ).join(';'),
+    ['Barrières Lemaire', 'BE 0123.456.789', 'Rue du Dépôt 4, 4000 Liège', '04 111 11 11', 'info@lemaire.be', 'barrierage|signaletique', 'Sophie Lemaire', 'planning', '0470 00 00 02', 'sophie@lemaire.be', 'Livraison le vendredi, reprise le lundi'].map(csvChamp).join(';'),
+    ['Énergie Mobile', '', '', '', 'contact@energie-mobile.be', 'energie', 'Marc Peeters', 'commercial', '', 'marc@energie-mobile.be', ''].map(csvChamp).join(';')
+  ].join('\n') + '\n'
