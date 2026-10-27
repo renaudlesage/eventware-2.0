@@ -72,11 +72,57 @@ const fr = (x, d = 1) => (x == null ? '—' : Number(x).toFixed(d).replace('.', 
 const ImageTournee = L.ImageOverlay.extend({
   initialize(url, coins, options) {
     this._url = url
+    this._poserCoins(coins)
+    L.setOptions(this, options)
+  },
+  _poserCoins(coins) {
     this._no = L.latLng(coins.no)
     this._ne = L.latLng(coins.ne)
     this._so = L.latLng(coins.so)
     this._bounds = L.latLngBounds([this._no, this._ne, this._so])
-    L.setOptions(this, options)
+  },
+  /** Nouveaux coins sans recréer la couche : l'aperçu d'un glisser ou d'un réglage. */
+  setCoins(coins) {
+    this._poserCoins(coins)
+    this._reset()
+    return this
+  },
+  /** Glisser le fond à la souris (ou au doigt) : la carte ne bouge pas, le fond si. */
+  setDeplacable(onDeplacer) {
+    this._onDeplacer = onDeplacer
+    const img = this._image
+    if (!img) return this
+    img.style.cursor = onDeplacer ? 'move' : ''
+    img.style.pointerEvents = onDeplacer ? 'auto' : 'none'
+    L.DomEvent.off(img, 'mousedown touchstart', this._debutGlisser, this)
+    if (onDeplacer) L.DomEvent.on(img, 'mousedown touchstart', this._debutGlisser, this)
+    return this
+  },
+  onAdd(map) {
+    L.ImageOverlay.prototype.onAdd.call(this, map)
+    if (this._onDeplacer) this.setDeplacable(this._onDeplacer)
+  },
+  _debutGlisser(e) {
+    if (e.type === 'mousedown' && e.button !== 0) return
+    L.DomEvent.stop(e)
+    this._map.dragging.disable()
+    const p = e.touches ? e.touches[0] : e
+    this._depart = this._map.mouseEventToLatLng(p)
+    this._courant = this._depart
+    L.DomEvent.on(document, 'mousemove touchmove', this._glisser, this)
+    L.DomEvent.on(document, 'mouseup touchend touchcancel', this._finGlisser, this)
+  },
+  _glisser(e) {
+    const p = e.touches ? e.touches[0] : e
+    if (!p) return
+    this._courant = this._map.mouseEventToLatLng(p)
+    this._onDeplacer?.(this._courant.lat - this._depart.lat, this._courant.lng - this._depart.lng, false)
+  },
+  _finGlisser() {
+    L.DomEvent.off(document, 'mousemove touchmove', this._glisser, this)
+    L.DomEvent.off(document, 'mouseup touchend touchcancel', this._finGlisser, this)
+    this._map.dragging.enable()
+    this._onDeplacer?.(this._courant.lat - this._depart.lat, this._courant.lng - this._depart.lng, true)
   },
   _poser(point, scale) {
     const img = this._image
@@ -106,16 +152,30 @@ const ImageTournee = L.ImageOverlay.extend({
   }
 })
 
-function FondTourne({ url, coins, opacite }) {
+function FondTourne({ url, coins, opacite, onDeplacer }) {
   const carte = useMap()
+  const couche = useRef(null)
   const cle = JSON.stringify(coins)
+  // La couche vit tant que l'image est la même ; coins, opacité et
+  // glisser se règlent dessus sans la recréer (un glisser en cours ne
+  // doit pas perdre ses écouteurs à chaque aperçu).
   useEffect(() => {
-    const couche = new ImageTournee(url, coins, { opacity: opacite, interactive: false })
-    couche.addTo(carte)
-    return () => { couche.remove() }
+    const c = new ImageTournee(url, coins, { opacity: opacite, interactive: true })
+    couche.current = c
+    c.addTo(carte)
+    return () => { c.remove(); couche.current = null }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carte, url, cle, opacite])
+  }, [carte, url])
+  useEffect(() => { couche.current?.setCoins(coins) }, [cle]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { couche.current?.setOpacity(opacite) }, [opacite])
+  useEffect(() => { couche.current?.setDeplacable(onDeplacer ?? null) }, [onDeplacer])
   return null
+}
+
+/** Les trois coins décalés d'un même vecteur (lat, lon). */
+function coinsDecales(coins, dLat, dLon) {
+  const d = ([a, b]) => [a + dLat, b + dLon]
+  return { no: d(coins.no), ne: d(coins.ne), so: d(coins.so) }
 }
 
 /** Centre, largeur, hauteur (m) et rotation (°, sens horaire) d'un fond, depuis ses trois coins. */
@@ -573,6 +633,28 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
     else chargerFonds()
   }
 
+  // (27/10) Glisser un fond sur la carte : l'aperçu suit la souris, la
+  // base n'est écrite qu'au relâchement. Les coins gardent rotation et
+  // taille, seul le vecteur change. Une fonction par fond, mémorisée,
+  // pour que la couche garde le même écouteur d'un rendu à l'autre.
+  const glissersFonds = useRef({})
+  function deplacerFond(f) {
+    const cle = f.id + '|' + JSON.stringify(f.coins)
+    if (glissersFonds.current[f.id]?.cle !== cle) {
+      glissersFonds.current[f.id] = {
+        cle,
+        fn: (dLat, dLon, fin) => {
+          const coins = coinsDecales(f.coins, dLat, dLon)
+          if (fin) {
+            setApercuFond(null)
+            if (Math.abs(dLat) + Math.abs(dLon) > 1e-7) modifierFond(f.id, { coins })
+          } else setApercuFond({ id: f.id, coins })
+        }
+      }
+    }
+    return glissersFonds.current[f.id].fn
+  }
+
   async function retirerFond(f) {
     await supabase.storage.from('plans').remove([f.chemin])
     const { error } = await supabase.from('fonds_plan').delete().eq('id', f.id)
@@ -682,7 +764,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
         {mode?.type === 'lier' && (mode.de
           ? `Lier « ${objets.find((x) => x.id === mode.de)?.nom ?? '…'} » à… clique le second objet (clic dans le vide : annuler).`
           : 'Lier : clique le premier objet, puis le second. Le lien se règle (nature, note) dans les propriétés de l’un ou l’autre.')}
-        {!mode && 'Flèche : clique un objet pour le régler à droite, glisse-le pour le déplacer. Ou choisis un équipement dans le catalogue et pose-le.'}
+        {!mode && `Flèche : clique un objet pour le régler à droite, glisse-le pour le déplacer. Ou choisis un équipement dans le catalogue et pose-le.${fonds.length && peutModifier ? ' Un fond de plan se glisse aussi à la souris.' : ''}`}
       </p>
 
       <div className="impl-corps" style={{ '--impl-catalogue': `${largeurCatalogue}px` }}>
@@ -727,7 +809,8 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
             <FondCarte cle={fondCarte} />
             <ControlesCarte fond={fondCarte} onFond={setFondCarte} pleinEcran={plein} onPleinEcran={setPlein} />
             {fonds.filter((f) => f.visible && urls[f.id]).map((f) => (
-              <FondTourne key={f.id} url={urls[f.id]} coins={apercuFond?.id === f.id ? apercuFond.coins : f.coins} opacite={Number(f.opacite)} />
+              <FondTourne key={f.id} url={urls[f.id]} coins={apercuFond?.id === f.id ? apercuFond.coins : f.coins} opacite={Number(f.opacite)}
+                onDeplacer={peutModifier && !mode ? deplacerFond(f) : null} />
             ))}
             {existantsVisibles && existants.map((e) => <Existant key={e.id} e={e} />)}
             {visibles.map((o) => (
@@ -1666,7 +1749,7 @@ function Fonds({ fonds, peutCreer, peutModifier, onAjouter, onCaler, onModifier,
       <p className="aide">
         Une image du terrain (plan du propriétaire, relevé, croquis) posée en transparence sous
         la carte. Après l'envoi, clique son coin nord-ouest puis son coin sud-est sur la carte ;
-        puis tourne-la et règle sa taille en mètres ci-dessous.
+        puis glisse-la à la souris, tourne-la et règle sa taille en mètres ci-dessous.
       </p>
       {fonds.map((f) => (
         <div key={f.id} className="impl-fond">
