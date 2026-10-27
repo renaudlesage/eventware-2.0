@@ -230,8 +230,18 @@ for (const ecran of ecrans) {
   if (ecran === 'gantt') {
     const barres = await page.locator('.gantt-svg .gantt-barre').count()
     const losanges = await page.locator('.gantt-svg .gantt-losange').count()
-    if (barres !== 5) erreurs.push(`${barres} barres (attendu 5)`)
+    if (barres !== 6) erreurs.push(`${barres} barres (attendu 6)`)
     if (losanges !== 3) erreurs.push(`${losanges} losanges (attendu 3)`)
+    // (27/10) Le jalon d'avril, 224 jours avant J, est dessiné à sa place : la fenêtre remonte jusqu'à lui.
+    const avril = await page.evaluate(() => {
+      const g = [...document.querySelectorAll('.gantt-svg:not(.gantt-svg-colonne) .gantt-jalon')].find((x) => x.dataset.code?.startsWith('GJ-09'))
+      const r = g?.querySelector('.gantt-barre')
+      const j = document.querySelector('.gantt-svg .gantt-j')
+      return r && j ? { x: Number(r.getAttribute('x')), largeur: Number(r.getAttribute('width')), j: Number(j.getAttribute('x1')) } : null
+    })
+    if (!avril) erreurs.push('le jalon d’avril (224 jours avant J) n’est pas dessiné')
+    else if (!(avril.x >= 0 && avril.largeur > 100 && avril.j - avril.x > 200 * 18)) erreurs.push(`jalon d’avril mal placé : ${JSON.stringify(avril)} (attendu x ≥ 0, 9 jours de large, plus de 200 jours avant J)`)
+    if (!(await page.getByRole('button', { name: 'jour J' }).count())) erreurs.push('« Aller à : jour J » absent')
     if (!(await page.locator('.gantt-svg .gantt-lien.viole').count())) erreurs.push('aucune flèche de dépendance violée')
     const pos = await page.evaluate(() => {
       const j = document.querySelector('.gantt-svg .gantt-j')

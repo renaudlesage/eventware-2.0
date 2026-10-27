@@ -55,7 +55,7 @@ export const COMPARAISON = [
   { consultation_id: 'c2', fournisseur_id: 'f2', fournisseur_nom: 'Clôtures Dupont', contact_id: 'fc3', contact_nom: 'Jean Dupont', contact_email: 'jean@dupont.be', contact_telephone: null, statut: 'offre_recue', envoyee_le: '2026-10-20T10:00:00Z', relances: [{ le: '2026-10-23T10:00:00Z', note: 'rappel' }], offre_recue_le: '2026-10-25T10:00:00Z', offre_validite: null, offre_delai: 'sous 3 semaines', offre_conditions: 'caution 500 €', montant_ht: 1850, taux_tva: 21, montant_ttc: 2238.5, commentaire: 'forfait', note_moyenne: null, dernier_verdict: null, lignes: [] }
 ]
 const jalonGantt = (n, groupe, debut, fin, extra = {}) => ({
-  id: 'gj' + n, code: 'GJ-0' + n, libelle: ['Dossier commune', 'Avis zone de secours', 'Commande chapiteau', 'Montage chapiteau', 'Montage scène', 'Briefing bénévoles', 'Démontage', 'Bilan'][n - 1],
+  id: 'gj' + n, code: 'GJ-0' + n, libelle: ['Dossier commune', 'Avis zone de secours', 'Commande chapiteau', 'Montage chapiteau', 'Montage scène', 'Briefing bénévoles', 'Démontage', 'Bilan', 'Lancement pré-vente'][n - 1],
   debut: debut ? new Date(debut + 'T09:00:00+01:00').toISOString() : null, fin: new Date(fin + 'T17:00:00+01:00').toISOString(),
   phase: 'preparation', groupe_travail_id: groupe === 'A' ? 'gt1' : groupe === 'B' ? 'gt2' : null, groupe_nom: groupe === 'A' ? 'Sécurité' : groupe === 'B' ? 'Logistique' : null,
   groupe_ordre: groupe === 'A' ? 1 : 2, groupe_pilote: groupe === 'A' ? 'Ren' : null, responsable: 'Ren', responsable_membre_id: null,
@@ -70,7 +70,9 @@ export const GANTT = [
   jalonGantt(5, 'B', '2026-11-09', '2026-11-10', { predecesseurs: ['gj4'], critique: true, phase: 'montage', sur_chemin_critique: true, marge_j: 0 }),
   jalonGantt(6, null, null, '2026-11-10', { phase: 'montage' }),
   jalonGantt(7, 'B', '2026-11-12', '2026-11-13', { phase: 'demontage', predecesseurs: ['gj5'] }),
-  jalonGantt(8, null, null, '2026-11-20', { phase: 'demontage' })
+  jalonGantt(8, null, null, '2026-11-20', { phase: 'demontage' }),
+  // (27/10) Un jalon plus de 120 jours avant J : la fenêtre doit remonter jusqu'à lui.
+  jalonGantt(9, 'A', '2026-04-01', '2026-04-10', { statut: 'fait', avancement: 100 })
 ]
 export const DEPENDANCES = [
   { id: 'd1', evenement_id: 'ev1', jalon_id: 'gj4', precede_id: 'gj2', decalage_j: 0 },
