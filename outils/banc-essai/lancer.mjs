@@ -205,6 +205,15 @@ for (const ecran of ecrans) {
   // Toutes les cartes dessinent le plan comme la conception : calques à
   // cocher, pictogrammes ; décocher un calque retire ses objets.
   if (ecran === 'plan') {
+    // (28/10) Bilans › Métré : un tracé compte sa longueur (la barrière 40 m en 12 modules, la voie 60 m), un objet sa surface.
+    await page.getByRole('button', { name: /^Bilans$/ }).first().click().catch(() => {})
+    await page.waitForTimeout(400)
+    await page.getByRole('button', { name: /^Métré$/ }).first().click().catch(() => {})
+    await page.waitForTimeout(400)
+    const longueurs = await page.locator('.bilan-longueur').allTextContents()
+    if (!longueurs.some((t) => /^40 m$/.test(t.trim()))) erreurs.push(`métré : longueur de la file de barrières absente (${JSON.stringify(longueurs)})`)
+    if (!longueurs.some((t) => /^60 m$/.test(t.trim()))) erreurs.push(`métré : longueur de la voie d’accès secours absente (${JSON.stringify(longueurs)})`)
+    if (!(await page.getByText('modules de 3,5 m').count())) erreurs.push('métré : les modules de la barrière ne sont plus indiqués')
     const onglet = page.getByRole('button', { name: /^Carte$/ })
     if (await onglet.count()) await onglet.first().click()
     await page.waitForTimeout(800)

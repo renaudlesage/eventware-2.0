@@ -115,11 +115,19 @@ export default function BilansImplantation({ elements, evenement }) {
   const metre = useMemo(() => {
     const par = new Map()
     for (const o of objets) {
-      // Une ligne de barrières compte ses modules (quantite), pas son tracé.
+      // Un tracé compte sa longueur totale ; une ligne de barrières compte
+      // en plus ses modules (quantite). Un câble, une conduite, une voie
+      // n'ont pas de modules : leur nombre est celui des tracés. (28/10 :
+      // les câbles sortaient à « 0 » sans longueur.)
       const ligne = o.nature === 'ligne'
+      const modules = ligne && o.quantite != null && !o.reseau
       const cle = ligne ? `${o.fournisseur ?? ''}|${o.catalogue_id ?? o.nom}|${o.largeur_m}` : `${o.fournisseur ?? ''}|${o.catalogue_id ?? o.nom}|${o.largeur_m}|${o.longueur_m}`
-      const l = par.get(cle) ?? { fournisseur: o.fournisseur ?? '', libelle: ligne ? `${o.nom} (modules de ${fr(o.largeur_m, 1)} m)` : o.nom, calque: o.calque, largeur: o.largeur_m, longueur: ligne ? null : o.longueur_m, n: 0, surface: 0, kw: 0, kva: 0, codes: [] }
-      l.n += ligne ? Number(o.quantite ?? 0) : 1
+      const l = par.get(cle) ?? {
+        fournisseur: o.fournisseur ?? '', libelle: modules ? `${o.nom} (modules de ${fr(o.largeur_m, 1)} m)` : o.nom, calque: o.calque,
+        ligne, modules, largeur: ligne ? (modules ? o.largeur_m : null) : o.largeur_m, longueur: ligne ? null : o.longueur_m, longueur_totale: 0, traces: 0, n: 0, surface: 0, kw: 0, kva: 0, codes: []
+      }
+      l.n += modules ? Number(o.quantite ?? 0) : 1
+      if (ligne) { l.longueur_totale += Number(o.longueur_m ?? 0); l.traces += 1 }
       l.surface += surfaceObjet(o)
       l.kw += Number(o.puissance_kw || 0)
       l.kva += Number(o.production_kva || 0)
@@ -130,8 +138,8 @@ export default function BilansImplantation({ elements, evenement }) {
   }, [objets])
 
   function csv() {
-    const lignes = [['Fournisseur', 'Équipement', 'Calque', 'Largeur (m)', 'Longueur (m)', 'Nombre', 'Surface (m²)', 'Consommation (kW)', 'Production (kVA)', 'Codes']]
-    for (const l of metre) lignes.push([l.fournisseur, l.libelle, LIBELLE_CALQUE[l.calque] ?? '', fr(l.largeur, 2), fr(l.longueur, 2), l.n, fr(l.surface, 1), fr(l.kw, 1), fr(l.kva, 0), l.codes.join(' ')])
+    const lignes = [['Fournisseur', 'Équipement', 'Calque', 'Largeur (m)', 'Longueur (m)', 'Nombre', 'Longueur totale (m)', 'Surface (m²)', 'Consommation (kW)', 'Production (kVA)', 'Codes']]
+    for (const l of metre) lignes.push([l.fournisseur, l.libelle, LIBELLE_CALQUE[l.calque] ?? '', l.largeur != null ? fr(l.largeur, 2) : '', l.longueur != null ? fr(l.longueur, 2) : '', l.n, l.ligne ? fr(l.longueur_totale, 1) : '', fr(l.surface, 1), fr(l.kw, 1), fr(l.kva, 0), l.codes.join(' ')])
     const texte = lignes.map((l) => l.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n')
     const url = URL.createObjectURL(new Blob(['﻿' + texte], { type: 'text/csv;charset=utf-8' }))
     const a = document.createElement('a')
@@ -302,25 +310,26 @@ export default function BilansImplantation({ elements, evenement }) {
           <div className="ligne-boutons"><button className="discret" onClick={csv} disabled={!metre.length}>Exporter en CSV</button></div>
           <div className="tableau-defilant">
             <table className="tableau">
-              <thead><tr><th>Fournisseur</th><th>Équipement</th><th>Calque</th><th>Dimensions</th><th>Nombre</th><th>Surface</th><th>kW</th><th>kVA</th></tr></thead>
+              <thead><tr><th>Fournisseur</th><th>Équipement</th><th>Calque</th><th>Dimensions</th><th>Nombre</th><th>Longueur</th><th>Surface</th><th>kW</th><th>kVA</th></tr></thead>
               <tbody>
                 {metre.map((l, i) => (
                   <tr key={i}>
                     <td>{l.fournisseur || <span className="sourdine">—</span>}</td>
                     <td>{l.libelle}</td>
                     <td><span className="impl-pastille" style={{ '--c': COULEUR_CALQUE[l.calque] }} /> {LIBELLE_CALQUE[l.calque] ?? ''}</td>
-                    <td className="mono">{fr(l.largeur, 1)} × {fr(l.longueur, 1)} m</td>
-                    <td className="mono">{l.n}</td>
-                    <td className="mono">{fr(l.surface, 0)} m²</td>
+                    <td className="mono">{l.ligne ? (l.modules ? `modules de ${fr(l.largeur, 1)} m` : 'tracé') : `${fr(l.largeur, 1)} × ${fr(l.longueur, 1)} m`}</td>
+                    <td className="mono">{l.n}{l.ligne && !l.modules && l.traces > 1 ? ' tracés' : l.ligne && !l.modules ? ' tracé' : ''}</td>
+                    <td className="mono bilan-longueur">{l.ligne ? `${fr(l.longueur_totale, 0)} m` : ''}</td>
+                    <td className="mono">{l.ligne ? '' : `${fr(l.surface, 0)} m²`}</td>
                     <td className="mono">{l.kw ? fr(l.kw, 1) : ''}</td>
                     <td className="mono">{l.kva ? fr(l.kva, 0) : ''}</td>
                   </tr>
                 ))}
-                {metre.length === 0 && <tr><td colSpan={8} className="aide">Rien de placé.</td></tr>}
+                {metre.length === 0 && <tr><td colSpan={9} className="aide">Rien de placé.</td></tr>}
               </tbody>
             </table>
           </div>
-          <p className="aide">Une ligne par équipement et par fournisseur. Surface : emprise au sol cumulée.</p>
+          <p className="aide">Une ligne par équipement et par fournisseur. Surface : emprise au sol cumulée. Longueur : cumul des tracés (câbles, conduites, voies, files de barrières) ; une file de barrières compte aussi ses modules.</p>
         </section>
       )}
     </div>
