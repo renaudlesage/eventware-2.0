@@ -474,7 +474,15 @@ Appliquée et inscrite (version 20261030120000).
 
 Appliquée et inscrite (version 20261030130000).
 
-## Ne jamais rejouer 088 → 142 par `db push` sans les lignes ci-dessus
+### 143 : appliquée le 28/10 (par Claude, via l'outil Supabase) — catalogue énergie : mâts lumineux
+
+| Fichier | Fait |
+|---|---|
+| `20261030140000_143_catalogue_mats_lumineux.sql` | `MATLUMEL` mât lumineux électrique (0,6 kW sur le réseau, 1 × 1 m, 7 m) et `MATLUMTH` mât lumineux thermique (groupe diesel intégré : installation à risque, 3 m de sécurité, 1,5 × 3 m, 9 m), calque énergie après les coffrets |
+
+Appliquée et inscrite (version 20261030140000).
+
+## Ne jamais rejouer 088 → 143 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`
