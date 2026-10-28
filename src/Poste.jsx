@@ -108,9 +108,10 @@ export default function Poste({ session, theme, setTheme }) {
   // « Signalements ouverts » doit ouvrir directement Sécurité sur son
   // onglet Signalements, pas sur l'onglet par défaut.
   const [ongletCible, setOngletCible] = useState(parEtiquette ? 'inventaire' : null)
-  // (28/10) Un écran qui demande toute la largeur (la carte de conception) :
-  // la colonne de veille et le mur s'effacent, le travail prend la place.
-  const [pleinTravail, setPleinTravail] = useState(false)
+  // (28/10) La colonne de veille et le mur ne vivent que sur Situation :
+  // partout ailleurs (plan, planning, logistique…), le travail prend
+  // toute la largeur.
+  const pleinTravail = ecran !== 'situation'
 
   function aller(clef, sousOnglet) {
     setEcran(clef)
@@ -396,7 +397,6 @@ export default function Poste({ session, theme, setTheme }) {
                 }}
                 onRecharger={charger}
                 setMessage={setMessage}
-                onPlein={setPleinTravail}
               />
             </main>
 
@@ -524,7 +524,7 @@ function Reseau() {
 /* Aiguillage                                                          */
 /* ================================================================== */
 
-function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoir, exploitant, onAller, onOuvrirEvenement, onRecharger, setMessage, onPlein }) {
+function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoir, exploitant, onAller, onOuvrirEvenement, onRecharger, setMessage }) {
   switch (clef) {
     case 'situation':
       return (
@@ -591,7 +591,7 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
       )
     case 'plan':
       return (
-        <PlanImplantation evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} onPlein={onPlein} />
+        <PlanImplantation evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} />
       )
     case 'precurseur':
       return <Precurseur evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} />

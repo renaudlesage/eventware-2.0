@@ -3303,7 +3303,7 @@ body.carte-plein-corps { overflow: hidden; }
 .gantt-jalon.teinte.selectionne .gantt-barre, .gantt-jalon.teinte.selectionne .gantt-losange { stroke-width: 3; }
 .gantt-legende-groupes { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; }
 
-/* (28/10) Un écran en plein travail (la carte de conception) : plus de
+/* (28/10) Hors Situation, le travail prend toute la largeur : plus de
    colonne de veille ni de mur, et la coquille s'ouvre à toute la fenêtre. */
 .poste.plein-travail { max-width: none; }
 @media (min-width: 1440px) {
