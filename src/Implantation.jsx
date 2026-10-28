@@ -407,11 +407,16 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
     onRecharger()
   }
 
-  async function poserLigne(fiche, points, bouts = {}) {
-    if (points.length < 2) return
+  async function poserLigne(fiche, pointsBruts, bouts = {}) {
+    if (pointsBruts.length < 2) return
+    // (145) Les sommets près d'un poteau s'y collent ; la puissance d'un
+    // tracé consommateur (guirlande) est celle de ses modules.
+    const { points, poteaux } = accrocherAuxPoteaux(pointsBruts)
     const milieu = milieuLigne(points)
     const reseau = fiche.reseau ?? null
+    const modules = nombreModules(longueurLigne(points), Number(fiche.largeur_m))
     const o = {
+      puissance_kw: reseau ? 0 : (Number(fiche.puissance_kw) || 0) * modules,
       reseau,
       de_id: reseau ? bouts.de ?? null : null,
       vers_id: reseau ? bouts.vers ?? null : null,
@@ -453,7 +458,64 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
       const refus = await modifierOuRefuser('elements_plan', { [champ]: bouts.de }, { id: bouts.vers })
       if (refus) setMessage({ type: 'erreur', texte: refus })
     }
+    for (const p of poteaux) await lier(data.id, p, 'fixe_sur')
     setSelection(data.id)
+    onRecharger()
+  }
+
+  /* ---- (145) Poteaux : ce à quoi un tracé s'accroche ---------------- */
+  const SEUIL_ACCROCHE_M = 1.5
+  const estPoteau = (x) => x.nature === 'objet' && (/^POTEAU/i.test(x.code ?? '') || /^poteau/i.test(x.nom ?? ''))
+  const poteaux = useMemo(() => objets.filter(estPoteau), [objets])
+  /** Chaque sommet à moins de 1,5 m d'un poteau prend sa position ; rend les poteaux touchés. */
+  function accrocherAuxPoteaux(points) {
+    const touches = new Set()
+    const resultat = points.map((p) => {
+      let proche = null
+      let d = SEUIL_ACCROCHE_M
+      for (const x of poteaux) {
+        const c = [Number(x.centre_lat), Number(x.centre_lon)]
+        const dist = distancePoints(p, c)
+        if (dist < d) { d = dist; proche = { id: x.id, c } }
+      }
+      if (!proche) return p
+      touches.add(proche.id)
+      return proche.c
+    })
+    return { points: resultat, poteaux: [...touches] }
+  }
+  /** Depuis la fiche : coller les sommets du tracé aux poteaux proches et noter les liens. */
+  async function accrocherLigne(o) {
+    const { points, poteaux: ids } = accrocherAuxPoteaux(o.geometrie ?? [])
+    if (!ids.length) {
+      setMessage({ type: 'info', texte: `Aucun poteau à moins de ${fr(SEUIL_ACCROCHE_M)} m d'un sommet : approche le tracé d'un poteau, ou pose-en un.` })
+      return
+    }
+    for (const p of ids) if (!liens.some((l) => l.nature === 'fixe_sur' && l.de_id === o.id && l.vers_id === p)) await lier(o.id, p, 'fixe_sur')
+    modifierTrace(o, points, { sansAccroche: true })
+    setMessage({ type: 'info', texte: `Accroché à ${ids.length} poteau${ids.length > 1 ? 'x' : ''} : déplace un poteau, le tracé suit.` })
+  }
+  /** Un poteau déplacé emmène les sommets qui y étaient accrochés. */
+  async function suivrePoteau(poteau, nouveau) {
+    if (!estPoteau(poteau)) return
+    const ancien = [Number(poteau.centre_lat), Number(poteau.centre_lon)]
+    const accroches = liens.filter((l) => l.nature === 'fixe_sur' && l.vers_id === poteau.id)
+    for (const l of accroches) {
+      const ligne = objets.find((x) => x.id === l.de_id)
+      if (!ligne?.geometrie) continue
+      const pts = ligne.geometrie.map((p) => (distancePoints(p, ancien) < 0.5 ? nouveau : p))
+      if (pts.some((p, i) => p !== ligne.geometrie[i])) {
+        const milieu = milieuLigne(pts)
+        const fusion = { ...ligne, geometrie: pts, centre_lat: milieu[0], centre_lon: milieu[1] }
+        const refus = await modifierOuRefuser('elements_plan', { geometrie: pts, centre_lat: milieu[0], centre_lon: milieu[1], ...champsGeometrie(fusion) }, { id: ligne.id })
+        if (refus) setMessage({ type: 'erreur', texte: refus })
+      }
+    }
+  }
+  /** Déplacer un objet (glisser ou outil Déplacer) : les tracés accrochés suivent. */
+  async function deplacerObjet(o, latlng) {
+    await modifier(o, champsDeplacement(o, latlng))
+    await suivrePoteau(o, [latlng.lat, latlng.lng])
     onRecharger()
   }
 
@@ -486,11 +548,18 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
     onRecharger()
   }
 
-  /** Un tracé retouché : le centre suit, la longueur et le nombre de modules se recalculent. */
-  function modifierTrace(o, points) {
-    if (points.length < 2) return
+  /** Un tracé retouché : le centre suit, la longueur et le nombre de modules se recalculent ; les sommets près d'un poteau s'y collent ; la puissance d'une guirlande suit ses modules. */
+  function modifierTrace(o, pointsBruts, { sansAccroche = false } = {}) {
+    if (pointsBruts.length < 2) return
+    const { points, poteaux: ids } = sansAccroche ? { points: pointsBruts, poteaux: [] } : accrocherAuxPoteaux(pointsBruts)
     const milieu = milieuLigne(points)
-    modifier(o, { geometrie: points, centre_lat: milieu[0], centre_lon: milieu[1] })
+    const champs = { geometrie: points, centre_lat: milieu[0], centre_lon: milieu[1] }
+    if (!o.reseau && Number(o.puissance_kw) > 0 && Number(o.quantite) > 0) {
+      const parModule = Number(o.puissance_kw) / Number(o.quantite)
+      champs.puissance_kw = Math.round(parModule * nombreModules(longueurLigne(points), Number(o.largeur_m)) * 1000) / 1000
+    }
+    for (const p of ids) if (!liens.some((l) => l.nature === 'fixe_sur' && l.de_id === o.id && l.vers_id === p)) lier(o.id, p, 'fixe_sur')
+    modifier(o, champs)
   }
 
   function retirerSommet(o, i) {
@@ -561,7 +630,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
       return
     }
     if (mode.type === 'deplacer' && selectionne) {
-      modifier(selectionne, champsDeplacement(selectionne, latlng))
+      deplacerObjet(selectionne, latlng)
       setMode(null)
       return
     }
@@ -585,7 +654,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
 
   function finDeplacement(o, latlng) {
     setBrouillon(null)
-    modifier(o, champsDeplacement(o, latlng))
+    deplacerObjet(o, latlng)
   }
 
   function terminerTrace() {
@@ -946,6 +1015,8 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
             ))}
             {/* (126) Les liens libres : un trait pointillé de centre à centre. */}
             {liens.map((l) => {
+              // Un tracé fixé sur un poteau le touche déjà : pas de trait en plus.
+              if (l.nature === 'fixe_sur') return null
               const a = objets.find((x) => x.id === l.de_id)
               const b = objets.find((x) => x.id === l.vers_id)
               if (!a || !b || !calquesVisibles.has(a.calque ?? 'infrastructures') || !calquesVisibles.has(b.calque ?? 'infrastructures')) return null
@@ -1016,6 +1087,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
               onDelier={delier}
               onModifier={(champs) => modifier(selectionne, champs)}
               onRaccorder={(champs) => raccorder(selectionne, champs)}
+              onAccrocher={() => accrocherLigne(selectionne)}
               onDeplacer={() => setMode({ type: 'deplacer' })}
               onDupliquer={() => dupliquer(selectionne)}
               onRetirer={() => retirer(selectionne)}
@@ -1416,11 +1488,13 @@ const NATURES_LIEN = [
   ['alimente', 'alimente'],
   ['dessert', 'dessert'],
   ['fait_partie', 'fait partie de'],
-  ['acces', 'accès vers']
+  ['acces', 'accès vers'],
+  // (145) Un tracé accroché à un poteau : ses sommets suivent le poteau.
+  ['fixe_sur', 'fixé sur']
 ]
 const LIBELLE_LIEN = Object.fromEntries(NATURES_LIEN)
 
-function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, onLier, onModifierLien, onDelier, onModifier, onRaccorder, onDeplacer, onDupliquer, onRetirer, sommet, onRetirerSommet, pile }) {
+function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, onLier, onModifierLien, onDelier, onModifier, onRaccorder, onAccrocher, onDeplacer, onDupliquer, onRetirer, sommet, onRetirerSommet, pile }) {
   const [f, setF] = useState(() => depuis(o))
   const [nouveauLien, setNouveauLien] = useState({ vers: '', nature: 'lie' })
   useEffect(() => setF(depuis(o)), [o])
@@ -1472,7 +1546,9 @@ function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, 
   const solides = objets.filter((x) => x.nature !== 'ligne' && x.nature !== 'picto')
   const generateurs = solides.filter((x) => estDistributeur(x) && x.id !== o.id)
   const sources = solides.filter((x) => x.source_eau && x.id !== o.id)
-  const electrique = !ligne && !picto && !conduite && (cable || o.calque === 'energie' || estDistributeur(o) || Number(o.puissance_kw) > 0)
+  // (145) Un tracé consommateur (guirlande LED) se raccorde comme un objet.
+  const consommateurLigne = ligne && Number(o.puissance_kw) > 0
+  const electrique = (!ligne || consommateurLigne) && !picto && !conduite && (cable || o.calque === 'energie' || estDistributeur(o) || Number(o.puissance_kw) > 0)
   // Pour un câble : ce qu'il transporte, d'après l'objet d'arrivée.
   const arrivee = cable || conduite ? solides.find((x) => x.id === o.vers_id) : null
   // Ce que le câble transporte : tout ce qui pend sous l'objet d'arrivée (un coffret compte ses départs).
@@ -1752,18 +1828,21 @@ function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, 
           </div>
         </>
       )}
-      {!ligne && !picto && !cable && !conduite && (<>
+      {(!ligne || consommateurLigne) && !picto && !cable && !conduite && (<>
       <h4 className="prc-titre">Énergie</h4>
       <div className="impl-deux">
         <label>
           Consomme (kW)
-          <input type="number" step="0.1" min="0" value={f.puissance_kw} disabled={lecture} onChange={(e) => envoyer('puissance_kw', e.target.value)} onBlur={() => valider('puissance_kw', (v) => Number(v) || 0)} />
+          <input type="number" step="0.1" min="0" value={f.puissance_kw} disabled={lecture || consommateurLigne} onChange={(e) => envoyer('puissance_kw', e.target.value)} onBlur={() => valider('puissance_kw', (v) => Number(v) || 0)} title={consommateurLigne ? 'Suit la longueur du tracé : modules × puissance par module' : ''} />
         </label>
-        <label>
-          Produit (kVA)
-          <input type="number" step="1" min="0" value={f.production_kva} disabled={lecture} onChange={(e) => envoyer('production_kva', e.target.value)} onBlur={() => valider('production_kva', (v) => Number(v) || 0)} />
-        </label>
+        {!consommateurLigne && (
+          <label>
+            Produit (kVA)
+            <input type="number" step="1" min="0" value={f.production_kva} disabled={lecture} onChange={(e) => envoyer('production_kva', e.target.value)} onBlur={() => valider('production_kva', (v) => Number(v) || 0)} />
+          </label>
+        )}
       </div>
+      {consommateurLigne && <p className="aide" style={{ margin: 0 }}>{o.quantite ?? '?'} module{Number(o.quantite) > 1 ? 's' : ''} de {fr(o.largeur_m, 0)} m : la puissance suit la longueur du tracé.</p>}
       {(Number(f.puissance_kw) > 0 || (estDistributeur(o) && !Number(o.production_kva))) && (
         <label>
           Alimenté par
@@ -1838,6 +1917,11 @@ function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, 
         </div>
       )}
 
+      {ligne && !lecture && onAccrocher && (
+        <div className="ligne-boutons" style={{ marginTop: 6 }}>
+          <button className="discret impl-accrocher" onClick={onAccrocher} title="Les sommets à moins de 1,5 m d'un poteau s'y collent et le suivent">Accrocher aux poteaux proches</button>
+        </div>
+      )}
       <h4 className="prc-titre">Métré</h4>
       <label>
         Fournisseur

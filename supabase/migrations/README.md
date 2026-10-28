@@ -490,7 +490,15 @@ Appliquée et inscrite (version 20261030140000).
 
 Appliquée et inscrite (version 20261030150000).
 
-## Ne jamais rejouer 088 → 144 par `db push` sans les lignes ci-dessus
+### 145 : appliquée le 28/10 (par Claude, via l'outil Supabase) — catalogue : cuisine, guirlande LED, poteau
+
+| Fichier | Fait |
+|---|---|
+| `20261030160000_145_catalogue_cuisine_guirlande_poteau.sql` | Restauration : `FOUR`, `FRIGOARM`, `CONGEL`, `EVIER` (besoin d'eau), `POMPEBIERE`, avec leurs puissances. Énergie : `GUIRLANDE` (tracé par modules de 10 m, 0,1 kW par module). Infrastructures : `POTEAU` (support : les sommets d'un tracé s'y accrochent) |
+
+Appliquée et inscrite (version 20261030160000).
+
+## Ne jamais rejouer 088 → 145 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

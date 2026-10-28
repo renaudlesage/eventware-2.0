@@ -12,7 +12,10 @@ export const DONNEES = {
     // (27/10) Une table posée dans le PRV : l'objet sous un autre, à sélectionner clic après clic.
     { id: 'ep6', code: 'TABLE', nom: 'Table pliante', nature: 'objet', calque: 'infrastructures', categorie: 'autre', forme_echelle: 'rect', centre_lat: 50.3861, centre_lon: 5.6162, largeur_m: 0.8, longueur_m: 1.8, rotation_deg: 0, geometrie: [[50.3861, 5.6162]], confirme: true },
     // (139) Une voie d'accès secours tracée : chaussée rouge, sans jonctions.
-    { id: 'ep7', code: 'VOIESEC-01', nom: 'Voie d’accès secours', nature: 'ligne', calque: 'securite', categorie: 'voie_engins', forme: 'ligne', forme_echelle: 'rect', centre_lat: 50.3864, centre_lon: 5.6166, largeur_m: 4, longueur_m: 60, quantite: 15, rotation_deg: 0, geometrie: [[50.3863, 5.6164], [50.3865, 5.6168]], confirme: true }],
+    { id: 'ep7', code: 'VOIESEC-01', nom: 'Voie d’accès secours', nature: 'ligne', calque: 'securite', categorie: 'voie_engins', forme: 'ligne', forme_echelle: 'rect', centre_lat: 50.3864, centre_lon: 5.6166, largeur_m: 4, longueur_m: 60, quantite: 15, rotation_deg: 0, geometrie: [[50.3863, 5.6164], [50.3865, 5.6168]], confirme: true },
+    // (145) Un poteau et une guirlande LED dont le premier sommet est à 10 cm du poteau : « Accrocher aux poteaux » le colle dessus.
+    { id: 'ep8', code: 'POTEAU-01', nom: 'Poteau (support)', nature: 'objet', calque: 'infrastructures', categorie: 'autre', forme_echelle: 'rect', centre_lat: 50.3859, centre_lon: 5.6170, largeur_m: 0.3, longueur_m: 0.3, hauteur_m: 4, rotation_deg: 0, geometrie: [[50.3859, 5.6170]], confirme: true },
+    { id: 'ep9', code: 'GUIRLAND-01', nom: 'Guirlande LED (par 10 m)', nature: 'ligne', calque: 'energie', categorie: 'autre', forme: 'ligne', forme_echelle: 'rect', centre_lat: 50.38595, centre_lon: 5.6173, largeur_m: 10, longueur_m: 42, quantite: 5, puissance_kw: 0.5, rotation_deg: 0, geometrie: [[50.385901, 5.617001], [50.3860, 5.6176]], confirme: false }],
   membres_evenement: [{ id: 'mb1', user_id: 'u1', nom_affiche: 'Ren' }],
   equipes: [{ id: 'e1', code: 'A', nom: 'Alpha' }],
   // (130, 131) L'annuaire et une demande de prix en comparaison.
@@ -110,6 +113,8 @@ function constructeur(table, fn, args) {
     get(_, prop) {
       if (prop === 'then') return (res, rej) => Promise.resolve(resultat()).then(res, rej)
       if (prop === 'maybeSingle' || prop === 'single') return () => Promise.resolve({ data: (DONNEES[table] ?? [])[0] ?? null, error: null })
+      // (28/10) Les écritures sont notées aussi, pour vérifier ce qu'un écran envoie.
+      if (prop === 'update' || prop === 'insert') return (champs) => { if (typeof window !== 'undefined') (window.__ecritures ||= []).push({ table, op: prop, champs }); return b }
       return () => b
     }
   })

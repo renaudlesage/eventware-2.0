@@ -171,9 +171,10 @@ for (const ecran of ecrans) {
     // (27/10) La table dans le PRV : les emprises sont dessinées de la plus grande à la plus petite, la petite est
     // donc cliquable ; un second clic au même endroit passe au PRV, un troisième revient à la table.
     {
+      // (145) Le poteau, plus petit encore, est dessiné en dernier : la table est l'avant-dernière emprise.
       const emprises = page.locator('path.leaflet-interactive[fill]:not([fill="none"])')
       const n = await emprises.count()
-      const derniere = emprises.nth(n - 1)
+      const derniere = emprises.nth(n - 2)
       const nomSelectionne = () => page.locator('.impl-props input').first().inputValue()
       await derniere.click({ force: true }); await page.waitForTimeout(300)
       if ((await nomSelectionne()) !== 'Table pliante') erreurs.push(`premier clic : « ${await nomSelectionne()} » (attendu la table, dessinée au-dessus du PRV)`)
@@ -201,6 +202,35 @@ for (const ecran of ecrans) {
     // (139) La voie d'accès secours : une chaussée rouge, dessinée à part des files de barrières.
     const voies = page.locator('path.leaflet-interactive[stroke="#c8102e"][stroke-width="7"]')
     if ((await voies.count()) !== 1) erreurs.push(`${await voies.count()} voie(s) d’accès secours dessinée(s) en chaussée rouge (attendu 1)`)
+    // (145) La guirlande LED (tracé consommateur) : sa fiche propose le raccordement et « Accrocher aux poteaux proches »,
+    // qui colle son premier sommet (à 10 cm du poteau) sur le poteau et note le lien « fixé sur ».
+    {
+      await page.getByRole('button', { name: /^Sélection/ }).first().click().catch(() => {})
+      await page.evaluate(() => { window.__ecritures = [] })
+      const guirlande = page.locator('path.leaflet-interactive[fill="none"]').filter({ hasNot: page.locator('xpath=self::*[@stroke="#c8102e"]') })
+      let trouvee = false
+      for (let i = 0; i < await guirlande.count(); i++) {
+        await guirlande.nth(i).click({ force: true }).catch(() => {})
+        await page.waitForTimeout(250)
+        if ((await page.locator('.impl-props input').first().inputValue().catch(() => '')) === 'Guirlande LED (par 10 m)') { trouvee = true; break }
+      }
+      if (!trouvee) erreurs.push('guirlande : impossible de la sélectionner sur la carte')
+      else {
+        if (!(await page.getByText('Alimenté par', { exact: false }).count()) && !(await page.locator('.impl-props select[aria-label*="liment"]').count())) erreurs.push('guirlande : pas de raccordement électrique dans sa fiche')
+        const accrocher = page.locator('.impl-accrocher')
+        if (!(await accrocher.count())) erreurs.push('guirlande : « Accrocher aux poteaux proches » absent')
+        else {
+          await accrocher.click()
+          await page.waitForTimeout(500)
+          const ecritures = await page.evaluate(() => window.__ecritures ?? [])
+          const lien = ecritures.find((e) => e.table === 'liens_plan' && e.op === 'insert' && e.champs?.nature === 'fixe_sur' && e.champs?.vers_id === 'ep8')
+          const maj = ecritures.find((e) => e.table === 'elements_plan' && e.op === 'update' && Array.isArray(e.champs?.geometrie))
+          if (!lien) erreurs.push(`guirlande : pas de lien « fixé sur » vers le poteau (${JSON.stringify(ecritures.map((e) => e.table + ':' + e.op))})`)
+          if (!maj) erreurs.push('guirlande : le tracé n’est pas réécrit')
+          else if (!(Math.abs(maj.champs.geometrie[0][0] - 50.3859) < 1e-9 && Math.abs(maj.champs.geometrie[0][1] - 5.617) < 1e-9)) erreurs.push(`guirlande : premier sommet ${JSON.stringify(maj.champs.geometrie[0])} (attendu collé au poteau 50.3859, 5.617)`)
+        }
+      }
+    }
   }
   // Toutes les cartes dessinent le plan comme la conception : calques à
   // cocher, pictogrammes ; décocher un calque retire ses objets.
@@ -425,9 +455,11 @@ for (const ecran of ecrans) {
     const poignee = page.locator('.impl-poignee')
     if (!(await poignee.count())) erreurs.push('poignée du catalogue absente')
     else {
+      // La fiche ouverte plus haut peut avoir fait défiler la page : la poignée revient dans la fenêtre d'abord.
+      await poignee.scrollIntoViewIfNeeded()
       const avant = await page.locator('.impl-catalogue').evaluate((el) => el.getBoundingClientRect().width)
       const b = await poignee.boundingBox()
-      await page.mouse.move(b.x + b.width / 2, b.y + 40)
+      await page.mouse.move(b.x + b.width / 2, b.y + Math.min(40, b.height / 2))
       await page.mouse.down()
       await page.mouse.move(b.x + b.width / 2 + 120, b.y + 40, { steps: 5 })
       await page.mouse.up()
@@ -529,7 +561,7 @@ for (const ecran of ecrans) {
       // Outil Sélection, puis la plus petite emprise (dessinée en dernier, donc atteignable) : la table.
       await page.getByRole('button', { name: /^Sélection/ }).first().click().catch(() => {})
       const emprisesSuppr = page.locator('path.leaflet-interactive[fill]:not([fill="none"])')
-      await emprisesSuppr.nth((await emprisesSuppr.count()) - 1).click({ force: true }).catch(() => {})
+      await emprisesSuppr.nth((await emprisesSuppr.count()) - 2).click({ force: true }).catch(() => {})
       await page.waitForTimeout(200)
       if ((await page.locator('.impl-props input').first().inputValue().catch(() => null)) !== 'Table pliante') erreurs.push('Suppr : la table n’est pas sélectionnée avant la touche')
       await page.evaluate(() => { window.__appels = [] })
