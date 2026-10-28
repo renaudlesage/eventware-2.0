@@ -3302,3 +3302,15 @@ body.carte-plein-corps { overflow: hidden; }
 .gantt-jalon.teinte .gantt-avancement { opacity: 0.45; fill: #10151b; }
 .gantt-jalon.teinte.selectionne .gantt-barre, .gantt-jalon.teinte.selectionne .gantt-losange { stroke-width: 3; }
 .gantt-legende-groupes { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; }
+
+/* (28/10) Un écran en plein travail (la carte de conception) : plus de
+   colonne de veille ni de mur, et la coquille s'ouvre à toute la fenêtre. */
+.poste.plein-travail { max-width: none; }
+@media (min-width: 1440px) {
+  .poste > .corps.plein-travail { grid-template-columns: 56px minmax(0, 1fr); }
+  .poste > .corps.plein-travail.rail-epingle { grid-template-columns: 200px minmax(0, 1fr); }
+}
+@media (min-width: 2200px) {
+  .poste > .corps.plein-travail { grid-template-columns: 56px minmax(0, 1fr); }
+  .poste > .corps.plein-travail.rail-epingle { grid-template-columns: 200px minmax(0, 1fr); }
+}

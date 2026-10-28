@@ -108,6 +108,9 @@ export default function Poste({ session, theme, setTheme }) {
   // « Signalements ouverts » doit ouvrir directement Sécurité sur son
   // onglet Signalements, pas sur l'onglet par défaut.
   const [ongletCible, setOngletCible] = useState(parEtiquette ? 'inventaire' : null)
+  // (28/10) Un écran qui demande toute la largeur (la carte de conception) :
+  // la colonne de veille et le mur s'effacent, le travail prend la place.
+  const [pleinTravail, setPleinTravail] = useState(false)
 
   function aller(clef, sousOnglet) {
     setEcran(clef)
@@ -221,7 +224,7 @@ export default function Poste({ session, theme, setTheme }) {
   if (chargement) return <div className="attente">Chargement…</div>
 
   return (
-    <div className="poste">
+    <div className={`poste ${pleinTravail ? 'plein-travail' : ''}`}>
       <div className="tete">
         {/* Sur téléphone, le nom de l'application ne figure nulle part
             ailleurs : l'app est lancée depuis l'écran d'accueil, sans
@@ -361,8 +364,8 @@ export default function Poste({ session, theme, setTheme }) {
               rien à charger (voir largeur.js). */}
           <div
             className={`corps palier-${palier} ${railEpingle && palier !== 'mobile' ? 'rail-epingle' : ''} ${
-              palier === 'mur' && encadre ? 'avec-mur' : ''
-            }`}
+              palier === 'mur' && encadre && !pleinTravail ? 'avec-mur' : ''
+            } ${pleinTravail ? 'plein-travail' : ''}`}
           >
             <Rail
               visibles={visibles}
@@ -393,16 +396,17 @@ export default function Poste({ session, theme, setTheme }) {
                 }}
                 onRecharger={charger}
                 setMessage={setMessage}
+                onPlein={setPleinTravail}
               />
             </main>
 
-            {palier === 'mur' && encadre && (
+            {palier === 'mur' && encadre && !pleinTravail && (
               <section className="travail colonne-mur" aria-label="Tableau de bord">
                 <Mur evenement={courant} onAller={aller} />
               </section>
             )}
 
-            {(palier === 'veille' || palier === 'mur') && (
+            {(palier === 'veille' || palier === 'mur') && !pleinTravail && (
               <aside className="veille" aria-label="Veille">
                 {/* Sur Situation, la veille serait de la redite (alertes,
                     journal et météo y sont déjà) : la colonne montre la
@@ -520,7 +524,7 @@ function Reseau() {
 /* Aiguillage                                                          */
 /* ================================================================== */
 
-function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoir, exploitant, onAller, onOuvrirEvenement, onRecharger, setMessage }) {
+function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoir, exploitant, onAller, onOuvrirEvenement, onRecharger, setMessage, onPlein }) {
   switch (clef) {
     case 'situation':
       return (
@@ -587,7 +591,7 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
       )
     case 'plan':
       return (
-        <PlanImplantation evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} />
+        <PlanImplantation evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} onPlein={onPlein} />
       )
     case 'precurseur':
       return <Precurseur evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} />

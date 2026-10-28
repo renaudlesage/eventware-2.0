@@ -39,12 +39,19 @@ const ORDRE_SECOURS = [
 ]
 
 
-export default function PlanImplantation({ evenement, membre, peut, toutPouvoir }) {
+export default function PlanImplantation({ evenement, membre, peut, toutPouvoir, onPlein }) {
   const [elements, setElements] = useState([])
   const [message, setMessage] = useState(null)
   // En préparation on conçoit ; sur site on fait la tournée.
   const [vue, setVue] = useState(evenement.phase === 'preparation' ? 'conception' : 'tournee')
   const [ouvrir, setOuvrir] = useState(null) // { id, n } : l'objet à ouvrir en Conception (depuis les Bilans)
+  // (28/10) La carte de conception veut toute la largeur : Mon poste efface
+  // la veille et le tableau de bord tant qu'elle est ouverte.
+  useEffect(() => {
+    onPlein?.(vue === 'conception')
+    return () => onPlein?.(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vue])
   const [position, setPosition] = useState(null)
   const [edite, setEdite] = useState(null)
 
