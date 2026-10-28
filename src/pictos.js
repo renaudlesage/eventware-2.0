@@ -114,14 +114,15 @@ const DESSINS = {
     forme: 'carre',
     corps: `<path d="M40 14 H60 V40 H86 V60 H60 V86 H40 V60 H14 V40 H40 Z" fill="${BLANC}"/><g fill="none" stroke="${VERT}" stroke-width="5" stroke-linecap="round"><path d="M40 30 V44 C40 52 44 58 50 58 C56 58 60 52 60 44 V30"/><path d="M50 58 V66 C50 72 56 74 60 74"/></g><circle cx="65" cy="74" r="5" fill="${VERT}"/>`
   },
-  // (139, 28/10) Secours et circulation : PRV (le brancard, en vert
-  // sauvetage), accès secours (flèche blanche sur rouge, à tourner vers
-  // l'entrée), voie d'accès secours (la chaussée, pour le catalogue : sur
-  // la carte, c'est un tracé), parking (le P bleu de l'information).
+  // (139, 28/10) Secours et circulation : PRV, le point de rendez-vous
+  // des secours (« PRV » en blanc sur rouge, comme sur le terrain),
+  // accès secours (flèche blanche sur rouge, à tourner vers l'entrée),
+  // voie d'accès secours (la chaussée, pour le catalogue : sur la carte,
+  // c'est un tracé), parking (le P bleu de l'information).
   prv: {
-    fond: VERT,
+    fond: ROUGE,
     forme: 'carre',
-    corps: `<g fill="${BLANC}"><rect x="14" y="44" width="72" height="12" rx="4"/><circle cx="36" cy="36" r="7"/><rect x="44" y="30" width="30" height="12" rx="6"/><rect x="20" y="56" width="6" height="26"/><rect x="74" y="56" width="6" height="26"/><circle cx="23" cy="86" r="5"/><circle cx="77" cy="86" r="5"/></g><path d="M44 14 H56 V22 H64 V34 H56 V42 H44 V34 H36 V22 H44 Z" fill="${BLANC}" transform="translate(6 -6) scale(0.8)"/>`
+    corps: `<text x="50" y="63" text-anchor="middle" font-family="system-ui, Arial, sans-serif" font-size="38" font-weight="700" fill="${BLANC}">PRV</text>`
   },
   acces_secours: { fond: ROUGE, forme: 'carre', corps: FLECHE_DROITE },
   voie_secours: {

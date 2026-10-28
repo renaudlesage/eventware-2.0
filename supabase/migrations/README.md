@@ -450,7 +450,15 @@ Répétition : codes INV-0001 et INV-0002, disponible 1 sur 4 avec 3 sortis, sta
 
 Appliquée et inscrite (version 20261030100000) ; vérifié : les quatre codes avec leur pictogramme.
 
-## Ne jamais rejouer 088 → 139 par `db push` sans les lignes ci-dessus
+### 140 : appliquée le 28/10 (par Claude, via l'outil Supabase) — PRV = point de rendez-vous des secours
+
+| Fichier | Fait |
+|---|---|
+| `20261030110000_140_prv_point_rendez_vous.sql` | `PRVP` passe de la catégorie `prv` (regroupement des victimes) à `point_rencontre_secours`, libellé « PRV secours (point de rendez-vous) » ; le pictogramme devient « PRV » en blanc sur rouge |
+
+Appliquée et inscrite (version 20261030110000).
+
+## Ne jamais rejouer 088 → 140 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

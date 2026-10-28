@@ -369,11 +369,18 @@ function Lignes({ nature, evenement, groupe, lignes, toutes = lignes, liens = []
   const codesPris = useMemo(() => new Set(toutes.map((x) => String(x.code ?? '').toUpperCase())), [toutes])
   const codeTape = f.code.trim().toUpperCase()
   const pris = codeTape ? toutes.find((x) => String(x.code ?? '').toUpperCase() === codeTape) : null
+  // COM-01 pris → COM-02, COM-03… (même longueur de numéro) ; COM pris → COM-2.
   function codeLibre(base) {
-    const racine = (base || 'X').replace(/-\d+$/, '')
+    const m = /^(.*?)(\d+)$/.exec(base || 'X')
+    if (m) {
+      const essai = (k) => m[1] + String(k).padStart(m[2].length, '0')
+      let n = Number(m[2]) + 1
+      while (codesPris.has(essai(n))) n++
+      return essai(n)
+    }
     let n = 2
-    while (codesPris.has(`${racine}-${n}`)) n++
-    return `${racine}-${n}`
+    while (codesPris.has(`${base}-${n}`)) n++
+    return `${base}-${n}`
   }
 
   const estJalon = nature === 'jalon'
