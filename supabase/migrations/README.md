@@ -458,7 +458,15 @@ Appliquée et inscrite (version 20261030100000) ; vérifié : les quatre codes a
 
 Appliquée et inscrite (version 20261030110000).
 
-## Ne jamais rejouer 088 → 140 par `db push` sans les lignes ci-dessus
+### 141 : appliquée le 28/10 (par Claude, via l'outil Supabase) — catalogue sanitaires : urinoir
+
+| Fichier | Fait |
+|---|---|
+| `20261030120000_141_catalogue_urinoir.sql` | `URINOIR` : urinoir 4 places autonome, 1,2 × 1,2 m, calque sanitaires, sans raccord d'eau |
+
+Appliquée et inscrite (version 20261030120000).
+
+## Ne jamais rejouer 088 → 141 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`
