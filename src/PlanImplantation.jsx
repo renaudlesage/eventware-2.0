@@ -253,6 +253,8 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
                               <span className="jeton alerte-texte"> non confirmé</span>
                             )}
                           </div>
+                          {/* (144) L'adresse d'abord : c'est elle qu'on dicte ; les coordonnées à côté. */}
+                          {e.adresse && <div className="secours-adresse"><strong>{e.adresse}</strong></div>}
                           <div className="meta">
                             {(e.geometrie ?? [])[0] && (
                               <span className="mono">
@@ -261,6 +263,7 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
                             )}
                             {e.responsable && <span>{e.responsable}</span>}
                             {e.contact && <span className="mono">{e.contact}</span>}
+                            {!e.adresse && <span className="aide" style={{ margin: 0 }}>sans adresse — à saisir dans sa fiche (Conception)</span>}
                           </div>
                           {e.description && <p className="aide">{e.description}</p>}
                         </div>

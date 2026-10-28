@@ -205,6 +205,11 @@ for (const ecran of ecrans) {
   // Toutes les cartes dessinent le plan comme la conception : calques à
   // cocher, pictogrammes ; décocher un calque retire ses objets.
   if (ecran === 'plan') {
+    // (144) Accès secours : l'adresse du PRV est affichée, un accès sans adresse le dit.
+    await page.getByRole('button', { name: /^Accès secours/ }).first().click().catch(() => {})
+    await page.waitForTimeout(300)
+    if (!(await page.locator('.secours-adresse', { hasText: 'Rue du Vicinal 12' }).count())) erreurs.push('accès secours : l’adresse du PRV n’est pas affichée')
+    if (!(await page.getByText('sans adresse').count())) erreurs.push('accès secours : un accès sans adresse ne le dit pas')
     // (28/10) Bilans › Métré : un tracé compte sa longueur (la barrière 40 m en 12 modules, la voie 60 m), un objet sa surface.
     await page.getByRole('button', { name: /^Bilans$/ }).first().click().catch(() => {})
     await page.waitForTimeout(400)
@@ -224,6 +229,9 @@ for (const ecran of ecrans) {
       await page.waitForTimeout(1200)
       const nomOuvert = await page.locator('.impl-props input').first().inputValue().catch(() => null)
       if (nomOuvert !== 'Table pliante') erreurs.push(`contrôles : la fiche ouverte en Conception est « ${nomOuvert} » (attendu Table pliante)`)
+      // (144) La fiche a le champ Adresse et la recherche depuis la position.
+      if (!(await page.locator('.impl-adresse').count())) erreurs.push('fiche : champ Adresse absent')
+      if (!(await page.locator('.impl-adresse-chercher').count())) erreurs.push('fiche : « Trouver l’adresse depuis la position » absent')
       await page.getByRole('button', { name: /^Bilans$/ }).first().click().catch(() => {})
       await page.waitForTimeout(300)
     }

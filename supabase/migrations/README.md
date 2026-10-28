@@ -482,7 +482,15 @@ Appliquée et inscrite (version 20261030130000).
 
 Appliquée et inscrite (version 20261030140000).
 
-## Ne jamais rejouer 088 → 143 par `db push` sans les lignes ci-dessus
+### 144 : appliquée le 28/10 (par Claude, via l'outil Supabase) — adresse des objets du plan
+
+| Fichier | Fait |
+|---|---|
+| `20261030150000_144_adresse_elements_plan.sql` | `elements_plan.adresse` (texte libre) : l'adresse à dicter aux secours, à côté des coordonnées ; saisie dans la fiche de l'objet, affichée dans Accès secours |
+
+Appliquée et inscrite (version 20261030150000).
+
+## Ne jamais rejouer 088 → 144 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

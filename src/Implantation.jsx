@@ -1444,6 +1444,7 @@ function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, 
       distance_securite_m: x.distance_securite_m ?? 0,
       est_risque: !!x.est_risque,
       fournisseur: x.fournisseur ?? '',
+      adresse: x.adresse ?? '',
       description: x.description ?? '',
       tension_v: x.tension_v ?? '',
       phases: x.phases ?? '',
@@ -1490,6 +1491,28 @@ function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, 
     const r = ((Number(f.rotation_deg) + delta) % 360 + 360) % 360
     setF((v) => ({ ...v, rotation_deg: r }))
     onModifier({ rotation_deg: r })
+  }
+  // (144) L'adresse depuis la position : OpenStreetMap (Nominatim) la
+  // propose, on la corrige et on l'enregistre. C'est elle qu'on dicte
+  // au 112, pas les coordonnées.
+  const [adresseEnCours, setAdresseEnCours] = useState(false)
+  async function chercherAdresse() {
+    if (o.centre_lat == null) return
+    setAdresseEnCours(true)
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${o.centre_lat}&lon=${o.centre_lon}&accept-language=fr&zoom=18`, { headers: { Accept: 'application/json' } })
+      const d = r.ok ? await r.json() : null
+      const a = d?.address
+      const texte = a
+        ? [[a.road ?? a.pedestrian ?? a.path, a.house_number].filter(Boolean).join(' '), [a.postcode, a.village ?? a.town ?? a.city ?? a.municipality].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+        : null
+      if (!texte) throw new Error('rien trouvé à cette position')
+      setF((v) => ({ ...v, adresse: texte }))
+      onModifier({ adresse: texte })
+    } catch (e) {
+      window.alert(`Adresse introuvable depuis la position (${e?.message ?? e}). Tape-la à la main.`)
+    }
+    setAdresseEnCours(false)
   }
 
   return (
@@ -1820,6 +1843,15 @@ function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, 
         Fournisseur
         <input value={f.fournisseur} disabled={lecture} onChange={(e) => envoyer('fournisseur', e.target.value)} onBlur={() => valider('fournisseur')} placeholder="Loueur, prestataire…" />
       </label>
+      <label>
+        Adresse (pour les secours)
+        <input className="impl-adresse" value={f.adresse} disabled={lecture} onChange={(e) => envoyer('adresse', e.target.value)} onBlur={() => valider('adresse')} placeholder="Rue, numéro, commune — ce qu'on dicte au 112" />
+      </label>
+      {!lecture && o.centre_lat != null && (
+        <button className="lien impl-adresse-chercher" onClick={chercherAdresse} disabled={adresseEnCours}>
+          {adresseEnCours ? 'Recherche…' : 'Trouver l’adresse depuis la position'}
+        </button>
+      )}
       <label>
         Note
         <textarea rows={2} value={f.description} disabled={lecture} onChange={(e) => envoyer('description', e.target.value)} onBlur={() => valider('description')} />
