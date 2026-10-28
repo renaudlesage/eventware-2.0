@@ -108,6 +108,10 @@ export default function Poste({ session, theme, setTheme }) {
   // « Signalements ouverts » doit ouvrir directement Sécurité sur son
   // onglet Signalements, pas sur l'onglet par défaut.
   const [ongletCible, setOngletCible] = useState(parEtiquette ? 'inventaire' : null)
+  // (28/10) La colonne de veille et le mur ne vivent que sur Situation :
+  // partout ailleurs (plan, planning, logistique…), le travail prend
+  // toute la largeur.
+  const pleinTravail = ecran !== 'situation'
 
   function aller(clef, sousOnglet) {
     setEcran(clef)
@@ -221,7 +225,7 @@ export default function Poste({ session, theme, setTheme }) {
   if (chargement) return <div className="attente">Chargement…</div>
 
   return (
-    <div className="poste">
+    <div className={`poste ${pleinTravail ? 'plein-travail' : ''}`}>
       <div className="tete">
         {/* Sur téléphone, le nom de l'application ne figure nulle part
             ailleurs : l'app est lancée depuis l'écran d'accueil, sans
@@ -361,8 +365,8 @@ export default function Poste({ session, theme, setTheme }) {
               rien à charger (voir largeur.js). */}
           <div
             className={`corps palier-${palier} ${railEpingle && palier !== 'mobile' ? 'rail-epingle' : ''} ${
-              palier === 'mur' && encadre ? 'avec-mur' : ''
-            }`}
+              palier === 'mur' && encadre && !pleinTravail ? 'avec-mur' : ''
+            } ${pleinTravail ? 'plein-travail' : ''}`}
           >
             <Rail
               visibles={visibles}
@@ -396,13 +400,13 @@ export default function Poste({ session, theme, setTheme }) {
               />
             </main>
 
-            {palier === 'mur' && encadre && (
+            {palier === 'mur' && encadre && !pleinTravail && (
               <section className="travail colonne-mur" aria-label="Tableau de bord">
                 <Mur evenement={courant} onAller={aller} />
               </section>
             )}
 
-            {(palier === 'veille' || palier === 'mur') && (
+            {(palier === 'veille' || palier === 'mur') && !pleinTravail && (
               <aside className="veille" aria-label="Veille">
                 {/* Sur Situation, la veille serait de la redite (alertes,
                     journal et météo y sont déjà) : la colonne montre la
