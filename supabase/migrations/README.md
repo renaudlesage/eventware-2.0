@@ -466,7 +466,15 @@ Appliquée et inscrite (version 20261030110000).
 
 Appliquée et inscrite (version 20261030120000).
 
-## Ne jamais rejouer 088 → 141 par `db push` sans les lignes ci-dessus
+### 142 : appliquée le 28/10 (par Claude, via l'outil Supabase) — catalogue logistique : îlot de tri sélectif
+
+| Fichier | Fait |
+|---|---|
+| `20261030130000_142_catalogue_ilot_tri.sql` | `ILOTTRI` : îlot de tri sélectif, quatre bacs, 3 × 1,5 m, calque logistique, après le conteneur 1 100 l et la benne |
+
+Appliquée et inscrite (version 20261030130000).
+
+## Ne jamais rejouer 088 → 142 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`
