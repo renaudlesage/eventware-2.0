@@ -6,6 +6,7 @@ import { STATUTS_JALON, libelleStatutJalon, jalonEnRetard, supprimerJalon } from
 import { texteErreur, estDoublon } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import FicheJalon from './FicheJalon'
+import { Palette } from './couleurs.jsx'
 
 /**
  * Préparation — l'avant-événement.
@@ -245,9 +246,20 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
         const affectes = equipe ? membres.filter((m) => m.equipe_id === equipe.id).length : 0
 
         return (
-          <div className={`carte ${enRetard ? 'urgent' : ''}`} key={g.id}>
-            <div className="titre">{g.nom}</div>
+          <div className={`carte ${enRetard ? 'urgent' : ''}`} key={g.id} style={g.couleur ? { boxShadow: `inset 4px 0 0 ${g.couleur}` } : undefined}>
+            <div className="titre">{g.couleur && <span className="couleur-pastille" style={{ background: g.couleur }} />}{g.nom}</div>
             {g.objet && <p className="aide">{g.objet}</p>}
+            {/* (146) La couleur du groupe : le remplissage de ses barres sur le Gantt. */}
+            {peutGerer && (
+              <div className="prep-couleur">
+                Couleur sur le Gantt
+                <Palette valeur={g.couleur} aucune="neutre" onChoisir={async (c) => {
+                  const refus = await modifierOuRefuser('groupes_travail', { couleur: c }, { id: g.id })
+                  if (refus) setMessage({ type: 'erreur', texte: refus })
+                  else charger()
+                }} />
+              </div>
+            )}
             <div className="meta">
               {g.pilote?.nom_affiche && <span>piloté par {g.pilote.nom_affiche}</span>}
               <span>

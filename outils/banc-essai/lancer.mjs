@@ -305,6 +305,20 @@ for (const ecran of ecrans) {
     if (!avril) erreurs.push('le jalon d’avril (224 jours avant J) n’est pas dessiné')
     else if (!(avril.x >= 0 && avril.largeur > 100 && avril.j - avril.x > 200 * 18)) erreurs.push(`jalon d’avril mal placé : ${JSON.stringify(avril)} (attendu x ≥ 0, 9 jours de large, plus de 200 jours avant J)`)
     if (!(await page.getByRole('button', { name: 'jour J' }).count())) erreurs.push('« Aller à : jour J » absent')
+    // (146) Le groupe Sécurité (gt1) est sarcelle : ses barres sont remplies de sa couleur, classe « teinte », contour par statut ; la légende le nomme.
+    const teinte = await page.evaluate(() => {
+      const g = [...document.querySelectorAll('.gantt-svg:not(.gantt-svg-colonne) .gantt-jalon')].find((x) => x.dataset.code?.startsWith('GJ-01'))
+      const r = g?.querySelector('.gantt-barre')
+      const b = [...document.querySelectorAll('.gantt-svg:not(.gantt-svg-colonne) .gantt-jalon')].find((x) => x.dataset.code?.startsWith('GJ-03'))?.querySelector('.gantt-barre')
+      return g && r ? { classe: g.getAttribute('class'), fill: getComputedStyle(r).fill, autre: b ? getComputedStyle(b).fill : null } : null
+    })
+    if (!teinte) erreurs.push('couleurs : GJ-01 introuvable')
+    else {
+      if (!/\bteinte\b/.test(teinte.classe)) erreurs.push(`couleurs : GJ-01 n’a pas la classe teinte (${teinte.classe})`)
+      if (teinte.fill !== 'rgb(42, 157, 143)') erreurs.push(`couleurs : remplissage de GJ-01 ${teinte.fill} (attendu rgb(42, 157, 143), la couleur du groupe Sécurité)`)
+      if (teinte.autre === 'rgb(42, 157, 143)') erreurs.push('couleurs : GJ-03 (groupe Logistique, sans couleur) est teinté à tort')
+    }
+    if (!(await page.locator('.gantt-legende-groupes', { hasText: 'Sécurité' }).count())) erreurs.push('couleurs : la légende ne nomme pas le groupe coloré')
     // (28/10) Ajouter un jalon depuis la frise : code déjà pris signalé, puis un jalon valide envoyé.
     await page.getByRole('button', { name: '+ Jalon' }).click()
     await page.waitForTimeout(200)
@@ -317,7 +331,7 @@ for (const ecran of ecrans) {
     await page.locator('.gantt-doublon button').click()
     await page.waitForTimeout(200)
     if ((await page.locator('.gantt-ajout input[aria-label=Code]').inputValue()) !== 'GJ-10') erreurs.push(`ajout : code proposé « ${await page.locator('.gantt-ajout input[aria-label=Code]').inputValue()} » (attendu GJ-10 : GJ-01 à GJ-09 sont pris)`)
-    if (await page.locator('.gantt-ajout select[aria-label=Groupe] option').count() !== 2) erreurs.push('ajout : le groupe de travail du faux événement n’est pas proposé')
+    if (await page.locator('.gantt-ajout select[aria-label=Groupe] option').count() !== 3) erreurs.push('ajout : les deux groupes de travail du faux événement ne sont pas proposés')
     await page.locator('.gantt-ajout button', { hasText: 'Ajouter' }).click()
     await page.waitForTimeout(400)
     if (await page.locator('.gantt-ajout').count()) erreurs.push('ajout : le formulaire reste ouvert après un ajout accepté')
@@ -356,6 +370,7 @@ for (const ecran of ecrans) {
     await los.click()
     await page.waitForTimeout(300)
     if (!(await page.locator('.fiche-jalon').count())) erreurs.push('la fiche ne s’ouvre pas au clic')
+    else if (!(await page.locator('.fiche-jalon .palette').count())) erreurs.push('la fiche n’a pas la palette de couleur')
   }
   // (130) L'annuaire : trois fournisseurs, le filtre par catégorie, la fiche avec ses contacts.
   if (ecran === 'fournisseurs') {

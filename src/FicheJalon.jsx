@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import { STATUTS_JALON } from './jalons'
+import { Palette } from './couleurs.jsx'
 
 /**
  * Ce qu'un jalon a gagné avec le Gantt (129) : un début, un avancement,
@@ -125,6 +126,10 @@ export default function FicheJalon({ jalon, lignes = [], liens = [], info, evene
             </select>
           </label>
         )}
+        {/* (146) Une couleur propre sur le Gantt ; « × » : celle du groupe. */}
+        <label title="Remplissage de la barre sur le Gantt ; le contour garde le statut">Couleur
+          <Palette valeur={jalon.couleur} onChoisir={(c) => modifier({ couleur: c })} aucune="celle du groupe" disabled={lecture} />
+        </label>
       </div>
       {marge != null && (
         <p className={`aide fiche-jalon-marge ${info.sur_chemin_critique ? 'alerte-texte' : ''}`} style={{ margin: '4px 0' }}>
