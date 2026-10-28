@@ -44,6 +44,7 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
   const [message, setMessage] = useState(null)
   // En préparation on conçoit ; sur site on fait la tournée.
   const [vue, setVue] = useState(evenement.phase === 'preparation' ? 'conception' : 'tournee')
+  const [ouvrir, setOuvrir] = useState(null) // { id, n } : l'objet à ouvrir en Conception (depuis les Bilans)
   const [position, setPosition] = useState(null)
   const [edite, setEdite] = useState(null)
 
@@ -146,9 +147,11 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
           peutCreer={peutCreer}
           peutModifier={peutModifier}
           setMessage={setMessage}
+          ouvrir={ouvrir}
         />
       )}
-      {vue === 'bilans' && <BilansImplantation elements={elements} evenement={evenement} />}
+      {/* (28/10) Depuis un contrôle, un objet cliqué s'ouvre dans Conception, fiche et carte centrées sur lui. */}
+      {vue === 'bilans' && <BilansImplantation elements={elements} evenement={evenement} onOuvrir={(id) => { setOuvrir({ id, n: Date.now() }); setVue('conception') }} />}
 
       {vue !== 'conception' && vue !== 'bilans' && (
       <div className="geo">
@@ -250,6 +253,8 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
                               <span className="jeton alerte-texte"> non confirmé</span>
                             )}
                           </div>
+                          {/* (144) L'adresse d'abord : c'est elle qu'on dicte ; les coordonnées à côté. */}
+                          {e.adresse && <div className="secours-adresse"><strong>{e.adresse}</strong></div>}
                           <div className="meta">
                             {(e.geometrie ?? [])[0] && (
                               <span className="mono">
@@ -258,6 +263,7 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
                             )}
                             {e.responsable && <span>{e.responsable}</span>}
                             {e.contact && <span className="mono">{e.contact}</span>}
+                            {!e.adresse && <span className="aide" style={{ margin: 0 }}>sans adresse — à saisir dans sa fiche (Conception)</span>}
                           </div>
                           {e.description && <p className="aide">{e.description}</p>}
                         </div>

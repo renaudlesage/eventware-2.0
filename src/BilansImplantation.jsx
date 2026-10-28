@@ -27,10 +27,12 @@ import { LIBELLE_CALQUE, COULEUR_CALQUE } from './Implantation'
 const COS_PHI = 0.8
 const LARGEUR_VOIE_ENGINS = 4
 const fr = (x, d = 1) => (x == null ? '—' : Number(x).toFixed(d).replace('.', ','))
+// Un objet cité dans un contrôle : cliquable, il s'ouvre dans Conception.
+const objet = (o) => ({ id: o.id, nom: o.nom })
 const TOILES = new Set(['CHAP', 'TONN', 'PAGODE'])
 const estToile = (o) => /chapiteau|tonnelle|pagode|tente/i.test(o.nom ?? '') || TOILES.has((o.code ?? '').split('-')[0].replace(/\d.*$/, ''))
 
-export default function BilansImplantation({ elements, evenement }) {
+export default function BilansImplantation({ elements, evenement, onOuvrir }) {
   const [onglet, setOnglet] = useState('controles')
   const objets = useMemo(() => elements.filter((e) => e.centre_lat != null && e.largeur_m), [elements])
   const polys = useMemo(() => new Map(objets.map((o) => [o.id, polygoneObjet(o)])), [objets])
@@ -78,7 +80,8 @@ export default function BilansImplantation({ elements, evenement }) {
         // Les barrières se touchent par construction ; on ne les compare pas entre elles.
         const barrieres = a.calque === 'circulation' && b.calque === 'circulation'
         if (!barrieres && seChevauchent(pa, pb)) {
-          liste.push({ gravite: 'chaud', type: 'Chevauchement', texte: `${a.nom} et ${b.nom} se chevauchent`, ids: [a.id, b.id] })
+          // (28/10) `segments` : le texte découpé, les objets cliquables (ouvrent leur fiche en Conception).
+          liste.push({ gravite: 'chaud', type: 'Chevauchement', texte: `${a.nom} et ${b.nom} se chevauchent`, ids: [a.id, b.id], segments: [objet(a), ' et ', objet(b), ' se chevauchent'] })
           continue
         }
         for (const [x, y, px, py] of [[a, b, pa, pb], [b, a, pb, pa]]) {
@@ -91,7 +94,8 @@ export default function BilansImplantation({ elements, evenement }) {
               gravite: 'chaud',
               type: 'Distance de sécurité',
               texte: `${x.nom} à ${fr(dist, 1)} m de ${y.nom} (${fr(d, 1)} m requis)`,
-              ids: [x.id, y.id]
+              ids: [x.id, y.id],
+              segments: [objet(x), ` à ${fr(dist, 1)} m de `, objet(y), ` (${fr(d, 1)} m requis)`]
             })
           }
         }
@@ -99,10 +103,16 @@ export default function BilansImplantation({ elements, evenement }) {
     }
     const voies = elements.filter((e) => e.categorie === 'voie_engins' && e.forme === 'ligne' && (e.geometrie ?? []).length > 1)
     for (const v of voies) {
-      for (const o of avecPoly) {
+      // Un pictogramme (accès secours, extincteur) n'encombre pas une voie : c'est un panneau, pas un objet.
+      for (const o of avecPoly.filter((x) => x.nature !== 'picto')) {
         const d = distancePolygoneLigne(polys.get(o.id), v.geometrie)
         if (d < LARGEUR_VOIE_ENGINS / 2) {
-          liste.push({ gravite: 'veille', type: 'Voie engins', texte: `${o.nom} empiète sur « ${v.nom} » (${fr(d, 1)} m de l'axe, ${LARGEUR_VOIE_ENGINS} m de passage requis)`, ids: [o.id] })
+          liste.push({
+            gravite: 'veille', type: 'Voie engins',
+            texte: `${o.nom} empiète sur « ${v.nom} » (${fr(d, 1)} m de l'axe, ${LARGEUR_VOIE_ENGINS} m de passage requis)`,
+            ids: [o.id, v.id],
+            segments: [objet(o), ' empiète sur « ', objet(v), ` » (${fr(d, 1)} m de l'axe, ${LARGEUR_VOIE_ENGINS} m de passage requis)`]
+          })
         }
       }
     }
@@ -181,7 +191,13 @@ export default function BilansImplantation({ elements, evenement }) {
               {controles.liste.map((c, i) => (
                 <div key={i} className="prc-ligne">
                   <span className={`prc-jeton ${c.gravite}`}>{c.type}</span>
-                  <span>{c.texte}</span>
+                  <span>
+                    {c.segments && onOuvrir
+                      ? c.segments.map((s, k) => (typeof s === 'string' ? s : (
+                        <button key={k} className="lien bilan-objet" onClick={() => onOuvrir(s.id)} title="Ouvrir sa fiche dans Conception">{s.nom}</button>
+                      )))
+                      : c.texte}
+                  </span>
                 </div>
               ))}
             </div>
@@ -189,7 +205,8 @@ export default function BilansImplantation({ elements, evenement }) {
           <p className="aide">
             Distance de sécurité : celle de l'objet (gaz, feu, groupe) vis-à-vis de ce qui reçoit du
             public et des toiles. Voie engins : {LARGEUR_VOIE_ENGINS} m de passage libre, mesuré
-            depuis l'axe tracé dans le plan. Rien ici ne remplace l'avis de la zone de secours.
+            depuis l'axe tracé dans le plan ; les pictogrammes n'encombrent pas. Clique un objet pour
+            ouvrir sa fiche dans Conception. Rien ici ne remplace l'avis de la zone de secours.
           </p>
         </section>
       )}
