@@ -442,7 +442,23 @@ on conflict (version) do nothing;
 
 Répétition : codes INV-0001 et INV-0002, disponible 1 sur 4 avec 3 sortis, statut en retard, retrait refusé tant que sorti puis accepté, autre organisation ne lit rien. Appliquée et inscrite (version 20261030090000).
 
-## Ne jamais rejouer 088 → 138 par `db push` sans les lignes ci-dessus
+### 139 : appliquée le 28/10 (par Claude, via l'outil Supabase) — catalogue : PRV, accès secours, voie d'accès secours, parking
+
+| Fichier | Fait |
+|---|---|
+| `20261030100000_139_catalogue_secours_parking.sql` | Quatre entrées du catalogue standard avec pictogramme (`src/pictos.js`) : `PRVP` PRV secours (prv), `ACCESSECP` accès secours (flèche blanche sur rouge, orientable, voie_engins), `VOIESEC` voie d'accès secours (tracé, 4 m de large, dessiné en chaussée rouge), `PARKINGP` parking (circulation) |
+
+Appliquée et inscrite (version 20261030100000) ; vérifié : les quatre codes avec leur pictogramme.
+
+### 140 : appliquée le 28/10 (par Claude, via l'outil Supabase) — PRV = point de rendez-vous des secours
+
+| Fichier | Fait |
+|---|---|
+| `20261030110000_140_prv_point_rendez_vous.sql` | `PRVP` passe de la catégorie `prv` (regroupement des victimes) à `point_rencontre_secours`, libellé « PRV secours (point de rendez-vous) » ; le pictogramme devient « PRV » en blanc sur rouge |
+
+Appliquée et inscrite (version 20261030110000).
+
+## Ne jamais rejouer 088 → 140 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

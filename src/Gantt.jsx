@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
-import { texteErreur } from './erreurs'
+import { texteErreur, estDoublon } from './erreurs'
 import { libelleStatutJalon } from './jalons'
 import FicheJalon from './FicheJalon'
 
@@ -116,6 +116,98 @@ function svgComplet(colonne, temps, titre) {
   return svg
 }
 
+/**
+ * (28/10) Un jalon de plus, depuis la frise : code, libellé, groupe,
+ * début facultatif, échéance, responsable, critique. Même table que
+ * Préparation ; le code se vérifie contre les jalons existants avant
+ * d'envoyer, et un code libre est proposé.
+ */
+function FormJalon({ evenement, lignes, groupes, membres, J, onFait, onFermer }) {
+  const [f, setF] = useState({ code: '', libelle: '', groupe_travail_id: '', debut: '', echeance: '', responsable_membre_id: '', critique: false })
+  const [erreur, setErreur] = useState(null)
+  const [occupe, setOccupe] = useState(false)
+  const champ = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
+  const codes = new Set(lignes.map((l) => String(l.code ?? '').toUpperCase()))
+  const codeTape = f.code.trim().toUpperCase()
+  const pris = codeTape ? lignes.find((l) => String(l.code ?? '').toUpperCase() === codeTape) : null
+  // GJ-01 pris → GJ-02, GJ-03… (même longueur de numéro) ; COM pris → COM-2.
+  function codeLibre(base) {
+    const m = /^(.*?)(\d+)$/.exec(base || 'J')
+    if (m) {
+      const essai = (k) => m[1] + String(k).padStart(m[2].length, '0')
+      let n = Number(m[2]) + 1
+      while (codes.has(essai(n))) n++
+      return essai(n)
+    }
+    let n = 2
+    while (codes.has(`${base}-${n}`)) n++
+    return `${base}-${n}`
+  }
+  const pret = f.code.trim() && f.libelle.trim() && f.echeance && !pris && (!f.debut || f.debut <= f.echeance)
+
+  async function creer() {
+    if (!pret) return
+    setOccupe(true)
+    setErreur(null)
+    const { error } = await supabase.from('jalons').insert({
+      evenement_id: evenement.id,
+      code: f.code.trim(),
+      libelle: f.libelle.trim(),
+      groupe_travail_id: f.groupe_travail_id || null,
+      debut: f.debut ? new Date(f.debut + 'T09:00:00').toISOString() : null,
+      echeance: new Date(f.echeance + 'T17:00:00').toISOString(),
+      responsable_membre_id: f.responsable_membre_id || null,
+      critique: !!f.critique
+    })
+    setOccupe(false)
+    if (error) {
+      setErreur(estDoublon(error)
+        ? { texte: `Le code « ${f.code.trim()} » est déjà pris sur cet événement, peut-être par une ligne supprimée.`, proposition: codeLibre(codeTape) }
+        : { texte: texteErreur(error) })
+    } else onFait()
+  }
+
+  return (
+    <div className="formulaire gantt-ajout">
+      <div className="saisie-rapide">
+        <input value={f.code} onChange={champ('code')} placeholder="Code" style={{ flex: '0 1 90px' }} autoFocus aria-label="Code" />
+        <input value={f.libelle} onChange={champ('libelle')} placeholder="L'échéance — ex. Dépôt du dossier à la commune" aria-label="Libellé" />
+      </div>
+      <div className="saisie-rapide">
+        <select value={f.groupe_travail_id} onChange={champ('groupe_travail_id')} style={{ flex: '1 1 160px' }} aria-label="Groupe">
+          <option value="">Sans groupe (jalon de l'événement)</option>
+          {groupes.map((g) => <option key={g.id} value={g.id}>{g.nom}</option>)}
+        </select>
+        <label className="case-a-cocher" style={{ margin: 0, gap: 4 }}>début <input type="date" value={f.debut} onChange={champ('debut')} max={f.echeance || undefined} style={{ width: 'auto', marginBottom: 0 }} aria-label="Début" /></label>
+        <label className="case-a-cocher" style={{ margin: 0, gap: 4 }}>échéance <input type="date" value={f.echeance} onChange={champ('echeance')} min={f.debut || undefined} style={{ width: 'auto', marginBottom: 0 }} aria-label="Échéance" /></label>
+        <select value={f.responsable_membre_id} onChange={champ('responsable_membre_id')} style={{ flex: '1 1 140px' }} aria-label="Responsable">
+          <option value="">Qui en répond ? (facultatif)</option>
+          {membres.map((m) => <option key={m.id} value={m.id}>{m.nom_affiche ?? 'sans nom'}</option>)}
+        </select>
+        <label className="case-confirme" style={{ margin: 0 }}><input type="checkbox" checked={f.critique} onChange={champ('critique')} /><span>critique</span></label>
+        <button disabled={!pret || occupe} onClick={creer}>Ajouter</button>
+        <button className="discret" onClick={onFermer}>Annuler</button>
+      </div>
+      {pris && (
+        <p className="aide alerte-texte gantt-doublon">
+          Le code « {codeTape} » est déjà pris par « {pris.libelle} ».{' '}
+          <button className="lien" onClick={() => setF({ ...f, code: codeLibre(codeTape) })}>Utiliser {codeLibre(codeTape)}</button>
+        </p>
+      )}
+      {erreur && !pris && (
+        <p className="aide alerte-texte gantt-erreur">
+          {erreur.texte}{' '}
+          {erreur.proposition && <button className="lien" onClick={() => { setF({ ...f, code: erreur.proposition }); setErreur(null) }}>Utiliser {erreur.proposition}</button>}
+        </p>
+      )}
+      <p className="aide">
+        Un jalon a toujours une échéance ; un début en fait une barre, sans début c'est un losange.
+        {J ? ` Jour J : ${J.toLocaleDateString('fr-BE')}.` : ''} Il apparaît aussi dans Préparation et, confié à quelqu'un, dans son écran « Mes missions ».
+      </p>
+    </div>
+  )
+}
+
 export default function Gantt({ evenement, peut, toutPouvoir, onAller }) {
   const [lignes, setLignes] = useState(null)
   const [liens, setLiens] = useState([])
@@ -128,22 +220,28 @@ export default function Gantt({ evenement, peut, toutPouvoir, onAller }) {
   const [glisse, setGlisse] = useState(null)
   const [survol, setSurvol] = useState(null)
   const [lienASupprimer, setLienASupprimer] = useState(null)
+  // (28/10) Ajouter un jalon sans quitter la frise.
+  const [ajout, setAjout] = useState(false)
+  const [groupes, setGroupes] = useState([])
   const svgRef = useRef(null)
   const colonneRef = useRef(null)
   const cadreRef = useRef(null)
   const etroit = useEtroit()
   const peutModifier = toutPouvoir || peut?.('rh', 'modifier')
+  const peutCreer = toutPouvoir || peut?.('rh', 'creer')
 
   async function charger() {
-    const [g, d, m] = await Promise.all([
+    const [g, d, m, gt] = await Promise.all([
       supabase.rpc('gantt', { p_evenement: evenement.id }),
       supabase.from('jalon_dependances').select('*').eq('evenement_id', evenement.id),
-      supabase.from('membres_evenement').select('id, nom_affiche').eq('evenement_id', evenement.id).is('deleted_at', null).order('nom_affiche', { nullsFirst: false })
+      supabase.from('membres_evenement').select('id, nom_affiche').eq('evenement_id', evenement.id).is('deleted_at', null).order('nom_affiche', { nullsFirst: false }),
+      supabase.from('groupes_travail').select('id, nom').eq('evenement_id', evenement.id).is('deleted_at', null).order('nom')
     ])
     if (g.error) setMessage({ type: 'erreur', texte: texteErreur(g.error) })
     setLignes(g.data ?? [])
     setLiens(d.data ?? [])
     setMembres(m.data ?? [])
+    setGroupes(gt.data ?? [])
   }
   useEffect(() => {
     charger()
@@ -470,6 +568,7 @@ export default function Gantt({ evenement, peut, toutPouvoir, onAller }) {
         <label className="case-a-cocher" style={{ margin: 0 }}>
           <input type="checkbox" checked={masquerFaits} onChange={(e) => setMasquerFaits(e.target.checked)} /> Masquer les jalons faits
         </label>
+        {peutCreer && <button onClick={() => setAjout((a) => !a)}>{ajout ? 'Fermer' : '+ Jalon'}</button>}
         <button className="discret" onClick={exporter}>Télécharger le SVG</button>
         <button className="discret" onClick={imprimer}>Imprimer (A3 paysage)</button>
         <button className="discret" onClick={charger}>Rafraîchir</button>
@@ -482,6 +581,11 @@ export default function Gantt({ evenement, peut, toutPouvoir, onAller }) {
 
       {message && (
         <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>{message.texte}</div>
+      )}
+
+      {ajout && peutCreer && (
+        <FormJalon evenement={evenement} lignes={lignes ?? []} groupes={groupes} membres={membres} J={J}
+          onFait={() => { setAjout(false); charger() }} onFermer={() => setAjout(false)} />
       )}
 
       {lienASupprimer && (

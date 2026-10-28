@@ -198,6 +198,9 @@ for (const ecran of ecrans) {
     })
     if (point) { await page.mouse.click(point.x, point.y); await page.waitForTimeout(600) }
     if (!(await page.locator('.impl-sommet').count())) erreurs.push('poignées de sommets absentes sur le tracé sélectionné')
+    // (139) La voie d'accès secours : une chaussée rouge, dessinée à part des files de barrières.
+    const voies = page.locator('path.leaflet-interactive[stroke="#c8102e"][stroke-width="7"]')
+    if ((await voies.count()) !== 1) erreurs.push(`${await voies.count()} voie(s) d’accès secours dessinée(s) en chaussée rouge (attendu 1)`)
   }
   // Toutes les cartes dessinent le plan comme la conception : calques à
   // cocher, pictogrammes ; décocher un calque retire ses objets.
@@ -242,6 +245,22 @@ for (const ecran of ecrans) {
     if (!avril) erreurs.push('le jalon d’avril (224 jours avant J) n’est pas dessiné')
     else if (!(avril.x >= 0 && avril.largeur > 100 && avril.j - avril.x > 200 * 18)) erreurs.push(`jalon d’avril mal placé : ${JSON.stringify(avril)} (attendu x ≥ 0, 9 jours de large, plus de 200 jours avant J)`)
     if (!(await page.getByRole('button', { name: 'jour J' }).count())) erreurs.push('« Aller à : jour J » absent')
+    // (28/10) Ajouter un jalon depuis la frise : code déjà pris signalé, puis un jalon valide envoyé.
+    await page.getByRole('button', { name: '+ Jalon' }).click()
+    await page.waitForTimeout(200)
+    await page.locator('.gantt-ajout input[aria-label=Code]').fill('GJ-01')
+    await page.locator('.gantt-ajout input[aria-label=Libellé]').fill('Essai')
+    await page.locator('.gantt-ajout input[aria-label=Échéance]').fill('2026-10-20')
+    await page.waitForTimeout(200)
+    if (!(await page.locator('.gantt-doublon').count())) erreurs.push('ajout : le code GJ-01 déjà pris n’est pas signalé')
+    if (!(await page.locator('.gantt-ajout button', { hasText: 'Ajouter' }).isDisabled())) erreurs.push('ajout : Ajouter actif malgré le doublon')
+    await page.locator('.gantt-doublon button').click()
+    await page.waitForTimeout(200)
+    if ((await page.locator('.gantt-ajout input[aria-label=Code]').inputValue()) !== 'GJ-10') erreurs.push(`ajout : code proposé « ${await page.locator('.gantt-ajout input[aria-label=Code]').inputValue()} » (attendu GJ-10 : GJ-01 à GJ-09 sont pris)`)
+    if (await page.locator('.gantt-ajout select[aria-label=Groupe] option').count() !== 2) erreurs.push('ajout : le groupe de travail du faux événement n’est pas proposé')
+    await page.locator('.gantt-ajout button', { hasText: 'Ajouter' }).click()
+    await page.waitForTimeout(400)
+    if (await page.locator('.gantt-ajout').count()) erreurs.push('ajout : le formulaire reste ouvert après un ajout accepté')
     if (!(await page.locator('.gantt-svg .gantt-lien.viole').count())) erreurs.push('aucune flèche de dépendance violée')
     const pos = await page.evaluate(() => {
       const j = document.querySelector('.gantt-svg .gantt-j')
@@ -495,6 +514,7 @@ for (const ecran of ecrans) {
   if (ecran === 'gantt-lecture') {
     if (await page.locator('.gantt-svg .gantt-poignee').count()) erreurs.push('poignées visibles en lecture seule')
     if (await page.getByText('Entraîner les suivantes').count()) erreurs.push('interrupteur Entraîner visible en lecture seule')
+    if (await page.getByRole('button', { name: '+ Jalon' }).count()) erreurs.push('« + Jalon » visible en lecture seule')
     if (!(await page.locator('.gantt-svg .gantt-barre').count())) erreurs.push('Gantt absent en lecture')
   }
   // La carte vectorielle de l'autorité : présente, avec le plan dessus et ses calques.

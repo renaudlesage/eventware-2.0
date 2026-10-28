@@ -1317,6 +1317,26 @@ function Objet({ o, selectionne, mParPx, peutModifier, onSelection, onGlisser, o
 
   if (trace) {
     if (trace.length < 2) return null
+    // (139) Une voie d'accès secours : une chaussée, pas une file de
+    // modules. Trait rouge large, pas de jonctions ; le bilan de sécurité
+    // vérifie ses 4 m de passage.
+    if (o.categorie === 'voie_engins') {
+      return (
+        <>
+          <Polyline
+            ref={couche}
+            positions={trace}
+            pathOptions={{ color: selectionne ? '#10151b' : '#c8102e', weight: selectionne ? 9 : 7, opacity: 0.85, dashArray: o.confirme ? null : '14 10', lineCap: 'round' }}
+            eventHandlers={evenements}
+          >
+            <Tooltip key={selectionne ? 'fixe' : 'survol'} direction="center" permanent={selectionne} className="etiquette-carte">
+              {o.nom} · {fr(o.longueur_m, 0)} m{o.largeur_m ? ` · ${fr(o.largeur_m)} m de large` : ''}
+            </Tooltip>
+          </Polyline>
+          {poignees()}
+        </>
+      )
+    }
     const jonctions = jonctionsLigne(trace, Number(o.largeur_m))
     return (
       <>
