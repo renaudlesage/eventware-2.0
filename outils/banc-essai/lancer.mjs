@@ -214,6 +214,19 @@ for (const ecran of ecrans) {
     if (!longueurs.some((t) => /^40 m$/.test(t.trim()))) erreurs.push(`métré : longueur de la file de barrières absente (${JSON.stringify(longueurs)})`)
     if (!longueurs.some((t) => /^60 m$/.test(t.trim()))) erreurs.push(`métré : longueur de la voie d’accès secours absente (${JSON.stringify(longueurs)})`)
     if (!(await page.getByText('modules de 3,5 m').count())) erreurs.push('métré : les modules de la barrière ne sont plus indiqués')
+    // (28/10) Contrôles : la table dans le PRV se chevauche ; cliquer « Table pliante » ouvre sa fiche dans Conception.
+    await page.getByRole('button', { name: /^Contrôles/ }).first().click().catch(() => {})
+    await page.waitForTimeout(300)
+    const objetControle = page.locator('.bilan-objet', { hasText: 'Table pliante' }).first()
+    if (!(await objetControle.count())) erreurs.push('contrôles : « Table pliante » n’est pas cliquable')
+    else {
+      await objetControle.click()
+      await page.waitForTimeout(1200)
+      const nomOuvert = await page.locator('.impl-props input').first().inputValue().catch(() => null)
+      if (nomOuvert !== 'Table pliante') erreurs.push(`contrôles : la fiche ouverte en Conception est « ${nomOuvert} » (attendu Table pliante)`)
+      await page.getByRole('button', { name: /^Bilans$/ }).first().click().catch(() => {})
+      await page.waitForTimeout(300)
+    }
     const onglet = page.getByRole('button', { name: /^Carte$/ })
     if (await onglet.count()) await onglet.first().click()
     await page.waitForTimeout(800)

@@ -198,7 +198,7 @@ export function coinsFond({ centre, largeur, hauteur, rotation }) {
   return { no: c[0], ne: c[1], so: c[3] }
 }
 
-export default function Implantation({ evenement, elements, onRecharger, peutCreer, peutModifier, setMessage }) {
+export default function Implantation({ evenement, elements, onRecharger, peutCreer, peutModifier, setMessage, ouvrir }) {
   const [catalogue, setCatalogue] = useState([])
   const [fonds, setFonds] = useState([])
   const [urls, setUrls] = useState({})
@@ -245,6 +245,21 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
   const objets = useMemo(() => elements.filter((e) => e.centre_lat != null && e.largeur_m), [elements])
   const existants = useMemo(() => elements.filter((e) => e.centre_lat == null && (e.geometrie ?? []).length), [elements])
   const selectionne = objets.find((o) => o.id === selection) ?? null
+
+  // (28/10) Ouvert depuis un contrôle des Bilans : l'objet est sélectionné,
+  // son calque rendu visible, et la carte vient se centrer sur lui.
+  const [cible, setCible] = useState(null)
+  useEffect(() => {
+    if (!ouvrir) return
+    const o = objets.find((x) => x.id === ouvrir.id)
+    if (!o) return
+    setSelection(o.id)
+    setSommet(null)
+    setMode(null)
+    setCalquesVisibles((v) => (v.has(o.calque ?? 'infrastructures') ? v : new Set([...v, o.calque ?? 'infrastructures'])))
+    setCible({ point: [Number(o.centre_lat), Number(o.centre_lon)], n: ouvrir.n })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ouvrir, objets.length])
 
   async function chargerCatalogue() {
     const { data, error } = await supabase.from('catalogue_equipements').select('*').order('ordre').order('libelle')
@@ -972,6 +987,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
             <Redimension />
             <Echelle onEchelle={setEchelle} />
             <Cadrage objets={objets} point0={evenement.point_0_lat != null && evenement.point_0_lon != null ? [Number(evenement.point_0_lat), Number(evenement.point_0_lon)] : null} />
+            <Centrer cible={cible} />
           </MapContainer>
           <div className="impl-legende">
             <strong>{evenement.nom}</strong>
@@ -1097,6 +1113,19 @@ function Echelle({ onEchelle }) {
 // À l'ouverture : centrée et zoomée sur le point 0 quand il existe (27/10 :
 // avant, la carte s'ajustait à tous les objets, et un plan étalé s'ouvrait
 // vu de très haut) ; sinon ajustée aux objets.
+// (28/10) La carte vient sur un point quand on le lui demande (un objet
+// ouvert depuis les Bilans) ; `n` change à chaque demande, même objet.
+function Centrer({ cible }) {
+  const carte = useMap()
+  useEffect(() => {
+    if (!cible?.point) return
+    const taille = carte.getSize()
+    if (!taille.x || !taille.y) return
+    carte.setView(cible.point, Math.max(carte.getZoom(), 18), { animate: true })
+  }, [carte, cible])
+  return null
+}
+
 function Cadrage({ objets, point0 }) {
   const carte = useMap()
   const fait = useRef(false)

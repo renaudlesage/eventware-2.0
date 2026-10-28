@@ -44,6 +44,7 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
   const [message, setMessage] = useState(null)
   // En préparation on conçoit ; sur site on fait la tournée.
   const [vue, setVue] = useState(evenement.phase === 'preparation' ? 'conception' : 'tournee')
+  const [ouvrir, setOuvrir] = useState(null) // { id, n } : l'objet à ouvrir en Conception (depuis les Bilans)
   const [position, setPosition] = useState(null)
   const [edite, setEdite] = useState(null)
 
@@ -146,9 +147,11 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
           peutCreer={peutCreer}
           peutModifier={peutModifier}
           setMessage={setMessage}
+          ouvrir={ouvrir}
         />
       )}
-      {vue === 'bilans' && <BilansImplantation elements={elements} evenement={evenement} />}
+      {/* (28/10) Depuis un contrôle, un objet cliqué s'ouvre dans Conception, fiche et carte centrées sur lui. */}
+      {vue === 'bilans' && <BilansImplantation elements={elements} evenement={evenement} onOuvrir={(id) => { setOuvrir({ id, n: Date.now() }); setVue('conception') }} />}
 
       {vue !== 'conception' && vue !== 'bilans' && (
       <div className="geo">
