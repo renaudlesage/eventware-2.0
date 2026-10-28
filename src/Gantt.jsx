@@ -231,18 +231,25 @@ export default function Gantt({ evenement, peut, toutPouvoir, onAller }) {
   const peutCreer = toutPouvoir || peut?.('rh', 'creer')
 
   async function charger() {
-    const [g, d, m, gt] = await Promise.all([
+    const [g, d, m, gt, jc] = await Promise.all([
       supabase.rpc('gantt', { p_evenement: evenement.id }),
       supabase.from('jalon_dependances').select('*').eq('evenement_id', evenement.id),
       supabase.from('membres_evenement').select('id, nom_affiche').eq('evenement_id', evenement.id).is('deleted_at', null).order('nom_affiche', { nullsFirst: false }),
-      supabase.from('groupes_travail').select('id, nom').eq('evenement_id', evenement.id).is('deleted_at', null).order('nom')
+      supabase.from('groupes_travail').select('id, nom, couleur').eq('evenement_id', evenement.id).is('deleted_at', null).order('nom'),
+      // (146) Les couleurs propres des jalons : gantt() ne les porte pas, on les lit à part.
+      supabase.from('jalons').select('id, couleur').eq('evenement_id', evenement.id).is('deleted_at', null)
     ])
     if (g.error) setMessage({ type: 'erreur', texte: texteErreur(g.error) })
-    setLignes(g.data ?? [])
+    const couleurs = Object.fromEntries((jc.data ?? []).filter((x) => x.couleur).map((x) => [x.id, x.couleur]))
+    setLignes((g.data ?? []).map((l) => ({ ...l, couleur: couleurs[l.id] ?? null })))
     setLiens(d.data ?? [])
     setMembres(m.data ?? [])
     setGroupes(gt.data ?? [])
   }
+  // (146) La teinte d'un jalon : la sienne, sinon celle de son groupe, sinon rien (le statut remplit).
+  const couleurGroupe = useMemo(() => Object.fromEntries(groupes.filter((x) => x.couleur).map((x) => [x.id, x.couleur])), [groupes])
+  const teinteDe = (j) => j.couleur ?? (j.groupe_travail_id ? couleurGroupe[j.groupe_travail_id] : null) ?? null
+  const groupesColores = groupes.filter((x) => x.couleur)
   useEffect(() => {
     charger()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -624,7 +631,8 @@ export default function Gantt({ evenement, peut, toutPouvoir, onAller }) {
               {rangs.map((r) =>
                 r.type === 'groupe' ? (
                   <g key={'g' + r.cle}>
-                    <rect x={0} y={r.y} width={COL} height={GROUPE} className="gantt-groupe" />
+                    <rect x={0} y={r.y} width={COL} height={GROUPE} className="gantt-groupe" style={couleurGroupe[r.cle] ? { fill: couleurGroupe[r.cle], fillOpacity: 0.22 } : undefined} />
+                    {couleurGroupe[r.cle] && <rect x={0} y={r.y} width={4} height={GROUPE} style={{ fill: couleurGroupe[r.cle] }} />}
                     <text x={8} y={r.y + 17} className="gantt-groupe-nom">{tronquer(r.nom, 30)}{r.pilote ? ` · ${r.pilote}` : ''}</text>
                   </g>
                 ) : (
@@ -644,7 +652,7 @@ export default function Gantt({ evenement, peut, toutPouvoir, onAller }) {
             <rect x={0} y={0} width={largeur} height={hauteur} className="gantt-fond" />
             {bandes}
             {graduations}
-            {rangs.map((r) => (r.type === 'groupe' ? <rect key={'g' + r.cle} x={0} y={r.y} width={largeur} height={GROUPE} className="gantt-groupe" /> : null))}
+            {rangs.map((r) => (r.type === 'groupe' ? <rect key={'g' + r.cle} x={0} y={r.y} width={largeur} height={GROUPE} className="gantt-groupe" style={couleurGroupe[r.cle] ? { fill: couleurGroupe[r.cle], fillOpacity: 0.22 } : undefined} /> : null))}
             {rangs.map((r) => (r.type === 'jalon' ? <line key={'s' + r.j.id} x1={0} y1={r.y + LIGNE} x2={largeur} y2={r.y + LIGNE} className="gantt-separateur" /> : null))}
             {J && <line x1={X(J)} y1={ENTETE - 34} x2={X(J)} y2={hauteur - BAS} className="gantt-j" data-jour={evenement.date_debut} />}
             {J && <text x={X(J) + 3} y={ENTETE - 36} className="gantt-j-libelle">J</text>}
@@ -657,7 +665,8 @@ export default function Gantt({ evenement, peut, toutPouvoir, onAller }) {
               const y = r.y
               const x2 = X(fin)
               const x1 = debut ? X(debut) : x2
-              const classes = `gantt-jalon statut-${j.statut} ${j.en_retard ? 'en-retard' : ''} ${j.critique ? 'critique' : ''} ${j.sur_chemin_critique ? 'chemin' : ''} ${selection === j.id ? 'selectionne' : ''}`
+              const teinte = teinteDe(j)
+              const classes = `gantt-jalon statut-${j.statut} ${j.en_retard ? 'en-retard' : ''} ${j.critique ? 'critique' : ''} ${j.sur_chemin_critique ? 'chemin' : ''} ${selection === j.id ? 'selectionne' : ''} ${teinte ? 'teinte' : ''}`
               const sur = (e) => setSurvol({ j, x: e.clientX, y: e.clientY })
               return (
                 <g key={j.id} className={classes} data-code={j.code} onPointerEnter={sur} onPointerMove={sur} onPointerLeave={() => setSurvol(null)}>
@@ -665,7 +674,7 @@ export default function Gantt({ evenement, peut, toutPouvoir, onAller }) {
                     <>
                       <rect x={x1} y={y + 6} width={Math.max(2, x2 - x1)} height={16} rx={2} className="gantt-barre"
                         onPointerDown={(e) => debutGlisse(e, j, 'deplacer')} onClick={(e) => { e.stopPropagation(); if (!peutModifier) setSelection(j.id) }}
-                        style={{ cursor: peutModifier ? 'grab' : 'pointer' }} />
+                        style={{ cursor: peutModifier ? 'grab' : 'pointer', fill: teinte ?? undefined }} />
                       {j.avancement > 0 && <rect x={x1} y={y + 6} width={Math.max(0, (x2 - x1) * Math.min(100, j.avancement) / 100)} height={16} rx={2} className="gantt-avancement" pointerEvents="none" />}
                       {j.sur_chemin_critique && <rect x={x1} y={y + 23} width={Math.max(2, x2 - x1)} height={2} className="gantt-chemin" pointerEvents="none" />}
                       {peutModifier && (
@@ -679,7 +688,7 @@ export default function Gantt({ evenement, peut, toutPouvoir, onAller }) {
                     <>
                       <polygon points={`${x2},${y + 6} ${x2 + 8},${y + 14} ${x2},${y + 22} ${x2 - 8},${y + 14}`} className="gantt-losange"
                         onPointerDown={(e) => debutGlisse(e, j, 'deplacer')} onClick={(e) => { e.stopPropagation(); if (!peutModifier) setSelection(j.id) }}
-                        style={{ cursor: peutModifier ? 'grab' : 'pointer' }} />
+                        style={{ cursor: peutModifier ? 'grab' : 'pointer', fill: teinte ?? undefined }} />
                       {j.sur_chemin_critique && <rect x={x2 - 8} y={y + 24} width={16} height={2} className="gantt-chemin" pointerEvents="none" />}
                     </>
                   )}
@@ -713,6 +722,13 @@ export default function Gantt({ evenement, peut, toutPouvoir, onAller }) {
         <li><span className="trait-gantt-chemin" /> chemin critique</li>
         <li><span className="trait-gantt-viole" /> dépendance violée</li>
       </ul>
+      {/* (146) Les groupes colorés : le remplissage dit le groupe, le contour dit le statut. */}
+      {groupesColores.length > 0 && (
+        <ul className="legende-carte gantt-legende gantt-legende-groupes">
+          {groupesColores.map((g) => <li key={g.id}><span className="couleur-pastille" style={{ background: g.couleur }} /> {g.nom}</li>)}
+          <li className="sourdine">remplissage : le groupe (ou la couleur du jalon) · contour : le statut</li>
+        </ul>
+      )}
       <p className="aide">
         {peutModifier
           ? 'Glisse une barre pour la déplacer, tire un bord pour changer le début ou la fin ; clique un jalon pour sa fiche, une flèche pour retirer la dépendance. Un jalon sans début est un losange.'

@@ -498,7 +498,15 @@ Appliquée et inscrite (version 20261030150000).
 
 Appliquée et inscrite (version 20261030160000).
 
-## Ne jamais rejouer 088 → 145 par `db push` sans les lignes ci-dessus
+### 146 : appliquée le 28/10 (par Claude, via l'outil Supabase) — couleurs des groupes et des jalons
+
+| Fichier | Fait |
+|---|---|
+| `20261030170000_146_couleurs_groupes_jalons.sql` | `groupes_travail.couleur` et `jalons.couleur` (texte `#rrggbb`, facultatif) : remplissage des barres du Gantt par groupe, ou au choix par jalon ; le contour garde le statut |
+
+Appliquée et inscrite (version 20261030170000).
+
+## Ne jamais rejouer 088 → 146 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`
