@@ -198,6 +198,9 @@ for (const ecran of ecrans) {
     })
     if (point) { await page.mouse.click(point.x, point.y); await page.waitForTimeout(600) }
     if (!(await page.locator('.impl-sommet').count())) erreurs.push('poignées de sommets absentes sur le tracé sélectionné')
+    // (139) La voie d'accès secours : une chaussée rouge, dessinée à part des files de barrières.
+    const voies = page.locator('path.leaflet-interactive[stroke="#c8102e"][stroke-width="7"]')
+    if ((await voies.count()) !== 1) erreurs.push(`${await voies.count()} voie(s) d’accès secours dessinée(s) en chaussée rouge (attendu 1)`)
   }
   // Toutes les cartes dessinent le plan comme la conception : calques à
   // cocher, pictogrammes ; décocher un calque retire ses objets.
