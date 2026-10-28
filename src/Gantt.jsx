@@ -150,17 +150,26 @@ export default function Gantt({ evenement, peut, toutPouvoir, onAller }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evenement.id])
 
-  // Au premier dessin, J vers le tiers droit de la fenêtre : la
-  // préparation est à gauche, c'est elle qu'on vient voir.
+  // Au premier dessin : aujourd'hui vers le tiers gauche de la fenêtre
+  // (ce qui vient est à droite) ; sans aujourd'hui dans la plage, J vers
+  // le tiers droit (la préparation est à gauche, c'est elle qu'on vient
+  // voir).
   const cadre = useRef(false)
-  useEffect(() => {
-    if (cadre.current || !lignes || !cadreRef.current || !evenement.date_debut) return
+  function aller(cible) {
     const el = cadreRef.current
-    const xJ = el.querySelector('.gantt-j')?.getAttribute('x1')
-    if (xJ) {
-      el.scrollLeft = Math.max(0, Number(xJ) - el.clientWidth * 0.7)
-      cadre.current = true
-    }
+    if (!el) return
+    if (cible === 'debut') { el.scrollLeft = 0; return }
+    const x = el.querySelector(cible === 'aujourdhui' ? '.gantt-aujourdhui' : '.gantt-j')?.getAttribute('x1')
+    if (x == null) return
+    el.scrollLeft = Math.max(0, Number(x) - el.clientWidth * (cible === 'aujourdhui' ? 0.3 : 0.7))
+  }
+  useEffect(() => {
+    if (cadre.current || !lignes || !cadreRef.current) return
+    const el = cadreRef.current
+    if (el.querySelector('.gantt-aujourdhui')) aller('aujourdhui')
+    else if (el.querySelector('.gantt-j')) aller('j')
+    else return
+    cadre.current = true
   }, [lignes, echelle, evenement.date_debut])
 
   const px = PX_PAR_JOUR[echelle]
@@ -190,13 +199,17 @@ export default function Gantt({ evenement, peut, toutPouvoir, onAller }) {
     if (demontage && demontage > t1) t1 = demontage
     else if (finEv && finEv > t1) t1 = finEv
     if (montage && montage < t0) t0 = montage
+    // (27/10) La fenêtre couvre tous les jalons datés, et au moins les
+    // AVANT_J jours avant J et APRES_J après. Avant, elle était coupée à
+    // J − 120 : un jalon de novembre pour un événement d'août n'existait
+    // plus à l'écran, et rien ne remontait dans le temps.
+    if (J) {
+      if (t0 > plusJours(J, -AVANT_J)) t0 = plusJours(J, -AVANT_J)
+      if (t1 < plusJours(J, APRES_J)) t1 = plusJours(J, APRES_J)
+    }
     t0 = plusJours(t0, -3)
     t1 = plusJours(t1, 4)
-    if (J) {
-      if (t0 < plusJours(J, -AVANT_J)) t0 = plusJours(J, -AVANT_J)
-      if (t1 > plusJours(J, APRES_J)) t1 = plusJours(J, APRES_J)
-      if (t1 <= t0) t1 = plusJours(t0, 7)
-    }
+    if (t1 <= t0) t1 = plusJours(t0, 7)
     // La colonne des libellés est un SVG à part, collé à gauche
     // (position: sticky) : elle reste lisible quand on fait défiler le
     // temps. X ne compte donc que le temps.
@@ -460,6 +473,11 @@ export default function Gantt({ evenement, peut, toutPouvoir, onAller }) {
         <button className="discret" onClick={exporter}>Télécharger le SVG</button>
         <button className="discret" onClick={imprimer}>Imprimer (A3 paysage)</button>
         <button className="discret" onClick={charger}>Rafraîchir</button>
+        <span className="aide gantt-aller" style={{ margin: 0 }}>
+          Aller à : <button className="lien" onClick={() => aller('debut')}>début</button>
+          {' · '}<button className="lien" onClick={() => aller('aujourdhui')}>aujourd'hui</button>
+          {J && <>{' · '}<button className="lien" onClick={() => aller('j')}>jour J</button></>}
+        </span>
       </div>
 
       {message && (
