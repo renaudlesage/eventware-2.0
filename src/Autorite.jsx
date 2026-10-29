@@ -307,13 +307,13 @@ function CarteTuiles({ couches, planVisible, pts }) {
         {acces.map((e, k) => (
           <CircleMarker key={'a' + k} center={[e.position.lat, e.position.lon]} radius={6}
             pathOptions={{ color: '#fff', weight: 1.5, fillColor: e.confirme === false ? '#9aa3ad' : '#1f6f4f', fillOpacity: 1 }}>
-            <Tooltip direction="right" permanent className="etiquette-carte etiquette-acces">{e.code || e.nom}</Tooltip>
+            <Tooltip direction="right" permanent className="etiquette-carte etiquette-acces">{e.nom || e.code}</Tooltip>
           </CircleMarker>
         ))}
         {reperes.map((p, k) => (
           <CircleMarker key={'r' + k} center={[p.position.lat, p.position.lon]} radius={5}
             pathOptions={{ color: '#10151b', weight: 2, fillColor: '#fff', fillOpacity: 1 }}>
-            <Tooltip direction="top" permanent className="etiquette-carte etiquette-repere">{p.code || p.nom}</Tooltip>
+            <Tooltip direction="top" permanent className="etiquette-carte etiquette-repere">{p.nom || p.code}</Tooltip>
           </CircleMarker>
         ))}
         {recherches.map((rc, k) => (
@@ -432,7 +432,7 @@ function CarteSvg({ couches, pts }) {
             <rect x={X(e.position.lon) - r(5)} y={Y(e.position.lat) - r(5)} width={r(10)} height={r(10)}
               fill={e.confirme === false ? 'var(--sourdine)' : 'var(--etat-ok)'} stroke="var(--surface)" strokeWidth={r(1.5)} />
             <text x={X(e.position.lon) + r(8)} y={Y(e.position.lat) + r(4)} fontSize={police} fill="var(--sourdine)">
-              {e.code || e.nom}
+              {e.nom || e.code}
             </text>
           </g>
         ))}
@@ -440,7 +440,7 @@ function CarteSvg({ couches, pts }) {
           <g key={'r' + k}>
             <circle cx={X(p.position.lon)} cy={Y(p.position.lat)} r={r(5)} fill="var(--surface)" stroke="var(--encre)" strokeWidth={r(2)} />
             <text x={X(p.position.lon)} y={Y(p.position.lat) - r(8)} fontSize={police} textAnchor="middle" fill="var(--encre)" fontFamily="var(--mono)">
-              {p.code || p.nom}
+              {p.nom || p.code}
             </text>
           </g>
         ))}
