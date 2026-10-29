@@ -530,7 +530,15 @@ Appliquée et inscrite (version 20261031100000).
 
 Appliquée et inscrite (version 20261031110000).
 
-## Ne jamais rejouer 088 → 149 par `db push` sans les lignes ci-dessus
+### 150 : appliquée le 29/10 (par Claude, via l'outil Supabase) — pictogrammes à la taille d'un panneau
+
+| Fichier | Fait |
+|---|---|
+| `20261031120000_150_pictos_taille_panneau.sql` | Les pictos du catalogue (24 fiches) et ceux déjà posés (92) passent de 3 m à 0,6 m de « taille au plan » : ils rétrécissent avec le zoom comme les extincteurs (0,5 m, inchangés). Aucun DROP, rejouable |
+
+Appliquée et inscrite (version 20261031120000).
+
+## Ne jamais rejouer 088 → 150 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

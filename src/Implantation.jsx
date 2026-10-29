@@ -278,6 +278,19 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
     else setCatalogue(data ?? [])
   }
 
+  // (29/10, retour de Ren) Les fournisseurs de l'annuaire de l'organisation
+  // (Logistique › Fournisseurs), proposés en liste dans la fiche d'un objet.
+  // Sans droit de lecture sur l'annuaire, la liste reste vide : saisie libre.
+  const [fournisseurs, setFournisseurs] = useState([])
+  useEffect(() => {
+    if (!evenement?.organisation_id) return
+    let actif = true
+    supabase.rpc('annuaire', { p_organisation: evenement.organisation_id }).then(({ data }) => {
+      if (actif) setFournisseurs((data ?? []).filter((x) => x.actif !== false).map((x) => x.nom).filter(Boolean).sort((a, b) => a.localeCompare(b)))
+    })
+    return () => { actif = false }
+  }, [evenement?.organisation_id])
+
   async function chargerFonds() {
     const { data } = await supabase.from('fonds_plan').select('*').eq('evenement_id', evenement.id).order('created_at')
     const liste = data ?? []
@@ -1100,6 +1113,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
               o={selectionne}
               objets={objets}
               catalogue={catalogue}
+              fournisseurs={fournisseurs}
               liens={liens.filter((l) => l.de_id === selectionne.id || l.vers_id === selectionne.id)}
               peutModifier={peutModifier}
               peutCreer={peutCreer}
@@ -1518,7 +1532,51 @@ const NATURES_LIEN = [
 ]
 const LIBELLE_LIEN = Object.fromEntries(NATURES_LIEN)
 
-function Proprietes({ o, objets, catalogue = [], liens = [], peutModifier, peutCreer, onFermer, onLier, onModifierLien, onDelier, onModifier, onRaccorder, onAccrocher, onDeplacer, onDupliquer, onRetirer, sommet, onRetirerSommet, pile }) {
+/**
+ * (29/10) Le fournisseur d'un objet : la liste de l'annuaire (Logistique ›
+ * Fournisseurs) quand il y en a un, « Autre… » pour une saisie libre ;
+ * sans annuaire, le champ texte d'avant.
+ */
+function ChampFournisseur({ valeur, fournisseurs, lecture, onSaisie, onValider, onChoisir }) {
+  const [libre, setLibre] = useState(false)
+  const connu = !!valeur && fournisseurs.includes(valeur)
+  const saisie = libre || (!!valeur && !connu)
+  if (!fournisseurs.length) {
+    return (
+      <label>
+        Fournisseur
+        <input value={valeur} disabled={lecture} onChange={(e) => onSaisie(e.target.value)} onBlur={onValider} placeholder="Loueur, prestataire…" />
+      </label>
+    )
+  }
+  return (
+    <>
+      <label>
+        Fournisseur
+        <select className="impl-fournisseur" value={saisie ? '__autre' : (valeur || '')} disabled={lecture}
+          onChange={(e) => {
+            const v = e.target.value
+            if (v === '__autre') { setLibre(true); return }
+            setLibre(false)
+            onChoisir(v)
+          }}>
+          <option value="">— aucun —</option>
+          {fournisseurs.map((nom) => <option key={nom} value={nom}>{nom}</option>)}
+          <option value="__autre">Autre (hors annuaire)…</option>
+        </select>
+      </label>
+      {saisie && (
+        <label>
+          Nom du fournisseur
+          <input value={valeur} disabled={lecture} autoFocus={libre} onChange={(e) => onSaisie(e.target.value)} onBlur={onValider} placeholder="Loueur, prestataire…" />
+        </label>
+      )}
+      <p className="aide" style={{ marginTop: 0 }}>Liste tirée de Logistique › Fournisseurs ; « Autre » pour un prestataire qui n'y est pas encore.</p>
+    </>
+  )
+}
+
+function Proprietes({ o, objets, catalogue = [], fournisseurs = [], liens = [], peutModifier, peutCreer, onFermer, onLier, onModifierLien, onDelier, onModifier, onRaccorder, onAccrocher, onDeplacer, onDupliquer, onRetirer, sommet, onRetirerSommet, pile }) {
   const [f, setF] = useState(() => depuis(o))
   const [nouveauLien, setNouveauLien] = useState({ vers: '', nature: 'lie' })
   useEffect(() => setF(depuis(o)), [o])
@@ -1758,7 +1816,7 @@ function Proprietes({ o, objets, catalogue = [], liens = [], peutModifier, peutC
             </label>
             <label>
               Longueur (m)
-              <input type="number" value={fr(o.longueur_m, 1)} disabled />
+              <input value={fr(o.longueur_m, 1)} disabled />
             </label>
           </div>
           <p className="aide">
@@ -1773,7 +1831,7 @@ function Proprietes({ o, objets, catalogue = [], liens = [], peutModifier, peutC
           </label>
           <label>
             Longueur (m)
-            <input type="number" value={fr(o.longueur_m, 1)} disabled />
+            <input value={fr(o.longueur_m, 1)} disabled />
           </label>
           <label>
             Barrières
@@ -1988,10 +2046,9 @@ function Proprietes({ o, objets, catalogue = [], liens = [], peutModifier, peutC
         </div>
       )}
       <h4 className="prc-titre">Métré</h4>
-      <label>
-        Fournisseur
-        <input value={f.fournisseur} disabled={lecture} onChange={(e) => envoyer('fournisseur', e.target.value)} onBlur={() => valider('fournisseur')} placeholder="Loueur, prestataire…" />
-      </label>
+      <ChampFournisseur valeur={f.fournisseur} fournisseurs={fournisseurs} lecture={lecture}
+        onSaisie={(v) => envoyer('fournisseur', v)} onValider={() => valider('fournisseur')}
+        onChoisir={(v) => { envoyer('fournisseur', v); onModifier({ fournisseur: v || null }) }} />
       <label>
         Adresse (pour les secours)
         <input className="impl-adresse" value={f.adresse} disabled={lecture} onChange={(e) => envoyer('adresse', e.target.value)} onBlur={() => valider('adresse')} placeholder="Rue, numéro, commune — ce qu'on dicte au 112" />

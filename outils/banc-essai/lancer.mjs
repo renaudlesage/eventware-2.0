@@ -584,6 +584,26 @@ for (const ecran of ecrans) {
       await page.waitForTimeout(800)
       if (!messages.some((t) => /^Ce DWG n’a pas pu être lu\. Tu peux aussi enregistrer le dessin en DXF/.test(t))) erreurs.push(`DWG refusé : message absent : ${JSON.stringify(messages)}`)
       await page.locator('button', { hasText: 'Terminer le déplacement' }).first().click().catch(() => {})
+      // (29/10) Le fournisseur d'un objet se choisit dans l'annuaire (trois fournisseurs) ; « Autre » ouvre la saisie libre.
+      {
+        await page.getByRole('button', { name: /^Sélection/ }).first().click().catch(() => {})
+        await page.locator('.impl-picto').first().click({ force: true }).catch(() => {})
+        await page.waitForTimeout(300)
+        const choix = page.locator('.impl-props select.impl-fournisseur')
+        if (!(await choix.count())) erreurs.push('fournisseur : pas de liste tirée de l’annuaire dans la fiche')
+        else {
+          const n = await choix.locator('option').count()
+          if (n !== 5) erreurs.push(`fournisseur : ${n} options (attendu 5 : aucun, trois fournisseurs, autre)`)
+          await page.evaluate(() => { window.__ecritures = [] })
+          await choix.selectOption('Clôtures Dupont')
+          await page.waitForTimeout(200)
+          const maj = (await page.evaluate(() => window.__ecritures ?? [])).find((e) => e.table === 'elements_plan' && e.op === 'update' && e.champs?.fournisseur === 'Clôtures Dupont')
+          if (!maj) erreurs.push('fournisseur : le choix dans la liste n’est pas enregistré')
+          await choix.selectOption('__autre')
+          await page.waitForTimeout(150)
+          if (!(await page.locator('.impl-props input[placeholder="Loueur, prestataire…"]').count())) erreurs.push('fournisseur : « Autre » n’ouvre pas la saisie libre')
+        }
+      }
       // (29/10) Une voie d'accès secours se trace comme un câble : la fiche du catalogue, le PRV, puis l'accès secours.
       {
         await page.locator('.impl-fiche', { hasText: 'Voie d’accès secours' }).first().click().catch(() => {})
