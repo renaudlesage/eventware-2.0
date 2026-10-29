@@ -6,7 +6,7 @@ import { STATUTS_JALON, libelleStatutJalon, jalonEnRetard, supprimerJalon } from
 import { texteErreur, estDoublon } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import FicheJalon from './FicheJalon'
-import { Palette } from './couleurs.jsx'
+import { Palette, couleurParDefaut } from './couleurs.jsx'
 
 /**
  * Préparation — l'avant-événement.
@@ -217,6 +217,7 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
       {creerGroupe && (
         <FormGroupeTravail
           evenement={evenement}
+          rang={groupes.length}
           setMessage={setMessage}
           onFait={() => {
             setCreerGroupe(false)
@@ -247,19 +248,19 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
 
         return (
           <div className={`carte ${enRetard ? 'urgent' : ''}`} key={g.id} style={g.couleur ? { boxShadow: `inset 4px 0 0 ${g.couleur}` } : undefined}>
-            <div className="titre">{g.couleur && <span className="couleur-pastille" style={{ background: g.couleur }} />}{g.nom}</div>
+            <div className="titre">
+              {/* (146, refonte 29/10) La couleur du groupe sur le Gantt : la pastille
+                  devant le nom, cliquable pour la changer. */}
+              {peutGerer
+                ? <Palette valeur={g.couleur} aucune="neutre" libelle="Couleur sur le Gantt" onChoisir={async (c) => {
+                    const refus = await modifierOuRefuser('groupes_travail', { couleur: c }, { id: g.id })
+                    if (refus) setMessage({ type: 'erreur', texte: refus })
+                    else charger()
+                  }} />
+                : g.couleur && <span className="couleur-pastille" style={{ background: g.couleur }} />}
+              {g.nom}
+            </div>
             {g.objet && <p className="aide">{g.objet}</p>}
-            {/* (146) La couleur du groupe : le remplissage de ses barres sur le Gantt. */}
-            {peutGerer && (
-              <div className="prep-couleur">
-                Couleur sur le Gantt
-                <Palette valeur={g.couleur} aucune="neutre" onChoisir={async (c) => {
-                  const refus = await modifierOuRefuser('groupes_travail', { couleur: c }, { id: g.id })
-                  if (refus) setMessage({ type: 'erreur', texte: refus })
-                  else charger()
-                }} />
-              </div>
-            )}
             <div className="meta">
               {g.pilote?.nom_affiche && <span>piloté par {g.pilote.nom_affiche}</span>}
               <span>
@@ -674,15 +675,17 @@ function Lignes({ nature, evenement, groupe, lignes, toutes = lignes, liens = []
   )
 }
 
-function FormGroupeTravail({ evenement, setMessage, onFait }) {
-  const [f, setF] = useState({ nom: '', objet: '' })
+function FormGroupeTravail({ evenement, rang = 0, setMessage, onFait }) {
+  // (29/10) La couleur se choisit à la création, proposée d'office selon le rang du groupe.
+  const [f, setF] = useState({ nom: '', objet: '', couleur: couleurParDefaut(rang) })
 
   async function creer() {
     if (!f.nom.trim()) return
     const { error } = await supabase.from('groupes_travail').insert({
       evenement_id: evenement.id,
       nom: f.nom.trim(),
-      objet: f.objet.trim() || null
+      objet: f.objet.trim() || null,
+      couleur: f.couleur
     })
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else onFait()
@@ -705,6 +708,10 @@ function FormGroupeTravail({ evenement, setMessage, onFait }) {
         <button disabled={!f.nom.trim()} onClick={creer}>
           Créer
         </button>
+        <span className="prep-couleur">
+          <Palette valeur={f.couleur} aucune="neutre" libelle="Couleur sur le Gantt" onChoisir={(c) => setF({ ...f, couleur: c })} />
+          Couleur sur le Gantt
+        </span>
       </div>
       <p className="aide">
         Dire aussi ce dont le groupe ne répond pas évite les trous : c'est entre deux

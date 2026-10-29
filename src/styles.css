@@ -3286,14 +3286,30 @@ body.carte-plein-corps { overflow: hidden; }
   .inv-etiquette-carte { border: 1px dashed #999; break-inside: avoid; }
 }
 
-/* (146) Couleurs des groupes et des jalons : la palette et le Gantt.  */
-.palette { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; vertical-align: middle; }
-.palette-case { padding: 0; border: 2px solid transparent; border-radius: 50%; cursor: pointer; line-height: 1; font-size: 11px; color: var(--sourdine); background: var(--surface); }
-.palette-case.actif { border-color: var(--encre); box-shadow: 0 0 0 1px var(--surface); }
-.palette-case:disabled { cursor: default; opacity: 0.6; }
-.palette-aucune { border-color: var(--trait); }
+/* (146, refonte 29/10) Couleurs des groupes et des jalons : une pastille,
+   la grille s'ouvre dessous. Les boutons sont sortis du style global. */
+.palette { position: relative; display: inline-flex; align-items: center; vertical-align: middle; }
+.palette .palette-bouton { all: unset; box-sizing: border-box; display: inline-block; border-radius: 50%; border: 2px solid var(--trait-fort); cursor: pointer; flex: 0 0 auto; }
+.palette .palette-bouton.vide { border-style: dashed; background: transparent !important; }
+.palette .palette-bouton.ouvert, .palette .palette-bouton:hover { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--trait-fort); }
+.palette .palette-bouton:focus-visible { outline: 2px solid var(--etat-info); outline-offset: 2px; }
+.palette .palette-bouton:disabled { cursor: default; opacity: 0.6; }
+.palette-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 30;
+  display: grid; grid-template-columns: repeat(6, 26px); gap: 6px; padding: 8px;
+  background: var(--surface); border: 1px solid var(--trait-fort); border-radius: var(--rayon);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+.palette .palette-case { all: unset; box-sizing: border-box; width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; text-align: center; font-size: 14px; line-height: 22px; color: #fff; font-weight: 700; }
+.palette .palette-case:hover { border-color: var(--encre); }
+.palette .palette-case.actif { border-color: var(--encre); box-shadow: inset 0 0 0 2px var(--surface); }
+.palette .palette-aucune { all: unset; box-sizing: border-box; grid-column: 1 / -1; cursor: pointer; text-align: center; font-size: 12px; text-transform: none; letter-spacing: normal; font-weight: 400; background: transparent !important; color: var(--sourdine) !important; padding: 4px 6px; border: 1px dashed var(--trait); border-radius: var(--rayon); color: var(--sourdine); }
+.palette .palette-aucune:hover, .palette .palette-aucune.actif { border-color: var(--encre); color: var(--encre) !important; }
+/* Les domaines (.dom-azur…) repeignent leurs boutons : la palette garde ses teintes. */
+.palette .palette-case { border-color: transparent !important; }
 .couleur-pastille { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: middle; margin-right: 6px; }
-.prep-couleur { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 2px 0 6px; font-size: 12px; color: var(--sourdine); }
+.titre > .palette { margin-right: 8px; }
+.prep-couleur { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--sourdine); }
 /* Une barre teintée garde son statut sur le contour, plus épais pour rester lisible. */
 .gantt-jalon.teinte .gantt-barre, .gantt-jalon.teinte .gantt-losange { opacity: 0.9; stroke: var(--sourdine); stroke-width: 2; }
 .gantt-jalon.teinte.statut-en_cours .gantt-barre, .gantt-jalon.teinte.statut-en_cours .gantt-losange { stroke: var(--etat-info); }
@@ -3336,3 +3352,6 @@ body.carte-plein-corps { overflow: hidden; }
 .leaflet-tooltip.etiquette-acces, .leaflet-tooltip.etiquette-repere { font-family: inherit; font-size: 11px; font-weight: 600; padding: 1px 5px; }
 /* (148) Le conseil du catalogue dans la fiche d'un objet, à part de son commentaire. */
 .impl-conseil { font-style: italic; }
+/* (29/10) Une voie d'accès secours reliée : d'où elle part, où elle mène. */
+.secours-liaison { font-weight: 600; margin: 2px 0; }
+.secours-liaison::before { content: '⇢ '; color: var(--sourdine); }

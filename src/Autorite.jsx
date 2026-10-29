@@ -1201,6 +1201,8 @@ function Element({ e }) {
       </div>
       {/* (144/147) L'adresse postale, pour les engins qui naviguent à l'adresse. */}
       {e.adresse && <div className="meta secours-adresse"><span>{e.adresse}</span></div>}
+      {/* (149) Une voie reliée : d'où elle part, où elle mène. */}
+      {(e.depuis || e.vers) && <div className="secours-liaison">{e.depuis ?? '?'} → {e.vers ?? '?'}</div>}
       {e.description && <p className="aide">{e.description}</p>}
     </div>
   )

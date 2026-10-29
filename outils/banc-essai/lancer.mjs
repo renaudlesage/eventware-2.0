@@ -373,6 +373,17 @@ for (const ecran of ecrans) {
     await page.waitForTimeout(300)
     if (!(await page.locator('.fiche-jalon').count())) erreurs.push('la fiche ne s’ouvre pas au clic')
     else if (!(await page.locator('.fiche-jalon .palette').count())) erreurs.push('la fiche n’a pas la palette de couleur')
+    else {
+      // (29/10) Une pastille ; la grille des douze teintes s'ouvre au clic et se referme sur Échap.
+      if (await page.locator('.fiche-jalon .palette-menu').count()) erreurs.push('palette : la grille est ouverte d’office')
+      await page.locator('.fiche-jalon .palette-bouton').first().click()
+      await page.waitForTimeout(150)
+      const cases = await page.locator('.fiche-jalon .palette-menu .palette-case').count()
+      if (cases !== 12) erreurs.push(`palette : ${cases} teintes dans la grille (attendu 12)`)
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(150)
+      if (await page.locator('.fiche-jalon .palette-menu').count()) erreurs.push('palette : Échap ne referme pas la grille')
+    }
   }
   // (130) L'annuaire : trois fournisseurs, le filtre par catégorie, la fiche avec ses contacts.
   if (ecran === 'fournisseurs') {
@@ -573,6 +584,22 @@ for (const ecran of ecrans) {
       await page.waitForTimeout(800)
       if (!messages.some((t) => /^Ce DWG n’a pas pu être lu\. Tu peux aussi enregistrer le dessin en DXF/.test(t))) erreurs.push(`DWG refusé : message absent : ${JSON.stringify(messages)}`)
       await page.locator('button', { hasText: 'Terminer le déplacement' }).first().click().catch(() => {})
+      // (29/10) Une voie d'accès secours se trace comme un câble : la fiche du catalogue, le PRV, puis l'accès secours.
+      {
+        await page.locator('.impl-fiche', { hasText: 'Voie d’accès secours' }).first().click().catch(() => {})
+        await page.waitForTimeout(200)
+        if (!(await page.getByText(/Clique le point de rencontre \(PRV\) de départ/).count())) erreurs.push('voie : la consigne de tracé ne demande pas le PRV de départ')
+        await page.evaluate(() => { window.__ecritures = [] })
+        await page.locator('.impl-picto.picto-prv').first().click({ force: true }).catch(() => {})
+        await page.waitForTimeout(200)
+        await page.locator('.impl-picto.picto-acces_secours').first().click({ force: true }).catch(() => {})
+        await page.waitForTimeout(500)
+        const ecritures = await page.evaluate(() => window.__ecritures ?? [])
+        const voie = ecritures.find((e) => e.table === 'elements_plan' && e.op === 'insert' && e.champs?.categorie === 'voie_engins')
+        if (!voie) erreurs.push(`voie : aucune voie posée après le clic sur le PRV puis sur l'accès (${JSON.stringify(ecritures.map((e) => e.table + ':' + e.op))})`)
+        else if (voie.champs.de_id !== 'ep11' || voie.champs.vers_id !== 'ep12') erreurs.push(`voie : bouts ${voie.champs.de_id} → ${voie.champs.vers_id} (attendu ep11 → ep12)`)
+        await page.keyboard.press('Escape').catch(() => {})
+      }
       // Suppr retire l'objet sélectionné (confirmation acceptée).
       page.once('dialog', (d) => d.accept())
       // Outil Sélection, puis la plus petite emprise (dessinée en dernier, donc atteignable) : la table.
