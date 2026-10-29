@@ -514,7 +514,15 @@ Appliquée et inscrite (version 20261030170000).
 
 Appliquée et inscrite (version 20261031090000).
 
-## Ne jamais rejouer 088 → 147 par `db push` sans les lignes ci-dessus
+### 148 : appliquée le 29/10 (par Claude, via l'outil Supabase) — notes du plan sans la définition du catalogue
+
+| Fichier | Fait |
+|---|---|
+| `20261031100000_148_notes_plan_sans_definition_catalogue.sql` | Efface les notes d'objets du plan qui sont exactement la description de leur fiche de catalogue (97 objets) ; les notes écrites à la main (17) sont gardées. La conception ne copie plus cette définition à la pose. Aucun DROP, rejouable |
+
+Appliquée et inscrite (version 20261031100000).
+
+## Ne jamais rejouer 088 → 148 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`
