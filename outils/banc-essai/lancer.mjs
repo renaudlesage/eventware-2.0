@@ -373,6 +373,17 @@ for (const ecran of ecrans) {
     await page.waitForTimeout(300)
     if (!(await page.locator('.fiche-jalon').count())) erreurs.push('la fiche ne s’ouvre pas au clic')
     else if (!(await page.locator('.fiche-jalon .palette').count())) erreurs.push('la fiche n’a pas la palette de couleur')
+    else {
+      // (29/10) Une pastille ; la grille des douze teintes s'ouvre au clic et se referme sur Échap.
+      if (await page.locator('.fiche-jalon .palette-menu').count()) erreurs.push('palette : la grille est ouverte d’office')
+      await page.locator('.fiche-jalon .palette-bouton').first().click()
+      await page.waitForTimeout(150)
+      const cases = await page.locator('.fiche-jalon .palette-menu .palette-case').count()
+      if (cases !== 12) erreurs.push(`palette : ${cases} teintes dans la grille (attendu 12)`)
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(150)
+      if (await page.locator('.fiche-jalon .palette-menu').count()) erreurs.push('palette : Échap ne referme pas la grille')
+    }
   }
   // (130) L'annuaire : trois fournisseurs, le filtre par catégorie, la fiche avec ses contacts.
   if (ecran === 'fournisseurs') {
