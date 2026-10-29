@@ -3355,3 +3355,9 @@ body.carte-plein-corps { overflow: hidden; }
 /* (29/10) Une voie d'accès secours reliée : d'où elle part, où elle mène. */
 .secours-liaison { font-weight: 600; margin: 2px 0; }
 .secours-liaison::before { content: '⇢ '; color: var(--sourdine); }
+
+/* (29/10) Main courante : les filtres en deux listes, sur une ligne. */
+.journal-filtres { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: flex-end; margin-bottom: 12px; }
+.journal-filtres label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--sourdine); text-transform: uppercase; letter-spacing: 0.04em; flex: 1 1 160px; max-width: 260px; }
+.journal-filtres select { margin: 0; width: 100%; font-size: 14px; text-transform: none; letter-spacing: normal; }
+.journal-filtres .journal-compte { margin: 0 0 8px; }
