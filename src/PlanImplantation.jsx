@@ -255,6 +255,12 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
                           </div>
                           {/* (144) L'adresse d'abord : c'est elle qu'on dicte ; les coordonnées à côté. */}
                           {e.adresse && <div className="secours-adresse"><strong>{e.adresse}</strong></div>}
+                          {/* (29/10) Une voie reliée : d'où elle part, où elle mène. */}
+                          {e.categorie === 'voie_engins' && (e.de_id || e.vers_id) && (
+                            <div className="secours-liaison">
+                              {elements.find((x) => x.id === e.de_id)?.nom ?? '?'} → {elements.find((x) => x.id === e.vers_id)?.nom ?? '?'}
+                            </div>
+                          )}
                           <div className="meta">
                             {(e.geometrie ?? [])[0] && (
                               <span className="mono">

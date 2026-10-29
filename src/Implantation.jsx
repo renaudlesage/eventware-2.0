@@ -65,6 +65,17 @@ const rangDessin = (o) => (o.nature === 'picto' ? 2 : o.nature === 'ligne' ? 1 :
 const fr = (x, d = 1) => (x == null ? '—' : Number(x).toFixed(d).replace('.', ','))
 
 /**
+ * (29/10, retour de Ren) Une voie d'accès secours se trace comme un
+ * câble : depuis un objet (le PRV), le parcours, jusqu'à un objet
+ * (l'accès secours). Ses bouts sont `de_id` / `vers_id`, comme ceux
+ * d'un câble, sans raccordement électrique.
+ */
+const estVoieSecours = (f) => !!f && f.nature === 'ligne' && !f.reseau && f.categorie === 'voie_engins'
+/** Ce qu'une voie relie : les objets et pictogrammes du dispositif de secours. */
+const CATEGORIES_SECOURS = new Set(['point_rencontre_secours', 'prv', 'voie_engins', 'pma', 'poste_secours', 'aire_helico', 'point_transfert', 'noria', 'point_rassemblement', 'sortie_secours', 'itineraire_evacuation'])
+const estPointSecours = (x) => x.nature !== 'ligne' && (x.calque === 'securite' || CATEGORIES_SECOURS.has(x.categorie))
+
+/**
  * (27/10) Un fond de plan qui tourne. Leaflet ne sait poser une image
  * que dans un rectangle nord-sud ; ici l'image est posée par ses trois
  * coins (nord-ouest, nord-est, sud-ouest) : on la place au premier, on
@@ -416,12 +427,13 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
     const { points, poteaux } = accrocherAuxPoteaux(pointsBruts)
     const milieu = milieuLigne(points)
     const reseau = fiche.reseau ?? null
+    const voie = estVoieSecours(fiche)
     const modules = nombreModules(longueurLigne(points), Number(fiche.largeur_m))
     const o = {
       puissance_kw: reseau ? 0 : (Number(fiche.puissance_kw) || 0) * modules,
       reseau,
-      de_id: reseau ? bouts.de ?? null : null,
-      vers_id: reseau ? bouts.vers ?? null : null,
+      de_id: reseau || voie ? bouts.de ?? null : null,
+      vers_id: reseau || voie ? bouts.vers ?? null : null,
       tension_v: fiche.tension_v ?? null,
       phases: fiche.phases ?? null,
       calibre_a: fiche.calibre_a ?? null,
@@ -542,7 +554,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
       setMessage({ type: 'erreur', texte: refus })
       return
     }
-    if (de && vers && de !== vers) {
+    if (de && vers && de !== vers && ligne.reseau) {
       const champ = ligne.reseau === 'electricite' ? 'alimente_par' : 'raccord_eau'
       const r2 = await modifierOuRefuser('elements_plan', { [champ]: de }, { id: vers })
       if (r2) setMessage({ type: 'erreur', texte: r2 })
@@ -669,21 +681,24 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
     setMode({ type: 'tracer', fiche: m.fiche, points: [] })
   }
 
-  /** En tracé de câble ou de conduite, cliquer un objet y accroche la ligne. */
+  /** En tracé de câble, de conduite ou de voie d'accès secours, cliquer un objet y accroche la ligne. */
   function accrocher(o, latlng) {
     const m = modeCourant.current
     if (m?.type !== 'tracer') return
+    const voie = estVoieSecours(m.fiche)
+    const raccordable = !!m.fiche.reseau || voie
     // Un câble ou une barrière cliqués pendant un tracé : si un objet est
     // dessous (les câbles partent du centre des objets), c'est lui qu'on
-    // vise ; sinon, simple point de passage.
-    if (o.nature === 'ligne' || o.nature === 'picto') {
+    // vise ; sinon, simple point de passage. Pour une voie d'accès secours,
+    // un pictogramme (PRV, accès secours) est un bout à part entière.
+    if (o.nature === 'ligne' || (o.nature === 'picto' && !voie)) {
       const p = latlng ? [latlng.lat, latlng.lng] : null
-      const dessous = p && m.fiche.reseau ? objets.find((x) => x.nature !== 'ligne' && x.nature !== 'picto' && contientPoint(polygoneObjet(x), p)) : null
+      const dessous = p && raccordable ? objets.find((x) => x.nature !== 'ligne' && x.nature !== 'picto' && contientPoint(polygoneObjet(x), p)) : null
       if (dessous) return accrocher(dessous, latlng)
       if (latlng) clicCarte(latlng)
       return
     }
-    if (!m.fiche.reseau) {
+    if (!raccordable) {
       if (latlng) clicCarte(latlng)
       return
     }
@@ -902,7 +917,10 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
         {mode?.type === 'poser' && (mode.fiche.nature === 'picto'
           ? `Clique sur la carte pour poser le pictogramme « ${mode.fiche.libelle} ». Encore un clic, encore un.`
           : `Clique sur la carte pour poser « ${mode.fiche.libelle} » (${fr(mode.fiche.largeur_m)} × ${fr(mode.fiche.longueur_m)} m). Encore un clic, encore un.`)}
-        {mode?.type === 'tracer' && !mode.fiche.reseau && (trace
+        {mode?.type === 'tracer' && estVoieSecours(mode.fiche) && (mode.points?.length
+          ? `${mode.fiche.libelle} depuis « ${objets.find((x) => x.id === mode.de)?.nom ?? 'un point'} » : ${fr(trace?.longueur ?? 0, 1)} m. Clique le parcours, puis l'accès secours d'arrivée.`
+          : `Clique le point de rencontre (PRV) de départ de « ${mode.fiche.libelle} », puis le parcours, puis l'accès secours d'arrivée.`)}
+        {mode?.type === 'tracer' && !mode.fiche.reseau && !estVoieSecours(mode.fiche) && (trace
           ? `${trace.n} × ${mode.fiche.libelle} sur ${fr(trace.longueur, 1)} m. Clique pour prolonger, double-clic sur le dernier point ou « Terminer la ligne » pour poser.`
           : `Clique les points du tracé de « ${mode.fiche.libelle} » (modules de ${fr(mode.fiche.largeur_m)} m).`)}
         {mode?.type === 'tracer' && mode.fiche.reseau && (mode.points?.length
@@ -969,6 +987,9 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
               <Objet
                 key={o.id}
                 o={avecBrouillon(o)}
+                liaison={o.categorie === 'voie_engins' && (o.de_id || o.vers_id)
+                  ? `${objets.find((x) => x.id === o.de_id)?.nom ?? '?'} → ${objets.find((x) => x.id === o.vers_id)?.nom ?? '?'}`
+                  : null}
                 selectionne={o.id === selection}
                 mParPx={mParPx}
                 peutModifier={peutModifier}
@@ -1233,7 +1254,7 @@ function Existant({ e }) {
   return <CircleMarker center={g[0]} radius={4} pathOptions={{ ...style, fillOpacity: 0.6 }}><Tooltip>{e.nom}</Tooltip></CircleMarker>
 }
 
-function Objet({ o, selectionne, mParPx, peutModifier, onSelection, onGlisser, onDeposer, sommet, onSommet, onGeometrie, onRetirerSommet }) {
+function Objet({ o, liaison, selectionne, mParPx, peutModifier, onSelection, onGlisser, onDeposer, sommet, onSommet, onGeometrie, onRetirerSommet }) {
   const carte = useMap()
   const couleur = COULEUR_CALQUE[o.calque] ?? '#5d6874'
   const glisse = useRef(null)
@@ -1305,7 +1326,7 @@ function Objet({ o, selectionne, mParPx, peutModifier, onSelection, onGlisser, o
     const base = mParPx ? Number(o.largeur_m || 3) / mParPx : 30
     const taille = Math.round(Math.max(12, Math.min(120, base)) * (selectionne ? 1.2 : 1))
     const icone = L.divIcon({
-      className: `impl-picto ${selectionne ? 'actif' : ''} ${o.confirme ? '' : 'non-confirme'}`,
+      className: `impl-picto picto-${o.picto} ${selectionne ? 'actif' : ''} ${o.confirme ? '' : 'non-confirme'}`,
       html: `<div style="transform:rotate(${Number(o.rotation_deg ?? 0)}deg)">${pictoSvg(o.picto, taille)}</div>`,
       iconSize: [taille, taille],
       iconAnchor: [taille / 2, taille / 2],
@@ -1434,7 +1455,7 @@ function Objet({ o, selectionne, mParPx, peutModifier, onSelection, onGlisser, o
             eventHandlers={evenements}
           >
             <Tooltip key={selectionne ? 'fixe' : 'survol'} direction="center" permanent={selectionne} className="etiquette-carte">
-              {o.nom} · {fr(o.longueur_m, 0)} m{o.largeur_m ? ` · ${fr(o.largeur_m)} m de large` : ''}
+              {o.nom} · {fr(o.longueur_m, 0)} m{o.largeur_m ? ` · ${fr(o.largeur_m)} m de large` : ''}{liaison ? ` · ${liaison}` : ''}
             </Tooltip>
           </Polyline>
           {poignees()}
@@ -1544,6 +1565,11 @@ function Proprietes({ o, objets, catalogue = [], liens = [], peutModifier, peutC
 
   const lecture = !peutModifier
   const ligne = o.nature === 'ligne' && !o.reseau
+  const voie = estVoieSecours(o)
+  // Ce qu'une voie peut relier : le dispositif de secours, PRV en tête.
+  const pointsSecours = voie
+    ? objets.filter((x) => x.id !== o.id && estPointSecours(x)).sort((a, b) => (a.categorie === 'point_rencontre_secours' ? 0 : 1) - (b.categorie === 'point_rencontre_secours' ? 0 : 1) || (a.nom ?? '').localeCompare(b.nom ?? ''))
+    : []
   const cable = o.nature === 'ligne' && o.reseau === 'electricite'
   const conduite = o.nature === 'ligne' && o.reseau === 'eau'
   const picto = o.nature === 'picto'
@@ -1706,6 +1732,38 @@ function Proprietes({ o, objets, catalogue = [], liens = [], peutModifier, peutC
               </label>
             </div>
           )}
+        </>
+      ) : voie ? (
+        <>
+          <div className="impl-deux">
+            <label>
+              Depuis (PRV)
+              <select className="impl-voie-de" value={f.de_id} disabled={lecture} onChange={(e) => { envoyer('de_id', e.target.value); onRaccorder({ de_id: e.target.value || null }) }}>
+                <option value="">— non relié —</option>
+                {pointsSecours.filter((x) => x.id !== o.vers_id).map((x) => <option key={x.id} value={x.id}>{x.nom}</option>)}
+              </select>
+            </label>
+            <label>
+              Vers (accès secours)
+              <select className="impl-voie-vers" value={f.vers_id} disabled={lecture} onChange={(e) => { envoyer('vers_id', e.target.value); onRaccorder({ vers_id: e.target.value || null }) }}>
+                <option value="">— non relié —</option>
+                {pointsSecours.filter((x) => x.id !== o.de_id).map((x) => <option key={x.id} value={x.id}>{x.nom}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="impl-deux">
+            <label>
+              Largeur (m)
+              <input type="number" step="0.5" min="0.5" value={f.largeur_m} disabled={lecture} onChange={(e) => envoyer('largeur_m', e.target.value)} onBlur={() => valider('largeur_m', num)} />
+            </label>
+            <label>
+              Longueur (m)
+              <input type="number" value={fr(o.longueur_m, 1)} disabled />
+            </label>
+          </div>
+          <p className="aide">
+            Une voie se trace comme un câble : clique le PRV, le parcours, puis l'accès secours. Ses deux bouts se changent ici ; le dispositif les lit dans l'ordre d'arrivée d'un service.
+          </p>
         </>
       ) : ligne ? (
         <div className="impl-trois">

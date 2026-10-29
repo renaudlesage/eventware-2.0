@@ -3336,3 +3336,6 @@ body.carte-plein-corps { overflow: hidden; }
 .leaflet-tooltip.etiquette-acces, .leaflet-tooltip.etiquette-repere { font-family: inherit; font-size: 11px; font-weight: 600; padding: 1px 5px; }
 /* (148) Le conseil du catalogue dans la fiche d'un objet, à part de son commentaire. */
 .impl-conseil { font-style: italic; }
+/* (29/10) Une voie d'accès secours reliée : d'où elle part, où elle mène. */
+.secours-liaison { font-weight: 600; margin: 2px 0; }
+.secours-liaison::before { content: '⇢ '; color: var(--sourdine); }

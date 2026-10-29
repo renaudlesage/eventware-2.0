@@ -522,7 +522,15 @@ Appliquée et inscrite (version 20261031090000).
 
 Appliquée et inscrite (version 20261031100000).
 
-## Ne jamais rejouer 088 → 148 par `db push` sans les lignes ci-dessus
+### 149 : appliquée le 29/10 (par Claude, via l'outil Supabase) — page autorité : bouts des voies d'accès secours
+
+| Fichier | Fait |
+|---|---|
+| `20261031110000_149_autorite_voies_reliees.sql` | `situation_autorite()` redéfinie (base 147) : `acces_secours` rend `depuis` et `vers`, les noms des deux bouts d'une voie d'accès secours tracée d'un PRV vers un accès. Aucun DROP |
+
+Appliquée et inscrite (version 20261031110000).
+
+## Ne jamais rejouer 088 → 149 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`
