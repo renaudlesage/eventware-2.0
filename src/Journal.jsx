@@ -122,37 +122,25 @@ export function Journal({ evenement, setMessage, moduleParDefaut = 'securite', p
         </div>
       )}
 
-      <div className="ligne-boutons" style={{ marginBottom: 6 }}>
-        {[
-          ['tout', 'Tout'],
-          ['majeur', 'Majeur'],
-          ['saisie', 'Saisies']
-        ].map(([k, l]) => (
-          <button
-            key={k}
-            className={`module ${filtre === k ? 'actif' : ''}`}
-            onClick={() => setFiltre(k)}
-          >
-            {l}
-          </button>
-        ))}
-      </div>
-      <div className="ligne-boutons" style={{ marginBottom: 12 }}>
-        <button
-          className={`discret ${filtreModule === 'tout' ? 'actif' : ''}`}
-          onClick={() => setFiltreModule('tout')}
-        >
-          Tous domaines
-        </button>
-        {MODULES_JOURNAL.map(([v, l]) => (
-          <button
-            key={v}
-            className={`discret ${filtreModule === v ? 'actif' : ''}`}
-            onClick={() => setFiltreModule(v)}
-          >
-            {l}
-          </button>
-        ))}
+      {/* (29/10, retour de Ren) Deux listes au lieu de quatorze boutons :
+          ce qu'on montre (tout, majeur, saisies) et le domaine. */}
+      <div className="journal-filtres">
+        <label>
+          Afficher
+          <select value={filtre} onChange={(e) => setFiltre(e.target.value)} aria-label="Afficher">
+            <option value="tout">Tout</option>
+            <option value="majeur">Majeur seulement</option>
+            <option value="saisie">Saisies à la main</option>
+          </select>
+        </label>
+        <label>
+          Domaine
+          <select value={filtreModule} onChange={(e) => setFiltreModule(e.target.value)} aria-label="Domaine">
+            <option value="tout">Tous domaines</option>
+            {MODULES_JOURNAL.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </label>
+        <span className="aide journal-compte">{visibles.length} entrée{visibles.length > 1 ? 's' : ''}</span>
       </div>
 
       {visibles.length === 0 ? (
