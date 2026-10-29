@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
-import { polygoneObjet, surfaceObjet, seChevauchent, distancePolygones, distancePolygoneLigne } from './geometrie'
+import { useEffect, useMemo, useState } from 'react'
+import { polygoneObjet, surfaceObjet, seChevauchent, contientPolygone, distancePolygones, distancePolygoneLigne } from './geometrie'
+import { supabase } from './supabaseClient'
 import { controlesReseau, arbreEau, estDistributeur, RAPPELS_RGIE } from './reseaux'
 import Unifilaire from './Unifilaire'
 import { LIBELLE_CALQUE, COULEUR_CALQUE } from './Implantation'
@@ -37,6 +38,21 @@ export default function BilansImplantation({ elements, evenement, onOuvrir }) {
   const objets = useMemo(() => elements.filter((e) => e.centre_lat != null && e.largeur_m), [elements])
   const polys = useMemo(() => new Map(objets.map((o) => [o.id, polygoneObjet(o)])), [objets])
   const nom = Object.fromEntries(objets.map((o) => [o.id, o.nom]))
+  // (29/10) Les liens du plan : deux objets liés « fait partie de », « fixé
+  // sur » ou « lié à » sont ensemble par choix, pas en conflit.
+  const [liens, setLiens] = useState([])
+  useEffect(() => {
+    if (!evenement?.id) return
+    let actif = true
+    supabase.from('liens_plan').select('de_id, vers_id, nature').eq('evenement_id', evenement.id)
+      .then(({ data }) => { if (actif) setLiens(data ?? []) })
+    return () => { actif = false }
+  }, [evenement?.id])
+  const integres = useMemo(() => {
+    const s = new Set()
+    for (const l of liens) if (['fait_partie', 'fixe_sur', 'lie'].includes(l.nature)) { s.add(`${l.de_id}|${l.vers_id}`); s.add(`${l.vers_id}|${l.de_id}`) }
+    return s
+  }, [liens])
 
   /* ---- énergie --------------------------------------------------- */
   const reseau = useMemo(() => controlesReseau(objets), [objets])
@@ -79,7 +95,13 @@ export default function BilansImplantation({ elements, evenement, onOuvrir }) {
         const pb = polys.get(b.id)
         // Les barrières se touchent par construction ; on ne les compare pas entre elles.
         const barrieres = a.calque === 'circulation' && b.calque === 'circulation'
-        if (!barrieres && seChevauchent(pa, pb)) {
+        // (29/10, retour de Ren) Un objet volontairement intégré dans une
+        // infrastructure — entièrement dans son emprise (l'évier dans le
+        // backstage, le coffret dans le bar, l'extincteur dans la régie) ou
+        // lié à elle — n'est pas un chevauchement. La distance de sécurité,
+        // elle, reste contrôlée : un groupe dans une tente est un défaut.
+        const integre = integres.has(`${a.id}|${b.id}`) || contientPolygone(pa, pb) || contientPolygone(pb, pa)
+        if (!barrieres && !integre && seChevauchent(pa, pb)) {
           // (28/10) `segments` : le texte découpé, les objets cliquables (ouvrent leur fiche en Conception).
           liste.push({ gravite: 'chaud', type: 'Chevauchement', texte: `${a.nom} et ${b.nom} se chevauchent`, ids: [a.id, b.id], segments: [objet(a), ' et ', objet(b), ' se chevauchent'] })
           continue
@@ -118,7 +140,7 @@ export default function BilansImplantation({ elements, evenement, onOuvrir }) {
     }
     const sansLieu = objets.filter((o) => !polys.get(o.id) && o.nature !== 'ligne')
     return { liste, sansLieu }
-  }, [objets, polys, elements])
+  }, [integres, objets, polys, elements])
   const nbReseauChaud = reseau.liste.filter((c) => c.gravite === 'chaud').length
 
   /* ---- métré ------------------------------------------------------- */
@@ -203,6 +225,8 @@ export default function BilansImplantation({ elements, evenement, onOuvrir }) {
             </div>
           )}
           <p className="aide">
+            Un objet entièrement posé dans l'emprise d'un autre (un évier dans le backstage, un coffret
+            dans le bar), ou lié à lui « fait partie de », y est intégré : ce n'est pas un chevauchement.
             Distance de sécurité : celle de l'objet (gaz, feu, groupe) vis-à-vis de ce qui reçoit du
             public et des toiles. Voie engins : {LARGEUR_VOIE_ENGINS} m de passage libre, mesuré
             depuis l'axe tracé dans le plan ; les pictogrammes n'encombrent pas. Clique un objet pour

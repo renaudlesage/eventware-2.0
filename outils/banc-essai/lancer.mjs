@@ -254,6 +254,8 @@ for (const ecran of ecrans) {
     await page.waitForTimeout(300)
     const objetControle = page.locator('.bilan-objet', { hasText: 'Table pliante' }).first()
     if (!(await objetControle.count())) erreurs.push('contrôles : « Table pliante » n’est pas cliquable')
+    // (29/10) Le frigo entièrement dans le PRV est intégré : aucun chevauchement ne le cite.
+    if (await page.locator('.prc-ligne', { hasText: 'Frigo' }).count()) erreurs.push('contrôles : un objet entièrement dans une infrastructure est signalé en chevauchement')
     else {
       await objetControle.click()
       await page.waitForTimeout(1200)
