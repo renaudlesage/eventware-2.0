@@ -3314,3 +3314,21 @@ body.carte-plein-corps { overflow: hidden; }
   .poste > .corps.plein-travail { grid-template-columns: 56px minmax(0, 1fr); }
   .poste > .corps.plein-travail.rail-epingle { grid-template-columns: 200px minmax(0, 1fr); }
 }
+
+/* Autorité (147) : la carte à tuiles de la page partagée, le dessin
+   hors ligne en repli, et les points de rencontre un par un. */
+.carte-autorite-tete { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.carte-autorite-tete h2 { margin-bottom: 0; }
+.onglets-carte-autorite { margin: 0 0 8px; }
+.onglets-carte-autorite button.module { font-size: 12px; padding: 4px 10px; }
+.carte-conteneur.carte-autorite { height: 440px; margin: 8px 0; border-radius: 6px; overflow: hidden; }
+.carte-conteneur.carte-autorite.carte-plein { border-radius: 0; margin: 0; }
+.leaflet-tooltip.etiquette-intervention { font-weight: 700; }
+.leaflet-tooltip.etiquette-acces { color: var(--etat-ok); }
+.interlocuteurs .carte-prv .titre .mono.sourdine { color: var(--sourdine); font-size: 13px; font-weight: 400; }
+.interlocuteurs .carte-prv .titre .jeton { margin-left: 6px; }
+.interlocuteurs .secours-adresse { font-weight: 600; }
+.bloc-unifilaire .unifilaire-cadre { max-height: 60vh; }
+@media (max-width: 600px) {
+  .carte-conteneur.carte-autorite { height: 60vh; }
+}
