@@ -604,6 +604,9 @@ for (const ecran of ecrans) {
     if (!(await page.locator('.carte-autorite select.carte-fond').count())) erreurs.push('choix du fond de carte absent')
     if (!(await page.locator('.carte-autorite .impl-picto').count())) erreurs.push('pictogrammes du plan absents de la carte à tuiles')
     if (!(await page.locator('.carte-autorite .leaflet-tooltip', { hasText: 'SOS-001' }).count())) erreurs.push('intervention absente de la carte à tuiles')
+    // (29/10) Un accès posé en pictogramme n'a pas de libellé permanent ; un accès sans picto en garde un.
+    if (await page.locator('.carte-autorite .leaflet-tooltip', { hasText: 'PRV nord' }).count()) erreurs.push('libellé permanent en double sur un accès posé en pictogramme')
+    if (!(await page.locator('.carte-autorite .leaflet-tooltip', { hasText: 'Accès secours' }).count())) erreurs.push('libellé absent sur un accès sans pictogramme')
     await page.locator('.carte-autorite .carte-plein-bouton').last().click().catch(() => {})
     await page.waitForTimeout(300)
     if (!(await page.locator('.carte-autorite.carte-plein').count())) erreurs.push('plein écran de la carte inopérant')
