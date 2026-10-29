@@ -389,7 +389,9 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
       source_eau: fiche.source_eau,
       accueil_public: fiche.accueil_public,
       distance_securite_m: fiche.distance_securite_m,
-      description: fiche.description,
+      // (148) La définition du catalogue n'est plus copiée dans la note :
+      // elle s'affiche comme conseil dans la fiche, la note reste libre.
+      description: null,
       // (126) Un extincteur du catalogue arrive avec son agent et sa
       // capacité ; un point d'eau avec son débit.
       agent_extinction: fiche.agent_extinction ?? null,
@@ -441,7 +443,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
       hauteur_m: fiche.hauteur_m,
       rotation_deg: 0,
       distance_securite_m: fiche.distance_securite_m,
-      description: fiche.description,
+      description: null,
       fournisseur: null,
       geometrie: points,
       confirme: false,
@@ -1076,6 +1078,7 @@ export default function Implantation({ evenement, elements, onRecharger, peutCre
             <Proprietes
               o={selectionne}
               objets={objets}
+              catalogue={catalogue}
               liens={liens.filter((l) => l.de_id === selectionne.id || l.vers_id === selectionne.id)}
               peutModifier={peutModifier}
               peutCreer={peutCreer}
@@ -1494,10 +1497,11 @@ const NATURES_LIEN = [
 ]
 const LIBELLE_LIEN = Object.fromEntries(NATURES_LIEN)
 
-function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, onLier, onModifierLien, onDelier, onModifier, onRaccorder, onAccrocher, onDeplacer, onDupliquer, onRetirer, sommet, onRetirerSommet, pile }) {
+function Proprietes({ o, objets, catalogue = [], liens = [], peutModifier, peutCreer, onFermer, onLier, onModifierLien, onDelier, onModifier, onRaccorder, onAccrocher, onDeplacer, onDupliquer, onRetirer, sommet, onRetirerSommet, pile }) {
   const [f, setF] = useState(() => depuis(o))
   const [nouveauLien, setNouveauLien] = useState({ vers: '', nature: 'lie' })
   useEffect(() => setF(depuis(o)), [o])
+  const conseil = o.catalogue_id ? catalogue.find((c) => c.id === o.catalogue_id)?.description : null
 
   function depuis(x) {
     return {
@@ -1598,6 +1602,9 @@ function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, 
         <span className={`prc-jeton ${o.confirme ? '' : 'veille'}`}>{o.confirme ? 'confirmé sur site' : 'non confirmé'}</span>
         <button className="lien impl-props-fermer" onClick={onFermer} aria-label="Désélectionner" title="Désélectionner (retour aux fonds de plan)">✕</button>
       </div>
+      {/* (148) Le conseil du catalogue, lu depuis la fiche d'origine : il
+          n'encombre plus la note de l'objet. */}
+      {conseil && <p className="aide impl-conseil" style={{ margin: 0 }}>{conseil}</p>}
       {pile && pile.length > 1 && (
         <p className="aide impl-pile" style={{ margin: 0 }}>
           {pile.length} emprises superposées ici ({pile.join(', ')}) : un clic de plus au même endroit passe à celle de dessous.
@@ -1937,8 +1944,9 @@ function Proprietes({ o, objets, liens = [], peutModifier, peutCreer, onFermer, 
         </button>
       )}
       <label>
-        Note
-        <textarea rows={2} value={f.description} disabled={lecture} onChange={(e) => envoyer('description', e.target.value)} onBlur={() => valider('description')} />
+        Commentaire
+        <textarea rows={2} value={f.description} disabled={lecture} onChange={(e) => envoyer('description', e.target.value)} onBlur={() => valider('description')}
+          placeholder="Repère sur place, consigne d'accès… visible par les secours sur la page autorité" />
       </label>
 
     </div>
