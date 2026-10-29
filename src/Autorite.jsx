@@ -215,7 +215,6 @@ function Carte({ s }) {
 
   const traces = (s.traces ?? []).filter((t) => (t.points ?? []).length > 1)
   const reperes = (s.reperes ?? []).filter((r) => r.position)
-  const acces = (s.acces_secours ?? []).filter((e) => e.position)
   const interventions = (s.interventions ?? []).filter((i) => i.position)
   const recherches = (s.recherches ?? []).filter((r) => r.position)
   // Le plan d'implantation (127) : un site sans parcours — un festival —
@@ -224,6 +223,12 @@ function Carte({ s }) {
   // Les mêmes calques, couleurs et cases à cocher que la conception (21/10).
   const [calques, basculerCalque] = useCalques()
   const plan = s.plan ?? []
+  // (29/10, retour de Ren) Un accès secours posé en pictogramme sur le
+  // plan (sortie, sens d'évacuation, PRV, accès engins) est déjà dessiné
+  // par le plan, avec son picto : on ne lui ajoute ni marqueur ni
+  // libellé permanent, qui doublaient tout. Son nom reste au survol.
+  const codesPictos = new Set(plan.filter((e) => e.nature === 'picto' && e.picto).map((e) => e.code))
+  const acces = (s.acces_secours ?? []).filter((e) => e.position && !codesPictos.has(e.code))
   const planVisible = plan.filter((e) => calques.has(calqueDe(e)))
   const lignes = planVisible.filter((e) => e.nature === 'ligne' && (e.points ?? []).length > 1)
   const zones = planVisible.filter((e) => e.nature === 'objet' && (e.points ?? []).length > 2)
