@@ -117,6 +117,32 @@ function distancePointSegment(p, a, b) {
   return Math.sqrt(dx * dx + dy * dy)
 }
 
+/**
+ * Vrai si `interieur` tient entièrement dans `exterieur` (convexe), à
+ * `tolerance` mètres près : un évier posé dans le backstage, un coffret
+ * dans le bar, un extincteur dans la régie — un objet volontairement
+ * intégré dans une infrastructure, pas un chevauchement (29/10).
+ */
+export function contientPolygone(exterieur, interieur, tolerance = 0.1) {
+  if (!exterieur || exterieur.length < 3 || !interieur || !interieur.length) return false
+  const origine = exterieur[0]
+  const E = local(exterieur, origine)
+  const I = local(interieur, origine)
+  for (const p of I) {
+    let dedans = false
+    for (let i = 0, j = E.length - 1; i < E.length; j = i++) {
+      const a = E[i]
+      const b = E[j]
+      if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) dedans = !dedans
+    }
+    if (dedans) continue
+    let bord = Infinity
+    for (let i = 0; i < E.length; i++) bord = Math.min(bord, distancePointSegment(p, E[i], E[(i + 1) % E.length]))
+    if (bord > tolerance) return false
+  }
+  return true
+}
+
 /** Distance minimale (m) entre deux polygones ; 0 s'ils se chevauchent. */
 export function distancePolygones(polyA, polyB) {
   if (seChevauchent(polyA, polyB)) return 0
