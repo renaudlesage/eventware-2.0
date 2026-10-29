@@ -363,6 +363,56 @@ function echeanceDepuisDelai(delai) {
  * demande un délai souhaité et affiche qui signale, en lecture seule,
  * parce que c'est toujours celui qui est connecté.
  */
+/**
+ * (29/10, retour de Ren) Le lieu d'une demande : on tape deux lettres, la
+ * liste se réduit aux lieux qui les contiennent (par leur nom, sans le
+ * code), un clic choisit. Soixante lieux dans un menu déroulant, sur un
+ * téléphone, ce n'était pas tenable.
+ */
+function ChoixLieu({ id, lieux, valeur, onChoisir }) {
+  const [recherche, setRecherche] = useState('')
+  const choisi = lieux.find((l) => l.id === valeur)
+  const normaliser = (t) => (t ?? '').toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const q = normaliser(recherche.trim())
+  const candidats = q
+    ? lieux.filter((l) => normaliser(l.nom).includes(q) || normaliser(l.code).includes(q)).slice(0, 8)
+    : lieux.slice(0, 8)
+  if (choisi) {
+    return (
+      <div className="choix-lieu">
+        <span className="choix-lieu-choisi">
+          <span className="jeton">{choisi.nom}</span>
+          <button type="button" className="lien" onClick={() => { onChoisir(''); setRecherche('') }} aria-label="Changer de lieu">changer</button>
+        </span>
+      </div>
+    )
+  }
+  return (
+    <div className="choix-lieu">
+      <input
+        id={id}
+        value={recherche}
+        onChange={(e) => setRecherche(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter' && candidats.length === 1) { e.preventDefault(); onChoisir(candidats[0].id) } }}
+        placeholder={lieux.length ? 'Tape le nom du lieu…' : 'Aucun lieu dans le dispositif'}
+        autoComplete="off"
+        disabled={!lieux.length}
+      />
+      {lieux.length > 0 && (
+        <div className="choix-lieu-liste" role="listbox">
+          {candidats.map((l) => (
+            <button type="button" key={l.id} role="option" aria-selected="false" className="choix-lieu-option" onClick={() => onChoisir(l.id)}>
+              {l.nom}
+            </button>
+          ))}
+          {candidats.length === 0 && <span className="aide" style={{ margin: 0 }}>Aucun lieu ne contient « {recherche.trim()} ».</span>}
+          {!q && lieux.length > 8 && <span className="aide" style={{ margin: 0 }}>… {lieux.length - 8} autres : tape pour filtrer.</span>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessage, onFait, onSuivre, onAnnuler }) {
   const urgent = mode === 'urgent'
   const [natureUrgente, setNatureUrgente] = useState(NATURES_URGENTES[0][0])
@@ -488,12 +538,7 @@ function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessa
           </select>
 
           <label htmlFor="lieu-urgente">Localisation *</label>
-          <select id="lieu-urgente" value={lieuId} onChange={(e) => setLieuId(e.target.value)}>
-            <option value="">— choisir un lieu du dispositif —</option>
-            {lieux.map((l) => (
-              <option key={l.id} value={l.id}>{l.code} · {l.nom}</option>
-            ))}
-          </select>
+          <ChoixLieu id="lieu-urgente" lieux={lieux} valeur={lieuId} onChoisir={setLieuId} />
 
           {position && (
             <p className="aide" style={{ color: 'var(--etat-ok)' }}>
@@ -545,6 +590,12 @@ function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessa
               <option key={t.id} value={t.id}>{t.libelle}</option>
             ))}
           </select>
+          {types.length === 0 && (
+            <p className="aide alerte-texte" style={{ marginTop: -6 }}>
+              Cet événement n'a aucune catégorie de demande : rien ne peut être injecté. Les sept catégories standard
+              sont semées à la création de l'événement (151) ; sinon, importe-les depuis Réglages › Référentiels.
+            </p>
+          )}
           {typeChoisi && (
             <p className="aide" style={{ marginTop: -6 }}>
               Priorité {typeChoisi.priorite} — délai cible {typeChoisi.delai_cible_min} min
@@ -572,16 +623,7 @@ function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessa
           <div className="saisie-rapide">
             <div style={{ flex: 1 }}>
               <label htmlFor="lieu-normale">Localisation</label>
-              <select
-                id="lieu-normale"
-                value={lieuId}
-                onChange={(e) => setLieuId(e.target.value)}
-              >
-                <option value="">— choisir un lieu du dispositif —</option>
-                {lieux.map((l) => (
-                  <option key={l.id} value={l.id}>{l.code} · {l.nom}</option>
-                ))}
-              </select>
+              <ChoixLieu id="lieu-normale" lieux={lieux} valeur={lieuId} onChoisir={setLieuId} />
             </div>
             <div style={{ flex: 1 }}>
               <label htmlFor="delai">Délai souhaité</label>

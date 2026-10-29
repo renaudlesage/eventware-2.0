@@ -3361,3 +3361,12 @@ body.carte-plein-corps { overflow: hidden; }
 .journal-filtres label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--sourdine); text-transform: uppercase; letter-spacing: 0.04em; flex: 1 1 160px; max-width: 260px; }
 .journal-filtres select { margin: 0; width: 100%; font-size: 14px; text-transform: none; letter-spacing: normal; }
 .journal-filtres .journal-compte { margin: 0 0 8px; }
+
+/* (29/10) Demande : le lieu se cherche par son nom, la liste se réduit en tapant. */
+.choix-lieu { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.choix-lieu input { margin: 0; }
+.choix-lieu-liste { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.choix-lieu-option { all: unset; cursor: pointer; padding: 5px 10px; border: 1px solid var(--trait-fort); border-radius: 999px; font-size: 13px; color: var(--encre); background: var(--surface); }
+.choix-lieu-option:hover, .choix-lieu-option:focus-visible { border-color: var(--encre); background: var(--surface-2); }
+.choix-lieu-choisi { display: inline-flex; align-items: center; gap: 10px; }
+.choix-lieu-choisi .jeton { font-size: 14px; text-transform: none; letter-spacing: normal; }
