@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
+import { MapContainer, Polyline, CircleMarker, Tooltip, useMap } from 'react-leaflet'
 import { pictoInterieur } from './pictos'
 import { COULEUR_CALQUE, calqueDe, useCalques, FiltreCalques } from './calques'
+import { FondCarte, ControlesCarte, useFondCarte } from './carte'
+import { CouchesPlan } from './couchesPlan'
+import Unifilaire from './Unifilaire'
+import { estSource } from './reseaux'
 import { libelleAgentExtinction, uniteExtinction } from './libelles'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
@@ -152,17 +157,62 @@ function libelleSurTrace(p) {
 }
 
 /**
- * (123) La carte de l'autorité : un SVG, pas une carte à tuiles. La
- * page est consultée sur un téléphone de bourgmestre ou dans un
- * véhicule de commandement, souvent sans réseau stable : un dessin
+ * (123) La carte de l'autorité était un SVG, pas une carte à tuiles :
+ * la page est consultée sur un téléphone de bourgmestre ou dans un
+ * véhicule de commandement, souvent sans réseau stable, et un dessin
  * vectoriel de quelques kilo-octets, livré avec la situation, s'affiche
- * toujours — comme la cartographie de BFMF 2026. La trace, les
- * repères, les accès secours, et dessus les interventions et
- * recherches en cours. Projection équirectangulaire, comme le reste.
+ * toujours — comme la cartographie de BFMF 2026.
+ *
+ * (147, retour de Ren du 29/10) Le Dir-PC-Ops veut la même carte que
+ * les autres écrans : un fond au choix (satellite, plan, IGN…), le
+ * plein écran, et le plan d'implantation dessiné par les mêmes couches
+ * que la carte du plan. C'est ce que `CarteTuiles` fait ; le dessin
+ * vectoriel reste à un clic (« Dessin hors ligne ») pour la voiture
+ * sans réseau, et le choix est mémorisé sur l'appareil.
+ *
+ * Les deux lisent la même situation : la trace, les repères, les accès
+ * secours, le plan, et dessus les interventions et recherches en cours.
  */
 const centrePlan = (e) => (e.centre?.lat != null ? [e.centre.lat, e.centre.lon] : e.points?.[0])
 
-function CarteSvg({ s }) {
+/**
+ * Les objets du plan tels que la fonction serveur les rend (`points`,
+ * `centre`), remis dans la forme des elements_plan que couchesPlan.jsx
+ * et le schéma unifilaire lisent (`geometrie`, `centre_lat`…).
+ */
+function objetsPlan(plan) {
+  return (plan ?? []).map((e) => ({
+    ...e,
+    geometrie: e.points ?? [],
+    centre_lat: e.centre?.lat ?? null,
+    centre_lon: e.centre?.lon ?? null
+  }))
+}
+
+const PRISE_COULEUR = { attente: 'var(--etat-chaud)', engage: 'var(--etat-veille)', sur_place: 'var(--etat-ok)' }
+
+/** Tout ce qui a une position dans la situation : l'emprise de la carte. */
+function pointsSituation({ traces, reperes, acces, interventions, recherches, lignes, zones, pictos }) {
+  return [
+    ...traces.flatMap((t) => t.points),
+    ...reperes.map((r) => [r.position.lat, r.position.lon]),
+    ...interventions.map((i) => [i.position.lat, i.position.lon]),
+    ...acces.map((e) => [e.position.lat, e.position.lon]),
+    ...recherches.map((r) => [r.position.lat, r.position.lon]),
+    ...lignes.flatMap((e) => e.points),
+    ...zones.flatMap((e) => e.points),
+    ...pictos.map(centrePlan)
+  ].filter((p) => p && p[0] != null && p[1] != null)
+}
+
+function Carte({ s }) {
+  const [mode, setMode] = useState(() => {
+    try { return localStorage.getItem('autorite.carte') === 'dessin' ? 'dessin' : 'tuiles' } catch { return 'tuiles' }
+  })
+  useEffect(() => {
+    try { localStorage.setItem('autorite.carte', mode) } catch {}
+  }, [mode])
+
   const traces = (s.traces ?? []).filter((t) => (t.points ?? []).length > 1)
   const reperes = (s.reperes ?? []).filter((r) => r.position)
   const acces = (s.acces_secours ?? []).filter((e) => e.position)
@@ -178,27 +228,119 @@ function CarteSvg({ s }) {
   const lignes = planVisible.filter((e) => e.nature === 'ligne' && (e.points ?? []).length > 1)
   const zones = planVisible.filter((e) => e.nature === 'objet' && (e.points ?? []).length > 2)
   const pictos = planVisible.filter((e) => e.nature === 'picto' && e.picto && centrePlan(e))
+  const couches = { traces, reperes, acces, interventions, recherches, lignes, zones, pictos }
+  const pts = pointsSituation(couches)
 
-  const pts = [
-    ...traces.flatMap((t) => t.points),
-    ...reperes.map((r) => [r.position.lat, r.position.lon]),
-    ...interventions.map((i) => [i.position.lat, i.position.lon]),
-    ...acces.map((e) => [e.position.lat, e.position.lon]),
-    ...recherches.map((r) => [r.position.lat, r.position.lon]),
-    ...lignes.flatMap((e) => e.points),
-    ...zones.flatMap((e) => e.points),
-    ...pictos.map(centrePlan)
-  ].filter((p) => p && p[0] != null && p[1] != null)
-  if (pts.length === 0)
-    return (
-      <section className="bloc">
+  return (
+    <section className="bloc">
+      <div className="carte-autorite-tete">
         <h2>Carte</h2>
+        <div className="onglets onglets-carte-autorite" role="tablist" aria-label="Mode de la carte">
+          {[['tuiles', 'Carte'], ['dessin', 'Dessin hors ligne']].map(([k, lib]) => (
+            <button key={k} type="button" role="tab" aria-selected={mode === k} className={`module ${mode === k ? 'actif' : ''}`} onClick={() => setMode(k)}>
+              {lib}
+            </button>
+          ))}
+        </div>
+      </div>
+      {pts.length === 0 ? (
         <p className="vide">
           Rien à dessiner : ni tracé, ni lieu positionné, ni objet sur le plan
           d'implantation. La carte apparaît dès que le PC en pose.
         </p>
-      </section>
-    )
+      ) : (
+        <>
+          {plan.length > 0 && <FiltreCalques objets={plan} visibles={calques} onBasculer={basculerCalque} />}
+          {mode === 'tuiles'
+            ? <CarteTuiles couches={couches} planVisible={planVisible} pts={pts} />
+            : <CarteSvg couches={couches} pts={pts} />}
+          <ul className="legende-carte">
+            <li><span className="puce-carte puce-chaud" /> en attente</li>
+            <li><span className="puce-carte puce-veille" /> moyen engagé</li>
+            <li><span className="puce-carte puce-ok" /> sur place</li>
+            <li><span className="puce-carte puce-repere" /> étape, PC, poste</li>
+            <li><span className="carre-carte" /> accès secours</li>
+            {plan.length > 0 && <li><span className="trait-carte" /> plan d'implantation dans la couleur de son calque ; pointillé : non confirmé sur site</li>}
+          </ul>
+          <p className="aide">
+            {mode === 'tuiles'
+              ? 'Le fond de carte et le plein écran se choisissent en haut à droite de la carte ; « Dessin hors ligne » montre le même contenu sans fond, lisible sans réseau.'
+              : 'Dessin livré avec la situation, lisible sans réseau.'}{' '}
+            Le « Localiser » de chaque intervention ouvre la position dans l'application de cartes du téléphone.
+          </p>
+        </>
+      )}
+    </section>
+  )
+}
+
+/** Cadre la carte sur l'emprise de la situation, une fois : ensuite l'autorité navigue. */
+function CadrerAutorite({ pts }) {
+  const carte = useMap()
+  useEffect(() => {
+    if (pts.length === 1) carte.setView(pts[0], 17)
+    else if (pts.length) carte.fitBounds(pts, { padding: [24, 24], maxZoom: 18 })
+  }, [carte, pts.length])
+  return null
+}
+
+/**
+ * (147) La carte à tuiles : fond choisi (mémorisé sous `autorite`),
+ * plein écran, plan d'implantation par couchesPlan.jsx, et par-dessus
+ * ce que le dessin vectoriel montrait déjà.
+ */
+function CarteTuiles({ couches, planVisible, pts }) {
+  const [fond, setFond] = useFondCarte('autorite', 'plan')
+  const objets = useMemo(() => objetsPlan(planVisible), [planVisible])
+  const { traces, reperes, acces, interventions, recherches } = couches
+  return (
+    <div className="carte-conteneur carte-autorite">
+      <MapContainer center={pts[0]} zoom={16} scrollWheelZoom>
+        <FondCarte cle={fond} />
+        <ControlesCarte fond={fond} onFond={setFond} />
+        <CouchesPlan objets={objets} />
+        {traces.map((t, k) => (
+          <Polyline key={'t' + k} positions={t.points} pathOptions={{ color: t.couleur || '#1f6ba8', weight: 4, opacity: 0.8, lineJoin: 'round' }}>
+            <Tooltip direction="center" className="etiquette-carte">{t.nom}{t.distance_km ? ` · ${Number(t.distance_km).toFixed(1)} km` : ''}</Tooltip>
+          </Polyline>
+        ))}
+        {acces.map((e, k) => (
+          <CircleMarker key={'a' + k} center={[e.position.lat, e.position.lon]} radius={6}
+            pathOptions={{ color: '#fff', weight: 1.5, fillColor: e.confirme === false ? '#9aa3ad' : '#1f6f4f', fillOpacity: 1 }}>
+            <Tooltip direction="right" permanent className="etiquette-carte etiquette-acces">{e.code || e.nom}</Tooltip>
+          </CircleMarker>
+        ))}
+        {reperes.map((p, k) => (
+          <CircleMarker key={'r' + k} center={[p.position.lat, p.position.lon]} radius={5}
+            pathOptions={{ color: '#10151b', weight: 2, fillColor: '#fff', fillOpacity: 1 }}>
+            <Tooltip direction="top" permanent className="etiquette-carte etiquette-repere">{p.code || p.nom}</Tooltip>
+          </CircleMarker>
+        ))}
+        {recherches.map((rc, k) => (
+          <CircleMarker key={'q' + k} center={[rc.position.lat, rc.position.lon]} radius={12}
+            pathOptions={{ color: '#a86a00', weight: 3, dashArray: '4 3', fill: false }}>
+            <Tooltip direction="bottom" permanent className="etiquette-carte">recherche</Tooltip>
+          </CircleMarker>
+        ))}
+        {interventions.map((i, k) => {
+          const etat = PRISE[i.statut] ?? 'attente'
+          const grave = i.gravite === 'critique' || i.gravite === 'grave' || i.priorite === 'P1'
+          return (
+            <CircleMarker key={'i' + k} center={[i.position.lat, i.position.lon]} radius={grave ? 10 : 7}
+              className={`intervention-carte etat-${etat}`}
+              pathOptions={{ color: '#fff', weight: 2, fillColor: { attente: '#b3311d', engage: '#a86a00', sur_place: '#1f6f4f' }[etat], fillOpacity: 1 }}>
+              <Tooltip direction="right" permanent className="etiquette-carte etiquette-intervention">{i.reference}</Tooltip>
+            </CircleMarker>
+          )
+        })}
+        <CadrerAutorite pts={pts} />
+      </MapContainer>
+    </div>
+  )
+}
+
+function CarteSvg({ couches, pts }) {
+  const { traces, reperes, acces, interventions, recherches, lignes, zones, pictos } = couches
 
   const lats = pts.map((p) => Number(p[0]))
   const lons = pts.map((p) => Number(p[1]))
@@ -234,12 +376,7 @@ function CarteSvg({ s }) {
   const r = (px) => px * echelle
   const police = r(12)
 
-  const PRISE_COULEUR = { attente: 'var(--etat-chaud)', engage: 'var(--etat-veille)', sur_place: 'var(--etat-ok)' }
-
   return (
-    <section className="bloc">
-      <h2>Carte</h2>
-      {plan.length > 0 && <FiltreCalques objets={plan} visibles={calques} onBasculer={basculerCalque} />}
       <svg className="carte-svg" viewBox={`0 0 ${L} ${H}`} role="img" aria-label="Carte du site, du parcours et des interventions">
         <rect x="0" y="0" width={L} height={H} fill="var(--surface)" />
         {zones.map((e, k) => {
@@ -344,19 +481,6 @@ function CarteSvg({ s }) {
           )
         })}
       </svg>
-      <ul className="legende-carte">
-        <li><span className="puce-carte puce-chaud" /> en attente</li>
-        <li><span className="puce-carte puce-veille" /> moyen engagé</li>
-        <li><span className="puce-carte puce-ok" /> sur place</li>
-        <li><span className="puce-carte puce-repere" /> étape, PC, poste</li>
-        <li><span className="carre-carte" /> accès secours</li>
-        {plan.length > 0 && <li><span className="trait-carte" /> plan d'implantation dans la couleur de son calque ; pointillé : non confirmé sur site</li>}
-      </ul>
-      <p className="aide">
-        Dessin livré avec la situation, lisible sans réseau. Le « Localiser » de chaque
-        intervention ouvre la position dans l'application de cartes du téléphone.
-      </p>
-    </section>
   )
 }
 
@@ -583,8 +707,12 @@ export default function Autorite({ jeton }) {
 
 function Interlocuteurs({ s }) {
   const liste = s.interlocuteurs ?? []
-  const rencontre = (s.acces_secours ?? []).find((e) => e.categorie === 'point_rencontre_secours')
-  if (liste.length === 0 && !rencontre) return null
+  // (147, retour de Ren du 29/10) Tous les points de rencontre, pas le
+  // premier : un festival en a deux, une balade en ajoute le long du
+  // parcours. Chacun avec son code et son adresse (144), c'est ce que
+  // les engins tapent dans le GPS.
+  const rencontres = (s.acces_secours ?? []).filter((e) => e.categorie === 'point_rencontre_secours')
+  if (liste.length === 0 && rencontres.length === 0) return null
   return (
     <div className="interlocuteurs">
       {liste.map((c, i) => (
@@ -602,14 +730,21 @@ function Interlocuteurs({ s }) {
           )}
         </div>
       ))}
-      {rencontre && (
-        <div className="carte">
-          <div className="pave-titre">Point de rencontre secours</div>
-          <div className="titre">{rencontre.nom}</div>
+      {rencontres.map((rencontre, i) => (
+        <div className="carte carte-prv" key={rencontre.code ?? i}>
+          <div className="pave-titre">
+            Point de rencontre secours{rencontres.length > 1 ? ` ${i + 1} / ${rencontres.length}` : ''}
+          </div>
+          <div className="titre">
+            {rencontre.nom}
+            {rencontre.code && <span className="mono sourdine"> {rencontre.code}</span>}
+            {rencontre.confirme === false && <span className="jeton alerte-texte">non confirmé sur site</span>}
+          </div>
+          {rencontre.adresse && <div className="meta secours-adresse"><span>{rencontre.adresse}</span></div>}
           {rencontre.description && <div className="meta"><span>{rencontre.description}</span></div>}
           <Gps position={rencontre.position} />
         </div>
-      )}
+      ))}
     </div>
   )
 }
@@ -701,7 +836,7 @@ function Situation({ s, maintenant, operationnel }) {
         </div>
       </section>
 
-      <CarteSvg s={s} />
+      <Carte s={s} />
 
       <section className="bloc">
         <h2>Interventions en cours</h2>
@@ -1059,6 +1194,8 @@ function Element({ e }) {
         {e.code && <span>{e.code}</span>}
         <Gps position={e.position} />
       </div>
+      {/* (144/147) L'adresse postale, pour les engins qui naviguent à l'adresse. */}
+      {e.adresse && <div className="meta secours-adresse"><span>{e.adresse}</span></div>}
       {e.description && <p className="aide">{e.description}</p>}
     </div>
   )
@@ -1340,6 +1477,11 @@ function Dossier({ s }) {
   const contacts = s.contacts ?? []
   const radio = s.radio ?? []
   const date = (d) => (d ? new Date(d).toLocaleDateString('fr-BE', { day: 'numeric', month: 'long', year: 'numeric' }) : null)
+  // (147) Le schéma unifilaire du site, généré depuis le plan comme dans
+  // les bilans de conception : la zone de secours veut savoir d'où vient
+  // le courant et où couper. Seulement s'il y a une source tracée.
+  const objets = useMemo(() => objetsPlan(s.plan), [s.plan])
+  const aReseau = objets.some(estSource)
   return (
     <>
       <section className="bloc">
@@ -1399,6 +1541,24 @@ function Dossier({ s }) {
           ))
         )}
         <p className="aide">Réservés aux autorités et disciplines — ne pas rediffuser.</p>
+      </section>
+
+      <section className="bloc bloc-unifilaire">
+        <h2>Schéma unifilaire</h2>
+        {aReseau ? (
+          <>
+            <Unifilaire objets={objets} evenement={ev} reseau="electricite" />
+            <p className="aide">
+              Généré depuis le plan d'implantation de l'organisateur, tel qu'il est tracé aujourd'hui ; les organes de
+              coupure sont dans Intervention › Site &amp; public.
+            </p>
+          </>
+        ) : (
+          <p className="vide">
+            Aucune source électrique (groupe, raccordement réseau) n'est tracée sur le plan d'implantation :
+            pas de schéma à montrer.
+          </p>
+        )}
       </section>
 
       <section className="bloc">

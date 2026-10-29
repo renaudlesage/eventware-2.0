@@ -506,7 +506,15 @@ Appliquée et inscrite (version 20261030160000).
 
 Appliquée et inscrite (version 20261030170000).
 
-## Ne jamais rejouer 088 → 146 par `db push` sans les lignes ci-dessus
+### 147 : appliquée le 29/10 (par Claude, via l'outil Supabase) — page autorité : plan complet, adresse des accès
+
+| Fichier | Fait |
+|---|---|
+| `20261031090000_147_autorite_plan_complet.sql` | `situation_autorite()` redéfinie (base 127) : `plan` rend aussi `id`, dimensions, `forme_echelle`, `quantite` et les champs réseau (électricité et eau) pour la carte à tuiles et le schéma unifilaire du dossier ; `acces_secours` rend `adresse` (144). Essai à blanc puis application ; aucun DROP |
+
+Appliquée et inscrite (version 20261031090000).
+
+## Ne jamais rejouer 088 → 147 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

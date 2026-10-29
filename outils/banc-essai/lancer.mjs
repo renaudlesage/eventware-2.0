@@ -594,11 +594,35 @@ for (const ecran of ecrans) {
     if (await page.getByRole('button', { name: '+ Jalon' }).count()) erreurs.push('« + Jalon » visible en lecture seule')
     if (!(await page.locator('.gantt-svg .gantt-barre').count())) erreurs.push('Gantt absent en lecture')
   }
-  // La carte vectorielle de l'autorité : présente, avec le plan dessus et ses calques.
+  // (147) La carte de l'autorité : à tuiles, avec le choix du fond et le plein
+  // écran comme les autres cartes, le plan dessiné par couchesPlan ; le dessin
+  // vectoriel reste disponible en repli. Tous les PRV en tête de page, avec
+  // leur adresse ; le schéma unifilaire dans le dossier.
   if (ecran === 'autorite') {
     if (!(await page.locator('.calques-carte').count())) erreurs.push('filtre des calques absent')
-    if (!(await page.locator('.carte-svg').count())) erreurs.push('carte vectorielle absente')
-    if (!(await page.locator('.carte-svg .carte-picto').count())) erreurs.push('pictogrammes du plan absents de la carte')
+    if (!(await page.locator('.carte-autorite .leaflet-container').count())) erreurs.push('carte à tuiles absente')
+    if (!(await page.locator('.carte-autorite select.carte-fond').count())) erreurs.push('choix du fond de carte absent')
+    if (!(await page.locator('.carte-autorite .impl-picto').count())) erreurs.push('pictogrammes du plan absents de la carte à tuiles')
+    if (!(await page.locator('.carte-autorite .leaflet-tooltip', { hasText: 'SOS-001' }).count())) erreurs.push('intervention absente de la carte à tuiles')
+    await page.locator('.carte-autorite .carte-plein-bouton').last().click().catch(() => {})
+    await page.waitForTimeout(300)
+    if (!(await page.locator('.carte-autorite.carte-plein').count())) erreurs.push('plein écran de la carte inopérant')
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(300)
+    if (await page.locator('.carte-autorite.carte-plein').count()) erreurs.push('Échap ne quitte pas le plein écran')
+    await page.getByRole('tab', { name: 'Dessin hors ligne' }).click().catch(() => {})
+    await page.waitForTimeout(300)
+    if (!(await page.locator('.carte-svg').count())) erreurs.push('dessin hors ligne absent')
+    if (!(await page.locator('.carte-svg .carte-picto').count())) erreurs.push('pictogrammes du plan absents du dessin hors ligne')
+    await page.getByRole('tab', { name: 'Carte', exact: true }).click().catch(() => {})
+    await page.waitForTimeout(200)
+    const prv = await page.locator('.interlocuteurs .carte-prv').count()
+    if (prv !== 2) erreurs.push(`points de rencontre en tête : ${prv} au lieu de 2`)
+    if (!(await page.locator('.interlocuteurs .secours-adresse', { hasText: 'Rue du Vicinal 12' }).count())) erreurs.push('adresse du PRV absente en tête')
+    await page.getByRole('tab', { name: 'Dossier' }).click().catch(() => {})
+    await page.waitForTimeout(400)
+    if (!(await page.locator('.bloc-unifilaire .unifilaire svg').count())) erreurs.push('schéma unifilaire absent du dossier')
+    if (!(await page.locator('.bloc-unifilaire .unifilaire svg text', { hasText: 'Coffret scène' }).count())) erreurs.push('le coffret manque sur l’unifilaire')
   }
   const texte = (await page.locator('#racine').innerText().catch(() => '')).replace(/\s+/g, ' ')
   if (!texte.trim()) erreurs.push('rien de rendu')
