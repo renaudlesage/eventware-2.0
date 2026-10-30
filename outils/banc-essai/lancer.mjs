@@ -385,6 +385,26 @@ for (const ecran of ecrans) {
       if (await page.locator('.fiche-jalon .palette-menu').count()) erreurs.push('palette : Échap ne referme pas la grille')
     }
   }
+  // (29/10) Demandes : la nouvelle demande a ses catégories ; le lieu se cherche par son nom, sans code.
+  if (ecran === 'logistique') {
+    await page.getByRole('button', { name: /Nouvelle demande/ }).first().click().catch(() => {})
+    await page.waitForTimeout(300)
+    const categories = await page.locator('#type-normale option').count()
+    if (categories < 3) erreurs.push(`demande : ${categories} option(s) de catégorie (attendu les deux de la fixture + le choix vide)`)
+    const champ = page.locator('#lieu-normale')
+    if (!(await champ.count())) erreurs.push('demande : pas de champ de recherche de lieu')
+    else {
+      if (await page.locator('.choix-lieu-option', { hasText: 'E1 ·' }).count()) erreurs.push('demande : le code du lieu est affiché')
+      await champ.fill('éta')
+      await page.waitForTimeout(150)
+      const options = page.locator('.choix-lieu-option')
+      if ((await options.count()) !== 1) erreurs.push(`demande : ${await options.count()} lieu(x) pour « éta » (attendu 1 : Étape 1)`)
+      await options.first().click()
+      await page.waitForTimeout(150)
+      if (!(await page.locator('.choix-lieu-choisi', { hasText: 'Étape 1' }).count())) erreurs.push('demande : le lieu cliqué n’est pas retenu')
+    }
+    await page.getByRole('button', { name: /^Annuler$/ }).first().click().catch(() => {})
+  }
   // (130) L'annuaire : trois fournisseurs, le filtre par catégorie, la fiche avec ses contacts.
   if (ecran === 'fournisseurs') {
     const n = await page.locator('.four-carte').count()

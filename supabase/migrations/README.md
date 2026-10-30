@@ -538,7 +538,15 @@ Appliquée et inscrite (version 20261031110000).
 
 Appliquée et inscrite (version 20261031120000).
 
-## Ne jamais rejouer 088 → 150 par `db push` sans les lignes ci-dessus
+### 151 : appliquée le 29/10 (par Claude, via l'outil Supabase) — catégories de demande semées
+
+| Fichier | Fait |
+|---|---|
+| `20261031130000_151_types_mission_semes.sql` | `semer_types_mission(ev)` : les sept catégories standard (060) dans un événement qui ne les a pas ; semées dans les 3 événements sans catégorie (dont BFMF 2027, 21 lignes) ; déclencheur `types_mission_nouvel_evenement` à la création d'un événement. Aucun DROP |
+
+Appliquée et inscrite (version 20261031130000).
+
+## Ne jamais rejouer 088 → 151 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`
