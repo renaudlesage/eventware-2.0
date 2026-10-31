@@ -44,6 +44,8 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
   const [message, setMessage] = useState(null)
   // En préparation on conçoit ; sur site on fait la tournée.
   const [vue, setVue] = useState(evenement.phase === 'preparation' ? 'conception' : 'tournee')
+  // (31/10) Les comptes des bilans, remontés pour les libellés de la liste.
+  const [comptes, setComptes] = useState({})
   const [ouvrir, setOuvrir] = useState(null) // { id, n } : l'objet à ouvrir en Conception (depuis les Bilans)
   const [position, setPosition] = useState(null)
   const [edite, setEdite] = useState(null)
@@ -111,27 +113,32 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
     <div className="bloc securite dom-prune">
       <h2>Plan d'implantation</h2>
 
-      <div className="onglets">
-        {[
-          ['conception', 'Conception'],
-          ['bilans', 'Bilans'],
-          ['tournee', `Tournée (${aConfirmer.length})`],
-          ['carte', 'Carte'],
-          ['secours', `Accès secours (${secours.length})`],
-          ['risques', `Risques (${risques.length})`],
-          ['ajout', 'Ajouter']
-        ]
-          .filter(([k]) => k !== 'ajout' || peutCreer)
-          .map(([k, l]) => (
-            <button
-              key={k}
-              className={`module ${vue === k ? 'actif' : ''}`}
-              onClick={() => setVue(k)}
-            >
-              {l}
-            </button>
-          ))}
-      </div>
+      {/* (31/10, retour de Ren) Une liste déroulante au lieu de deux
+          couches d'onglets (Plan, puis Bilans) : les rubriques des bilans
+          remontent dans la même liste, sous leur intertitre. */}
+      <label className="rubrique-logistique rubrique-plan">
+        Rubrique
+        <select value={vue} onChange={(e) => setVue(e.target.value)} aria-label="Rubrique du plan d'implantation">
+          <optgroup label="Concevoir">
+            <option value="conception">Conception</option>
+          </optgroup>
+          <optgroup label="Bilans">
+            <option value="b-controles">Contrôles{comptes.controles != null ? ` (${comptes.controles})` : ''}</option>
+            <option value="b-energie">Énergie</option>
+            <option value="b-rgie">Électricité — RGIE{comptes.rgie != null ? ` (${comptes.rgie})` : ''}</option>
+            <option value="b-unifilaire">Schéma unifilaire</option>
+            <option value="b-eau">Eau</option>
+            <option value="b-metre">Métré</option>
+          </optgroup>
+          <optgroup label="Sur le terrain">
+            <option value="tournee">Tournée ({aConfirmer.length})</option>
+            <option value="carte">Carte</option>
+            <option value="secours">Accès secours ({secours.length})</option>
+            <option value="risques">Risques ({risques.length})</option>
+            {peutCreer && <option value="ajout">Ajouter un élément</option>}
+          </optgroup>
+        </select>
+      </label>
 
       {message && (
         <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
@@ -151,9 +158,12 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
         />
       )}
       {/* (28/10) Depuis un contrôle, un objet cliqué s'ouvre dans Conception, fiche et carte centrées sur lui. */}
-      {vue === 'bilans' && <BilansImplantation elements={elements} evenement={evenement} onOuvrir={(id) => { setOuvrir({ id, n: Date.now() }); setVue('conception') }} />}
+      {vue.startsWith('b-') && (
+        <BilansImplantation elements={elements} evenement={evenement} onglet={vue.slice(2)} onComptes={setComptes}
+          onOuvrir={(id) => { setOuvrir({ id, n: Date.now() }); setVue('conception') }} />
+      )}
 
-      {vue !== 'conception' && vue !== 'bilans' && (
+      {vue !== 'conception' && !vue.startsWith('b-') && (
       <div className="geo">
         {position ? (
           <>
