@@ -191,8 +191,9 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
             key={l.id}
           >
             <div className="titre">
-              <span className="mono">{l.reference}</span>{' '}
               <span className={`jeton prio-${l.priorite}`}>{l.priorite}</span> {l.titre}
+              {/* (31/10) La référence sert à la radio : elle reste, mais après le titre. */}
+              <span className="code-discret">{l.reference}</span>
             </div>
             {l.detail && <p style={{ margin: '4px 0' }}>{l.detail}</p>}
             <div className="meta">

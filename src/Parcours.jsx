@@ -780,13 +780,13 @@ function Segments({ evenement, peut, toutPouvoir, setMessage }) {
             <select value={f.depart_lieu_id} onChange={(e) => setF({ ...f, depart_lieu_id: e.target.value })}>
               <option value="">Départ —</option>
               {lieux.map((l) => (
-                <option key={l.id} value={l.id}>{l.code} — {l.nom}</option>
+                <option key={l.id} value={l.id}>{l.nom}</option>
               ))}
             </select>
             <select value={f.arrivee_lieu_id} onChange={(e) => setF({ ...f, arrivee_lieu_id: e.target.value })}>
               <option value="">Arrivée —</option>
               {lieux.map((l) => (
-                <option key={l.id} value={l.id}>{l.code} — {l.nom}</option>
+                <option key={l.id} value={l.id}>{l.nom}</option>
               ))}
             </select>
           </div>

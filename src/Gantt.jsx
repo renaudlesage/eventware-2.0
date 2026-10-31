@@ -475,7 +475,7 @@ export default function Gantt({ evenement, peut, toutPouvoir, onAller }) {
             <h2>{g.nom}</h2>
             {g.lignes.sort((a, b) => (a.fin ?? '9') < (b.fin ?? '9') ? -1 : 1).map((l) => (
               <div key={l.id} className={`carte ${l.en_retard ? 'urgent' : ''}`}>
-                <div className="titre"><span className="mono">{l.code}</span> {l.libelle}</div>
+                <div className="titre">{l.libelle}<span className="code-discret">{l.code}</span></div>
                 <div className="meta">
                   <span className={l.en_retard ? 'alerte-texte' : ''}>{l.fin ? jjmm(new Date(l.fin)) : 'sans date'}</span>
                   <span>{libelleStatutJalon(l.statut)}</span>

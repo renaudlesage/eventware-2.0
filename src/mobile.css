@@ -43,8 +43,11 @@
   /* De la place sous le contenu pour la barre d'onglets ET les boutons
      d'urgence qui la surmontent : sans ça, la dernière ligne de chaque
      écran est définitivement inatteignable. */
+  /* (31/10, audit d'ergonomie) 150 px ne suffisaient pas : la pile
+     MAYDAY / SOS monte à 78 + 52 + 56 + 8 = 194 px du bas (REX est passé
+     dans « Plus »), et cachait le dernier champ des formulaires. */
   .poste {
-    padding: 0 16px calc(150px + env(safe-area-inset-bottom));
+    padding: 0 16px calc(214px + env(safe-area-inset-bottom));
   }
 
   /* ---------------- Tête ---------------- */
@@ -105,6 +108,19 @@
   .temoin { font-size: 9px; }
 
   .plaque { border-radius: 4px; }
+
+  /* ---------------- Bandeau d'état ---------------- */
+
+  /* (31/10, audit d'ergonomie) Deux rangées de deux cadrans à 24 px
+     prenaient, avec la tête, près de 40 % de l'écran sur chaque page.
+     Une seule ligne de quatre, compacte : on lit toujours les quatre
+     chiffres d'un regard, et le contenu commence au premier écran. */
+  .bandeau-etat { grid-template-columns: repeat(4, 1fr); }
+  /* Pleine largeur dans le poste (qui a 16 px de retrait de chaque côté). */
+  .poste .bandeau-etat { margin: 0 -16px 12px; border-left: none; border-right: none; }
+  .bandeau-etat .cadran { min-height: 46px; padding: 6px 6px 5px; gap: 3px; }
+  .bandeau-etat .cadran-valeur { font-size: 17px; }
+  .bandeau-etat .cadran-libelle { font-size: 8.5px; letter-spacing: 0.04em; line-height: 1.15; }
 
   /* ---------------- Bandeau d'alerte ---------------- */
 
@@ -365,6 +381,10 @@
   /* L'ordre du DOM sert le clavier, l'ordre visuel sert le pouce : le
      geste le plus court doit aller au plus grave. SOS en bas, contre la
      barre d'onglets ; REX tout en haut, c'est celui qui attend. */
+  /* (31/10, audit d'ergonomie) REX passe dans le tiroir « Plus » : il
+     recouvrait le contenu sans être une urgence. Restent MAYDAY et SOS. */
+  .flottant.rex { display: none !important; }
+  .rex-plus { width: 100%; box-sizing: border-box; margin-bottom: 10px; padding: 12px 13px; }
   .flottant.rex    { order: 1; }
   .flottant.mayday { order: 2; }
   .flottant.sos    { order: 3; }
@@ -429,6 +449,26 @@
 
   button { min-height: 40px; }
   button.lien { min-height: 0; }
+
+  /* (31/10, audit d'ergonomie) Les champs dont une règle de bureau fixe
+     une petite police échappaient aux 16 px ci-dessus — et l'iPhone
+     zoomait : le fond de carte, présent sur toutes les cartes, et les
+     filtres de colonnes de l'inventaire. */
+  .carte-controles .carte-fond { font-size: 16px; height: 36px; }
+  .inv-filtres input { font-size: 16px; padding: 6px 8px; }
+
+  /* Les liens qu'on touche du doigt sur le terrain (appeler, localiser,
+     y aller, itinéraire) faisaient 20 px de haut : une cible de 40 px,
+     sans changer leur place dans la ligne. */
+  .lien-externe { display: inline-block; padding: 10px 0; }
+
+  /* Le catalogue de la conception : une ligne de 32 px sous le doigt,
+     c'est la voisine qu'on pose. */
+  .impl-fiche { min-height: 44px; }
+
+  /* La poignée qui élargit le catalogue n'a pas de sens au doigt, et
+     elle débordait de 9 px : toute la page glissait de côté. */
+  .impl-poignee { display: none; }
   /* --------------------------------------------------------------
      Blocs de domaine repliables — Situation et Mon poste
      --------------------------------------------------------------

@@ -113,6 +113,8 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
 
           <LogoEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
 
+          <LienParticipants evenement={evenement} />
+
           <Point0 evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
 
           <Completude evenement={evenement} />
@@ -343,6 +345,38 @@ function Completude({ evenement }) {
           </div>
         </div>
       ))}
+    </section>
+  )
+}
+
+/**
+ * (31/10, audit d'ergonomie) Le lien que les participants scannent pour
+ * signaler un problème (QR code, affichage, dossard). Il occupait le haut
+ * de Sécurité › Signalements, l'écran qu'on regarde pendant l'événement ;
+ * c'est un réglage qu'on prépare avant. Sécurité le garde replié.
+ */
+function LienParticipants({ evenement }) {
+  const [copie, setCopie] = useState(false)
+  if (!evenement.jeton_public) return null
+  const lien = `${window.location.origin}${window.location.pathname}?sos=${evenement.jeton_public}`
+  async function copier() {
+    try {
+      await navigator.clipboard.writeText(lien)
+      setCopie(true)
+      setTimeout(() => setCopie(false), 2000)
+    } catch {}
+  }
+  return (
+    <section className="bloc">
+      <h2>Lien des participants</h2>
+      <p className="aide" style={{ marginTop: 0 }}>
+        À diffuser aux participants (QR code, affichage, dossard) : il ouvre la page publique de l'événement et son bouton
+        « Signaler un problème », qui arrive dans Sécurité › Signalements.
+      </p>
+      <p className="identifiant">{lien}</p>
+      <div className="ligne-boutons">
+        <button className="discret" onClick={copier}>{copie ? 'Copié' : 'Copier le lien'}</button>
+      </div>
     </section>
   )
 }

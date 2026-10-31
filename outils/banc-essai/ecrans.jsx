@@ -10,6 +10,8 @@ import Implantation from '../../src/Implantation.jsx'
 import PlanImplantation from '../../src/PlanImplantation.jsx'
 import Planning from '../../src/Planning.jsx'
 import Point0 from '../../src/Point0.jsx'
+import BandeauEtat from '../../src/BandeauEtat.jsx'
+import BarreOnglets from '../../src/BarreOnglets.jsx'
 import { DONNEES } from './faux-supabase.js'
 
 /**
@@ -22,6 +24,14 @@ const session = { user: { id: 'u1' } }
 const peut = () => true
 
 export const ECRANS = {
+  // (31/10) La coquille au téléphone : le bandeau d'état compact, et REX dans le tiroir « Plus ».
+  coquille: () => (
+    <>
+      <BandeauEtat evenement={evenement} membre={membre} peut={peut} toutPouvoir onAller={() => {}} palier="bureau" />
+      <BarreOnglets ecran="accueil" onAller={() => {}} rex
+        ecrans={[{ clef: 'accueil', libelle: 'Mon poste' }, { clef: 'securite', libelle: 'Sécurité' }, { clef: 'planning', libelle: 'Planning' }, { clef: 'logistique', libelle: 'Logistique' }]} />
+    </>
+  ),
   securite: () => <Securite evenement={evenement} membre={membre} session={session} peut={peut} toutPouvoir />,
   situation: () => <Situation evenement={evenement} peut={peut} toutPouvoir onAller={() => {}} />,
   terrain: () => <Terrain evenement={evenement} membre={membre} />,

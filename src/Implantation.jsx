@@ -1246,14 +1246,14 @@ function Cadrage({ objets, point0 }) {
     const taille = carte.getSize()
     if (!taille.x || !taille.y) return
     if (point0) {
-      carte.setView(point0, 18)
+      carte.setView(point0, 18, { animate: false })
       fait.current = true
       return
     }
     if (!objets.length) return
     const pts = objets.flatMap((o) => polygoneObjet(o) ?? [])
     if (pts.length) {
-      carte.fitBounds(pts, { padding: [40, 40], maxZoom: 19 })
+      carte.fitBounds(pts, { padding: [40, 40], maxZoom: 19, animate: false })
       fait.current = true
     }
   }, [carte, objets, point0])

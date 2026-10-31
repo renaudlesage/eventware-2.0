@@ -49,7 +49,7 @@ export default function Vitrine({ evenement, setMessage }) {
             setMessage={setMessage}
             table="lieux"
             filtrer={(q) => q.is('element_plan_id', null)}
-            libelle={(l) => `${l.code} · ${l.nom}`}
+            libelle={(l) => l.nom}
             detail={(l) => l.type}
             ordre="code"
             avertissement="Les lieux opérationnels — PC Ops, PRV, voies de secours, zones techniques — n'ont rien à faire ici. Ne publie que ce qu'un participant doit pouvoir trouver."

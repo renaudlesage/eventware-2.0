@@ -476,6 +476,18 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
 .rail-compact .plaque-nav { justify-content: center; padding: 11px 0; gap: 0; }
 .rail-compact .plaque-nav span { display: none; }
 
+/* (31/10, audit d'ergonomie) Sur une tablette, pas de survol : le panneau
+   qui nomme les domaines ne s'ouvrait jamais, et le rail restait une
+   colonne d'icônes muettes. Au toucher, chaque icône porte son nom
+   dessous, et le rail s'élargit d'autant. La souris garde le rail de
+   56 px et son panneau au survol. */
+@media (min-width: 940px) and (hover: none) {
+  .poste > .corps:not(.rail-epingle) { grid-template-columns: 76px 1fr; gap: 20px; }
+  .rail-compact .plaque-nav { flex-direction: column; padding: 8px 2px 7px; gap: 4px; }
+  .rail-compact .plaque-nav span { display: block; font-size: 9.5px; line-height: 1.1; text-align: center; letter-spacing: 0; overflow-wrap: anywhere; }
+  .rail-compact .rail-deploye { left: 76px; }
+}
+
 .rail-famille {
   display: flex;
   flex-direction: column;
@@ -3374,3 +3386,11 @@ body.carte-plein-corps { overflow: hidden; }
 /* (31/10) Logistique : une liste déroulante de rubriques au lieu de deux rangées de boutons. */
 .rubrique-logistique { display: flex; flex-direction: column; gap: 2px; max-width: 360px; margin-bottom: 14px; font-size: 11px; color: var(--sourdine); text-transform: uppercase; letter-spacing: 0.04em; }
 .rubrique-logistique select { margin: 0; font-size: 16px; font-weight: 600; text-transform: none; letter-spacing: normal; }
+
+/* (31/10, audit d'ergonomie) Le nom d'abord ; le code, quand il sert
+   (jalon, objet du plan, référence radio), en petit gris après. */
+.code-discret { font-family: var(--mono); font-size: 11px; font-weight: 400; color: var(--sourdine); margin-left: 8px; letter-spacing: 0.02em; white-space: nowrap; }
+
+/* (31/10) Page autorité : la liste des rubriques reste collée en haut, comme les onglets qu'elle remplace. */
+.rubrique-autorite { position: sticky; top: 0; z-index: 5; background: var(--fond); padding: 8px 0; margin: 6px 0 14px; max-width: none; }
+.rubrique-autorite select { max-width: 360px; }

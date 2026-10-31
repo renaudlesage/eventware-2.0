@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MoreHorizontal, X } from 'lucide-react'
+import { MoreHorizontal, X, MessageSquareWarning } from 'lucide-react'
 import { Icone, DOMAINES } from './icones'
 
 /**
@@ -22,7 +22,7 @@ import { Icone, DOMAINES } from './icones'
  * passent par « Plus » : ce sont des écrans de PC, tenus assis devant
  * un grand écran, pas des écrans de terrain.
  */
-export default function BarreOnglets({ ecrans, ecran, onAller }) {
+export default function BarreOnglets({ ecrans, ecran, onAller, rex = false }) {
   const [ouvert, setOuvert] = useState(false)
 
   const dispo = (clef) => ecrans.some((e) => e.clef === clef)
@@ -56,7 +56,7 @@ export default function BarreOnglets({ ecrans, ecran, onAller }) {
           </button>
         ))}
 
-        {autres.length > 0 && (
+        {(autres.length > 0 || rex) && (
           <button
             className={`onglet-bas ${dansAutres ? 'actif' : ''}`}
             aria-expanded={ouvert}
@@ -78,6 +78,14 @@ export default function BarreOnglets({ ecrans, ecran, onAller }) {
               </button>
             </div>
 
+            {/* (31/10) REX vit ici au téléphone : un constat à chaud n'est pas
+                une urgence, il n'a pas à recouvrir l'écran en permanence. */}
+            {rex && (
+              <button className="plaque-nav dom-ardoise rex-plus" onClick={() => { setOuvert(false); window.dispatchEvent(new Event('eventware:rex')) }}>
+                <MessageSquareWarning size={20} strokeWidth={1.9} aria-hidden="true" />
+                <span>REX — signaler un constat</span>
+              </button>
+            )}
             <div className="liste-ecrans">
               {autres.map((e) => (
                 <button

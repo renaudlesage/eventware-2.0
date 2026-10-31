@@ -200,7 +200,7 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
   }
 
   return (
-    <div className={`etat ${cadrans.length > 4 ? 'etat-mur' : ''}`} role="group" aria-label="État de l'événement">
+    <div className={`etat bandeau-etat ${cadrans.length > 4 ? 'etat-mur' : ''}`} role="group" aria-label="État de l'événement">
       {cadrans.map((c) => (
         <button
           key={c.libelle}

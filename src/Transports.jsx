@@ -526,7 +526,7 @@ function PointDepartArrivee({ titre, lieux, valeur, onChange }) {
         <option value="">— choisir un lieu du dispositif —</option>
         {lieux.map((l) => (
           <option key={l.id} value={l.id}>
-            {l.code} · {l.nom}
+            {l.nom}
           </option>
         ))}
       </select>

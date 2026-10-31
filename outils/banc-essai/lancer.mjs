@@ -54,9 +54,11 @@ await esbuild.build({
 // hauteur (taille 0 × 0) fait tourner Leaflet en boucle au cadrage, et la
 // page ne répond plus — ce n'est pas un bogue de l'écran.
 fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
+// (31/10) La même page au format téléphone, comme l'application : balise viewport et couche mobile.css.
+fs.writeFileSync(path.join(sortie, 'page-tel.html'), '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"><link rel="stylesheet" href="../../src/mobile.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
 
 const demandes = process.argv.slice(2)
-const ecrans = demandes.length ? demandes : ['securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0']
+const ecrans = demandes.length ? demandes : ['coquille', 'securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0']
 const navigateur = await pw.chromium.launch()
 let echecs = 0
 for (const ecran of ecrans) {
@@ -112,7 +114,7 @@ for (const ecran of ecrans) {
     if (!(await page.getByText('Écrire une puce NFC').count())) erreurs.push('bouton NFC absent de la fiche')
     await page.locator('.inv-fiche button', { hasText: 'Fermer' }).click()
     // Les prêts : deux lignes, une en retard, Retour sur la ligne sortie seulement.
-    await page.getByRole('button', { name: /^Prêts et locations/ }).click()
+    await page.locator('.rubrique-logistique select').selectOption('prets')
     await page.waitForTimeout(300)
     if ((await lignes().count()) !== 2) erreurs.push(`${await lignes().count()} sorties (attendu 2)`)
     if ((await page.locator('.inv-statut.en_retard').count()) !== 1) erreurs.push('la location en retard n’est pas marquée')
@@ -129,10 +131,10 @@ for (const ecran of ecrans) {
     if (!(await page.getByText(/proposé : 80,00/).count())) erreurs.push('prix de location proposé absent ou faux (attendu 80,00 € : 2 jours × 40 €)')
     await page.locator('.inv-fiche button', { hasText: 'Annuler' }).click()
     // Étiquettes : trois QR ; scanner : saisie du code ouvre la fiche.
-    await page.getByRole('button', { name: /^Étiquettes/ }).click()
+    await page.locator('.rubrique-logistique select').selectOption('etiquettes')
     await page.waitForTimeout(300)
     if ((await page.locator('.inv-etiquette-carte svg').count()) !== 3) erreurs.push(`${await page.locator('.inv-etiquette-carte svg').count()} étiquettes (attendu 3)`)
-    await page.getByRole('button', { name: /^Scanner/ }).click()
+    await page.locator('.rubrique-logistique select').selectOption('scanner')
     await page.waitForTimeout(300)
     await page.locator('.inv-scanner input').fill('https://exemple.be/?materiel=INV-0003')
     await page.locator('.inv-scanner button[type=submit]').click()
@@ -143,7 +145,7 @@ for (const ecran of ecrans) {
     if (await page.getByText('Ajouter un article').count()) erreurs.push('Ajouter un article visible en lecture')
     if (await page.locator('.inv-sortir').count()) erreurs.push('Sortir visible en lecture')
     if (await page.getByText('Importer (CSV)').count()) erreurs.push('Importer (CSV) visible en lecture')
-    await page.getByRole('button', { name: /^Prêts et locations/ }).click()
+    await page.locator('.rubrique-logistique select').selectOption('prets')
     await page.waitForTimeout(300)
     if (await page.locator('.inv-retour').count()) erreurs.push('Retour visible en lecture')
     if (await page.getByText('Nouveau prêt ou location').count()) erreurs.push('Nouveau prêt visible en lecture')
@@ -407,14 +409,14 @@ for (const ecran of ecrans) {
   }
   // (29/10) Demandes : la nouvelle demande a ses catégories ; le lieu se cherche par son nom, sans code.
   if (ecran === 'logistique') {
-    // (31/10) Une seule liste déroulante : trois groupes (Exploitation, Matériel, Achats), dix rubriques, plus de rangées de boutons.
+    // (31/10) Une seule liste déroulante : trois groupes (Exploitation, Matériel, Achats), treize rubriques, plus de rangées de boutons.
     const liste = page.locator('.rubrique-logistique select')
     if (!(await liste.count())) erreurs.push('menu : pas de liste déroulante de rubriques')
     else {
       const groupes = await liste.locator('optgroup').evaluateAll((g) => g.map((x) => x.label))
       if (JSON.stringify(groupes) !== JSON.stringify(['Exploitation', 'Matériel', 'Achats'])) erreurs.push(`menu : groupes ${JSON.stringify(groupes)}`)
       const n = await liste.locator('option').count()
-      if (n !== 10) erreurs.push(`menu : ${n} rubriques (attendu 10)`)
+      if (n !== 13) erreurs.push(`menu : ${n} rubriques (attendu 13, dont les quatre vues de l’inventaire)`)
       if (await page.locator('.bloc.dom-bronze > .onglets, .groupes-logistique').count()) erreurs.push('menu : des rangées de boutons restent affichées')
       await liste.selectOption('fournisseurs')
       await page.waitForTimeout(400)
@@ -726,7 +728,7 @@ for (const ecran of ecrans) {
     const prv = await page.locator('.interlocuteurs .carte-prv').count()
     if (prv !== 2) erreurs.push(`points de rencontre en tête : ${prv} au lieu de 2`)
     if (!(await page.locator('.interlocuteurs .secours-adresse', { hasText: 'Rue du Vicinal 12' }).count())) erreurs.push('adresse du PRV absente en tête')
-    await page.getByRole('tab', { name: 'Dossier' }).click().catch(() => {})
+    await page.locator('.rubrique-autorite select').selectOption('dossier').catch(() => {})
     await page.waitForTimeout(400)
     if (!(await page.locator('.bloc-unifilaire .unifilaire svg').count())) erreurs.push('schéma unifilaire absent du dossier')
     if (!(await page.locator('.bloc-unifilaire .unifilaire svg text', { hasText: 'Coffret scène' }).count())) erreurs.push('le coffret manque sur l’unifilaire')
@@ -735,6 +737,36 @@ for (const ecran of ecrans) {
   if (!texte.trim()) erreurs.push('rien de rendu')
   if (erreurs.length) echecs++
   console.log(`${erreurs.length ? '✗' : '✓'} ${ecran}${erreurs.length ? '\n    ' + erreurs.join('\n    ') : ' — ' + texte.slice(0, 90)}`)
+  await page.close()
+}
+// (31/10, audit d'ergonomie) Passe téléphone, 390 × 844 : aucun écran ne glisse de côté, aucun champ
+// éditable sous 16 px (l'iPhone zoomerait à la mise au point).
+for (const ecran of ecrans) {
+  const page = await navigateur.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+  page.on('pageerror', () => {})
+  await page.goto('file://' + path.join(sortie, 'page-tel.html') + '?ecran=' + ecran, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1500)
+  const m = await page.evaluate(() => ({
+    largeur: document.documentElement.scrollWidth,
+    petits: [...document.querySelectorAll('#racine input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), #racine select, #racine textarea')]
+      .filter((el) => el.offsetParent && !el.disabled && parseFloat(getComputedStyle(el).fontSize) < 16)
+      .map((el) => `${el.tagName.toLowerCase()}.${el.className} ${getComputedStyle(el).fontSize}`)
+  }))
+  const erreurs = []
+  if (m.largeur > 392) erreurs.push(`la page fait ${m.largeur} px de large sur un téléphone de 390 px`)
+  if (ecran === 'coquille') {
+    // Le bandeau d'état tient sur une ligne de quatre cadrans ; REX s'ouvre depuis « Plus ».
+    const hauts = await page.locator('.bandeau-etat .cadran').evaluateAll((c) => c.map((x) => Math.round(x.getBoundingClientRect().top)))
+    if (hauts.length !== 4 || new Set(hauts).size !== 1) erreurs.push(`bandeau d'état : ${hauts.length} cadrans sur ${new Set(hauts).size} ligne(s) (attendu 4 sur 1)`)
+    const h = await page.locator('.bandeau-etat').evaluate((b) => b.getBoundingClientRect().height).catch(() => 999)
+    if (h > 76) erreurs.push(`bandeau d'état : ${Math.round(h)} px de haut (attendu une ligne compacte)`)
+    await page.locator('.barre-onglets button', { hasText: 'Plus' }).evaluate((b) => b.click())
+    await page.waitForTimeout(200)
+    if (!(await page.locator('.tiroir-plus .rex-plus').count())) erreurs.push('REX absent du tiroir « Plus »')
+  }
+  if (m.petits.length) erreurs.push(`champs sous 16 px (zoom iPhone) : ${[...new Set(m.petits)].slice(0, 4).join(', ')}`)
+  if (erreurs.length) echecs++
+  console.log(`${erreurs.length ? '✗' : '✓'} téléphone ${ecran}${erreurs.length ? '\n    ' + erreurs.join('\n    ') : ''}`)
   await page.close()
 }
 await navigateur.close()

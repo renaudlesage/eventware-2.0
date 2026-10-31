@@ -193,7 +193,7 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
             aConfirmer.map((e) => (
               <div className={`carte ${e.est_risque ? 'urgent' : ''}`} key={e.id}>
                 <div className="titre">
-                  <span className="mono">{e.code}</span> — {e.nom}
+                  {e.nom}<span className="code-discret">{e.code}</span>
                 </div>
                 <div className="meta">
                   <span>{libelleCat(e.categorie)}</span>
@@ -258,7 +258,7 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
                       .map((e) => (
                         <div className="carte" key={e.id}>
                           <div className="titre">
-                            <span className="mono">{e.code}</span> — {e.nom}
+                            {e.nom}<span className="code-discret">{e.code}</span>
                             {!e.confirme && (
                               <span className="jeton alerte-texte"> non confirmé</span>
                             )}
@@ -313,7 +313,7 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
               risques.map((e) => (
                 <div className="carte" key={e.id}>
                   <div className="titre">
-                    <span className="mono">{e.code}</span> — {e.nom}
+                    {e.nom}<span className="code-discret">{e.code}</span>
                     {!e.confirme && <span className="jeton alerte-texte"> non confirmé</span>}
                   </div>
                   <div className="meta">
@@ -516,13 +516,13 @@ function Cadrer({ elements, point0 }) {
   const carte = useMap()
   useEffect(() => {
     if (point0) {
-      carte.setView(point0, 18)
+      carte.setView(point0, 18, { animate: false })
       // Repère lisible (banc d'essai, inspection) : sur quoi la carte s'est cadrée.
       carte.getContainer().dataset.cadrage = 'point0'
       return
     }
     const pts = elements.flatMap((e) => e.geometrie ?? [])
-    if (pts.length) carte.fitBounds(pts, { padding: [30, 30], maxZoom: 18 })
+    if (pts.length) carte.fitBounds(pts, { padding: [30, 30], maxZoom: 18, animate: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elements.length, point0?.[0], point0?.[1]])
   return null
