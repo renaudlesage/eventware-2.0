@@ -62,7 +62,7 @@ export default function Jauge({ evenement, membre, peut, toutPouvoir, setMessage
             <option value="">— tous —</option>
             {lieux.map((l) => (
               <option key={l.id} value={l.id}>
-                {l.code} · {l.nom}
+                {l.nom}
               </option>
             ))}
           </select>

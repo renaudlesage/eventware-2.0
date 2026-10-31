@@ -442,7 +442,8 @@ export default function Poste({ session, theme, setTheme }) {
           de capacités : la barre du bas n'ouvre rien de plus que ce à
           quoi la personne a droit. Elle n'apparaît que sous 700 px. */}
       {courant && moi && pret && (
-        <BarreOnglets ecrans={visibles} ecran={ecran} onAller={aller} />
+        <BarreOnglets ecrans={visibles} ecran={ecran} onAller={aller}
+          rex={!!courant.modules?.analyse && (toutPouvoir || peut('analyse', 'creer'))} />
       )}
     </div>
   )

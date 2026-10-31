@@ -270,10 +270,13 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
         </div>
       )}
 
-      <p className="aide">
-        Lien à diffuser aux participants (QR code, affichage, dossard) :<br />
+      {/* (31/10, audit d'ergonomie) Un réglage préparé avant, pas une donnée
+          d'exploitation : replié ici, en clair dans Réglages › Lien des
+          participants. */}
+      <details className="aide lien-participants">
+        <summary>Lien à diffuser aux participants</summary>
         <span className="identifiant">{lienParticipant}</span>
-      </p>
+      </details>
 
       {saisieRadio && (
         <FormSosRadio
@@ -560,7 +563,6 @@ function FormSosRadio({ evenement, lieux, onFait, onAnnuler }) {
           {tries.map((l) => (
             <option key={l.id} value={l.id}>
               {l.pk_km != null ? `km ${Number(l.pk_km).toFixed(1)} · ` : ''}
-              {l.code ? `${l.code} · ` : ''}
               {l.nom}
             </option>
           ))}

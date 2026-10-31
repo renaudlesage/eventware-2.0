@@ -193,7 +193,7 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
             aConfirmer.map((e) => (
               <div className={`carte ${e.est_risque ? 'urgent' : ''}`} key={e.id}>
                 <div className="titre">
-                  <span className="mono">{e.code}</span> — {e.nom}
+                  {e.nom}<span className="code-discret">{e.code}</span>
                 </div>
                 <div className="meta">
                   <span>{libelleCat(e.categorie)}</span>
@@ -258,7 +258,7 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
                       .map((e) => (
                         <div className="carte" key={e.id}>
                           <div className="titre">
-                            <span className="mono">{e.code}</span> — {e.nom}
+                            {e.nom}<span className="code-discret">{e.code}</span>
                             {!e.confirme && (
                               <span className="jeton alerte-texte"> non confirmé</span>
                             )}
@@ -313,7 +313,7 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir 
               risques.map((e) => (
                 <div className="carte" key={e.id}>
                   <div className="titre">
-                    <span className="mono">{e.code}</span> — {e.nom}
+                    {e.nom}<span className="code-discret">{e.code}</span>
                     {!e.confirme && <span className="jeton alerte-texte"> non confirmé</span>}
                   </div>
                   <div className="meta">

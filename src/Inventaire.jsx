@@ -40,12 +40,17 @@ export function codeDepuisLecture(texte) {
   return c ? c[1].toUpperCase() : null
 }
 
-export default function Inventaire({ evenement, membre, peut, toutPouvoir, setMessage }) {
+export default function Inventaire({ evenement, membre, peut, toutPouvoir, setMessage, vue: vueImposee, onVue }) {
   const organisation = evenement.organisation_id
   const [droits, setDroits] = useState({ lire: true, gerer: false })
   const [articles, setArticles] = useState(null)
   const [prets, setPrets] = useState(null)
-  const [vue, setVue] = useState('inventaire')
+  // (31/10, audit d'ergonomie) La Logistique choisit la vue dans sa liste
+  // « Rubrique » (Inventaire, Prêts et locations, Étiquettes, Scanner) ;
+  // sans elle, la rangée d'onglets d'avant.
+  const [vueLocale, setVueLocale] = useState('inventaire')
+  const vue = vueImposee ?? vueLocale
+  const setVue = (v) => (onVue ? onVue(v) : setVueLocale(v))
   const [ouvert, setOuvert] = useState(null)        // id d'article
   const [creation, setCreation] = useState(false)
   const [importer, setImporter] = useState(false)
@@ -90,11 +95,11 @@ export default function Inventaire({ evenement, membre, peut, toutPouvoir, setMe
 
   return (
     <div className="inv">
-      <div className="onglets">
+      {!vueImposee && <div className="onglets">
         {[['inventaire', `Inventaire (${articles.length})`], ['prets', `Prêts et locations (${prets.filter((p) => p.statut !== 'rendu').length} sortis)`], ['etiquettes', 'Étiquettes'], ['scanner', 'Scanner']].map(([k, l]) => (
           <button key={k} className={`module ${vue === k ? 'actif' : ''}`} onClick={() => { setVue(k); setOuvert(null) }}>{l}</button>
         ))}
-      </div>
+      </div>}
 
       {article && (
         <FicheArticle article={article} prets={prets.filter((p) => p.inventaire_id === article.id)} peutGerer={peutGerer} setMessage={setMessage}

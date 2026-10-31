@@ -33,8 +33,13 @@ const GROUPES = [
     ['journal', 'Main courante']
   ]],
   ['Matériel', [
-    // (138) Le matériel de l'organisation : inventaire, prêts et locations.
+    // (138) Le matériel de l'organisation : inventaire, prêts et locations,
+    // étiquettes, scanner — remontés dans la liste (31/10) au lieu d'une
+    // seconde rangée d'onglets sous elle.
     ['inventaire', 'Inventaire'],
+    ['prets', 'Prêts et locations'],
+    ['etiquettes', 'Étiquettes'],
+    ['scanner', 'Scanner'],
     ['stocks', 'Stocks'],
     ['attributions', 'Clés & radios'],
     ['radio', 'Matrice radio']
@@ -45,6 +50,7 @@ const GROUPES = [
     ['fournisseurs', 'Fournisseurs']
   ]]
 ]
+const VUES_INVENTAIRE = ['inventaire', 'prets', 'etiquettes', 'scanner']
 const RUBRIQUES = GROUPES.flatMap(([, onglets]) => onglets.map(([k]) => k))
 
 function rubriqueMemorisee() {
@@ -147,8 +153,9 @@ export default function Logistique({ evenement, membre, peut, toutPouvoir, ongle
       {onglet === 'demandes_prix' && (
         <DemandesPrix evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} />
       )}
-      {onglet === 'inventaire' && (
-        <Inventaire evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} />
+      {VUES_INVENTAIRE.includes(onglet) && (
+        <Inventaire evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage}
+          vue={onglet} onVue={setOnglet} />
       )}
       {onglet === 'journal' && (
         <Journal

@@ -164,21 +164,16 @@ export default function Planning({ evenement, peut, toutPouvoir, onAller }) {
         )}
       </div>
 
-      <div className="onglets">
-        {[
-          ['gantt', 'Avant / après'],
-          ['frise', 'Jour J'],
-          ['jalons', 'Jalons']
-        ].map(([k, l]) => (
-          <button
-            key={k}
-            className={`module ${onglet === k ? 'actif' : ''}`}
-            onClick={() => setOnglet(k)}
-          >
-            {l}
-          </button>
-        ))}
-      </div>
+      {/* (31/10, audit d'ergonomie) Une liste, comme les autres écrans,
+          au lieu d'une rangée de boutons. */}
+      <label className="rubrique-logistique rubrique-planning">
+        Vue
+        <select value={onglet} onChange={(e) => setOnglet(e.target.value)} aria-label="Vue du planning">
+          <option value="gantt">Avant / après (jalons sur le temps)</option>
+          <option value="frise">Jour J (créneaux)</option>
+          <option value="jalons">Jalons (liste)</option>
+        </select>
+      </label>
 
       {message && (
         <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
@@ -401,7 +396,7 @@ function Jalons({ evenement, peutCreer, peutGerer, toutPouvoir, setMessage }) {
           return (
             <div className={`carte ${depasse || j.statut === 'rate' ? 'urgent' : ''}`} key={j.id}>
               <div className="titre">
-                <span className="mono">{j.code}</span> — {j.libelle}
+                {j.libelle}<span className="code-discret">{j.code}</span>
                 {j.critique && <span className="jeton alerte-texte"> critique</span>}
               </div>
               <div className="meta">

@@ -52,6 +52,16 @@ export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir 
   const peutRex =
     evenement.modules?.analyse && (toutPouvoir || peut('analyse', 'creer'))
 
+  // (31/10, audit d'ergonomie) Au téléphone, REX quitte la pile flottante
+  // (il recouvrait le contenu sans être une urgence) et s'ouvre depuis le
+  // tiroir « Plus » de la barre du bas, qui envoie cet événement.
+  useEffect(() => {
+    if (!peutRex) return
+    const ouvrirRex = () => setOuvert('rex')
+    window.addEventListener('eventware:rex', ouvrirRex)
+    return () => window.removeEventListener('eventware:rex', ouvrirRex)
+  }, [peutRex])
+
   if (!peutSos && !peutRex && !peutMayday) return null
 
   return (

@@ -260,7 +260,7 @@ function FormArticle({ evenement, lieux, setMessage, onFait }) {
       <select value={lieuId} onChange={(e) => setLieuId(e.target.value)}>
         <option value="">— lieu de stockage (facultatif) —</option>
         {lieux.map((l) => (
-          <option key={l.id} value={l.id}>{l.code} · {l.nom}</option>
+          <option key={l.id} value={l.id}>{l.nom}</option>
         ))}
       </select>
       <button disabled={occupe || !code.trim() || !nom.trim()} onClick={creer} style={{ marginTop: 8 }}>

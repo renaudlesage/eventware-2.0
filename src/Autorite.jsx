@@ -675,26 +675,28 @@ export default function Autorite({ jeton }) {
           Dir-PC-Ops cherche en arrivant. */}
       <Interlocuteurs s={s} />
 
-      <div className="onglets onglets-autorite" role="tablist">
-        {[
-          ['situation', 'Situation'],
-          ['intervention', 'Intervention'],
-          ['dossier', 'Dossier']
-        ].map(([k, lib]) => (
-          <button
-            key={k}
-            role="tab"
-            aria-selected={vue === k}
-            className={`module ${vue === k ? 'actif' : ''}`}
-            onClick={() => setVue(k)}
-          >
-            {lib}
-          </button>
-        ))}
-      </div>
+      {/* (31/10, audit d'ergonomie) Une liste au lieu de deux rangées
+          (Situation / Intervention / Dossier, puis les quatre volets de
+          l'intervention). Elle reste collée en haut au défilement. */}
+      <label className="rubrique-logistique rubrique-autorite">
+        Rubrique
+        <select value={vue} onChange={(e) => setVue(e.target.value)} aria-label="Rubrique de la page">
+          <option value="situation">Situation</option>
+          <optgroup label="Intervention">
+            <option value="i-acces">Accès & secours</option>
+            <option value="i-parcours">Parcours & brancardage</option>
+            <option value="i-ressources">Ressources</option>
+            <option value="i-site">Site & public</option>
+          </optgroup>
+          <option value="dossier">Dossier</option>
+        </select>
+      </label>
 
       {vue === 'situation' && <Situation s={s} maintenant={maintenant} operationnel={operationnel} />}
-      {vue === 'intervention' && <Intervention s={s} />}
+      {vue === 'i-acces' && <Acces s={s} />}
+      {vue === 'i-parcours' && <Brancardage s={s} />}
+      {vue === 'i-ressources' && <Ressources s={s} />}
+      {vue === 'i-site' && <Site s={s} />}
       {vue === 'dossier' && <Dossier s={s} />}
 
       <p className="aide">
@@ -1157,36 +1159,6 @@ function Meteo({ s }) {
 /* ================================================================== */
 /* INTERVENTION                                                        */
 /* ================================================================== */
-
-function Intervention({ s }) {
-  const [sous, setSous] = useState('acces')
-  return (
-    <>
-      <div className="onglets" role="tablist">
-        {[
-          ['acces', 'Accès & secours'],
-          ['parcours', 'Parcours & brancardage'],
-          ['ressources', 'Ressources'],
-          ['site', 'Site & public']
-        ].map(([k, lib]) => (
-          <button
-            key={k}
-            role="tab"
-            aria-selected={sous === k}
-            className={`module ${sous === k ? 'actif' : ''}`}
-            onClick={() => setSous(k)}
-          >
-            {lib}
-          </button>
-        ))}
-      </div>
-      {sous === 'acces' && <Acces s={s} />}
-      {sous === 'parcours' && <Brancardage s={s} />}
-      {sous === 'ressources' && <Ressources s={s} />}
-      {sous === 'site' && <Site s={s} />}
-    </>
-  )
-}
 
 function Element({ e }) {
   return (
