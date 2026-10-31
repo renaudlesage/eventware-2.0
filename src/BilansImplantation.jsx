@@ -33,8 +33,11 @@ const objet = (o) => ({ id: o.id, nom: o.nom })
 const TOILES = new Set(['CHAP', 'TONN', 'PAGODE'])
 const estToile = (o) => /chapiteau|tonnelle|pagode|tente/i.test(o.nom ?? '') || TOILES.has((o.code ?? '').split('-')[0].replace(/\d.*$/, ''))
 
-export default function BilansImplantation({ elements, evenement, onOuvrir }) {
-  const [onglet, setOnglet] = useState('controles')
+export default function BilansImplantation({ elements, evenement, onOuvrir, onglet: ongletImpose, onComptes }) {
+  // (31/10) Le Plan d'implantation choisit la rubrique dans sa liste
+  // déroulante (`onglet`) ; sans elle, la rangée d'onglets d'avant.
+  const [ongletLocal, setOnglet] = useState('controles')
+  const onglet = ongletImpose ?? ongletLocal
   const objets = useMemo(() => elements.filter((e) => e.centre_lat != null && e.largeur_m), [elements])
   const polys = useMemo(() => new Map(objets.map((o) => [o.id, polygoneObjet(o)])), [objets])
   const nom = Object.fromEntries(objets.map((o) => [o.id, o.nom]))
@@ -183,9 +186,14 @@ export default function BilansImplantation({ elements, evenement, onOuvrir }) {
 
   const nbChaud = controles.liste.filter((c) => c.gravite === 'chaud').length
 
+  // Les comptes des rubriques (contrôles, RGIE) remontent à la liste du Plan.
+  useEffect(() => {
+    onComptes?.({ controles: controles.liste.length, rgie: reseau.liste.length })
+  }, [controles.liste.length, reseau.liste.length])
+
   return (
     <div className="impl-bilans">
-      <div className="onglets">
+      {!ongletImpose && <div className="onglets">
         {[
           ['controles', `Contrôles (${controles.liste.length})`],
           ['energie', 'Énergie'],
@@ -196,7 +204,7 @@ export default function BilansImplantation({ elements, evenement, onOuvrir }) {
         ].map(([k, l]) => (
           <button key={k} className={`module ${onglet === k ? 'actif' : ''}`} onClick={() => setOnglet(k)}>{l}</button>
         ))}
-      </div>
+      </div>}
 
       {onglet === 'controles' && (
         <section>

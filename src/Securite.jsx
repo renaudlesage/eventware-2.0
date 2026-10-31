@@ -54,29 +54,19 @@ function groupesPour(modules) {
 
 export default function Securite({ evenement, membre, session, peut, toutPouvoir, ongletCible }) {
   const GROUPES = groupesPour(evenement.modules)
-  const [groupe, setGroupe] = useState('operationnel')
   const [onglet, setOnglet] = useState(
     evenement.modules?.sos_participants ? 'signalements' : 'journal'
   )
   const [message, setMessage] = useState(null)
-
-  function choisirGroupe(g) {
-    setGroupe(g)
-    setOnglet(GROUPES[g].onglets[0][0])
-  }
+  // Le groupe se déduit de la rubrique : la veille météo compacte ne
+  // s'affiche que sur l'opérationnel.
+  const groupe = Object.keys(GROUPES).find((g) => GROUPES[g].onglets.some(([k]) => k === onglet)) ?? 'operationnel'
 
   // Navigation ciblée depuis un autre écran — ex. le pavé « Signalements
-  // ouverts » du tableau de bord — bascule directement sur le bon
-  // groupe et le bon onglet, sans repasser par les valeurs par défaut.
+  // ouverts » du tableau de bord — ouvre directement la bonne rubrique.
   useEffect(() => {
     if (!ongletCible) return
-    for (const [g, { onglets }] of Object.entries(GROUPES)) {
-      if (onglets.some(([k]) => k === ongletCible)) {
-        setGroupe(g)
-        setOnglet(ongletCible)
-        break
-      }
-    }
+    if (Object.values(GROUPES).some(({ onglets }) => onglets.some(([k]) => k === ongletCible))) setOnglet(ongletCible)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ongletCible])
 
@@ -84,17 +74,21 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
     <div className="bloc securite dom-grenat">
       <h2>Sécurité</h2>
 
-      <div className="ligne-boutons groupes-securite" style={{ marginBottom: 10 }}>
-        {Object.entries(GROUPES).map(([g, { libelle }]) => (
-          <button
-            key={g}
-            className={groupe === g ? '' : 'discret'}
-            onClick={() => choisirGroupe(g)}
-          >
-            {libelle}
-          </button>
-        ))}
-      </div>
+      {/* (31/10, retour de Ren) Une liste déroulante au lieu de deux
+          rangées de boutons (Opérationnel / Documents, puis les onglets),
+          comme la Logistique. Pas de mémoire de la rubrique ici : Sécurité
+          s'ouvre toujours sur ce qui se passe (signalements, sinon main
+          courante). */}
+      <label className="rubrique-logistique rubrique-securite">
+        Rubrique
+        <select value={onglet} onChange={(e) => { setOnglet(e.target.value); setMessage(null) }} aria-label="Rubrique de la sécurité">
+          {Object.entries(GROUPES).map(([g, { libelle, onglets }]) => (
+            <optgroup key={g} label={libelle}>
+              {onglets.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </optgroup>
+          ))}
+        </select>
+      </label>
 
       {groupe === 'operationnel' && (
         <Meteo
@@ -105,18 +99,6 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
           autoJournal={false}
         />
       )}
-
-      <div className="onglets">
-        {GROUPES[groupe].onglets.map(([k, l]) => (
-          <button
-            key={k}
-            className={`module ${onglet === k ? 'actif' : ''}`}
-            onClick={() => setOnglet(k)}
-          >
-            {l}
-          </button>
-        ))}
-      </div>
 
       {message && (
         <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>

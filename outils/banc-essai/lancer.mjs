@@ -150,7 +150,20 @@ for (const ecran of ecrans) {
   }
   // (27/10) Sécurité › Effectifs : les DEA et extincteurs du plan sont comptés (1 et 1 dans le faux plan), « Reprendre » proposé.
   if (ecran === 'securite') {
-    await page.getByRole('button', { name: /^Effectifs/ }).first().click().catch(() => {})
+    // (31/10) Une liste déroulante de rubriques : Opérationnel et Documents en intertitres, plus de rangées de boutons.
+    const liste = page.locator('.rubrique-securite select')
+    if (!(await liste.count())) erreurs.push('menu : pas de liste déroulante de rubriques')
+    else {
+      const groupes = await liste.locator('optgroup').evaluateAll((g) => g.map((x) => x.label))
+      if (JSON.stringify(groupes) !== JSON.stringify(['Opérationnel', 'Documents'])) erreurs.push(`menu : groupes ${JSON.stringify(groupes)}`)
+      if (await page.locator('.groupes-securite, .bloc.dom-grenat > .onglets').count()) erreurs.push('menu : des rangées de boutons restent affichées')
+      if ((await liste.inputValue()) !== 'signalements') erreurs.push(`menu : rubrique d'ouverture « ${await liste.inputValue()} » (attendu signalements)`)
+      await liste.selectOption('fiches')
+      await page.waitForTimeout(300)
+      if (await page.locator('.bloc.dom-grenat .meteo-compact').count()) erreurs.push('menu : la veille météo reste affichée sur Documents')
+      await liste.selectOption('effectifs')
+      await page.waitForTimeout(200)
+    }
     await page.waitForTimeout(500)
     const comptes = await page.locator('.moyens-plan').allTextContents()
     if (comptes.length !== 2) erreurs.push(`Effectifs : ${comptes.length} comptes du plan (attendu 2 : DEA, extincteurs)`)
@@ -235,23 +248,30 @@ for (const ecran of ecrans) {
   // Toutes les cartes dessinent le plan comme la conception : calques à
   // cocher, pictogrammes ; décocher un calque retire ses objets.
   if (ecran === 'plan') {
+    // (31/10) Une liste déroulante de rubriques : Concevoir, Bilans, Sur le terrain ; plus de rangées d'onglets.
+    const rubrique = page.locator('.rubrique-plan select')
+    if (!(await rubrique.count())) erreurs.push('menu : pas de liste déroulante de rubriques')
+    else {
+      const groupes = await rubrique.locator('optgroup').evaluateAll((g) => g.map((x) => x.label))
+      if (JSON.stringify(groupes) !== JSON.stringify(['Concevoir', 'Bilans', 'Sur le terrain'])) erreurs.push(`menu : groupes ${JSON.stringify(groupes)}`)
+      if (await page.locator('.bloc.dom-prune > .onglets').count()) erreurs.push('menu : une rangée d’onglets reste affichée')
+    }
+    const aller = async (v) => { await rubrique.selectOption(v).catch(() => {}); await page.waitForTimeout(400) }
     // (144) Accès secours : l'adresse du PRV est affichée, un accès sans adresse le dit.
-    await page.getByRole('button', { name: /^Accès secours/ }).first().click().catch(() => {})
+    await aller('secours')
     await page.waitForTimeout(300)
     if (!(await page.locator('.secours-adresse', { hasText: 'Rue du Vicinal 12' }).count())) erreurs.push('accès secours : l’adresse du PRV n’est pas affichée')
     if (!(await page.getByText('sans adresse').count())) erreurs.push('accès secours : un accès sans adresse ne le dit pas')
     // (28/10) Bilans › Métré : un tracé compte sa longueur (la barrière 40 m en 12 modules, la voie 60 m), un objet sa surface.
-    await page.getByRole('button', { name: /^Bilans$/ }).first().click().catch(() => {})
-    await page.waitForTimeout(400)
-    await page.getByRole('button', { name: /^Métré$/ }).first().click().catch(() => {})
-    await page.waitForTimeout(400)
+    await aller('b-metre')
+    if (await page.locator('.impl-bilans > .onglets').count()) erreurs.push('menu : la rangée d’onglets des bilans reste affichée')
     const longueurs = await page.locator('.bilan-longueur').allTextContents()
     if (!longueurs.some((t) => /^40 m$/.test(t.trim()))) erreurs.push(`métré : longueur de la file de barrières absente (${JSON.stringify(longueurs)})`)
     if (!longueurs.some((t) => /^60 m$/.test(t.trim()))) erreurs.push(`métré : longueur de la voie d’accès secours absente (${JSON.stringify(longueurs)})`)
     if (!(await page.getByText('modules de 3,5 m').count())) erreurs.push('métré : les modules de la barrière ne sont plus indiqués')
     // (28/10) Contrôles : la table dans le PRV se chevauche ; cliquer « Table pliante » ouvre sa fiche dans Conception.
-    await page.getByRole('button', { name: /^Contrôles/ }).first().click().catch(() => {})
-    await page.waitForTimeout(300)
+    await aller('b-controles')
+    if (!/^Contrôles \(\d+\)$/.test((await rubrique.locator('option[value="b-controles"]').textContent()) ?? '')) erreurs.push('menu : le nombre de contrôles n’apparaît pas dans la liste')
     const objetControle = page.locator('.bilan-objet', { hasText: 'Table pliante' }).first()
     if (!(await objetControle.count())) erreurs.push('contrôles : « Table pliante » n’est pas cliquable')
     // (29/10) Le frigo entièrement dans le PRV est intégré : aucun chevauchement ne le cite.
@@ -264,12 +284,10 @@ for (const ecran of ecrans) {
       // (144) La fiche a le champ Adresse et la recherche depuis la position.
       if (!(await page.locator('.impl-adresse').count())) erreurs.push('fiche : champ Adresse absent')
       if (!(await page.locator('.impl-adresse-chercher').count())) erreurs.push('fiche : « Trouver l’adresse depuis la position » absent')
-      await page.getByRole('button', { name: /^Bilans$/ }).first().click().catch(() => {})
-      await page.waitForTimeout(300)
+      if ((await rubrique.inputValue()) !== 'conception') erreurs.push('contrôles : la liste ne passe pas sur Conception à l’ouverture d’une fiche')
     }
-    const onglet = page.getByRole('button', { name: /^Carte$/ })
-    if (await onglet.count()) await onglet.first().click()
-    await page.waitForTimeout(800)
+    await aller('carte')
+    await page.waitForTimeout(400)
   }
   if (ecran === 'situation') {
     const deplier = page.getByRole('button', { name: /^Déplier$/ })
