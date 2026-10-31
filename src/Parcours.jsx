@@ -28,40 +28,18 @@ export default function Parcours({ evenement, membre, peut, toutPouvoir }) {
     <div className="bloc securite dom-mousse">
       <h2>Parcours</h2>
 
-      <div className="onglets">
-        {individuels && (
-          <button
-            className={`module ${vue === 'flux' ? 'actif' : ''}`}
-            onClick={() => setVue('flux')}
-          >
-            Comptage
-          </button>
-        )}
-        <button
-          className={`module ${vue === 'qg' ? 'actif' : ''}`}
-          onClick={() => setVue('qg')}
-        >
-          Suivi QG
-        </button>
-        <button
-          className={`module ${vue === 'terrain' ? 'actif' : ''}`}
-          onClick={() => setVue('terrain')}
-        >
-          Pointage terrain
-        </button>
-        <button
-          className={`module ${vue === 'trace' ? 'actif' : ''}`}
-          onClick={() => setVue('trace')}
-        >
-          Trace
-        </button>
-        <button
-          className={`module ${vue === 'segments' ? 'actif' : ''}`}
-          onClick={() => setVue('segments')}
-        >
-          Segments
-        </button>
-      </div>
+      {/* (31/10, audit d'ergonomie) Une liste, comme les autres modules,
+          au lieu d'une rangée de quatre ou cinq boutons. */}
+      <label className="rubrique-logistique rubrique-parcours">
+        Rubrique
+        <select value={vue} onChange={(e) => setVue(e.target.value)} aria-label="Rubrique du parcours">
+          {individuels && <option value="flux">Comptage</option>}
+          <option value="qg">Suivi QG</option>
+          <option value="terrain">Pointage terrain</option>
+          <option value="trace">Trace</option>
+          <option value="segments">Segments</option>
+        </select>
+      </label>
 
       {message && (
         <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>

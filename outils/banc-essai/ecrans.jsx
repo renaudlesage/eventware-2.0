@@ -10,6 +10,13 @@ import Implantation from '../../src/Implantation.jsx'
 import PlanImplantation from '../../src/PlanImplantation.jsx'
 import Planning from '../../src/Planning.jsx'
 import Point0 from '../../src/Point0.jsx'
+import Dashboard from '../../src/Dashboard.jsx'
+import Preparation from '../../src/Preparation.jsx'
+import Reglages from '../../src/Reglages.jsx'
+import Rh from '../../src/Rh.jsx'
+import Parcours from '../../src/Parcours.jsx'
+import Analyse from '../../src/Analyse.jsx'
+import Memento from '../../src/Memento.jsx'
 import BandeauEtat from '../../src/BandeauEtat.jsx'
 import BarreOnglets from '../../src/BarreOnglets.jsx'
 import { DONNEES } from './faux-supabase.js'
@@ -32,6 +39,14 @@ export const ECRANS = {
         ecrans={[{ clef: 'accueil', libelle: 'Mon poste' }, { clef: 'securite', libelle: 'Sécurité' }, { clef: 'planning', libelle: 'Planning' }, { clef: 'logistique', libelle: 'Logistique' }]} />
     </>
   ),
+  // (31/10) Les écrans qui manquaient au banc : Mon poste, Préparation, Réglages, Bénévoles, Parcours, Analyse, Mémento.
+  accueil: () => <Dashboard evenement={{ ...evenement, phase: 'preparation' }} membre={membre} session={session} peut={peut} toutPouvoir onFait={() => {}} onAller={() => {}} setMessage={() => {}} />,
+  preparation: () => <Preparation evenement={{ ...evenement, phase: 'preparation' }} membre={membre} peut={peut} toutPouvoir setMessage={() => {}} />,
+  reglages: () => <Reglages membre={membre} evenement={{ ...evenement, phase: 'preparation', organisation_id: 'org1' }} session={session} exploitant={false} peut={peut} toutPouvoir onRecharger={() => {}} setMessage={() => {}} />,
+  rh: () => <Rh evenement={evenement} membre={membre} peut={peut} toutPouvoir onRecharger={() => {}} />,
+  parcours: () => <Parcours evenement={evenement} membre={membre} peut={peut} toutPouvoir />,
+  analyse: () => <Analyse evenement={{ ...evenement, modules: { ...evenement.modules, analyse: true } }} membre={membre} peut={peut} toutPouvoir />,
+  memento: () => <Memento evenement={evenement} />,
   securite: () => <Securite evenement={evenement} membre={membre} session={session} peut={peut} toutPouvoir />,
   situation: () => <Situation evenement={evenement} peut={peut} toutPouvoir onAller={() => {}} />,
   terrain: () => <Terrain evenement={evenement} membre={membre} />,

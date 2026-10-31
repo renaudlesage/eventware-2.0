@@ -33,17 +33,14 @@ export default function Rh({ evenement, membre, peut, toutPouvoir, onRecharger }
     <div className="bloc securite dom-azur">
       <h2>Bénévoles</h2>
 
-      <div className="onglets">
-          {ongletsPour(peut, toutPouvoir).map(([k, l]) => (
-            <button
-              key={k}
-              className={`module ${onglet === k ? 'actif' : ''}`}
-              onClick={() => setOnglet(k)}
-            >
-              {l}
-            </button>
-          ))}
-      </div>
+      {/* (31/10, audit d'ergonomie) Une liste, comme les autres modules :
+          cinq onglets débordaient de l'écran. */}
+      <label className="rubrique-logistique rubrique-rh">
+        Rubrique
+        <select value={onglet} onChange={(e) => setOnglet(e.target.value)} aria-label="Rubrique des bénévoles">
+          {ongletsPour(peut, toutPouvoir).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </select>
+      </label>
 
       {message && (
         <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>

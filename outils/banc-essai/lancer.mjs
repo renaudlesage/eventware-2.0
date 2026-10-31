@@ -45,7 +45,12 @@ await esbuild.build({
   format: 'iife',
   platform: 'browser',
   jsx: 'automatic',
-  plugins: [{ name: 'faux-supabase', setup(b) { b.onResolve({ filter: /supabaseClient$/ }, () => ({ path: path.join(ici, 'faux-supabase.js') })) } }],
+  plugins: [{ name: 'faux-supabase', setup(b) {
+    b.onResolve({ filter: /supabaseClient$/ }, () => ({ path: path.join(ici, 'faux-supabase.js') }))
+    // (31/10) docx (export Word des Réglages) réclame « buffer » de Node ; le banc n'exporte rien.
+    b.onResolve({ filter: /^buffer$/ }, () => ({ path: 'buffer', namespace: 'vide' }))
+    b.onLoad({ filter: /.*/, namespace: 'vide' }, () => ({ contents: 'export const Buffer = globalThis.Buffer; export default {}', loader: 'js' }))
+  } }],
   define: { 'import.meta.env': '{"PROD":false,"VITE_SUPABASE_URL":"http://localhost","VITE_SUPABASE_ANON_KEY":"k"}', 'process.env.NODE_ENV': '"development"' },
   loader: { '.jsx': 'jsx', '.css': 'empty', '.svg': 'dataurl', '.png': 'dataurl' },
   logLevel: 'error'
@@ -58,7 +63,7 @@ fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><me
 fs.writeFileSync(path.join(sortie, 'page-tel.html'), '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"><link rel="stylesheet" href="../../src/mobile.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
 
 const demandes = process.argv.slice(2)
-const ecrans = demandes.length ? demandes : ['coquille', 'securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0']
+const ecrans = demandes.length ? demandes : ['coquille', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0']
 const navigateur = await pw.chromium.launch()
 let echecs = 0
 for (const ecran of ecrans) {
@@ -767,6 +772,19 @@ for (const ecran of ecrans) {
   if (m.petits.length) erreurs.push(`champs sous 16 px (zoom iPhone) : ${[...new Set(m.petits)].slice(0, 4).join(', ')}`)
   if (erreurs.length) echecs++
   console.log(`${erreurs.length ? '✗' : '✓'} téléphone ${ecran}${erreurs.length ? '\n    ' + erreurs.join('\n    ') : ''}`)
+  await page.close()
+}
+// (31/10) Passe tablette tactile, 1024 × 768 sans souris : aucun champ éditable sous 16 px (Safari iPad zoome aussi).
+for (const ecran of ecrans) {
+  const page = await navigateur.newPage({ viewport: { width: 1024, height: 768 }, isMobile: true, hasTouch: true })
+  page.on('pageerror', () => {})
+  await page.goto('file://' + path.join(sortie, 'page-tel.html') + '?ecran=' + ecran, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1200)
+  const petits = await page.evaluate(() => [...document.querySelectorAll('#racine input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), #racine select, #racine textarea')]
+    .filter((el) => el.offsetParent && !el.disabled && parseFloat(getComputedStyle(el).fontSize) < 16)
+    .map((el) => `${el.tagName.toLowerCase()}.${el.className} ${getComputedStyle(el).fontSize}`))
+  if (petits.length) { echecs++; console.log(`✗ tablette ${ecran}\n    champs sous 16 px : ${[...new Set(petits)].slice(0, 4).join(', ')}`) }
+  else console.log(`✓ tablette ${ecran}`)
   await page.close()
 }
 await navigateur.close()

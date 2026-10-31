@@ -485,3 +485,23 @@
      tous les domaines sur un écran. */
   .colonne-domaine.replie { padding-bottom: 8px; }
 }
+
+/* ===================================================================
+   (31/10, audit d'ergonomie) Écrans tactiles de toute taille — tablette
+   comprise. Le seuil de 700 px ci-dessus ne voyait que le téléphone :
+   sur un iPad, les champs en 15 px faisaient zoomer Safari à la mise au
+   point, et les onglets de 30 px se visaient mal au doigt. Ces deux
+   règles ne dépendent pas de la largeur mais de l'absence de souris.
+   =================================================================== */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),
+  select,
+  textarea { font-size: 16px !important; }
+
+  button { min-height: 40px; }
+  button.lien { min-height: 0; }
+
+  /* La pastille de couleur d'un groupe (Préparation) : 18 px, c'était
+     viser une tête d'épingle. */
+  .palette .palette-bouton { width: 28px !important; height: 28px !important; }
+}

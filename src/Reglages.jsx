@@ -95,17 +95,14 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
 
   return (
     <>
-      <div className="onglets">
-        {PANNEAUX.map(([k, l]) => (
-          <button
-            key={k}
-            className={`module ${panneau === k ? 'actif' : ''}`}
-            onClick={() => setPanneau(k)}
-          >
-            {l}
-          </button>
-        ))}
-      </div>
+      {/* (31/10, audit d'ergonomie) Une liste, comme les autres modules :
+          six onglets débordaient de l'écran, « Mon compte » hors champ. */}
+      <label className="rubrique-logistique rubrique-reglages">
+        Rubrique
+        <select value={panneau} onChange={(e) => setPanneau(e.target.value)} aria-label="Rubrique des réglages">
+          {PANNEAUX.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </select>
+      </label>
 
       {panneau === 'dispositif' && (
         <>
