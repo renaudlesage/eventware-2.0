@@ -120,6 +120,9 @@ export default function DemandesPrix({ evenement, membre, peut, toutPouvoir, set
       {visibles.length === 0 ? (
         <p className="vide">{lignes.length ? 'Aucune demande ne répond au filtre.' : 'Aucune demande de prix. Crée la première : objet, lignes, puis consulte des fournisseurs de l’annuaire.'}</p>
       ) : (
+        // (31/10, audit d'ergonomie) Huit colonnes ne tiennent pas sur un téléphone : le tableau défile seul,
+        // au lieu de faire glisser toute la page de côté.
+        <div className="tableau-defilant">
         <table className="tableau dp-liste">
           <thead>
             <tr><th>Réf.</th><th>Objet</th><th>Catégorie</th><th>Statut</th><th>Date limite</th><th>Offres</th><th>Meilleure</th><th>Retenu</th></tr>
@@ -139,6 +142,7 @@ export default function DemandesPrix({ evenement, membre, peut, toutPouvoir, set
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   )

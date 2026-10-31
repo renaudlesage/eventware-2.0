@@ -54,6 +54,8 @@ await esbuild.build({
 // hauteur (taille 0 × 0) fait tourner Leaflet en boucle au cadrage, et la
 // page ne répond plus — ce n'est pas un bogue de l'écran.
 fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
+// (31/10) La même page au format téléphone, comme l'application : balise viewport et couche mobile.css.
+fs.writeFileSync(path.join(sortie, 'page-tel.html'), '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"><link rel="stylesheet" href="../../src/mobile.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
 
 const demandes = process.argv.slice(2)
 const ecrans = demandes.length ? demandes : ['securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0']
@@ -735,6 +737,26 @@ for (const ecran of ecrans) {
   if (!texte.trim()) erreurs.push('rien de rendu')
   if (erreurs.length) echecs++
   console.log(`${erreurs.length ? '✗' : '✓'} ${ecran}${erreurs.length ? '\n    ' + erreurs.join('\n    ') : ' — ' + texte.slice(0, 90)}`)
+  await page.close()
+}
+// (31/10, audit d'ergonomie) Passe téléphone, 390 × 844 : aucun écran ne glisse de côté, aucun champ
+// éditable sous 16 px (l'iPhone zoomerait à la mise au point).
+for (const ecran of ecrans) {
+  const page = await navigateur.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+  page.on('pageerror', () => {})
+  await page.goto('file://' + path.join(sortie, 'page-tel.html') + '?ecran=' + ecran, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1500)
+  const m = await page.evaluate(() => ({
+    largeur: document.documentElement.scrollWidth,
+    petits: [...document.querySelectorAll('#racine input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), #racine select, #racine textarea')]
+      .filter((el) => el.offsetParent && !el.disabled && parseFloat(getComputedStyle(el).fontSize) < 16)
+      .map((el) => `${el.tagName.toLowerCase()}.${el.className} ${getComputedStyle(el).fontSize}`)
+  }))
+  const erreurs = []
+  if (m.largeur > 392) erreurs.push(`la page fait ${m.largeur} px de large sur un téléphone de 390 px`)
+  if (m.petits.length) erreurs.push(`champs sous 16 px (zoom iPhone) : ${[...new Set(m.petits)].slice(0, 4).join(', ')}`)
+  if (erreurs.length) echecs++
+  console.log(`${erreurs.length ? '✗' : '✓'} téléphone ${ecran}${erreurs.length ? '\n    ' + erreurs.join('\n    ') : ''}`)
   await page.close()
 }
 await navigateur.close()

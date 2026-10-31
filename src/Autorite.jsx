@@ -283,8 +283,9 @@ function Carte({ s }) {
 function CadrerAutorite({ pts }) {
   const carte = useMap()
   useEffect(() => {
-    if (pts.length === 1) carte.setView(pts[0], 17)
-    else if (pts.length) carte.fitBounds(pts, { padding: [24, 24], maxZoom: 18 })
+    // Sans animation : un cadrage animé, démonté en route (bascule vers le dessin, plein écran), lève « _leaflet_pos ».
+    if (pts.length === 1) carte.setView(pts[0], 17, { animate: false })
+    else if (pts.length) carte.fitBounds(pts, { padding: [24, 24], maxZoom: 18, animate: false })
   }, [carte, pts.length])
   return null
 }

@@ -516,13 +516,13 @@ function Cadrer({ elements, point0 }) {
   const carte = useMap()
   useEffect(() => {
     if (point0) {
-      carte.setView(point0, 18)
+      carte.setView(point0, 18, { animate: false })
       // Repère lisible (banc d'essai, inspection) : sur quoi la carte s'est cadrée.
       carte.getContainer().dataset.cadrage = 'point0'
       return
     }
     const pts = elements.flatMap((e) => e.geometrie ?? [])
-    if (pts.length) carte.fitBounds(pts, { padding: [30, 30], maxZoom: 18 })
+    if (pts.length) carte.fitBounds(pts, { padding: [30, 30], maxZoom: 18, animate: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elements.length, point0?.[0], point0?.[1]])
   return null
