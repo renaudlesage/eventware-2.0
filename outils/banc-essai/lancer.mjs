@@ -150,7 +150,20 @@ for (const ecran of ecrans) {
   }
   // (27/10) Sécurité › Effectifs : les DEA et extincteurs du plan sont comptés (1 et 1 dans le faux plan), « Reprendre » proposé.
   if (ecran === 'securite') {
-    await page.getByRole('button', { name: /^Effectifs/ }).first().click().catch(() => {})
+    // (31/10) Une liste déroulante de rubriques : Opérationnel et Documents en intertitres, plus de rangées de boutons.
+    const liste = page.locator('.rubrique-securite select')
+    if (!(await liste.count())) erreurs.push('menu : pas de liste déroulante de rubriques')
+    else {
+      const groupes = await liste.locator('optgroup').evaluateAll((g) => g.map((x) => x.label))
+      if (JSON.stringify(groupes) !== JSON.stringify(['Opérationnel', 'Documents'])) erreurs.push(`menu : groupes ${JSON.stringify(groupes)}`)
+      if (await page.locator('.groupes-securite, .bloc.dom-grenat > .onglets').count()) erreurs.push('menu : des rangées de boutons restent affichées')
+      if ((await liste.inputValue()) !== 'signalements') erreurs.push(`menu : rubrique d'ouverture « ${await liste.inputValue()} » (attendu signalements)`)
+      await liste.selectOption('fiches')
+      await page.waitForTimeout(300)
+      if (await page.locator('.bloc.dom-grenat .meteo-compact').count()) erreurs.push('menu : la veille météo reste affichée sur Documents')
+      await liste.selectOption('effectifs')
+      await page.waitForTimeout(200)
+    }
     await page.waitForTimeout(500)
     const comptes = await page.locator('.moyens-plan').allTextContents()
     if (comptes.length !== 2) erreurs.push(`Effectifs : ${comptes.length} comptes du plan (attendu 2 : DEA, extincteurs)`)
