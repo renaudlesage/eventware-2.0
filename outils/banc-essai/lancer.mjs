@@ -387,6 +387,21 @@ for (const ecran of ecrans) {
   }
   // (29/10) Demandes : la nouvelle demande a ses catégories ; le lieu se cherche par son nom, sans code.
   if (ecran === 'logistique') {
+    // (31/10) Le menu en trois groupes : Exploitation, Matériel, Achats ; dessous, les seuls onglets du groupe.
+    const groupes = await page.locator('.groupes-logistique button').allTextContents()
+    if (JSON.stringify(groupes) !== JSON.stringify(['Exploitation', 'Matériel', 'Achats'])) erreurs.push(`menu : groupes ${JSON.stringify(groupes)}`)
+    await page.locator('.groupes-logistique button', { hasText: 'Achats' }).click()
+    await page.waitForTimeout(200)
+    const achats = await page.locator('.bloc.dom-bronze > .onglets button').allTextContents()
+    if (JSON.stringify(achats) !== JSON.stringify(['Demandes de prix', 'Fournisseurs'])) erreurs.push(`menu : onglets d’Achats ${JSON.stringify(achats)}`)
+    await page.locator('.groupes-logistique button', { hasText: 'Matériel' }).click()
+    await page.waitForTimeout(200)
+    const materiel = await page.locator('.bloc.dom-bronze > .onglets button').allTextContents()
+    if (JSON.stringify(materiel) !== JSON.stringify(['Inventaire', 'Stocks', 'Clés & radios', 'Matrice radio'])) erreurs.push(`menu : onglets de Matériel ${JSON.stringify(materiel)}`)
+    await page.locator('.groupes-logistique button', { hasText: 'Exploitation' }).click()
+    await page.waitForTimeout(300)
+    const exploitation = await page.locator('.bloc.dom-bronze > .onglets button').allTextContents()
+    if (JSON.stringify(exploitation) !== JSON.stringify(['Demandes', 'Transports', 'Jauge', 'Main courante'])) erreurs.push(`menu : onglets d’Exploitation ${JSON.stringify(exploitation)}`)
     await page.getByRole('button', { name: /Nouvelle demande/ }).first().click().catch(() => {})
     await page.waitForTimeout(300)
     const categories = await page.locator('#type-normale option').count()

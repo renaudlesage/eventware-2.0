@@ -10,39 +10,103 @@ import Fournisseurs from './Fournisseurs'
 import DemandesPrix from './DemandesPrix'
 import Inventaire from './Inventaire'
 
-const ONGLETS = [
-  ['interventions', 'Demandes'],
-  ['stocks', 'Stocks'],
-  ['attributions', 'Clés & radios'],
-  ['radio', 'Matrice radio'],
-  ['jauge', 'Jauge'],
-  ['transports', 'Transports'],
-  // (130, 131) L'annuaire de l'organisation et les demandes de prix de l'événement.
-  ['fournisseurs', 'Fournisseurs'],
-  ['demandes_prix', 'Demandes de prix'],
-  // (138) Le matériel de l'organisation : inventaire, prêts et locations.
-  ['inventaire', 'Matériel'],
-  ['journal', 'Main courante']
-]
+/**
+ * (31/10, retour de Ren) Dix onglets sur une seule rangée, ça ne se lisait
+ * plus. Trois groupes, comme Sécurité (Opérationnel / Documents), et
+ * dessous les seuls onglets du groupe :
+ *
+ *   EXPLOITATION — ce qui se passe : demandes, transports, jauge,
+ *                  main courante. Le jour J.
+ *   MATÉRIEL     — ce qu'on a et où c'est : inventaire de l'organisation,
+ *                  stocks de l'événement, clés & radios, matrice radio.
+ *   ACHATS       — ce qu'on commande : demandes de prix, fournisseurs.
+ *
+ * Le groupe ouvert est mémorisé sur l'appareil ; un lien ciblé (pavé de
+ * Mon poste, étiquette scannée) ouvre le bon groupe et le bon onglet.
+ */
+const GROUPES = {
+  exploitation: {
+    libelle: 'Exploitation',
+    onglets: [
+      ['interventions', 'Demandes'],
+      ['transports', 'Transports'],
+      ['jauge', 'Jauge'],
+      ['journal', 'Main courante']
+    ]
+  },
+  materiel: {
+    libelle: 'Matériel',
+    onglets: [
+      // (138) Le matériel de l'organisation : inventaire, prêts et locations.
+      ['inventaire', 'Inventaire'],
+      ['stocks', 'Stocks'],
+      ['attributions', 'Clés & radios'],
+      ['radio', 'Matrice radio']
+    ]
+  },
+  achats: {
+    libelle: 'Achats',
+    onglets: [
+      // (130, 131) Les demandes de prix de l'événement et l'annuaire de l'organisation.
+      ['demandes_prix', 'Demandes de prix'],
+      ['fournisseurs', 'Fournisseurs']
+    ]
+  }
+}
+const groupeDe = (onglet) => Object.keys(GROUPES).find((g) => GROUPES[g].onglets.some(([k]) => k === onglet))
+
+function groupeMemorise() {
+  try {
+    const g = localStorage.getItem('logistique.groupe')
+    return GROUPES[g] ? g : 'exploitation'
+  } catch {
+    return 'exploitation'
+  }
+}
 
 export default function Logistique({ evenement, membre, peut, toutPouvoir, ongletCible }) {
-  const [onglet, setOnglet] = useState('interventions')
+  const [groupe, setGroupe] = useState(groupeMemorise)
+  const [onglet, setOnglet] = useState(() => GROUPES[groupeMemorise()].onglets[0][0])
   const [message, setMessage] = useState(null)
 
-  // Navigation ciblée depuis un autre écran (le pavé « Demandes de
-  // prix » de Mon poste) : on ouvre directement le bon onglet.
   useEffect(() => {
-    if (ongletCible && ONGLETS.some(([k]) => k === ongletCible)) setOnglet(ongletCible)
+    try { localStorage.setItem('logistique.groupe', groupe) } catch {}
+  }, [groupe])
+
+  function choisirGroupe(g) {
+    setGroupe(g)
+    setOnglet(GROUPES[g].onglets[0][0])
+    setMessage(null)
+  }
+
+  // Navigation ciblée depuis un autre écran (le pavé « Demandes de
+  // prix » de Mon poste, une étiquette de matériel scannée) : on ouvre
+  // directement le bon groupe et le bon onglet.
+  useEffect(() => {
+    const g = ongletCible && groupeDe(ongletCible)
+    if (!g) return
+    setGroupe(g)
+    setOnglet(ongletCible)
   }, [ongletCible])
 
   return (
     <div className="bloc securite dom-bronze">
       <h2>Logistique</h2>
 
-      <div className="onglets">
-        {ONGLETS.map(([k, l]) => (
+      <div className="ligne-boutons groupes-logistique" role="tablist" aria-label="Groupes de la logistique" style={{ marginBottom: 10 }}>
+        {Object.entries(GROUPES).map(([g, { libelle }]) => (
+          <button key={g} role="tab" aria-selected={groupe === g} className={groupe === g ? '' : 'discret'} onClick={() => choisirGroupe(g)}>
+            {libelle}
+          </button>
+        ))}
+      </div>
+
+      <div className="onglets" role="tablist" aria-label={GROUPES[groupe].libelle}>
+        {GROUPES[groupe].onglets.map(([k, l]) => (
           <button
             key={k}
+            role="tab"
+            aria-selected={onglet === k}
             className={`module ${onglet === k ? 'actif' : ''}`}
             onClick={() => setOnglet(k)}
           >
