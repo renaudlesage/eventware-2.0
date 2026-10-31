@@ -480,9 +480,13 @@ function Carte({ elements, evenement, position }) {
   const [fondCarte, setFondCarte] = useFondCarte('plan')
   // (21/10) Le même dessin et les mêmes calques que la conception.
   const [calques, basculer] = useCalques()
-  const centre =
-    elements[0]?.geometrie?.[0] ??
-    (evenement.point_0_lat ? [evenement.point_0_lat, evenement.point_0_lon] : [50.38212, 5.61679])
+  // (31/10, retour de Ren) Comme la Conception : la carte s'ouvre sur le
+  // point zéro, au zoom du site. Cadrée sur tous les objets, un picto posé
+  // à deux kilomètres suffisait à la dézoomer jusqu'au paysage.
+  const point0 = evenement.point_0_lat != null && evenement.point_0_lon != null
+    ? [Number(evenement.point_0_lat), Number(evenement.point_0_lon)]
+    : null
+  const centre = point0 ?? elements[0]?.geometrie?.[0] ?? [50.38212, 5.61679]
 
   if (!elements.length) return <p className="vide">Aucun élément localisé.</p>
 
@@ -501,19 +505,26 @@ function Carte({ elements, evenement, position }) {
               pathOptions={{ color: '#1d5c4f', fillColor: '#fff', fillOpacity: 1 }}
             />
           )}
-          <Cadrer elements={elements} />
+          <Cadrer elements={elements} point0={point0} />
         </MapContainer>
       </div>
     </>
   )
 }
 
-function Cadrer({ elements }) {
+function Cadrer({ elements, point0 }) {
   const carte = useMap()
   useEffect(() => {
+    if (point0) {
+      carte.setView(point0, 18)
+      // Repère lisible (banc d'essai, inspection) : sur quoi la carte s'est cadrée.
+      carte.getContainer().dataset.cadrage = 'point0'
+      return
+    }
     const pts = elements.flatMap((e) => e.geometrie ?? [])
     if (pts.length) carte.fitBounds(pts, { padding: [30, 30], maxZoom: 18 })
-  }, [elements.length])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [elements.length, point0?.[0], point0?.[1]])
   return null
 }
 

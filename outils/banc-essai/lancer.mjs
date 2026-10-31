@@ -288,6 +288,8 @@ for (const ecran of ecrans) {
     }
     await aller('carte')
     await page.waitForTimeout(400)
+    // (31/10) La carte s'ouvre sur le point zéro au zoom 18, comme la Conception, pas cadrée sur tous les objets.
+    if (!(await page.locator('.leaflet-container[data-cadrage="point0"]').count())) erreurs.push('carte : pas cadrée sur le point zéro')
   }
   if (ecran === 'situation') {
     const deplier = page.getByRole('button', { name: /^Déplier$/ })
