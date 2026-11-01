@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { enAttente, surChangement } from './fileEcritures'
+import { phaseDeJalon, phasesDatees, LIBELLE_PHASE } from './phases'
 
 /**
  * Le bandeau d'état — ce qu'on regarde toutes les trente secondes.
@@ -85,8 +86,15 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
       const extras = []
       const dans7j = new Date(Date.now() + 7 * 86400000).toISOString()
       if (encadre && phaseEv === 'preparation') {
-        extras.push(['jalons7', supabase.from('jalons').select('id', { count: 'exact', head: true })
-          .eq('evenement_id', evenement.id).is('deleted_at', null).in('statut', ['a_venir', 'en_cours']).gte('echeance', maintenant).lte('echeance', dans7j)])
+        // (152) Avec les dates de l'événement, on compte les jalons restants
+        // de la phase ; sans elles, ceux des sept prochains jours.
+        if (phasesDatees(evenement)) {
+          extras.push(['jalonsPhase', supabase.from('jalons').select('id, echeance, phase_cible')
+            .eq('evenement_id', evenement.id).is('deleted_at', null).in('statut', ['a_venir', 'en_cours'])])
+        } else {
+          extras.push(['jalons7', supabase.from('jalons').select('id', { count: 'exact', head: true })
+            .eq('evenement_id', evenement.id).is('deleted_at', null).in('statut', ['a_venir', 'en_cours']).gte('echeance', maintenant).lte('echeance', dans7j)])
+        }
         extras.push(['demandesPrix', supabase.rpc('demandes_prix_vue', { p_evenement: evenement.id })])
       }
       if (encadre && (phaseEv === 'preparation' || phaseEv === 'montage')) {
@@ -127,6 +135,8 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
           } else if (cle === 'couverture') {
             const now = Date.now()
             info.postesDecouverts = (res.data ?? []).filter((c) => new Date(c.fin).getTime() >= now && c.manque > 0).length
+          } else if (cle === 'jalonsPhase') {
+            info.jalonsPhase = (res.data ?? []).filter((j) => phaseDeJalon(evenement, j) === phaseEv).length
           } else if (cle === 'charge') {
             const syn = Array.isArray(res.data) ? res.data[0] : res.data
             info.charge = syn ? { lieux3: syn.lieux_niveau_3 ?? 0, grappes: syn.grappes ?? 0 } : null
@@ -213,7 +223,9 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
     chaud: evenement.frequentation_max > 0 && s?.logistique?.jauge >= 0.9 * evenement.frequentation_max,
     aller: ['logistique']
   }
-  const cJalons7 = { valeur: phase.jalons7 ?? null, libelle: 'Jalons sous 7 jours', aller: ['planning'] }
+  const cJalons7 = phasesDatees(evenement)
+    ? { valeur: phase.jalonsPhase ?? null, libelle: `Jalons de la phase · ${LIBELLE_PHASE[phaseEv] ?? phaseEv}`, aller: ['planning'] }
+    : { valeur: phase.jalons7 ?? null, libelle: 'Jalons sous 7 jours', aller: ['planning'] }
   const cDemandesPrix = {
     valeur: phase.dpOuvertes ?? null,
     libelle: phase.dpRetard ? `Demandes de prix ouvertes · ${phase.dpRetard} en retard` : 'Demandes de prix ouvertes',

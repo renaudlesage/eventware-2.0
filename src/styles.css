@@ -3488,3 +3488,8 @@ body.qg-actif { overflow: hidden; }
   .qg-carte .carte-conteneur { height: 300px !important; min-height: 0; }
   .qg-file { max-height: 55vh; }
 }
+
+/* (152) Les jalons par phase dans Préparation ; la phase suggérée dans Réglages. */
+.phase-titre { margin-top: 14px; }
+.phase-titre.phase-courante { color: var(--encre); }
+.phase-suggeree { margin-top: 8px; }

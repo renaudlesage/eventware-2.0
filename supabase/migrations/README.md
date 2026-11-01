@@ -546,7 +546,27 @@ Appliquée et inscrite (version 20261031120000).
 
 Appliquée et inscrite (version 20261031130000).
 
-## Ne jamais rejouer 088 → 151 par `db push` sans les lignes ci-dessus
+### 152 : appliquée le 1/11 (par Claude, via l'outil Supabase) — la phase d'un jalon, clôture comprise
+
+| Fichier | Fait |
+|---|---|
+| `20261101090000_152_gantt_phase_cloture.sql` | `gantt()` redéfinie (base 129) : la phase déduite de l'échéance va jusqu'à la clôture (après la fin du démontage) ; tri des phases avec la clôture. Aucun DROP |
+
+Appliquée et inscrite (version 20261101090000).
+
+### 153 : appliquée le 1/11 (par Claude, via l'outil Supabase) — heures du soleil calculées
+
+| Fichier | Fait |
+|---|---|
+| `20261101200000_153_heures_soleil_calculees.sql` | `heure_soleil(lat, lon, jour, quoi)` : lever, coucher, début et fin des crépuscules civil et nautique (algorithme NOAA, ± 1 min sous nos latitudes, null en nuit ou jour polaires). Puis `generer_exercice` est rebranchée **en place** (sa définition est lue en base, le seul passage « table par mois » est remplacé, droits et `security definer` intacts) : la clé `coucher_soleil` est calculée au point 0 de l'événement à sa date (à défaut, centre de la province de Liège), et la clé `fin_crepuscule_civil` apparaît (aucune trame ne la cite encore). Aucun DROP |
+
+Pourquoi : la table à une valeur par mois (120, reprise en 128) se trompait de plus de 15 min 131 jours sur 365 (pire : 94 min le 31/10, à cause des changements d'heure). Rando VTT 11/11 : table 17h10, réel 16h57 ; Concert Buco 28/11 : table 17h10, réel 16h39.
+
+Vérification : `../verifications/153-soleil.sql` (attendu 16:57, 17:33, 16:39, 21:59 puis deux `true`) ; implémentation Python indépendante et calcul des écarts dans `../../outils/soleil/`. Les exercices déjà générés gardent l'heure de la table dans leur texte.
+
+Appliquée et inscrite (version 20261101200000).
+
+## Ne jamais rejouer 088 → 153 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

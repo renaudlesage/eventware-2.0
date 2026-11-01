@@ -685,7 +685,8 @@ for (const ecran of ecrans) {
         if (!(await choix.count())) erreurs.push('fournisseur : pas de liste tirée de l’annuaire dans la fiche')
         else {
           const n = await choix.locator('option').count()
-          if (n !== 5) erreurs.push(`fournisseur : ${n} options (attendu 5 : aucun, trois fournisseurs, autre)`)
+          // (1/11) Quatre depuis que « Généraliste SA » (f4) est dans l'annuaire.
+          if (n !== 6) erreurs.push(`fournisseur : ${n} options (attendu 6 : aucun, quatre fournisseurs, autre)`)
           await page.evaluate(() => { window.__ecritures = [] })
           await choix.selectOption('Clôtures Dupont')
           await page.waitForTimeout(200)
@@ -817,6 +818,20 @@ for (const ecran of ecrans) {
       return s && c ? Math.round(c.getBoundingClientRect().bottom - s.getBoundingClientRect().bottom) : 0
     })
     if (debord > 0) erreurs.push(`carte tactique dépliée : déborde de ${debord} px sous son bloc au téléphone`)
+  }
+  // (152) Préparation : les jalons rangés par phase — « Commande chapiteau » (daté en montage) est forcé en préparation.
+  if (ecran === 'preparation') {
+    const titres = await page.locator('.phase-titre').allTextContents()
+    if (!titres.some((t) => /^Préparation \(2\)/.test(t))) erreurs.push(`jalons par phase : « Préparation (2) » absent (${JSON.stringify(titres)})`)
+    if (!titres.some((t) => /^Montage \(1\)/.test(t))) erreurs.push(`jalons par phase : « Montage (1) » absent (${JSON.stringify(titres)})`)
+    const phases = page.locator('.fiche-jalon-phase')
+    if (!(await phases.count())) erreurs.push('fiche du jalon : pas de choix de phase')
+    else if (!/déduite : Préparation/.test(await phases.first().locator('option').first().textContent())) erreurs.push('fiche du jalon : la phase déduite n’est pas affichée')
+  }
+  // (152) Réglages : la phase suggérée par les dates, avec le passage en un clic.
+  if (ecran === 'reglages') {
+    const sug = await page.locator('.phase-suggeree').textContent().catch(() => '')
+    if (!/Phase suggérée par les dates/.test(sug)) erreurs.push(`réglages : pas de phase suggérée (${sug.slice(0, 60)})`)
   }
   if (ecran === 'coquille') {
     // Le bandeau d'état tient sur une ligne de quatre cadrans ; REX s'ouvre depuis « Plus ».
