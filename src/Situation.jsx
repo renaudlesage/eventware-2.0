@@ -104,6 +104,34 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
   useEffect(() => {
     try { window.localStorage.setItem('situation.qg', modeQg ? '1' : '0') } catch {}
   }, [modeQg])
+  // (1/11, retour de Ren) Entrer en mode QG allume l'alarme sonore et la
+  // veille : un écran projeté ne doit ni s'éteindre ni se taire. En
+  // sortir rend les deux à ce qu'ils étaient avant.
+  const avantQgRef = useRef(null)
+  function entrerModeQg() {
+    avantQgRef.current = { son: sonActif, veille: veilleActive }
+    setSonActif(true)
+    if (!veilleActive) basculerVeille()
+    setModeQg(true)
+  }
+  function quitterModeQg() {
+    const avant = avantQgRef.current
+    if (avant) {
+      setSonActif(avant.son)
+      if (!avant.veille && veilleActive) basculerVeille()
+    }
+    setModeQg(false)
+  }
+  // Mode mémorisé au rechargement : la veille se demande dès qu'on peut
+  // (certains navigateurs la refusent sans geste ; le bouton de la tête
+  // du QG reste là pour ça).
+  useEffect(() => {
+    if (!modeQg || avantQgRef.current) return
+    avantQgRef.current = { son: false, veille: false }
+    setSonActif(true)
+    if (!veilleActive) basculerVeille()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modeQg])
   const wakeLockRef = useRef(null)
   const urgencePrecedenteRef = useRef(null)
 
@@ -401,7 +429,12 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
         peut={peut}
         toutPouvoir={toutPouvoir}
         onAller={onAller}
-        onQuitter={() => setModeQg(false)}
+        onQuitter={quitterModeQg}
+        sonActif={sonActif}
+        onSon={() => setSonActif(!sonActif)}
+        veilleActive={veilleActive}
+        veilleIndisponible={veilleIndisponible}
+        onVeille={basculerVeille}
       />
     )
   }
@@ -411,7 +444,7 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
       <div className="entete-dashboard">
         <h2>Situation</h2>
         <div className="ligne-boutons" style={{ marginBottom: 0 }}>
-          <button className="discret" onClick={() => setModeQg(true)} title="Plein écran : carte, file à décider, main courante et à venir (Échap pour sortir)">
+          <button className="discret" onClick={entrerModeQg} title="Plein écran : carte, file à décider, main courante et à venir, avec son et veille (Échap pour sortir)">
             Mode QG
           </button>
           <button

@@ -75,7 +75,7 @@ function construireFile({ s, signalements, demandes, phase, maintenant }) {
   return items.sort((a, b) => b.rang - a.rang || (new Date(a.depuis ?? 0) - new Date(b.depuis ?? 0)))
 }
 
-export default function ModeQG({ evenement, s, signalements, demandes, equipes, maj, surTrace, peutSos, peutMissions, occupe, agir, attribuer, convertir, peut, toutPouvoir, onAller, onQuitter }) {
+export default function ModeQG({ evenement, s, signalements, demandes, equipes, maj, surTrace, peutSos, peutMissions, occupe, agir, attribuer, convertir, peut, toutPouvoir, onAller, onQuitter, sonActif, onSon, veilleActive, veilleIndisponible, onVeille }) {
   const { fond, vif, lieux } = useTactique(evenement)
   const [maintenant, setMaintenant] = useState(() => new Date())
   useEffect(() => {
@@ -142,7 +142,15 @@ export default function ModeQG({ evenement, s, signalements, demandes, equipes, 
             </div>
           ))}
         </div>
-        <button className="discret qg-quitter" onClick={onQuitter} title="Quitter le mode QG (Échap)">Quitter</button>
+        <div className="qg-boutons">
+          <button className={`qg-etat ${sonActif ? 'actif' : ''}`} onClick={onSon} title="Alarme sonore sur toute nouvelle urgence">
+            {sonActif ? '🔔 Son' : '🔕 Son'}
+          </button>
+          <button className={`qg-etat ${veilleActive ? 'actif' : ''}`} onClick={onVeille} title={veilleIndisponible ? 'Ce navigateur ne permet pas d’empêcher le verrouillage' : 'Empêche le verrouillage de cet écran'}>
+            {veilleActive ? '☀ Veille' : '🌙 Veille'}
+          </button>
+          <button className="discret qg-quitter" onClick={onQuitter} title="Quitter le mode QG (Échap)">Quitter</button>
+        </div>
       </header>
 
       <div className="qg-meteo">

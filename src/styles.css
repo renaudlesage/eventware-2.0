@@ -3421,6 +3421,9 @@ body.qg-actif { overflow: hidden; }
 .qg-chiffre.chaud .qg-chiffre-valeur { color: var(--etat-chaud); }
 .qg-chiffre-valeur { font-size: 24px; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; }
 .qg-chiffre-libelle { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--sourdine); white-space: nowrap; }
+.qg-boutons { display: flex; gap: 6px; flex: 0 0 auto; }
+.qg-etat { font-size: 12px; padding: 6px 10px; background: var(--surface); color: var(--sourdine); border-color: var(--trait); }
+.qg-etat.actif { color: var(--encre); border-color: var(--encre); }
 .qg-quitter { flex: 0 0 auto; }
 .qg-meteo { grid-area: meteo; }
 .qg-meteo .bloc { margin-bottom: 0; }
