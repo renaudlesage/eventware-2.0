@@ -54,7 +54,9 @@ const fournisseur = (id, nom, categories, extra = {}) => ({ id, nom, tva: null, 
 export const ANNUAIRE = [
   fournisseur('f1', 'Barrières Lemaire', ['barrierage'], { contact_id: 'fc1', contact_nom: 'Sophie Lemaire', contact_fonction: 'planning', contact_telephone: '0470 00 00 02', contact_email: 'sophie@lemaire.be', nb_contacts: 2, nb_consultations: 3, nb_retenues: 1, note_moyenne: 4.0, nb_evaluations: 1, dernier_verdict: 'a_reprendre', dernier_evenement: 'Rando VTT 2025' }),
   fournisseur('f2', 'Clôtures Dupont', ['barrierage', 'signaletique'], { contact_id: 'fc3', contact_nom: 'Jean Dupont', contact_email: 'jean@dupont.be', nb_contacts: 1, nb_consultations: 1 }),
-  fournisseur('f3', 'Énergie Mobile', ['energie'])
+  fournisseur('f3', 'Énergie Mobile', ['energie']),
+  // (1/11) Sans catégorie : proposé dans toute demande.
+  fournisseur('f4', 'Généraliste SA', [])
 ]
 // (131) DP-01 en comparaison : offre A par lignes (135 € HT), offre B forfait (1 850 € HT) ; DP-02 en brouillon.
 const dpVue = (id, reference, objet, statut, extra = {}) => ({ id, reference, objet, categorie: 'barrierage', description: null, statut, date_limite: '2026-11-01T12:00:00+01:00', livraison_de: '2026-11-09T08:00:00+01:00', livraison_a: '2026-11-13T18:00:00+01:00', lieu_id: null, lieu_nom: null, groupe_travail_id: 'gt2', groupe_nom: 'Logistique', responsable_membre_id: 'mb1', responsable: 'Ren', jalon_id: null, jalon_statut: null, decision_motif: null, nb_lignes: 3, nb_consultations: 2, nb_a_envoyer: 0, nb_envoyees: 0, nb_offres: 2, nb_sans_reponse: 0, meilleure_offre_ht: 135, retenu_fournisseur: null, retenu_montant_ht: null, retenu_taux_tva: null, commande_id: null, commande_statut: null, en_retard: false, updated_at: '2026-10-26T10:00:00Z', ...extra })

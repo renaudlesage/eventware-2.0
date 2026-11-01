@@ -345,7 +345,17 @@ function FicheDemande({ demande, evenement, membre, peutModifier, peutSaisirOffr
 
   /* ---- consultations ---- */
   const dejaConsultes = new Set(consultations.map((c) => c.fournisseur_id))
-  const candidats = annuaire.filter((f) => !dejaConsultes.has(f.id) && (toutesCategories || !demande.categorie || (f.categories ?? []).includes(demande.categorie)))
+  // (1/11, retour de Ren) L'annuaire est celui de l'organisation, commun
+  // à tous ses événements ; ce qui le faisait croire cloisonné, c'est
+  // ce filtre : seule la catégorie de la demande était proposée, et un
+  // fournisseur sans catégorie ne l'était jamais. Désormais : un
+  // fournisseur sans catégorie est proposé partout ; et quand personne
+  // ne correspond à la catégorie, tout l'annuaire est proposé, en le
+  // disant.
+  const disponibles = annuaire.filter((f) => !dejaConsultes.has(f.id))
+  const deLaCategorie = disponibles.filter((f) => !demande.categorie || !(f.categories ?? []).length || (f.categories ?? []).includes(demande.categorie))
+  const horsCategorie = !!demande.categorie && !toutesCategories && deLaCategorie.length === 0 && disponibles.length > 0
+  const candidats = toutesCategories || horsCategorie ? disponibles : deLaCategorie
   async function consulter() {
     const f = annuaire.find((x) => x.id === fournisseurAjout)
     if (!f) return
@@ -475,7 +485,7 @@ function FicheDemande({ demande, evenement, membre, peutModifier, peutSaisirOffr
 
       {/* ---- Consultations ---- */}
       <h3>Fournisseurs consultés</h3>
-      {consultations.length === 0 && <p className="vide">Personne n'est consulté. Choisis un fournisseur de l'annuaire{demande.categorie ? ` (catégorie ${libelleCategorieFournisseur(demande.categorie)})` : ''}.</p>}
+      {consultations.length === 0 && <p className="vide">Personne n'est consulté. Choisis un fournisseur de l'annuaire de l'organisation{demande.categorie ? ` (d'abord ceux en ${libelleCategorieFournisseur(demande.categorie)})` : ''}.</p>}
       {consultations.map((c) => {
         const ouvertOffre = offreOuverte === c.id
         const attente = ['envoyee', 'relancee'].includes(c.statut)
@@ -543,7 +553,8 @@ function FicheDemande({ demande, evenement, membre, peutModifier, peutSaisirOffr
               <input type="checkbox" checked={toutesCategories} onChange={(e) => setToutesCategories(e.target.checked)} /> toutes les catégories
             </label>
           )}
-          {candidats.length === 0 && <span className="aide">Aucun fournisseur disponible{demande.categorie && !toutesCategories ? ' dans cette catégorie' : ''} : complète l'annuaire (Logistique › Fournisseurs).</span>}
+          {horsCategorie && <span className="aide">Aucun fournisseur de l'annuaire en « {libelleCategorieFournisseur(demande.categorie)} » : tous sont proposés.</span>}
+          {candidats.length === 0 && <span className="aide">Aucun fournisseur disponible : complète l'annuaire de l'organisation (Logistique › Fournisseurs), commun à tous ses événements.</span>}
         </div>
       )}
 
