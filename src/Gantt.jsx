@@ -36,7 +36,7 @@ const JOUR_MS = 86400000
 const PX_PAR_JOUR = { jours: 18, heures: 14 * 24 }
 const AVANT_J = 120
 const APRES_J = 14
-const PHASES_LIB = { preparation: 'Préparation', montage: 'Montage', exploitation: 'Jour J', demontage: 'Démontage' }
+const PHASES_LIB = { preparation: 'Préparation', montage: 'Montage', exploitation: 'Jour J', demontage: 'Démontage', cloture: 'Clôture' }
 
 const dateLocale = (s) => {
   if (!s) return null
@@ -479,6 +479,7 @@ export default function Gantt({ evenement, peut, toutPouvoir, onAller }) {
                 <div className="meta">
                   <span className={l.en_retard ? 'alerte-texte' : ''}>{l.fin ? jjmm(new Date(l.fin)) : 'sans date'}</span>
                   <span>{libelleStatutJalon(l.statut)}</span>
+                  {l.phase && <span>{({ preparation: 'préparation', montage: 'montage', exploitation: 'jour J', demontage: 'démontage', cloture: 'clôture' })[l.phase] ?? l.phase}</span>}
                   <span className="mono">{l.avancement ?? 0} %</span>
                   {l.en_retard && <span className="alerte-texte">en retard</span>}
                   {l.sur_chemin_critique && <span className="alerte-texte">chemin critique</span>}

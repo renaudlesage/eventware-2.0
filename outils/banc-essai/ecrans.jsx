@@ -48,8 +48,8 @@ export const ECRANS = {
   ),
   // (31/10) Les écrans qui manquaient au banc : Mon poste, Préparation, Réglages, Bénévoles, Parcours, Analyse, Mémento.
   accueil: () => <Dashboard evenement={{ ...evenement, phase: 'preparation' }} membre={membre} session={session} peut={peut} toutPouvoir onFait={() => {}} onAller={() => {}} setMessage={() => {}} />,
-  preparation: () => <Preparation evenement={{ ...evenement, phase: 'preparation' }} membre={membre} peut={peut} toutPouvoir setMessage={() => {}} />,
-  reglages: () => <Reglages membre={membre} evenement={{ ...evenement, phase: 'preparation', organisation_id: 'org1' }} session={session} exploitant={false} peut={peut} toutPouvoir onRecharger={() => {}} setMessage={() => {}} />,
+  preparation: () => <Preparation evenement={{ ...evenement, phase: 'preparation', date_debut: '2026-11-11', date_fin: '2026-11-11', date_montage: '2026-11-09', date_demontage: '2026-11-13' }} membre={membre} peut={peut} toutPouvoir setMessage={() => {}} />,
+  reglages: () => <Reglages membre={membre} evenement={{ ...evenement, phase: 'preparation', organisation_id: 'org1', date_debut: '2026-11-11', date_fin: '2026-11-11', date_montage: '2026-11-09', date_demontage: '2026-11-13' }} session={session} exploitant={false} peut={peut} toutPouvoir onRecharger={() => {}} setMessage={() => {}} />,
   rh: () => <Rh evenement={evenement} membre={membre} peut={peut} toutPouvoir onRecharger={() => {}} />,
   parcours: () => <Parcours evenement={evenement} membre={membre} peut={peut} toutPouvoir />,
   analyse: () => <Analyse evenement={{ ...evenement, modules: { ...evenement.modules, analyse: true } }} membre={membre} peut={peut} toutPouvoir />,

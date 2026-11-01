@@ -7,6 +7,7 @@ import { texteErreur, estDoublon } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import FicheJalon from './FicheJalon'
 import { Palette, couleurParDefaut } from './couleurs.jsx'
+import { LIBELLE_PHASE, ORDRE_PHASES, phaseDeJalon, phasesDatees } from './phases'
 
 /**
  * Préparation — l'avant-événement.
@@ -201,6 +202,7 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
         evenement={evenement}
         groupe={null}
         lignes={jalons}
+        parPhase={phasesDatees(evenement)}
         membres={membres}
         peutGerer={peutGerer}
         toutPouvoir={toutPouvoir}
@@ -370,7 +372,7 @@ export default function Preparation({ evenement, membre, peut, toutPouvoir, setM
  * sens — un jalon peut devenir l'action d'un groupe, une action peut
  * changer de groupe ou en sortir et redevenir un jalon.
  */
-function Lignes({ nature, evenement, groupe, lignes, toutes = lignes, liens = [], gantt = {}, membres, peutGerer, toutPouvoir, groupes, setMessage, onFait }) {
+function Lignes({ nature, evenement, groupe, lignes, toutes = lignes, liens = [], gantt = {}, membres, peutGerer, toutPouvoir, groupes, setMessage, onFait, parPhase = false }) {
   const [ouvrir, setOuvrir] = useState(false)
   const [f, setF] = useState({ code: '', libelle: '', echeance: '', responsable_membre_id: '', critique: false })
   // (27/10) Ce qui a cassé sur le téléphone de Ren : « Ajouter » ne
@@ -458,7 +460,18 @@ function Lignes({ nature, evenement, groupe, lignes, toutes = lignes, liens = []
             : 'Aucune action.'}
         </p>
       ) : (
-        lignes.map((a) => {
+        // (152) Les jalons rangés par phase quand l'événement a ses dates :
+        // chaque jalon tombe dans la phase de son échéance, sauf phase forcée.
+        (parPhase
+          ? ORDRE_PHASES.map((ph) => [ph, lignes.filter((a) => phaseDeJalon(evenement, a) === ph)]).filter(([, l]) => l.length)
+          : [[null, lignes]]
+        ).flatMap(([ph, liste]) => [
+          ph && (
+            <div key={'ph' + ph} className={`pave-titre phase-titre ${ph === evenement.phase ? 'phase-courante' : ''}`}>
+              {LIBELLE_PHASE[ph]} ({liste.length}){ph === evenement.phase ? ' · phase en cours' : ''}
+            </div>
+          ),
+          ...liste.map((a) => {
           const retard = jalonEnRetard(a)
           return (
             <div className="carte" key={a.id}>
@@ -588,6 +601,7 @@ function Lignes({ nature, evenement, groupe, lignes, toutes = lignes, liens = []
             </div>
           )
         })
+        ])
       )}
 
       {peutGerer && (

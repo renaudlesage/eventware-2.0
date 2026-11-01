@@ -50,6 +50,11 @@
     padding: 0 16px calc(214px + env(safe-area-inset-bottom));
   }
 
+  /* (152, 1/11) La ligne « doit attendre … [n] j [Lier] » d'une fiche
+     jalon : en inline-flex sans retour, elle débordait de 14 px. */
+  .fiche-jalon-ajout { display: flex; flex-wrap: wrap; }
+  .fiche-jalon-ajout select { max-width: 100%; }
+
   /* ---------------- Tête ---------------- */
 
   /* Pleine largeur sur fond de surface : la tête devient une barre

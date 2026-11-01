@@ -4,6 +4,7 @@ import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import { STATUTS_JALON } from './jalons'
 import { Palette } from './couleurs.jsx'
+import { LIBELLE_PHASE, ORDRE_PHASES, phaseDeDate, phasesDatees } from './phases'
 
 /**
  * Ce qu'un jalon a gagné avec le Gantt (129) : un début, un avancement,
@@ -126,6 +127,18 @@ export default function FicheJalon({ jalon, lignes = [], liens = [], info, evene
             </select>
           </label>
         )}
+        {/* (152) La phase du jalon : déduite de son échéance et des dates de
+            l'événement, ou forcée quand la règle se trompe. */}
+        <label title="Déduite de l'échéance et des dates de l'événement (Réglages › Dates) ; à forcer quand la règle se trompe">Phase
+          <select className="fiche-jalon-phase" value={jalon.phase_cible ?? ''} disabled={lecture} onChange={(e) => modifier({ phase_cible: e.target.value || null })}>
+            <option value="">
+              {phasesDatees(evenement)
+                ? `déduite : ${LIBELLE_PHASE[phaseDeDate(evenement, jalon.echeance ?? jalon.fin)]}`
+                : 'déduite (dates de l’événement à régler)'}
+            </option>
+            {ORDRE_PHASES.map((ph) => <option key={ph} value={ph}>{LIBELLE_PHASE[ph]} (forcée)</option>)}
+          </select>
+        </label>
         {/* (146) Une couleur propre sur le Gantt ; « × » : celle du groupe. */}
         <label title="Remplissage de la barre sur le Gantt ; le contour garde le statut">Couleur
           <Palette valeur={jalon.couleur} onChoisir={(c) => modifier({ couleur: c })} aucune="celle du groupe" disabled={lecture} />

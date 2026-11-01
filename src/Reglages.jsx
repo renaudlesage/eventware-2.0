@@ -16,6 +16,7 @@ import VitrineAdmin from './VitrineAdmin'
 import ViderEvenement from './ViderEvenement'
 import { RESSOURCES } from './colonnesImport'
 import { PHASES, MODULES } from './referentielsProduit'
+import { LIBELLE_PHASE, phaseSuggeree, debutDePhase } from './phases'
 import { texteErreur } from './erreurs'
 import { slugDe } from './slug'
 import { modifierOuRefuser } from './ecriture'
@@ -131,6 +132,20 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
                 </button>
               ))}
             </div>
+            {/* (152) Ce que les dates de l'événement suggèrent ; le passage reste
+                un geste, puisqu'il ouvre des droits. */}
+            {(() => {
+              const sug = phaseSuggeree(evenement)
+              if (!sug) return <p className="aide phase-suggeree">Donne ses dates à l'événement (ci-dessous) pour que la phase soit suggérée.</p>
+              const depuis = debutDePhase(evenement, sug)
+              return (
+                <p className={`aide phase-suggeree ${sug !== evenement.phase ? 'alerte-texte' : ''}`}>
+                  Phase suggérée par les dates : <strong>{LIBELLE_PHASE[sug]}</strong>{depuis ? ` dès le ${new Date(depuis + 'T12:00:00').toLocaleDateString('fr-BE')}` : ''}
+                  {sug !== evenement.phase && <> · <button className="lien" onClick={() => changerPhase(sug)}>passer en {LIBELLE_PHASE[sug].toLowerCase()}</button></>}
+                  {sug === evenement.phase && ' · c’est la phase en cours'}
+                </p>
+              )
+            })()}
             <p className="aide">
               La phase ouvre et ferme des droits d&rsquo;écriture. Elle est réversible : on
               repasse en montage le vendredi soir sans que ce soit un incident.
