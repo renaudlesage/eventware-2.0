@@ -3394,3 +3394,61 @@ body.carte-plein-corps { overflow: hidden; }
 /* (31/10) Page autorité : la liste des rubriques reste collée en haut, comme les onglets qu'elle remplace. */
 .rubrique-autorite { position: sticky; top: 0; z-index: 5; background: var(--fond); padding: 8px 0; margin: 6px 0 14px; max-width: none; }
 .rubrique-autorite select { max-width: 360px; }
+
+/* ===================================================================
+   (1/11) Mode QG — la Situation en plein écran, trois zones.
+   Sous la pile d'urgence (60) et les tiroirs (70), au-dessus de la tête
+   (30) et du rail (20).
+   =================================================================== */
+body.qg-actif { overflow: hidden; }
+.mode-qg {
+  position: fixed; inset: 0; z-index: 50; background: var(--fond); color: var(--encre);
+  display: grid; gap: 10px; padding: 10px 12px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) minmax(160px, 28vh);
+  grid-template-areas: "tete tete" "meteo meteo" "carte file" "fil avenir";
+  box-sizing: border-box;
+}
+.qg-tete { grid-area: tete; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding-bottom: 8px; border-bottom: 2px solid var(--trait-fort); }
+.qg-titre { display: flex; align-items: baseline; gap: 12px; }
+.qg-titre strong { font-size: 22px; }
+.qg-titre .mono { color: var(--sourdine); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+.qg-titre .qg-heure { font-size: 24px; font-weight: 700; color: var(--encre); letter-spacing: 0; }
+.qg-releve { font-size: 12px; color: var(--sourdine); }
+.qg-chiffres { display: flex; gap: 4px; flex: 1; justify-content: flex-end; flex-wrap: wrap; }
+.qg-chiffre { display: flex; flex-direction: column; align-items: center; min-width: 92px; padding: 4px 10px; background: var(--surface); border: 1px solid var(--trait); }
+.qg-chiffre.chaud { box-shadow: inset 0 -3px 0 var(--etat-chaud); }
+.qg-chiffre.chaud .qg-chiffre-valeur { color: var(--etat-chaud); }
+.qg-chiffre-valeur { font-size: 24px; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.qg-chiffre-libelle { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--sourdine); white-space: nowrap; }
+.qg-quitter { flex: 0 0 auto; }
+.qg-meteo { grid-area: meteo; }
+.qg-meteo .bloc { margin-bottom: 0; }
+.qg-carte { grid-area: carte; min-height: 0; display: flex; flex-direction: column; }
+.qg-carte .carte-conteneur { flex: 1; min-height: 0; margin: 0; }
+.qg-carte .calques-carte { margin-bottom: 4px; }
+.qg-file, .qg-fil, .qg-avenir { min-height: 0; overflow-y: auto; background: var(--surface); border: 1px solid var(--trait); padding: 8px 12px; }
+.qg-file { grid-area: file; }
+.qg-fil { grid-area: fil; }
+.qg-avenir { grid-area: avenir; }
+.mode-qg h3 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--sourdine); display: flex; justify-content: space-between; }
+.qg-liste { list-style: none; margin: 0; padding: 0; }
+.qg-item { padding: 8px 0 8px 10px; border-bottom: 1px solid var(--trait); border-left: 3px solid var(--trait); margin-bottom: 2px; }
+.qg-item.chaud { border-left-color: var(--etat-chaud); }
+.qg-item.genre-demande:not(.chaud) { border-left-color: var(--etat-veille); }
+.qg-item-tete { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sourdine); }
+.qg-item.chaud .qg-nature { color: var(--etat-chaud); font-weight: 700; }
+.qg-item-titre { font-size: 16px; font-weight: 600; margin: 2px 0; line-height: 1.25; }
+.qg-item-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--sourdine); }
+.qg-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; align-items: center; }
+.qg-actions button, .qg-actions select { font-size: 12px; padding: 4px 10px; margin: 0; min-height: 0; }
+.qg-chrono { list-style: none; margin: 0; padding: 0; }
+.qg-chrono li { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--trait); font-size: 13px; line-height: 1.3; }
+.qg-chrono li > .mono:first-child { flex: 0 0 48px; color: var(--sourdine); }
+.qg-chrono li.imp-majeur { border-left: 3px solid var(--etat-chaud); padding-left: 8px; font-weight: 600; }
+.qg-chrono li em { color: var(--sourdine); font-style: normal; }
+.qg-chrono li.genre-jalon > .mono:first-child { color: var(--etat-veille); }
+@media (max-width: 1100px) {
+  .mode-qg { grid-template-columns: 1fr; grid-template-rows: auto auto minmax(260px, 40vh) minmax(0, 1fr) auto auto; grid-template-areas: "tete" "meteo" "carte" "file" "fil" "avenir"; overflow-y: auto; }
+  .qg-fil, .qg-avenir { max-height: 30vh; }
+}

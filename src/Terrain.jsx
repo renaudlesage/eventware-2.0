@@ -267,10 +267,6 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
         ))
       )}
 
-      <p className="aide">
-        « Je prends » t'attribue la tâche : le PC voit aussitôt qui s'en occupe, et personne
-        n'y va à deux. C'est ce qui manquait au circuit jetons de 2026.
-      </p>
     </div>
   )
 }

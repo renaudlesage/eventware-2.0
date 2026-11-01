@@ -150,9 +150,8 @@ export default function Roles({ evenement, setMessage }) {
       <section className="bloc">
         <h2>Rôles</h2>
         <p className="aide">
-          Les intitulés sont libres. Les capacités, non : le vocabulaire du système reste
-          figé, ce qui évite qu'un événement devienne un cas particulier impossible à
-          maintenir. Un rôle système peut être renommé, jamais supprimé.
+          Les intitulés sont libres, les capacités non. Un rôle système peut être renommé,
+          jamais supprimé.
         </p>
 
         {roles.map((r) => {
@@ -290,8 +289,7 @@ function GrilleCapacites({ jeu, onBasculer }) {
 
       <p className="aide">
         Un tiret signale une capacité ouverte sur une partie des phases seulement. La lecture
-        des signalements, des alertes et de la main courante reste ouverte à tout membre,
-        quoi qu'on décoche ici : on ne peut pas rendre quelqu'un aveugle au critique.
+        des signalements, des alertes et de la main courante reste ouverte à tout membre.
       </p>
     </div>
   )

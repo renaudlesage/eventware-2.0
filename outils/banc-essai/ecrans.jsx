@@ -39,6 +39,13 @@ export const ECRANS = {
         ecrans={[{ clef: 'accueil', libelle: 'Mon poste' }, { clef: 'securite', libelle: 'Sécurité' }, { clef: 'planning', libelle: 'Planning' }, { clef: 'logistique', libelle: 'Logistique' }]} />
     </>
   ),
+  // (1/11) La même coquille en préparation : les cadrans changent avec la phase.
+  'coquille-preparation': () => (
+    <BandeauEtat evenement={{ ...evenement, phase: 'preparation' }} membre={membre} peut={peut} toutPouvoir onAller={() => {}} palier="bureau" />
+  ),
+  'coquille-montage': () => (
+    <BandeauEtat evenement={{ ...evenement, phase: 'montage', modules: { ...evenement.modules, precurseur: true } }} membre={membre} peut={peut} toutPouvoir onAller={() => {}} palier="bureau" />
+  ),
   // (31/10) Les écrans qui manquaient au banc : Mon poste, Préparation, Réglages, Bénévoles, Parcours, Analyse, Mémento.
   accueil: () => <Dashboard evenement={{ ...evenement, phase: 'preparation' }} membre={membre} session={session} peut={peut} toutPouvoir onFait={() => {}} onAller={() => {}} setMessage={() => {}} />,
   preparation: () => <Preparation evenement={{ ...evenement, phase: 'preparation' }} membre={membre} peut={peut} toutPouvoir setMessage={() => {}} />,

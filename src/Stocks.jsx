@@ -174,9 +174,8 @@ function FormMouvement({ article, lieux, onValider }) {
         Enregistrer le mouvement
       </button>
       <p className="aide">
-        Le stock suit le mouvement — il ne se corrige pas à la main. Pour un écart
-        d'inventaire, utilise « Ajustement » avec un motif : c'est ce qui rend l'écart
-        explicable trois semaines après.
+        Le stock suit le mouvement, il ne se corrige pas à la main. Pour un écart d'inventaire,
+        utilise « Ajustement » avec un motif.
       </p>
     </div>
   )

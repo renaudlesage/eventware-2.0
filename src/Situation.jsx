@@ -12,6 +12,7 @@ import { situerSurTrace, libelleSurTrace } from './geometrie'
 import { CarteTactique, useTactique, Radio } from './ColonneSituation'
 import { libelleEtapeTransport, aParcours } from './libelles'
 import { Accuses } from './Bandeau'
+import ModeQG from './ModeQG'
 
 /**
  * Tableau de bord général — la vue QG.
@@ -94,6 +95,15 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
   const [sonActif, setSonActif] = useState(false)
   const [veilleActive, setVeilleActive] = useState(false)
   const [veilleIndisponible, setVeilleIndisponible] = useState(false)
+  // (1/11) Mode QG : la Situation en plein écran, trois zones, pour
+  // l'écran du PC-Ops. Mémorisé sur le poste : un écran projeté le
+  // retrouve au rechargement.
+  const [modeQg, setModeQg] = useState(() => {
+    try { return window.localStorage.getItem('situation.qg') === '1' } catch { return false }
+  })
+  useEffect(() => {
+    try { window.localStorage.setItem('situation.qg', modeQg ? '1' : '0') } catch {}
+  }, [modeQg])
   const wakeLockRef = useRef(null)
   const urgencePrecedenteRef = useRef(null)
 
@@ -372,11 +382,38 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
   const etapes = s.parcours?.etapes ?? []
   const etapesChargees = etapes.filter((e) => e.capacite > 0 && (e.charge ?? 0) >= 0.9 * e.capacite).length
 
+  if (modeQg) {
+    return (
+      <ModeQG
+        evenement={evenement}
+        s={s}
+        signalements={signalementsRecents}
+        demandes={[...demandesSecurite, ...demandesLogistique]}
+        equipes={equipes}
+        maj={maj}
+        surTrace={surTrace}
+        peutSos={peutSos}
+        peutMissions={peutMissions}
+        occupe={occupe}
+        agir={agir}
+        attribuer={attribuer}
+        convertir={peutMissions ? convertir : null}
+        peut={peut}
+        toutPouvoir={toutPouvoir}
+        onAller={onAller}
+        onQuitter={() => setModeQg(false)}
+      />
+    )
+  }
+
   return (
     <div className="situation dom-indigo">
       <div className="entete-dashboard">
         <h2>Situation</h2>
         <div className="ligne-boutons" style={{ marginBottom: 0 }}>
+          <button className="discret" onClick={() => setModeQg(true)} title="Plein écran : carte, file à décider, main courante et à venir (Échap pour sortir)">
+            Mode QG
+          </button>
           <button
             className={sonActif ? '' : 'discret'}
             onClick={() => setSonActif(!sonActif)}

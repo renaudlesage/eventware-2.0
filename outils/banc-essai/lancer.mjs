@@ -63,7 +63,7 @@ fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><me
 fs.writeFileSync(path.join(sortie, 'page-tel.html'), '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"><link rel="stylesheet" href="../../src/mobile.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
 
 const demandes = process.argv.slice(2)
-const ecrans = demandes.length ? demandes : ['coquille', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0']
+const ecrans = demandes.length ? demandes : ['coquille', 'coquille-preparation', 'coquille-montage', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0']
 const navigateur = await pw.chromium.launch()
 let echecs = 0
 for (const ecran of ecrans) {
@@ -299,6 +299,23 @@ for (const ecran of ecrans) {
     if (!(await page.locator('.leaflet-container[data-cadrage="point0"]').count())) erreurs.push('carte : pas cadrée sur le point zéro')
   }
   if (ecran === 'situation') {
+    // (1/11) Mode QG : plein écran, la file « à décider » commence par le SOS reçu (avant la demande P1),
+    // la main courante et l'à-venir sont remplis, Échap rend la Situation.
+    await page.getByRole('button', { name: /^Mode QG$/ }).click()
+    await page.waitForTimeout(800)
+    if (!(await page.locator('.mode-qg').count())) erreurs.push('mode QG : pas ouvert')
+    else {
+      const natures = await page.locator('.qg-file .qg-item .qg-nature').allTextContents()
+      if (natures.length < 2) erreurs.push(`mode QG : ${natures.length} élément(s) à décider (attendu au moins le SOS et la demande P1)`)
+      if (!/^SOS/.test(natures[0] ?? '')) erreurs.push(`mode QG : premier à décider « ${natures[0]} » (attendu le SOS reçu)`)
+      if (!(await page.locator('.qg-fil .qg-chrono li', { hasText: 'Alerte météo levée' }).count())) erreurs.push('mode QG : la main courante est vide')
+      if (!(await page.locator('.qg-avenir .qg-chrono li', { hasText: 'TRA-001' }).count())) erreurs.push('mode QG : le transport manque dans « À venir »')
+      if (!(await page.locator('.qg-carte .leaflet-container').count())) erreurs.push('mode QG : pas de carte')
+      if (!(await page.locator('.qg-chiffre', { hasText: 'SOS à traiter' }).count())) erreurs.push('mode QG : les chiffres de tête manquent')
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(300)
+      if (await page.locator('.mode-qg').count()) erreurs.push('mode QG : Échap ne quitte pas')
+    }
     const deplier = page.getByRole('button', { name: /^Déplier$/ })
     if (await deplier.count()) await deplier.first().click()
     else erreurs.push('bouton Déplier absent sous 1440 px')
@@ -415,6 +432,7 @@ for (const ecran of ecrans) {
   // (29/10) Demandes : la nouvelle demande a ses catégories ; le lieu se cherche par son nom, sans code.
   if (ecran === 'logistique') {
     // (31/10) Une seule liste déroulante : trois groupes (Exploitation, Matériel, Achats), treize rubriques, plus de rangées de boutons.
+    // (voir aussi le pas « coquille-… » plus haut pour les cadrans par phase)
     const liste = page.locator('.rubrique-logistique select')
     if (!(await liste.count())) erreurs.push('menu : pas de liste déroulante de rubriques')
     else {
@@ -759,6 +777,19 @@ for (const ecran of ecrans) {
   }))
   const erreurs = []
   if (m.largeur > 392) erreurs.push(`la page fait ${m.largeur} px de large sur un téléphone de 390 px`)
+  // (1/11) Les cadrans suivent la phase : en préparation, pas de « Présents » ni de « Missions en cours ».
+  if (ecran === 'coquille-preparation' || ecran === 'coquille-montage') {
+    const libelles = await page.locator('.bandeau-etat .cadran-libelle').allTextContents()
+    const attendus = ecran === 'coquille-preparation'
+      ? ['Retards jalon', 'Jalons sous 7 jours', 'Demandes de prix ouvertes', 'Postes découverts']
+      : ['Retards jalon', 'À confirmer sur site', 'Charge des lieux', 'Postes découverts']
+    for (const a of attendus) if (!libelles.some((l) => l.startsWith(a))) erreurs.push(`cadrans (${ecran}) : « ${a} » absent (${JSON.stringify(libelles)})`)
+    if (libelles.some((l) => /^Présents/.test(l))) erreurs.push(`cadrans (${ecran}) : « Présents » affiché hors exploitation`)
+    const valeurs = await page.locator('.bandeau-etat .cadran-valeur').allTextContents()
+    if (valeurs.some((v) => v === '…')) erreurs.push(`cadrans (${ecran}) : une valeur reste en attente (${JSON.stringify(valeurs)})`)
+    // (1/11) Un lieu au niveau 3 dans la fixture : le cadran de charge est chaud et dit « en surcharge ».
+    if (ecran === 'coquille-montage' && !(await page.locator('.bandeau-etat .cadran.chaud .cadran-libelle', { hasText: 'en surcharge' }).count())) erreurs.push('cadrans : la charge des lieux n’est pas signalée chaude')
+  }
   if (ecran === 'coquille') {
     // Le bandeau d'état tient sur une ligne de quatre cadrans ; REX s'ouvre depuis « Plus ».
     const hauts = await page.locator('.bandeau-etat .cadran').evaluateAll((c) => c.map((x) => Math.round(x.getBoundingClientRect().top)))
