@@ -299,6 +299,23 @@ for (const ecran of ecrans) {
     if (!(await page.locator('.leaflet-container[data-cadrage="point0"]').count())) erreurs.push('carte : pas cadrée sur le point zéro')
   }
   if (ecran === 'situation') {
+    // (1/11) Mode QG : plein écran, la file « à décider » commence par le SOS reçu (avant la demande P1),
+    // la main courante et l'à-venir sont remplis, Échap rend la Situation.
+    await page.getByRole('button', { name: /^Mode QG$/ }).click()
+    await page.waitForTimeout(800)
+    if (!(await page.locator('.mode-qg').count())) erreurs.push('mode QG : pas ouvert')
+    else {
+      const natures = await page.locator('.qg-file .qg-item .qg-nature').allTextContents()
+      if (natures.length < 2) erreurs.push(`mode QG : ${natures.length} élément(s) à décider (attendu au moins le SOS et la demande P1)`)
+      if (!/^SOS/.test(natures[0] ?? '')) erreurs.push(`mode QG : premier à décider « ${natures[0]} » (attendu le SOS reçu)`)
+      if (!(await page.locator('.qg-fil .qg-chrono li', { hasText: 'Alerte météo levée' }).count())) erreurs.push('mode QG : la main courante est vide')
+      if (!(await page.locator('.qg-avenir .qg-chrono li', { hasText: 'TRA-001' }).count())) erreurs.push('mode QG : le transport manque dans « À venir »')
+      if (!(await page.locator('.qg-carte .leaflet-container').count())) erreurs.push('mode QG : pas de carte')
+      if (!(await page.locator('.qg-chiffre', { hasText: 'SOS à traiter' }).count())) erreurs.push('mode QG : les chiffres de tête manquent')
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(300)
+      if (await page.locator('.mode-qg').count()) erreurs.push('mode QG : Échap ne quitte pas')
+    }
     const deplier = page.getByRole('button', { name: /^Déplier$/ })
     if (await deplier.count()) await deplier.first().click()
     else erreurs.push('bouton Déplier absent sous 1440 px')
