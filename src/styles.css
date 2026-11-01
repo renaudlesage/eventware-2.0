@@ -3115,6 +3115,13 @@ body.carte-plein-corps { overflow: hidden; }
 .tactique-repliee .entete-dashboard { margin-bottom: 0; }
 .tactique-repliee.ouvert .entete-dashboard { margin-bottom: 10px; }
 .tactique-contenu { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+/* (1/11, retour de Ren) Déplié, le bloc prend la hauteur de son contenu :
+   la borne des panneaux (340 px) le faisait déborder sur la main
+   courante. Sous 900 px, carte et radio l'une sous l'autre. */
+.panneau.tactique-repliee.ouvert { max-height: none; }
+@media (max-width: 899px) {
+  .tactique-contenu { grid-template-columns: 1fr; }
+}
 @media (max-width: 900px) { .tactique-contenu { grid-template-columns: 1fr; } }
 .tactique-contenu section { margin: 0; }
 
