@@ -324,6 +324,12 @@ for (const ecran of ecrans) {
     if (await deplier.count()) await deplier.first().click()
     else erreurs.push('bouton Déplier absent sous 1440 px')
     await page.waitForTimeout(1500)
+    // (1/11) Déplié, le bloc contient sa carte : il ne déborde pas sur ce qui suit.
+    const debord = await page.evaluate(() => {
+      const s = document.querySelector('.tactique-repliee'); const c = document.querySelector('.tactique-contenu')
+      return s && c ? Math.round(c.getBoundingClientRect().bottom - s.getBoundingClientRect().bottom) : 0
+    })
+    if (debord > 0) erreurs.push(`carte tactique dépliée : déborde de ${debord} px sous son bloc`)
   }
   if (['colonne', 'situation', 'plan'].includes(ecran)) {
     if (!(await page.locator('.calques-carte').count())) erreurs.push('filtre des calques absent')
@@ -802,6 +808,15 @@ for (const ecran of ecrans) {
     await page.waitForTimeout(500)
     if (!(await page.locator('.dp-fiche .dp-ajout-ligne').count())) erreurs.push('demande de prix : pas d’ajout de ligne sur un écran étroit')
     if (!(await page.getByRole('button', { name: /Enregistrer l'en-tête/ }).count())) erreurs.push('demande de prix : en-tête non modifiable sur un écran étroit')
+  }
+  if (ecran === 'situation') {
+    await page.getByRole('button', { name: /^Déplier$/ }).first().click().catch(() => {})
+    await page.waitForTimeout(1200)
+    const debord = await page.evaluate(() => {
+      const s = document.querySelector('.tactique-repliee'); const c = document.querySelector('.tactique-contenu')
+      return s && c ? Math.round(c.getBoundingClientRect().bottom - s.getBoundingClientRect().bottom) : 0
+    })
+    if (debord > 0) erreurs.push(`carte tactique dépliée : déborde de ${debord} px sous son bloc au téléphone`)
   }
   if (ecran === 'coquille') {
     // Le bandeau d'état tient sur une ligne de quatre cadrans ; REX s'ouvre depuis « Plus ».
