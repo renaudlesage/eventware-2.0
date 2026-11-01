@@ -472,7 +472,7 @@ for (const ecran of ecrans) {
   // (130) L'annuaire : trois fournisseurs, le filtre par catégorie, la fiche avec ses contacts.
   if (ecran === 'fournisseurs') {
     const n = await page.locator('.four-carte').count()
-    if (n !== 3) erreurs.push(`${n} fournisseurs (attendu 3)`)
+    if (n !== 4) erreurs.push(`${n} fournisseurs (attendu 4)`)
     await page.locator('.compteurs select').first().selectOption('energie')
     await page.waitForTimeout(200)
     const n2 = await page.locator('.four-carte').count()
@@ -508,6 +508,8 @@ for (const ecran of ecrans) {
     if (!(await page.locator('.dp-fiche').count())) erreurs.push('la fiche ne s’ouvre pas')
     const lignes = await page.locator('.dp-lignes tbody tr').count()
     if (lignes !== 3) erreurs.push(`${lignes} lignes (attendu 3)`)
+    // (1/11) Un fournisseur sans catégorie est proposé dans une demande « Barriérage ».
+    if (!(await page.locator('.dp-ajout-consultation option', { hasText: 'Généraliste SA' }).count())) erreurs.push('consultation : un fournisseur sans catégorie n’est pas proposé')
     const cons = await page.locator('.dp-consultation').count()
     if (cons !== 2) erreurs.push(`${cons} consultations (attendu 2)`)
     const colonnes = await page.locator('.dp-comparaison thead th').count()
