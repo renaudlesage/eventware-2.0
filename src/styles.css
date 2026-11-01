@@ -3455,3 +3455,29 @@ body.qg-actif { overflow: hidden; }
   .mode-qg { grid-template-columns: 1fr; grid-template-rows: auto auto minmax(260px, 40vh) minmax(0, 1fr) auto auto; grid-template-areas: "tete" "meteo" "carte" "file" "fil" "avenir"; overflow-y: auto; }
   .qg-fil, .qg-avenir { max-height: 30vh; }
 }
+/* (1/11) Écran étroit : les chiffres en grille régulière (alignés à
+   droite avec retour à la ligne, ils faisaient un escalier), les
+   boutons sur leur ligne, et de la place sous le contenu pour la barre
+   d'onglets et la pile SOS / MAYDAY. */
+@media (max-width: 700px) {
+  .mode-qg { padding: 8px 10px calc(200px + env(safe-area-inset-bottom)); gap: 8px; }
+  /* En grille et non en colonne flex avec retour à la ligne : cette
+     combinaison étirait la grille des chiffres à trois fois sa hauteur. */
+  .qg-tete { display: grid; grid-template-columns: 1fr; gap: 8px; align-items: start; }
+  .qg-titre { flex-wrap: wrap; gap: 6px 10px; }
+  .qg-titre strong { font-size: 19px; }
+  .qg-titre .qg-heure { font-size: 20px; }
+  .qg-chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 4px; justify-content: stretch; align-items: start; align-content: start; flex: 0 0 auto; }
+  .qg-chiffre { min-width: 0; padding: 4px 6px; }
+  .qg-chiffre-valeur { font-size: 20px; }
+  .qg-chiffre-libelle { white-space: normal; text-align: center; line-height: 1.15; }
+  .qg-boutons { justify-content: flex-end; }
+  /* Tout s'empile à sa hauteur : la carte à 300 px, la file et les fils
+     bornés ; la rangée « 1fr » de l'écran large laissait la carte
+     déborder sur la main courante. */
+  .mode-qg { display: block; }
+  .mode-qg > * { margin-bottom: 8px; }
+  .qg-carte { display: block; }
+  .qg-carte .carte-conteneur { height: 300px !important; min-height: 0; }
+  .qg-file { max-height: 55vh; }
+}
