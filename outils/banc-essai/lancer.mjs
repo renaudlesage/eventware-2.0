@@ -312,9 +312,13 @@ for (const ecran of ecrans) {
       if (!(await page.locator('.qg-avenir .qg-chrono li', { hasText: 'TRA-001' }).count())) erreurs.push('mode QG : le transport manque dans « À venir »')
       if (!(await page.locator('.qg-carte .leaflet-container').count())) erreurs.push('mode QG : pas de carte')
       if (!(await page.locator('.qg-chiffre', { hasText: 'SOS à traiter' }).count())) erreurs.push('mode QG : les chiffres de tête manquent')
+      // (1/11) Entrer en mode QG allume le son et demande la veille (acquise ou refusée selon le navigateur).
+      if (!(await page.locator('.qg-etat.actif', { hasText: 'Son' }).count())) erreurs.push('mode QG : l’alarme sonore n’est pas allumée à l’entrée')
+      if (!(await page.locator('.qg-etat', { hasText: 'Veille' }).count())) erreurs.push('mode QG : pas de bouton de veille')
       await page.keyboard.press('Escape')
       await page.waitForTimeout(300)
       if (await page.locator('.mode-qg').count()) erreurs.push('mode QG : Échap ne quitte pas')
+      if (!(await page.getByRole('button', { name: /Son OFF/ }).count())) erreurs.push('mode QG : en sortant, le son ne revient pas à son état d’avant')
     }
     const deplier = page.getByRole('button', { name: /^Déplier$/ })
     if (await deplier.count()) await deplier.first().click()
