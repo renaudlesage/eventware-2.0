@@ -112,8 +112,10 @@ export default function DemandesPrix({ evenement, membre, peut, toutPouvoir, set
           onFait={async (id) => { setCreation(false); await charger(); setSelection(id) }} onFermer={() => setCreation(false)} />
       )}
 
+      {/* (1/11, retour de Ren) La fiche s'édite aussi sur un écran étroit — en-tête, lignes,
+          consultations, offres. Seule la grille de comparaison demande un écran large. */}
       {ouverte && (
-        <FicheDemande key={ouverte.id} demande={ouverte} evenement={evenement} membre={membre} peutModifier={peutModifier && !etroit}
+        <FicheDemande key={ouverte.id} demande={ouverte} evenement={evenement} membre={membre} peutModifier={peutModifier}
           peutSaisirOffre={peutModifier} etroit={etroit} setMessage={setMessage} onFait={charger} onFermer={() => setSelection(null)} />
       )}
 
