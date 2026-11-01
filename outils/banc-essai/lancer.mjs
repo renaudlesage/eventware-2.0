@@ -794,6 +794,13 @@ for (const ecran of ecrans) {
     // (1/11) Un lieu au niveau 3 dans la fixture : le cadran de charge est chaud et dit « en surcharge ».
     if (ecran === 'coquille-montage' && !(await page.locator('.bandeau-etat .cadran.chaud .cadran-libelle', { hasText: 'en surcharge' }).count())) erreurs.push('cadrans : la charge des lieux n’est pas signalée chaude')
   }
+  // (1/11) Une demande de prix s'édite aussi au téléphone : la fiche ouverte propose l'ajout de ligne.
+  if (ecran === 'demandes-prix') {
+    await page.locator('.dp-liste tr[data-reference="DP-01"]').click().catch(() => {})
+    await page.waitForTimeout(500)
+    if (!(await page.locator('.dp-fiche .dp-ajout-ligne').count())) erreurs.push('demande de prix : pas d’ajout de ligne sur un écran étroit')
+    if (!(await page.getByRole('button', { name: /Enregistrer l'en-tête/ }).count())) erreurs.push('demande de prix : en-tête non modifiable sur un écran étroit')
+  }
   if (ecran === 'coquille') {
     // Le bandeau d'état tient sur une ligne de quatre cadrans ; REX s'ouvre depuis « Plus ».
     const hauts = await page.locator('.bandeau-etat .cadran').evaluateAll((c) => c.map((x) => Math.round(x.getBoundingClientRect().top)))
