@@ -104,6 +104,7 @@ function constructeur(table, fn, args) {
     evenement_public: [{ nom: 'Essai', sos_actif: true }],
     mon_terrain: [{ genre: 'transport', id: 'tr1', reference: 'TRA-001', titre: 'Gare → Départ', priorite: 'P2', statut: 'attribuee', pour_moi: true }, { genre: 'mission', id: 'm1', reference: 'SEC-001', titre: 'Renfort', priorite: 'P1', statut: 'attribuee', latitude: 50.385, longitude: 5.62, pour_moi: true }],
     mes_capacites: [], jauge_courante: 10, couverture_creneaux: [],
+    prc_synthese: [{ lieux_niveau_3: 1, grappes: 2, demandes_ouvertes: 3, demandes_en_retard: 0, demandes_sans_lieu: 0, charge_totale: 4.5 }],
     // (129) Huit jalons dans deux groupes, quatre dépendances dont une violée (GJ-05 commence avant la fin de GJ-04).
     gantt: GANTT, deplacer_jalon: [{ deplaces: 2, apres_j: 1 }], recaler_jalons: [{ touches: 3, exemples: ['Chapiteau', 'Scène'] }],
     // (130, 131) ?ecran=…-lecture : membre qui lit sans gérer l'annuaire.

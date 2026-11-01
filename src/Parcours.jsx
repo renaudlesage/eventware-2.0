@@ -707,9 +707,8 @@ function Segments({ evenement, peut, toutPouvoir, setMessage }) {
   return (
     <>
       <p className="aide" style={{ marginTop: 0 }}>
-        Pas seulement une distance point à point : de quoi le tronçon est fait, et jusqu'où
-        il faudrait porter un blessé avant d'atteindre un point d'évacuation. Ce dernier
-        chiffre conditionne où placer les PRV — ce n'est pas une donnée décorative.
+        Pour chaque tronçon : de quoi il est fait, et jusqu'où il faudrait porter un blessé
+        avant d'atteindre un point d'évacuation. Ce dernier chiffre conditionne où placer les PRV.
       </p>
 
       {segments.length === 0 ? (

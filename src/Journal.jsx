@@ -164,11 +164,8 @@ export function Journal({ evenement, setMessage, moduleParDefaut = 'securite', p
         </ul>
       )}
       <p className="aide">
-        Une seule main courante pour la sécurité et la logistique — délibérément. Comprendre
-        après coup les circonstances logistiques d'un événement sécurité demande qu'elles
-        soient au même endroit, pas dans deux journaux qu'il faudrait recouper. Les entrées
-        grises sont écrites automatiquement par les autres modules. Rien ne peut être modifié
-        ni supprimé : une main courante qui se réécrit n'a aucune valeur.
+        Les entrées grises sont écrites automatiquement par les autres modules. Rien ne peut être
+        modifié ni supprimé.
       </p>
     </>
   )

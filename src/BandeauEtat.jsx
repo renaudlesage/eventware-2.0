@@ -29,6 +29,13 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
   const [retards, setRetards] = useState(null)
   const [mur, setMur] = useState({ postes: null, tenus: null, radios: null })
   const [attente, setAttente] = useState(enAttente().length)
+  // (1/11, retour de Ren) Ce qui compte dépend de la phase : « 0 présents »
+  // en montage n'est pas une information. Les compteurs propres à la
+  // phase (jalons sous 7 jours, demandes de prix, objets à confirmer sur
+  // site, postes découverts, radios non rendues, constats) vivent ici.
+  const [phase, setPhase] = useState({})
+  const phaseEv = evenement.phase ?? 'exploitation'
+  const precurseur = !!evenement.modules?.precurseur
 
   const encadre = toutPouvoir || peut?.('missions', 'creer')
   const auMur = palier === 'mur' && encadre
@@ -74,8 +81,63 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
             .is('rendu_le', null)
         )
       }
-      const r = await Promise.all(appels)
+      // Les compteurs de la phase, à part : sans jonglage d'index.
+      const extras = []
+      const dans7j = new Date(Date.now() + 7 * 86400000).toISOString()
+      if (encadre && phaseEv === 'preparation') {
+        extras.push(['jalons7', supabase.from('jalons').select('id', { count: 'exact', head: true })
+          .eq('evenement_id', evenement.id).is('deleted_at', null).in('statut', ['a_venir', 'en_cours']).gte('echeance', maintenant).lte('echeance', dans7j)])
+        extras.push(['demandesPrix', supabase.rpc('demandes_prix_vue', { p_evenement: evenement.id })])
+      }
+      if (encadre && (phaseEv === 'preparation' || phaseEv === 'montage')) {
+        extras.push(['couverture', supabase.rpc('couverture_creneaux', { p_evenement: evenement.id, p_depuis: maintenant })])
+      }
+      if (encadre && phaseEv === 'montage') {
+        extras.push(['aConfirmer', supabase.from('elements_plan').select('id', { count: 'exact', head: true })
+          .eq('evenement_id', evenement.id).is('deleted_at', null).eq('confirme', false)])
+      }
+      if (encadre && (phaseEv === 'demontage' || phaseEv === 'cloture')) {
+        extras.push(['radios', supabase.from('attributions').select('id', { count: 'exact', head: true })
+          .eq('evenement_id', evenement.id).eq('nature', 'radio').is('deleted_at', null).is('rendu_le', null)])
+      }
+      // (1/11, retour de Ren) La charge des lieux (Précurseur) : combien de
+      // lieux sont au niveau 3, prêts à s'ébouler. Dès que le module est
+      // ouvert et qu'il y a des demandes : montage, exploitation, démontage.
+      if (encadre && precurseur && ['montage', 'exploitation', 'demontage'].includes(phaseEv)) {
+        extras.push(['charge', supabase.rpc('prc_synthese', { p_evenement: evenement.id })])
+      }
+      if (encadre && phaseEv === 'cloture') {
+        extras.push(['rex', supabase.from('rex_entrees').select('id', { count: 'exact', head: true }).eq('evenement_id', evenement.id)])
+      }
+      if (!encadre && (phaseEv === 'preparation' || phaseEv === 'cloture')) {
+        extras.push(['prochainJalon', supabase.from('jalons').select('libelle, echeance').eq('evenement_id', evenement.id)
+          .is('deleted_at', null).in('statut', ['a_venir', 'en_cours']).gte('echeance', maintenant).order('echeance').limit(1)])
+      }
+      const [r, ex] = await Promise.all([Promise.all(appels), Promise.all(extras.map(([, q]) => q))])
       if (!vivant) return
+      {
+        const info = {}
+        extras.forEach(([cle], i) => {
+          const res = ex[i] ?? {}
+          if (cle === 'demandesPrix') {
+            const lignes = res.data ?? []
+            const ouvertes = lignes.filter((d) => !['decidee', 'close', 'annulee'].includes(d.statut))
+            info.dpOuvertes = ouvertes.length
+            info.dpRetard = ouvertes.filter((d) => d.en_retard).length
+          } else if (cle === 'couverture') {
+            const now = Date.now()
+            info.postesDecouverts = (res.data ?? []).filter((c) => new Date(c.fin).getTime() >= now && c.manque > 0).length
+          } else if (cle === 'charge') {
+            const syn = Array.isArray(res.data) ? res.data[0] : res.data
+            info.charge = syn ? { lieux3: syn.lieux_niveau_3 ?? 0, grappes: syn.grappes ?? 0 } : null
+          } else if (cle === 'prochainJalon') {
+            info.prochainJalon = res.data?.[0] ?? null
+          } else {
+            info[cle] = res.count ?? (Array.isArray(res.data) ? res.data.length : null)
+          }
+        })
+        setPhase(info)
+      }
       const [sit, jal] = r
       if (!sit.error) setS(sit.data)
       setRetards(sit.data?.jalons_en_retard ?? jal.count ?? 0)
@@ -115,45 +177,91 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
       clearInterval(t)
       desabonner()
     }
-  }, [evenement.id, membre.id, encadre, auMur])
+  }, [evenement.id, membre.id, encadre, auMur, phaseEv, precurseur])
 
   const sosOuverts = s?.signalements?.ouverts ?? null
   const sosATraiter = s?.signalements?.non_pris_en_charge ?? 0
   const enCours = (s?.missions?.par_statut?.en_cours ?? 0) + (s?.missions?.par_statut?.attribuee ?? 0)
 
+  // Les cadrans, un par question ; la phase choisit les quatre qui comptent.
+  const cSignalements = {
+    valeur: sosOuverts,
+    libelle: sosATraiter ? `Signalements ouverts · ${sosATraiter} à traiter` : 'Signalements ouverts',
+    chaud: sosATraiter > 0,
+    aller: ['securite', evenement.modules?.sos_participants ? 'signalements' : 'journal']
+  }
+  const cMissions = { valeur: s ? enCours : null, libelle: 'Missions en cours', aller: ['securite', 'missions'] }
+  const cRetards = {
+    valeur: retards,
+    libelle: retards ? 'Retards jalon · en retard' : 'Retards jalon',
+    chaud: retards > 0,
+    aller: ['planning']
+  }
+  // Contre la capacité attendue quand elle est connue : « 412 »
+  // seul ne dit pas si la plaine est pleine (comparatif BFMF 2026).
+  const cPresents = {
+    valeur:
+      s?.logistique?.jauge == null
+        ? null
+        : evenement.frequentation_max > 0
+          ? `${s.logistique.jauge} / ${evenement.frequentation_max}`
+          : s.logistique.jauge,
+    libelle:
+      evenement.frequentation_max > 0 && s?.logistique?.jauge >= 0.9 * evenement.frequentation_max
+        ? 'Présents · ≥ 90 % de la capacité'
+        : 'Présents',
+    chaud: evenement.frequentation_max > 0 && s?.logistique?.jauge >= 0.9 * evenement.frequentation_max,
+    aller: ['logistique']
+  }
+  const cJalons7 = { valeur: phase.jalons7 ?? null, libelle: 'Jalons sous 7 jours', aller: ['planning'] }
+  const cDemandesPrix = {
+    valeur: phase.dpOuvertes ?? null,
+    libelle: phase.dpRetard ? `Demandes de prix ouvertes · ${phase.dpRetard} en retard` : 'Demandes de prix ouvertes',
+    chaud: (phase.dpRetard ?? 0) > 0,
+    aller: ['logistique', 'demandes_prix']
+  }
+  const cPostes = {
+    valeur: phase.postesDecouverts ?? null,
+    libelle: phase.postesDecouverts ? 'Postes découverts · à pourvoir' : 'Postes découverts',
+    chaud: (phase.postesDecouverts ?? 0) > 0,
+    aller: ['rh']
+  }
+  const cAConfirmer = {
+    valeur: phase.aConfirmer ?? null,
+    libelle: phase.aConfirmer ? 'À confirmer sur site · tournée' : 'À confirmer sur site',
+    chaud: (phase.aConfirmer ?? 0) > 0,
+    aller: ['plan']
+  }
+  const cRadios = {
+    valeur: phase.radios ?? null,
+    libelle: phase.radios ? 'Radios non rendues · à récupérer' : 'Radios non rendues',
+    chaud: (phase.radios ?? 0) > 0,
+    aller: ['logistique', 'attributions']
+  }
+  const cRex = { valeur: phase.rex ?? null, libelle: 'Constats REX', aller: ['analyse'] }
+  const cCharge = {
+    valeur: phase.charge ? phase.charge.lieux3 : null,
+    libelle: phase.charge?.lieux3
+      ? `Charge des lieux · ${phase.charge.lieux3 > 1 ? 'lieux' : 'lieu'} en surcharge`
+      : phase.charge?.grappes ? `Charge des lieux · ${phase.charge.grappes} grappe${phase.charge.grappes > 1 ? 's' : ''}` : 'Charge des lieux · précurseur',
+    chaud: (phase.charge?.lieux3 ?? 0) > 0,
+    aller: ['precurseur']
+  }
+
   let cadrans
   if (encadre) {
-    cadrans = [
-      {
-        valeur: sosOuverts,
-        libelle: sosATraiter ? `Signalements ouverts · ${sosATraiter} à traiter` : 'Signalements ouverts',
-        chaud: sosATraiter > 0,
-        aller: ['securite', evenement.modules?.sos_participants ? 'signalements' : 'journal']
-      },
-      { valeur: s ? enCours : null, libelle: 'Missions en cours', aller: ['securite', 'missions'] },
-      {
-        valeur: retards,
-        libelle: retards ? 'Retards jalon · en retard' : 'Retards jalon',
-        chaud: retards > 0,
-        aller: ['planning']
-      },
-      // Contre la capacité attendue quand elle est connue : « 412 »
-      // seul ne dit pas si la plaine est pleine (comparatif BFMF 2026).
-      {
-        valeur:
-          s?.logistique?.jauge == null
-            ? null
-            : evenement.frequentation_max > 0
-              ? `${s.logistique.jauge} / ${evenement.frequentation_max}`
-              : s.logistique.jauge,
-        libelle:
-          evenement.frequentation_max > 0 && s?.logistique?.jauge >= 0.9 * evenement.frequentation_max
-            ? 'Présents · ≥ 90 % de la capacité'
-            : 'Présents',
-        chaud: evenement.frequentation_max > 0 && s?.logistique?.jauge >= 0.9 * evenement.frequentation_max,
-        aller: ['logistique']
-      }
-    ]
+    cadrans = {
+      // Préparer : les échéances, ce qu'on attend des fournisseurs, qui manque.
+      preparation: [cRetards, cJalons7, cDemandesPrix, cPostes],
+      // Monter : le site se construit, les postes se pourvoient, il y a déjà des incidents.
+      // Avec le Précurseur ouvert, la charge des lieux prend une place.
+      montage: precurseur ? [cRetards, cAConfirmer, cCharge, cPostes] : [cRetards, cAConfirmer, cPostes, cSignalements],
+      exploitation: precurseur ? [cSignalements, cMissions, cCharge, cPresents] : [cSignalements, cMissions, cRetards, cPresents],
+      // Démonter : ce qui reste ouvert, ce qui doit revenir.
+      demontage: precurseur ? [cSignalements, cMissions, cCharge, cRadios] : [cSignalements, cMissions, cRadios, cRetards],
+      // Clôturer : solder, et tirer les leçons.
+      cloture: [cRex, cMissions, cRadios, cRetards]
+    }[phaseEv] ?? [cSignalements, cMissions, cRetards, cPresents]
     if (auMur) {
       cadrans.push(
         {
@@ -175,27 +283,37 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
   } else {
     const miennes = terrain.filter((l) => l.pour_moi && l.genre !== 'jalon').length
     const aPrendre = terrain.filter((l) => !l.pour_moi && !l.titulaire && l.statut === 'a_traiter').length
+    const horsTerrain = phaseEv === 'preparation' || phaseEv === 'cloture'
     cadrans = [
-      { valeur: miennes, libelle: 'Mes missions', aller: ['accueil'] },
+      { valeur: miennes, libelle: phaseEv === 'preparation' ? 'Mes actions' : 'Mes missions', aller: ['accueil'] },
       {
         valeur: aPrendre,
         libelle: aPrendre ? 'À prendre · sans titulaire' : 'À prendre',
         chaud: aPrendre > 0,
         aller: ['accueil']
       },
-      {
-        valeur: creneau
-          ? new Date(creneau.fin).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
-          : '—',
-        libelle: creneau ? `Fin de mon créneau · ${creneau.poste}` : 'Aucun créneau à venir',
-        aller: ['rh']
-      },
-      {
-        valeur: sosOuverts,
-        libelle: sosATraiter ? 'Signalements ouverts · à traiter' : 'Signalements ouverts',
-        chaud: sosATraiter > 0,
-        aller: ['securite']
-      }
+      // Hors terrain, « fin de mon créneau » ne dit rien : le prochain jalon, lui, oui.
+      horsTerrain
+        ? {
+            valeur: phase.prochainJalon ? new Date(phase.prochainJalon.echeance).toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit' }) : '—',
+            libelle: phase.prochainJalon ? `Prochain jalon · ${phase.prochainJalon.libelle}` : 'Aucun jalon à venir',
+            aller: ['planning']
+          }
+        : {
+            valeur: creneau
+              ? new Date(creneau.fin).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
+              : '—',
+            libelle: creneau ? `Fin de mon créneau · ${creneau.poste}` : 'Aucun créneau à venir',
+            aller: ['rh']
+          },
+      horsTerrain
+        ? { valeur: retards, libelle: retards ? 'Retards jalon · en retard' : 'Retards jalon', chaud: retards > 0, aller: ['planning'] }
+        : {
+            valeur: sosOuverts,
+            libelle: sosATraiter ? 'Signalements ouverts · à traiter' : 'Signalements ouverts',
+            chaud: sosATraiter > 0,
+            aller: ['securite']
+          }
     ]
   }
 

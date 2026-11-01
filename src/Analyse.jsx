@@ -169,10 +169,6 @@ function Synthese({ evenement, setMessage }) {
         </Bloc>
       </div>
 
-      <p className="aide">
-        Toutes ces valeurs sortent des données réelles, sans ressaisie. Le REX 2026 avait dû
-        être reconstitué à la main faute d'horodatage et d'assignataire dans l'export.
-      </p>
     </>
   )
 }
