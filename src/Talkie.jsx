@@ -47,7 +47,7 @@ export function InfoTalkie({ onAccepter, onRefuser }) {
   )
 }
 
-export function BoutonParler({ evenement, membre, onEnvoye }) {
+export function BoutonParler({ evenement, membre, onEnvoye, variante = 'pave' }) {
   const [etat, setEtat] = useState('repos') // repos | enregistre | annule
   const [reste, setReste] = useState(DUREE_MAX_S)
   const [info, setInfo] = useState(false)
@@ -143,10 +143,10 @@ export function BoutonParler({ evenement, membre, onEnvoye }) {
   if (!membre?.id) return null
   return (
     <>
-      <div className="talkie-pile">
+      <div className={`talkie-pile ${variante}`}>
         <button
           type="button"
-          className={`flottant parler ${etat}`}
+          className={`${variante === 'flottant' ? 'flottant' : 'parler-pave'} parler ${etat}`}
           aria-label="Parler au QG — maintenir pour parler"
           onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture?.(e.pointerId); demarrer() }}
           onPointerUp={() => arreter(false)}
@@ -154,8 +154,8 @@ export function BoutonParler({ evenement, membre, onEnvoye }) {
           onPointerLeave={() => { if (etat === 'enregistre') arreter(true) }}
           onContextMenu={(e) => e.preventDefault()}
         >
-          <Mic size={20} strokeWidth={2} aria-hidden="true" />
-          <span>{etat === 'enregistre' ? `${reste} s` : etat === 'annule' ? 'Annulé' : 'Parler'}</span>
+          <Mic size={variante === 'flottant' ? 20 : 26} strokeWidth={2} aria-hidden="true" />
+          <span>{etat === 'enregistre' ? `${reste} s — relâche pour envoyer` : etat === 'annule' ? 'Annulé' : variante === 'flottant' ? 'Parler' : 'Maintenir pour parler au QG'}</span>
         </button>
         <span className="talkie-112">Urgence vitale : appelle le 112.</span>
         {erreur && <span className="talkie-erreur">{erreur}</span>}
@@ -171,18 +171,20 @@ export function BoutonParler({ evenement, membre, onEnvoye }) {
 }
 
 /** Mes messages : en attente de réseau, envoyés, entendus, la réponse. */
-export function MesMessages({ evenement, membre }) {
+export function MesMessages({ evenement, membre, onCompteurs }) {
   const [attente, setAttente] = useState([])
   const [envoyes, setEnvoyes] = useState([])
 
   async function lire() {
-    setAttente(await enAttenteVocaux())
+    const enAttente = await enAttenteVocaux()
+    setAttente(enAttente)
     if (!membre?.id) return
     const { data } = await supabase
       .from('messages_vocaux')
       .select('id, parle_le, recu_le, duree_s, transcription, transcription_corrigee, statut, entendu_le, reponse, reponse_le, reponse_source, intention, urgence, mission_id')
       .eq('evenement_id', evenement.id).eq('membre_id', membre.id).order('parle_le', { ascending: false }).limit(20)
     setEnvoyes(data ?? [])
+    onCompteurs?.({ attente: enAttente.filter((m) => !m.definitif).length, reponses: (data ?? []).filter((m) => m.reponse).length })
   }
 
   useEffect(() => {

@@ -125,6 +125,18 @@ export const PAVES = {
     besoin: ['logistique', 'lire'],
     obligatoire: []
   },
+  talkie: {
+    // (162) Parler au QG et suivre ses messages vocaux : ici, dans
+    // « Mon poste », pas en bouton flottant — la pile flottante reste
+    // aux urgences (SOS, Mayday).
+    libelle: 'Parler au QG',
+    teinte: 'indigo',
+    icone: '🎙',
+    lien: null,
+    module: 'talkie',
+    besoin: null,
+    obligatoire: []
+  },
   mes_constats: {
     libelle: 'Mes constats',
     teinte: 'ardoise',
@@ -147,10 +159,10 @@ export const PAVES = {
  * l'ordre du catalogue, filtré par ses capacités.
  */
 const DEFAUTS = {
-  coordinateur: ['mes_missions', 'alertes', 'sos', 'mes_demandes', 'planning', 'contacts', 'equipes', 'materiel'],
-  admin: ['mes_missions', 'alertes', 'sos', 'mes_demandes', 'planning', 'contacts', 'equipes', 'materiel'],
-  chef_equipe: ['mes_missions', 'mes_creneaux', 'alertes', 'sos', 'mes_demandes', 'planning', 'equipes', 'materiel', 'mes_constats'],
-  benevole: ['mes_missions', 'mes_creneaux', 'mes_demandes', 'planning', 'equipes', 'mes_constats'],
+  coordinateur: ['mes_missions', 'alertes', 'sos', 'mes_demandes', 'talkie', 'planning', 'contacts', 'equipes', 'materiel'],
+  admin: ['mes_missions', 'alertes', 'sos', 'mes_demandes', 'talkie', 'planning', 'contacts', 'equipes', 'materiel'],
+  chef_equipe: ['mes_missions', 'talkie', 'mes_creneaux', 'alertes', 'sos', 'mes_demandes', 'planning', 'equipes', 'materiel', 'mes_constats'],
+  benevole: ['mes_missions', 'talkie', 'mes_creneaux', 'mes_demandes', 'planning', 'equipes', 'mes_constats'],
   observateur: ['planning']
 }
 
