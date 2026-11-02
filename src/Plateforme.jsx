@@ -9,6 +9,7 @@ import { modifierOuRefuser } from './ecriture'
 // ni accorder ni retirer alors que le déclencheur de licence le contrôle.
 import { MODULES } from './referentielsProduit'
 import { useDrapeau } from './useDrapeau'
+import TalkieIntentions from './TalkieIntentions'
 
 /**
  * Console plateforme — vue de l'éditeur.
@@ -29,7 +30,8 @@ const STATUTS = [
 const ONGLETS = [
   ['organisations', 'Organisations'],
   ['evenements', 'Événements'],
-  ['comptes', 'Comptes plateforme']
+  ['comptes', 'Comptes plateforme'],
+  ['talkie', 'Talkie : intentions']
 ]
 
 export default function Plateforme({ session, setMessage, onOuvrir }) {
@@ -64,6 +66,8 @@ export default function Plateforme({ session, setMessage, onOuvrir }) {
         <Evenements setMessage={setMessage} onOuvrir={onOuvrir} />
       )}
       {onglet === 'comptes' && <Comptes setMessage={setMessage} />}
+      {/* (162) Le référentiel des mots-clés de la réponse automatique, commun à tous les événements. */}
+      {onglet === 'talkie' && <TalkieIntentions setMessage={setMessage} />}
     </div>
   )
 }

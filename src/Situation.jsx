@@ -15,6 +15,7 @@ import { Accuses } from './Bandeau'
 import ModeQG from './ModeQG'
 import EnSouffrance from './EnSouffrance'
 import MessagesCommune from './MessagesCommune'
+import FilEntendu from './FilEntendu'
 
 /**
  * Tableau de bord général — la vue QG.
@@ -69,7 +70,7 @@ function useLarge() {
   return large
 }
 
-export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
+export default function Situation({ evenement, membre, peut, toutPouvoir, onAller }) {
   const large = useLarge()
   const [s, setS] = useState(null)
   // (129) Les jalons en retard qui pèsent sur le jour J, lus dans gantt().
@@ -515,6 +516,12 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
 
       {/* (158) Ce que la commune a écrit au QG : urgences en bandeau jusqu'au « Bien reçu ». */}
       <MessagesCommune evenement={evenement} />
+
+      {/* (162) Les messages vocaux des bénévoles : à entendre, répondre, transformer en demande. */}
+      {evenement.modules?.talkie && (
+        <FilEntendu evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir}
+          setMessage={(m) => setRetour({ type: m.type === 'erreur' ? 'erreur' : 'ok', texte: m.texte })} />
+      )}
 
       {/* (154) Les demandes qui attendent plus que d'habitude, tous modules : on ouvre la liste du bon module. */}
       <EnSouffrance evenementId={evenement.id} onOuvrir={(m) => onAller(m.module === 'logistique' ? 'logistique' : 'securite')} />

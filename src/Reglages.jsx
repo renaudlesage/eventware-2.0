@@ -77,6 +77,16 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
     if (error) return setMessage({ type: 'erreur', texte: texteErreur(error) })
     if (count === 0) return setMessage({ type: 'erreur', texte: 'Changement refusé.' })
 
+    // (162) À la clôture, la voix s'efface : les fichiers par l'API Storage,
+    // puis purger_vocaux vide les chemins et garde les transcriptions.
+    if (phase === 'cloture' && evenement.modules?.talkie) {
+      const { data: vocaux } = await supabase.from('messages_vocaux').select('chemin_audio').eq('evenement_id', evenement.id).not('chemin_audio', 'is', null)
+      const chemins = (vocaux ?? []).map((v) => v.chemin_audio)
+      if (chemins.length) await supabase.storage.from('vocaux').remove(chemins)
+      const { error: erreurPurge } = await supabase.rpc('purger_vocaux', { p_evenement: evenement.id })
+      if (erreurPurge) setMessage({ type: 'erreur', texte: `Clôture faite, mais la purge des vocaux a échoué : ${texteErreur(erreurPurge)}` })
+    }
+
     // L'entrée et la sortie d'exploitation recomposent le « Mon poste »
     // de tout le monde, sans prévenir personne : les blocs de terrain
     // redeviennent obligatoires, ou cessent de l'être. Quelqu'un qui
@@ -180,6 +190,29 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
                 : "Les modules relèvent de la souscription : leur activation se règle avec l'éditeur, pas depuis l'événement."}
             </p>
           </section>
+
+          {/* (162) L'option du talkie, réglable par la coordination : la réponse automatique. */}
+          {evenement.modules?.talkie && (
+            <section className="bloc talkie-option">
+              <h2>Talkie-téléphone</h2>
+              <label className="case">
+                <input
+                  type="checkbox"
+                  checked={evenement.modules?.talkie_reponses_auto !== false}
+                  disabled={occupe}
+                  onChange={async (e) => {
+                    setOccupe(true)
+                    const refus = await modifierOuRefuser('evenements', { modules: { ...evenement.modules, talkie_reponses_auto: e.target.checked } }, { id: evenement.id })
+                    if (refus) setMessage({ type: 'erreur', texte: refus })
+                    else onRecharger()
+                    setOccupe(false)
+                  }}
+                />{' '}
+                Réponses automatiques (canal, nuit, DEA, statut de ma demande ; jamais d'information à une urgence hormis le 112)
+              </label>
+              <p className="aide">Les enregistrements vocaux s'effacent à la clôture de l'événement ; les transcriptions restent.</p>
+            </section>
+          )}
 
           <Reconduire evenement={evenement} onFait={onRecharger} />
         </>

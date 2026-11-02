@@ -24,7 +24,9 @@ export const MODULES = [
   ['plan_implantation', "Plan d'implantation"],
   ['analyse', 'Analyse / REX'],
   ['precurseur', 'Précurseur (charge des lieux)'],
-  ['exercices', 'Exercices sur mesure']
+  ['exercices', 'Exercices sur mesure'],
+  // (162) Messages vocaux des bénévoles au QG ; l'option talkie_reponses_auto se règle dans l'événement.
+  ['talkie', 'Talkie-téléphone (messages vocaux)']
 ]
 
 /*

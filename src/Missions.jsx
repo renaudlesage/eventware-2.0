@@ -417,15 +417,17 @@ function ChoixLieu({ id, lieux, valeur, onChoisir }) {
   )
 }
 
-function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessage, onFait, onSuivre, onAnnuler }) {
+// (162) Exporté : le fil « Entendu » ouvre le même formulaire, pré-rempli
+// depuis un message vocal (`initial` : precision, descriptif, lieuId).
+export function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessage, onFait, onSuivre, onAnnuler, initial = {} }) {
   const urgent = mode === 'urgent'
   const [natureUrgente, setNatureUrgente] = useState(NATURES_URGENTES[0][0])
   const [types, setTypes] = useState([])
   const [typeId, setTypeId] = useState('')
-  const [precision, setPrecision] = useState('')
-  const [lieuId, setLieuId] = useState('')
+  const [precision, setPrecision] = useState(initial.precision ?? '')
+  const [lieuId, setLieuId] = useState(initial.lieuId ?? '')
   const [quiConcerne, setQuiConcerne] = useState('')
-  const [descriptif, setDescriptif] = useState('')
+  const [descriptif, setDescriptif] = useState(initial.descriptif ?? '')
   const [delaiSouhaite, setDelaiSouhaite] = useState('dans_heure')
   const [bloquant, setBloquant] = useState(false)
   const [position, setPosition] = useState(null)
@@ -497,7 +499,7 @@ function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessa
   async function creer() {
     setOccupe(true)
     const titre = titreSaisi
-    const { error } = await supabase.from('missions').insert({
+    const { data: creee, error } = await supabase.from('missions').insert({
       evenement_id: evenement.id,
       module,
       phase: evenement.phase,
@@ -516,9 +518,9 @@ function FormDemande({ mode, evenement, membre, module, libelle, lieux, setMessa
       description: urgent ? descriptif.trim() : null,
       bloquant: urgent ? false : bloquant,
       echeance: urgent ? null : echeanceDepuisDelai(delaiSouhaite)
-    })
+    }).select('id').single()
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
-    else onFait()
+    else onFait(creee?.id)
     setOccupe(false)
   }
 

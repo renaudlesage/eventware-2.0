@@ -3543,3 +3543,31 @@ body.qg-actif { overflow: hidden; }
 .dmp-points-saisie { width: 72px; margin: 0; }
 .grille-dmp { margin-top: 8px; }
 .grille-dmp-ajout .saisie-rapide { margin-bottom: 6px; }
+
+/* (162, 2/11) Talkie-téléphone : bouton « Parler », mes messages, fil « Entendu ». */
+.talkie-pile { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.flottant.parler { background: var(--dom-indigo, #3b4a8a); min-width: 92px; justify-content: center; touch-action: none; user-select: none; -webkit-user-select: none; }
+.flottant.parler.enregistre { background: var(--etat-chaud); animation: talkie-pulse 1s ease-in-out infinite; }
+.flottant.parler.annule { background: var(--sourdine); }
+@keyframes talkie-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--etat-chaud) 55%, transparent); } 50% { box-shadow: 0 0 0 10px transparent; } }
+.talkie-112 { font-size: 11px; color: var(--sourdine); background: var(--surface); padding: 1px 6px; border-radius: 4px; }
+.talkie-erreur { font-size: 11px; color: var(--etat-chaud); background: var(--surface); padding: 1px 6px; border-radius: 4px; max-width: 220px; }
+.flottant.vocaux { background: var(--dom-ardoise); padding: 10px 15px; font-size: 13px; }
+.talkie-info p { margin: 6px 0; }
+.mes-messages { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.mes-messages li { padding: 6px 10px; border-left: 3px solid var(--trait); }
+.mes-messages li.attente { border-left-color: var(--etat-veille); }
+.mes-messages li.refuse { border-left-color: var(--etat-chaud); }
+.mes-messages li.statut-entendu, .mes-messages li.statut-traite { border-left-color: var(--etat-ok); }
+.talkie-reponse { margin-top: 4px; font-size: 13px; }
+.fil-entendu .message-vocal.niv-vigilance { border-left: 3px solid var(--etat-veille); }
+.fil-entendu .message-vocal.niv-urgence { border-left: 3px solid var(--etat-chaud); }
+.fil-entendu .vocal-corps { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 4px 0; }
+.fil-entendu .vocal-corps audio { height: 32px; max-width: 260px; }
+.fil-entendu .vocal-transcription { flex: 1 1 240px; margin: 0; }
+.fil-entendu .meta select { width: auto; margin: 0; }
+.fil-entendu .vocal-gestes { align-items: center; }
+.fil-entendu .vocal-gestes input { flex: 1 1 160px; margin: 0; }
+.talkie-option .case { display: flex; gap: 8px; align-items: flex-start; }
+.talkie-option .case input { width: auto; margin: 3px 0 0; }
+.talkie-intentions tr.inactif td { opacity: 0.55; }

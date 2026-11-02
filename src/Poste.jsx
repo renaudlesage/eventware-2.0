@@ -531,6 +531,7 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
       return (
         <Situation
           evenement={evenement}
+          membre={membre}
           peut={peut}
           toutPouvoir={toutPouvoir}
           onAller={onAller}

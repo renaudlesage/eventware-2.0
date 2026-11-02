@@ -612,13 +612,21 @@ Dossier de sécurité, étape 2. Tests : `../../outils/replique/tests/157.sql` (
 |---|---|
 | `20261102150000_158_reception_commune.sql` | `liaisons_commune` (commune, nom d'en-tête, secret **haché** — rendu une seule fois par `creer_liaison_commune` / `regenerer_secret_liaison`, colonne illisible depuis l'application), `messages_commune` (ajout seul, unique par référence), `messages_commune_accuses` (qui a lu, quand ; le premier accusé marque le message lu), `journal_receptions` (rejets, jamais le secret). `recevoir_message_commune(jeton, en-têtes, charge)` réservée au rôle de service : retrouve l'événement par `jeton_public`, vérifie l'en-tête et le secret, tient déjà I2 (le réel refuse l'exercice) et I3 (le bac à sable refuse le réel), idempotente, inscrit une entrée système au journal. RLS : liaisons par `alertes : creer`, messages et accusés par membre, rejets par tout pouvoir. Aucun DROP, rejouable |
 
-### 159 : PAS ENCORE APPLIQUÉE (l'outil Supabase a demandé une confirmation sur le `drop constraint`, restée sans réponse) — éprouvée sur la réplique locale — avis des disciplines sur le dossier
+### 159 : appliquée le 2/11 (par Claude, via l'outil Supabase, en deux temps : la contrainte, puis le reste) — avis des disciplines sur le dossier
 
 | Fichier | Fait |
 |---|---|
 | `20261102160000_159_avis_disciplines.sql` | `acces_autorite.niveau` accepte `avis` et `instruction`, colonne `discipline` (D1–D5, COAMU, COMMUNE). `avis_autorite` (un avis par discipline et par version ; un nouvel avis remplace l'ancien par `remplace_le`, sans l'effacer), `prescriptions_dossier` (dédiée, choix de Ren), `controles_lignes.prescription_id`. Fonctions publiques par jeton, `security definer`, jeton vérifié dès la première ligne : `dossier_par_jeton` (P0002/P0005/P0006/P0008/P0009), `deposer_avis` (passe le dossier en instruction au premier avis), `accuser_reception_dossier` (la commune). `situation_autorite` **rebranchée en place** (comme la 153) pour refuser les liens d'avis (P0007). `demarrer_controle` redéfinie : les prescriptions en vigueur entrent dans la check-list du jour J. Aucun DROP de données (la contrainte de contrôle sur `niveau` est remplacée) |
 
-Dossier de sécurité, étape 4. Tests : `../../outils/replique/tests/159.sql` (lecture par lien D1, lien expiré/révoqué/situation refusés, avis + prescriptions, remplacement sans effacement, accusé de la commune, check-list, cloisonnement).
+Dossier de sécurité, étape 4. Tests : `../../outils/replique/tests/159.sql` (lecture par lien D1, lien expiré/révoqué/situation refusés, avis + prescriptions, remplacement sans effacement, accusé de la commune, check-list, cloisonnement). Appliquée et inscrite (version 20261102160000).
+
+### 162 : PAS ENCORE APPLIQUÉE — éprouvée sur la réplique locale — talkie-téléphone
+
+| Fichier | Fait |
+|---|---|
+| `20261102190000_162_talkie.sql` | `messages_vocaux` (un membre insère les siens et ne lit que les siens ; `missions : modifier` lit tout et met à jour ; `parle_le` = heure du téléphone, `recu_le` = arrivée), `talkie_intentions` (référentiel des mots-clés, exploitant), `talkie_mon_membre`, `talkie_normaliser`, `talkie_lieu` (nom d'un lieu, « étape 3 », sinon le plus proche à moins de 150 m, sinon rien), `talkie_repondre` (`security definer` justifié : lit canaux_radio, elements_plan, missions ; n'accepte que les messages de l'appelant ; ne change jamais `statut` ; négation « pas de blessé » → `URGENCE_DOUTEUSE`), déclencheur sur la transcription, `purger_vocaux` (vide `chemin_audio`, garde les transcriptions ; l'application supprime d'abord les fichiers par l'API Storage, à la bascule en clôture). Compartiment privé `vocaux` (1 Mo, chemin `<evenement>/<membre>/<uuid>`), policies par membre et par `missions : modifier`. Le contrôle de licence accepte une option `<module>_<option>` d'un module souscrit (`talkie_reponses_auto`). Aucun DROP, rejouable |
+
+Activation : l'exploitant souscrit `talkie` à l'organisation puis l'active sur l'événement (Réglages › Modules) ; la coordination règle « Réponses automatiques ». Tests : `../../outils/replique/tests/162.sql` (droits, idempotence, les six réponses attendues, négation, lieux proposés, journal, désactivation, purge, anonyme).
 
 ### 160 : appliquée le 2/11 (par Claude, via l'outil Supabase, sur le « Go » de Ren) — grille DMP
 

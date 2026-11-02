@@ -37,6 +37,26 @@ if (!pw) {
 const esbuild = require('esbuild')
 
 const sortie = path.join(racine, 'node_modules', '.banc-essai')
+
+// (162) Le bouton « Parler » et sa consigne 112 ; au premier appui, l'écran d'information qui vaut
+// consentement ; « Mes messages » s'ouvre. Seulement si le navigateur du banc sait enregistrer.
+async function verifierTalkie(page, erreurs) {
+  const dispo = await page.evaluate(() => !!(window.MediaRecorder && navigator.mediaDevices?.getUserMedia))
+  if (!dispo) return
+  const parler = page.locator('.flottant.parler')
+  if (!(await parler.count())) { erreurs.push('talkie : pas de bouton Parler'); return }
+  if (!(await page.locator('.talkie-112', { hasText: '112' }).count())) erreurs.push('talkie : « appelle le 112 » absent sous le bouton')
+  await parler.dispatchEvent('pointerdown', { pointerId: 1 })
+  await page.waitForTimeout(200)
+  if (!(await page.locator('.talkie-info').count())) erreurs.push('talkie : pas d’écran d’information au premier appui')
+  await page.locator('.talkie-info button', { hasText: 'Pas maintenant' }).evaluate((b) => b.click()).catch(() => {})
+  await page.waitForTimeout(150)
+  if (await page.locator('.talkie-info').count()) erreurs.push('talkie : « Pas maintenant » ne ferme pas l’information')
+  await page.locator('.flottant.vocaux').evaluate((b) => b.click())
+  await page.waitForTimeout(300)
+  if (!(await page.locator('.tiroir .mes-messages li, .tiroir .vide').count())) erreurs.push('talkie : « Mes messages » ne s’ouvre pas')
+  await page.keyboard.press('Escape').catch(() => {})
+}
 fs.mkdirSync(sortie, { recursive: true })
 await esbuild.build({
   entryPoints: [path.join(ici, 'ecrans.jsx')],
@@ -308,6 +328,7 @@ for (const ecran of ecrans) {
     // (31/10) La carte s'ouvre sur le point zéro au zoom 18, comme la Conception, pas cadrée sur tous les objets.
     if (!(await page.locator('.leaflet-container[data-cadrage="point0"]').count())) erreurs.push('carte : pas cadrée sur le point zéro')
   }
+  if (ecran === 'coquille') await verifierTalkie(page, erreurs)
   if (ecran === 'situation') {
     // (1/11) Mode QG : plein écran, la file « à décider » commence par le SOS reçu (avant la demande P1),
     // la main courante et l'à-venir sont remplis, Échap rend la Situation.
@@ -329,6 +350,21 @@ for (const ecran of ecrans) {
       await page.waitForTimeout(300)
       if (await page.locator('.mode-qg').count()) erreurs.push('mode QG : Échap ne quitte pas')
       if (!(await page.getByRole('button', { name: /Son OFF/ }).count())) erreurs.push('mode QG : en sortant, le son ne revient pas à son état d’avant')
+    }
+    // (162) Le fil « Entendu » : l'urgence d'abord, « 1 à entendre » ; Entendu envoie la mise à jour.
+    const fil = page.locator('.fil-entendu')
+    if (!(await fil.count())) erreurs.push('entendu : pas de fil des messages vocaux')
+    else {
+      if (!/1 à entendre/.test(await fil.textContent())) erreurs.push('entendu : « 1 à entendre » absent')
+      const premier = fil.locator('.message-vocal').first()
+      if (!(await premier.locator('.prc-jeton.chaud', { hasText: 'urgence' }).count())) erreurs.push('entendu : l’urgence n’est pas en tête')
+      if (!/blessé à l’étape 2/.test(await premier.locator('.vocal-transcription').inputValue().catch(() => ''))) erreurs.push('entendu : la transcription manque')
+      if (!(await premier.locator('button', { hasText: 'Écouter' }).count())) erreurs.push('entendu : pas de lecteur audio')
+      await page.evaluate(() => { window.__ecritures = [] })
+      await premier.getByRole('button', { name: 'Entendu' }).click()
+      await page.waitForTimeout(300)
+      if (!(await page.evaluate(() => (window.__ecritures ?? []).some((e) => e.table === 'messages_vocaux' && e.op === 'update' && e.champs?.statut === 'entendu' && e.champs?.entendu_le)))) erreurs.push('entendu : le bouton n’envoie pas l’accusé')
+      if (!(await premier.getByRole('button', { name: '→ Demande' }).count())) erreurs.push('entendu : « → Demande » absent')
     }
     // (158) Le message d'urgence de la commune reste en bandeau ; « Bien reçu » n'apparaît que connecté (le banc ne l'est pas).
     const commune = page.locator('.message-commune.niv-urgence')
@@ -947,6 +983,8 @@ for (const ecran of ecrans) {
     await page.locator('.barre-onglets button', { hasText: 'Plus' }).evaluate((b) => b.click())
     await page.waitForTimeout(200)
     if (!(await page.locator('.tiroir-plus .rex-plus').count())) erreurs.push('REX absent du tiroir « Plus »')
+    await page.keyboard.press('Escape').catch(() => {})
+    await verifierTalkie(page, erreurs)
   }
   if (m.petits.length) erreurs.push(`champs sous 16 px (zoom iPhone) : ${[...new Set(m.petits)].slice(0, 4).join(', ')}`)
   if (erreurs.length) echecs++

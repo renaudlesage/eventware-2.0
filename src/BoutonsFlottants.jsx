@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Siren, MessageSquareWarning, X, TriangleAlert } from 'lucide-react'
+import { Siren, MessageSquareWarning, X, TriangleAlert, MessagesSquare } from 'lucide-react'
+import { BoutonParler, MesMessages, talkieDisponible } from './Talkie'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { diffuserAlerte } from './diffuserAlerte'
@@ -62,11 +63,23 @@ export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir 
     return () => window.removeEventListener('eventware:rex', ouvrirRex)
   }, [peutRex])
 
-  if (!peutSos && !peutRex && !peutMayday) return null
+  // (162) Parler au QG : module activé et appareil capable d'enregistrer.
+  const peutParler = !!evenement.modules?.talkie && !!membre?.id && talkieDisponible()
+
+  if (!peutSos && !peutRex && !peutMayday && !peutParler) return null
 
   return (
     <>
       <div className="flottants">
+        {peutParler && (
+          <>
+            <BoutonParler evenement={evenement} membre={membre} />
+            <button className="flottant vocaux" onClick={() => setOuvert('vocaux')} aria-label="Mes messages vocaux">
+              <MessagesSquare size={18} strokeWidth={1.9} aria-hidden="true" />
+              <span>Mes messages</span>
+            </button>
+          </>
+        )}
         {peutRex && (
           <button
             className="flottant rex"
@@ -108,7 +121,7 @@ export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir 
                   ? 'Signaler un incident'
                   : ouvert === 'mayday'
                     ? 'Mayday — appel de détresse'
-                    : 'Retour d\u2019expérience'}
+                    : ouvert === 'vocaux' ? 'Mes messages au QG' : 'Retour d\u2019expérience'}
               </strong>
               <button className="lien" onClick={() => setOuvert(null)} aria-label="Fermer">
                 <X size={18} strokeWidth={2} aria-hidden="true" />
@@ -123,6 +136,7 @@ export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir 
             {ouvert === 'rex' && (
               <FormRex evenement={evenement} membre={membre} onFini={() => setOuvert(null)} />
             )}
+            {ouvert === 'vocaux' && <MesMessages evenement={evenement} membre={membre} />}
           </div>
         </div>
       )}
