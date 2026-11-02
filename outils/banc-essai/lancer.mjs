@@ -886,6 +886,19 @@ for (const ecran of ecrans) {
       if (!(await bouton.count())) erreurs.push('dossier : pas de bouton Déposer')
       else if (!(await bouton.isDisabled())) erreurs.push('dossier : Déposer devrait être désactivé tant qu’un bloquant subsiste')
       if (!(await dossier.locator('.dossier-versions li', { hasText: 'Version 1' }).count())) erreurs.push('dossier : la version 1 n’est pas listée')
+      // (étape 6) Le PDF de la version 1 se télécharge.
+      const [telechargement] = await Promise.all([
+        page.waitForEvent('download', { timeout: 8000 }).catch(() => null),
+        dossier.getByRole('button', { name: /Télécharger le PDF \(version 1\)/ }).click()
+      ])
+      if (!telechargement) erreurs.push('dossier : le PDF ne se télécharge pas')
+      else {
+        if (!/^Dossier-securite-.*-v1\.pdf$/.test(telechargement.suggestedFilename())) erreurs.push(`dossier : nom du PDF « ${telechargement.suggestedFilename()} »`)
+        const chemin = path.join(sortie, 'dossier-v1.pdf')
+        await telechargement.saveAs(chemin)
+        const octets = fs.readFileSync(chemin)
+        if (octets.length < 2000 || octets.subarray(0, 5).toString() !== '%PDF-') erreurs.push('dossier : le fichier téléchargé n’est pas un PDF')
+      }
       // (160) Le DMP : 33 points, niveau 4, avis CoAMU ; le critère manuel se coche et envoie un upsert.
       const dmp = await dossier.locator('.dmp').textContent().catch(() => '')
       if (!/33 points → niveau 4/.test(dmp) || !/avis CoAMU requis/.test(dmp)) erreurs.push('dmp : score, niveau ou avis CoAMU absents')

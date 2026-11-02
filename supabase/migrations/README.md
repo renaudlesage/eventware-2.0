@@ -628,6 +628,14 @@ Dossier de sécurité, étape 4. Tests : `../../outils/replique/tests/159.sql` (
 
 Dossier de sécurité, étape 5. Tests : `../../outils/replique/tests/160.sql` (niveaux aux bornes 10/11/20/21/30/31/35/36, calcul par source, grille d'organisation prioritaire, copie au dépôt, droits).
 
+### 161 : PAS ENCORE APPLIQUÉE — éprouvée sur la réplique locale — décision de la commune, transmission du dossier
+
+| Fichier | Fait |
+|---|---|
+| `20261102180000_161_decision_et_transmission_dossier.sql` | `decider_dossier(evenement, autorise/refuse, commentaire)` : tout pouvoir, dossier déposé ou en instruction, `decide_le`, journal (étape 7, MVP : l'organisateur consigne l'arrêté reçu, déposé dans Partage › Documents). `canaux_diffusion.objets` (`{alerte}` par défaut ; `dossier` pour recevoir le dossier), `diffusions.objet` et `reference`, `transmission_dossier(evenement, base_url)` réservée au rôle de service : la charge `dossier_securite` du contrat partagé avec Crisiware (briefing 03, partie B), lien de consultation sur un accès de niveau instruction. Aucun DROP, rejouable |
+
+Dossier de sécurité, étapes 7 et 8. Va avec l'Edge Function `diffuser-dossier` (`../functions/`, JWT requis, clé de service), appelée après chaque changement de statut. Tests : `../../outils/replique/tests/161.sql`.
+
 Pont commune, partie A (briefing 02). Va avec l'Edge Function `reception-commune` (`../functions/`, à déployer `--no-verify-jwt`). Tests : `../../outils/replique/tests/158.sql` (réel reçu + journal, rejoué = doublon, mauvais secret et en-tête absent journalisés sans secret, jeton inconnu, charge invalide, I2, I3, bon code d'exercice accepté, accusé nominatif, cloisonnement, anonyme).
 
 ## Ne jamais rejouer 088 → 154 par `db push` sans les lignes ci-dessus

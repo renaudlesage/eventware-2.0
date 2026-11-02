@@ -3,6 +3,8 @@ import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import DossierSecurite from './DossierSecurite'
 import { Dmp } from './Dmp'
+import { telechargerDossierPdf } from './exportDossierPdf'
+import { diffuserDossier } from './diffuserDossier'
 
 /**
  * DOSSIER DE SÉCURITÉ (157, étape 2).
@@ -87,7 +89,40 @@ export default function Dossier({ evenement, peut, toutPouvoir, setMessage }) {
     setOccupe(false)
     if (error) return setMessage({ type: 'erreur', texte: texteErreur(error) })
     setMessage({ type: 'succes', texte: `Dossier déposé — version ${data?.version}.` })
+    diffuserDossier(evenement.id)
     charger()
+  }
+
+  // (161, étape 7 MVP) La décision reçue de la commune, consignée par l'organisateur.
+  async function decider(statutDecision) {
+    const commentaire = window.prompt(statutDecision === 'autorise'
+      ? 'Dossier autorisé par la commune. Référence de l’arrêté (facultatif) — pense à le déposer dans Partage › Documents.'
+      : 'Dossier refusé par la commune. Motif (facultatif).')
+    if (commentaire === null) return
+    setOccupe(true)
+    const { error } = await supabase.rpc('decider_dossier', { p_evenement: evenement.id, p_statut: statutDecision, p_commentaire: commentaire || null })
+    setOccupe(false)
+    if (error) return setMessage({ type: 'erreur', texte: texteErreur(error) })
+    diffuserDossier(evenement.id)
+    charger()
+  }
+
+  // (étape 6) Le PDF : la version déposée telle quelle, sinon l'instantané du moment.
+  async function pdf() {
+    setOccupe(true)
+    try {
+      const derniere = versions[0]
+      let contenu = derniere?.contenu
+      if (!contenu) {
+        const { data, error } = await supabase.rpc('instantane_dossier', { p_evenement: evenement.id })
+        if (error) throw error
+        contenu = Array.isArray(data) ? data[0] : data
+      }
+      telechargerDossierPdf({ evenement, contenu, version: derniere?.version ?? null, deposeLe: derniere?.created_at ?? null, statut: STATUTS[statut], avis })
+    } catch (e) {
+      setMessage({ type: 'erreur', texte: texteErreur(e) })
+    }
+    setOccupe(false)
   }
 
   async function retirer() {
@@ -96,6 +131,7 @@ export default function Dossier({ evenement, peut, toutPouvoir, setMessage }) {
     const { error } = await supabase.rpc('retirer_dossier', { p_evenement: evenement.id })
     setOccupe(false)
     if (error) return setMessage({ type: 'erreur', texte: texteErreur(error) })
+    diffuserDossier(evenement.id)
     charger()
   }
 
@@ -148,8 +184,16 @@ export default function Dossier({ evenement, peut, toutPouvoir, setMessage }) {
           </button>
         )}
         {toutPouvoir && ['depose', 'en_instruction'].includes(statut) && (
-          <button className="discret" onClick={retirer} disabled={occupe}>Retirer le dossier</button>
+          <>
+            <button className="discret" onClick={retirer} disabled={occupe}>Retirer le dossier</button>
+            <button className="discret decision-autorise" onClick={() => decider('autorise')} disabled={occupe}>Autorisé par la commune</button>
+            <button className="discret decision-refuse" onClick={() => decider('refuse')} disabled={occupe}>Refusé par la commune</button>
+          </>
         )}
+        {dossier?.decide_le && <span className="aide">décision le {quand(dossier.decide_le)}</span>}
+        <button className="discret" onClick={pdf} disabled={occupe}>
+          {versions[0] ? `Télécharger le PDF (version ${versions[0].version})` : 'Télécharger le PDF (brouillon)'}
+        </button>
       </div>
 
       {versions.length > 0 && (
