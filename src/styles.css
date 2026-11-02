@@ -3571,3 +3571,11 @@ body.qg-actif { overflow: hidden; }
 .talkie-option .case { display: flex; gap: 8px; align-items: flex-start; }
 .talkie-option .case input { width: auto; margin: 3px 0 0; }
 .talkie-intentions tr.inactif td { opacity: 0.55; }
+
+/* (162, 2/11) Le pavé « Parler au QG » de Mon poste. */
+.pave-talkie { display: grid; gap: 10px; }
+.talkie-pile.pave { align-items: stretch; }
+.parler-pave { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 64px; border: 0; border-radius: var(--rayon); background: var(--dom-indigo, #3b4a8a); color: #fff; font-size: 16px; font-weight: 600; touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }
+.parler-pave.enregistre { background: var(--etat-chaud); animation: talkie-pulse 1s ease-in-out infinite; }
+.parler-pave.annule { background: var(--sourdine); }
+.talkie-pile.pave .talkie-112 { text-align: center; font-size: 12px; }

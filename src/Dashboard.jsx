@@ -8,6 +8,7 @@ import { ColonneDomaine } from './Situation'
 import Terrain from './Terrain'
 import { MesCreneaux } from './Rh'
 import { GestionAlertes } from './Bandeau'
+import { BoutonParler, MesMessages, talkieDisponible } from './Talkie'
 
 /**
  * Mon poste — la position d'une seule personne, dans le même langage
@@ -157,9 +158,35 @@ function Contenu({ clef, ...p }) {
       return <PaveMesConstats {...p} />
     case 'demandes_prix':
       return <PaveDemandesPrix {...p} />
+    case 'talkie':
+      return <PaveTalkie {...p} />
     default:
       return null
   }
+}
+
+/* (162) Parler au QG : le bouton maintenu, la consigne 112, mes messages. */
+function PaveTalkie({ evenement, membre, onAller }) {
+  const [c, setC] = useState({ attente: null, reponses: null })
+  return (
+    <Bloc
+      clef="talkie"
+      onAller={onAller}
+      compteurs={[
+        { libelle: 'en attente de réseau', valeur: c.attente, etat: c.attente ? 'attente' : 'ok' },
+        { libelle: 'réponses', valeur: c.reponses, etat: 'ok' }
+      ]}
+    >
+      <div className="pave-talkie">
+        {talkieDisponible() ? (
+          <BoutonParler evenement={evenement} membre={membre} />
+        ) : (
+          <p className="aide">Cet appareil ne sait pas enregistrer : parler au QG passe par la radio ou le téléphone. <strong>Urgence vitale : appelle le 112.</strong></p>
+        )}
+        <MesMessages evenement={evenement} membre={membre} onCompteurs={setC} />
+      </div>
+    </Bloc>
+  )
 }
 
 /* --- Blocs ---------------------------------------------------------- */

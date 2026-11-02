@@ -38,24 +38,24 @@ const esbuild = require('esbuild')
 
 const sortie = path.join(racine, 'node_modules', '.banc-essai')
 
-// (162) Le bouton « Parler » et sa consigne 112 ; au premier appui, l'écran d'information qui vaut
-// consentement ; « Mes messages » s'ouvre. Seulement si le navigateur du banc sait enregistrer.
+// (162) Le pavé « Parler au QG » de Mon poste : le bouton maintenu et sa consigne 112 ; au premier
+// appui, l'écran d'information qui vaut consentement ; mes messages dessous. Pas de bouton flottant.
 async function verifierTalkie(page, erreurs) {
+  if (await page.locator('.flottant.parler, .flottant.vocaux').count()) erreurs.push('talkie : un bouton flottant subsiste (doit être dans Mon poste)')
+  const pave = page.locator('.pave-talkie')
+  if (!(await pave.count())) { erreurs.push('talkie : pas de pavé « Parler au QG » dans Mon poste'); return }
   const dispo = await page.evaluate(() => !!(window.MediaRecorder && navigator.mediaDevices?.getUserMedia))
   if (!dispo) return
-  const parler = page.locator('.flottant.parler')
-  if (!(await parler.count())) { erreurs.push('talkie : pas de bouton Parler'); return }
-  if (!(await page.locator('.talkie-112', { hasText: '112' }).count())) erreurs.push('talkie : « appelle le 112 » absent sous le bouton')
+  const parler = pave.locator('.parler-pave')
+  if (!(await parler.count())) { erreurs.push('talkie : pas de bouton Parler dans le pavé'); return }
+  if (!(await pave.locator('.talkie-112', { hasText: '112' }).count())) erreurs.push('talkie : « appelle le 112 » absent sous le bouton')
   await parler.dispatchEvent('pointerdown', { pointerId: 1 })
   await page.waitForTimeout(200)
   if (!(await page.locator('.talkie-info').count())) erreurs.push('talkie : pas d’écran d’information au premier appui')
   await page.locator('.talkie-info button', { hasText: 'Pas maintenant' }).evaluate((b) => b.click()).catch(() => {})
   await page.waitForTimeout(150)
   if (await page.locator('.talkie-info').count()) erreurs.push('talkie : « Pas maintenant » ne ferme pas l’information')
-  await page.locator('.flottant.vocaux').evaluate((b) => b.click())
-  await page.waitForTimeout(300)
-  if (!(await page.locator('.tiroir .mes-messages li, .tiroir .vide').count())) erreurs.push('talkie : « Mes messages » ne s’ouvre pas')
-  await page.keyboard.press('Escape').catch(() => {})
+  if (!(await pave.locator('.mes-messages li, .vide').count())) erreurs.push('talkie : « Mes messages » absent du pavé')
 }
 fs.mkdirSync(sortie, { recursive: true })
 await esbuild.build({
@@ -328,7 +328,7 @@ for (const ecran of ecrans) {
     // (31/10) La carte s'ouvre sur le point zéro au zoom 18, comme la Conception, pas cadrée sur tous les objets.
     if (!(await page.locator('.leaflet-container[data-cadrage="point0"]').count())) erreurs.push('carte : pas cadrée sur le point zéro')
   }
-  if (ecran === 'coquille') await verifierTalkie(page, erreurs)
+  if (ecran === 'accueil') await verifierTalkie(page, erreurs)
   if (ecran === 'situation') {
     // (1/11) Mode QG : plein écran, la file « à décider » commence par le SOS reçu (avant la demande P1),
     // la main courante et l'à-venir sont remplis, Échap rend la Situation.
@@ -984,6 +984,8 @@ for (const ecran of ecrans) {
     await page.waitForTimeout(200)
     if (!(await page.locator('.tiroir-plus .rex-plus').count())) erreurs.push('REX absent du tiroir « Plus »')
     await page.keyboard.press('Escape').catch(() => {})
+  }
+  if (ecran === 'accueil') {
     await verifierTalkie(page, erreurs)
   }
   if (m.petits.length) erreurs.push(`champs sous 16 px (zoom iPhone) : ${[...new Set(m.petits)].slice(0, 4).join(', ')}`)
