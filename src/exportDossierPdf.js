@@ -1,14 +1,18 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { texteReponse } from './FormulaireCommunal'
 
 /**
  * EXPORT PDF DU DOSSIER DE SÉCURITÉ (étape 6).
  *
  * Produit depuis l'instantané (157) — la version déposée, figée, ou
- * l'instantané courant si rien n'est encore déposé — dans l'ordre du
- * questionnaire type des communes : organisateur, assurances,
- * manifestation, prescriptions applicables, dispositif de secours et
- * DMP, plan, avis reçus. En-tête : version et date de dépôt.
+ * l'instantané courant si rien n'est encore déposé. Quand l'instantané
+ * porte le formulaire multidisciplinaire (163), le PDF suit ses douze
+ * sections, telles que la commune les lit, puis ajoute ce qu'Eventware
+ * sait en plus (prescriptions, DMP, plan, contacts, avis). Les versions
+ * figées avant 163 gardent l'ancien ordre : organisateur, assurances,
+ * manifestation, prescriptions, secours et DMP, plan, avis reçus.
+ * En-tête : version et date de dépôt.
  * Nouvelle dépendance jsPDF (accord de Ren, 2/11).
  */
 const jour = (d) => (d ? new Date(d).toLocaleDateString('fr-BE') : '—')
@@ -78,7 +82,34 @@ export function construireDossierPdf({ evenement, contenu, version, deposeLe, st
   doc.text(`Généré depuis Eventware le ${quand(new Date())}`, largeur / 2, 118, { align: 'center' }); doc.setTextColor(0)
   nouvellePage()
 
+  // (163) Les formulaires applicables (la commune, puis le fédéral), chacun dans l'ordre de ses sections.
+  const formulaires = (Array.isArray(c.formulaires) && c.formulaires.length ? c.formulaires : [c.formulaire]).filter((f) => f?.questions?.length)
+  const formulaire = formulaires.length ? formulaires[0] : null
+  formulaires.forEach((f, i) => {
+    if (i > 0) nouvellePage()
+    const manquantes = new Set(f.obligatoires_manquantes ?? [])
+    doc.setFontSize(16); doc.setFont(undefined, 'bold'); place(12); doc.text(f.formulaire?.libelle ?? 'Formulaire de demande', marge, y); doc.setFont(undefined, 'normal'); y += 8
+    ligne([f.formulaire?.version, f.formulaire?.autorite ? `demandé par ${f.formulaire.autorite}` : null].filter(Boolean).join(' · '), 9)
+    ligne(`${f.repondues} questions renseignées sur ${f.total}${manquantes.size ? ` — ${manquantes.size} obligatoire(s) sans réponse : ${[...manquantes].join(', ')}` : ''}.`)
+    ;(f.sections ?? []).forEach((s) => {
+      const qs = (f.questions ?? []).filter((q) => q.section === s.section)
+      titre(`${s.section}. ${s.titre}`)
+      const lignes = qs.filter((q) => q.valeur != null || q.obligatoire).map((q) => [
+        q.code, q.sous_section ? `${q.sous_section} — ${q.libelle}` : q.libelle,
+        q.valeur != null ? texteReponse(q) : q.obligatoire ? '(obligatoire, sans réponse)' : ''
+      ])
+      if (!lignes.length) ligne('Rien à signaler dans cette section.')
+      else tableau(['N°', 'Question', 'Réponse'], lignes, { columnStyles: { 0: { cellWidth: 14 }, 1: { cellWidth: 78 } } })
+    })
+  })
+  if (formulaire) {
+    nouvellePage()
+    titre('Compléments Eventware')
+    ligne('Ce qui suit vient des données encodées dans Eventware : prescriptions des référentiels, dispositif médical préventif, plan d\'implantation, contacts partagés, avis des disciplines.')
+  }
+
   // 1. Organisateur
+  if (!formulaire) {
   titre('1. Organisateur')
   cles([
     ['Organisation', c.organisateur?.nom],
@@ -106,16 +137,19 @@ export function construireDossierPdf({ evenement, contenu, version, deposeLe, st
   ])
   const lieux = c.lieux ?? []
   if (lieux.length) tableau(['Code', 'Lieu', 'Type', 'Position'], lieux.map((l) => [l.code, l.nom, l.type, l.lat != null ? `${l.lat.toFixed(5)}, ${l.lon.toFixed(5)}` : '']))
+  }
+  // Après le formulaire, les compléments sont lettrés pour ne pas se confondre avec ses sections.
+  const n = (i) => (formulaire ? `${'ABCDE'[i - 4]}.` : `${i}.`)
 
   // 4. Prescriptions applicables
-  titre(`4. Prescriptions applicables (${(c.prescriptions ?? []).length})`)
+  titre(`${n(4)} Prescriptions applicables (${(c.prescriptions ?? []).length})`)
   if (!(c.prescriptions ?? []).length) ligne('Aucune prescription de référentiel ne s\'applique.')
   tableau(['Code', 'Prescription', 'Caractère', 'Référentiel'],
     (c.prescriptions ?? []).map((p) => [p.code, `${p.titre}${p.complement_local ? `\nLocal : ${p.complement_local}` : ''}`, p.caractere === 'recommande' ? 'recommandé' : 'obligatoire', p.referentiel]),
     { columnStyles: { 1: { cellWidth: 90 } } })
 
   // 5. Dispositif de secours et DMP
-  titre('5. Dispositif de secours et DMP')
+  titre(`${n(5)} Dispositif de secours et DMP`)
   if (!(c.secours ?? []).length) ligne('Aucun moyen de premiers secours déclaré.')
   tableau(['Moyen', 'Quantité', 'Commentaire'], (c.secours ?? []).map((m) => [m.type, m.quantite, m.commentaire ?? '']))
   const dmp = c.dmp ?? {}
@@ -125,7 +159,7 @@ export function construireDossierPdf({ evenement, contenu, version, deposeLe, st
   } else ligne('Dispositif médical préventif : non calculé.')
 
   // 6. Plan
-  titre('6. Plan du site')
+  titre(`${n(6)} Plan du site`)
   const plan = c.plan ?? []
   if (!plan.length) ligne('Plan d\'implantation vide. Le plan graphique est joint séparément.')
   else {
@@ -137,11 +171,11 @@ export function construireDossierPdf({ evenement, contenu, version, deposeLe, st
   }
 
   // 7. Contacts et avis reçus
-  titre('7. Contacts partagés')
+  titre(`${n(7)} Contacts partagés`)
   if (!(c.contacts ?? []).length) ligne('Aucun contact partagé avec les autorités.')
   tableau(['Nom', 'Fonction', 'Organisation', 'Téléphone', 'Rôle'], (c.contacts ?? []).map((k) => [k.nom, k.fonction ?? '', k.organisation ?? '', k.telephone ?? '', k.role_autorite ?? '']))
 
-  titre(`8. Avis reçus (${avis.length})`)
+  titre(`${n(8)} Avis reçus (${avis.length})`)
   if (!avis.length) ligne('Aucun avis rendu sur cette version.')
   avis.forEach((a) => {
     const prescriptions = a.prescriptions_dossier ?? a.prescriptions ?? []

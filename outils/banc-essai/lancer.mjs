@@ -942,6 +942,35 @@ for (const ecran of ecrans) {
       await dossier.locator('.dmp input[type=checkbox]').last().click({ force: true })
       await page.waitForTimeout(200)
       if (!(await page.evaluate(() => (window.__ecritures ?? []).some((e) => e.table === 'dmp_reponses' && e.op === 'upsert' && e.champs?.critere_id === 'k4')))) erreurs.push('dmp : cocher un critère n’envoie pas de réponse')
+      // (163) Le formulaire communal : le compteur, les sections où il manque une obligatoire ouvertes, le pré-rempli signalé,
+      // une saisie qui part en upsert, un retour au pré-rempli qui efface.
+      const formulaire = dossier.locator('.formulaire-communal')
+      if (!(await formulaire.count())) erreurs.push('formulaire : pas de bloc')
+      else {
+        const t = await formulaire.textContent()
+        if (!/5 \/ 8/.test(t) || !/2 obligatoires sans réponse/.test(t)) erreurs.push('formulaire : compteur ou obligatoires manquantes absents')
+        if (!/commune de Ferrières/.test(t) || !/60 jours avant la mise en place/.test(t) || !/manifestations@ferrieres.be/.test(t)) erreurs.push('formulaire : en-tête (libellé, délai, adresse d’envoi) incomplet')
+        if ((await formulaire.locator('.formulaire-choix button').count()) !== 2) erreurs.push('formulaire : les deux formulaires applicables ne sont pas proposés')
+        const ouvertes = await formulaire.locator('.formulaire-section.ouverte').count()
+        if (ouvertes !== 2) erreurs.push(`formulaire : ${ouvertes} sections ouvertes d’office (attendu 2 : celles où une obligatoire manque)`)
+        if (!(await formulaire.locator('.formulaire-prerempli').count())) erreurs.push('formulaire : aucun « pré-rempli par Eventware »')
+        if (!(await formulaire.locator('tr.manquante', { hasText: '1.04' }).count())) erreurs.push('formulaire : 1.04 n’est pas marquée manquante')
+        await page.evaluate(() => { window.__ecritures = [] })
+        await formulaire.locator('tr', { hasText: '1.04' }).locator('select').selectOption('Domaine public')
+        await page.waitForTimeout(300)
+        if (!(await page.evaluate(() => (window.__ecritures ?? []).some((e) => e.table === 'formulaire_reponses' && e.op === 'upsert' && e.champs?.formulaire_id === 'f1' && e.champs?.code === '1.04' && e.champs?.valeur === 'Domaine public')))) erreurs.push('formulaire : choisir une option n’envoie pas la réponse (avec le formulaire)')
+        // La section 3 est repliée : on l'ouvre pour trouver la saisie 3.01 et son retour au pré-rempli.
+        await formulaire.locator('.formulaire-section-titre', { hasText: '3. Données sur le public' }).click()
+        const retour = formulaire.locator('tr', { hasText: '3.01' }).getByRole('button', { name: /revenir au pré-rempli/ })
+        if (!(await retour.count())) erreurs.push('formulaire : la saisie 3.01 n’offre pas le retour au pré-rempli')
+        else {
+          await page.evaluate(() => { window.__appels = [] })
+          await retour.evaluate((b) => b.click())
+          await page.waitForTimeout(300)
+          const r = await page.evaluate(() => (window.__appels ?? []).some((a) => a.fn === 'formulaire_dossier'))
+          if (!r) erreurs.push('formulaire : le retour au pré-rempli ne recharge pas le formulaire')
+        }
+      }
       // (159) L'avis D3 avec sa prescription, le lien d'avis D1 et son bouton de copie.
       const av = await dossier.locator('.dossier-avis').textContent().catch(() => '')
       if (!/D3 — Police.*favorable sous conditions/.test(av) || !/Plan de circulation/.test(av)) erreurs.push('dossier : l’avis D3 et sa prescription manquent')
