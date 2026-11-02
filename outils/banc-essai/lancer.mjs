@@ -63,7 +63,7 @@ fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><me
 fs.writeFileSync(path.join(sortie, 'page-tel.html'), '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"><link rel="stylesheet" href="../../src/mobile.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
 
 const demandes = process.argv.slice(2)
-const ecrans = demandes.length ? demandes : ['coquille', 'coquille-preparation', 'coquille-montage', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0']
+const ecrans = demandes.length ? demandes : ['coquille', 'coquille-preparation', 'coquille-montage', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'avis', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0']
 const navigateur = await pw.chromium.launch()
 let echecs = 0
 for (const ecran of ecrans) {
@@ -767,6 +767,19 @@ for (const ecran of ecrans) {
   // écran comme les autres cartes, le plan dessiné par couchesPlan ; le dessin
   // vectoriel reste disponible en repli. Tous les PRV en tête de page, avec
   // leur adresse ; le schéma unifilaire dans le dossier.
+  if (ecran === 'avis') {
+    // (159) La page d'avis : le dossier figé, l'avis déjà rendu par D3, le formulaire de D1 avec ses prescriptions.
+    const t = await page.locator('.avis-dossier').textContent().catch(() => '')
+    if (!/Rando VTT 2026/.test(t) || !/version 1/.test(t)) erreurs.push('avis : en-tête du dossier absent')
+    if (!/Jean Dupont/.test(t) || !/Ethias/.test(t)) erreurs.push('avis : organisateur ou assurance absents')
+    if (!/H1/.test(t) || !/Extincteur par stand/.test(t)) erreurs.push('avis : prescription applicable absente')
+    if (!/D3 — Police/.test(t) || !/Favorable/.test(t)) erreurs.push('avis : l’avis déjà rendu par D3 est absent')
+    if ((await page.getByRole('radio').count()) !== 3) erreurs.push(`avis : ${await page.getByRole('radio').count()} choix d’avis (attendu 3)`)
+    await page.getByRole('button', { name: '+ Prescription' }).click()
+    await page.waitForTimeout(100)
+    if (!(await page.locator('.prescription-ligne input').count())) erreurs.push('avis : + Prescription n’ajoute pas de ligne')
+    if (!(await page.getByRole('button', { name: "Rendre l'avis" }).count())) erreurs.push('avis : bouton « Rendre l’avis » absent')
+  }
   if (ecran === 'autorite') {
     if (!(await page.locator('.calques-carte').count())) erreurs.push('filtre des calques absent')
     if (!(await page.locator('.carte-autorite .leaflet-container').count())) erreurs.push('carte à tuiles absente')
@@ -873,6 +886,10 @@ for (const ecran of ecrans) {
       if (!(await bouton.count())) erreurs.push('dossier : pas de bouton Déposer')
       else if (!(await bouton.isDisabled())) erreurs.push('dossier : Déposer devrait être désactivé tant qu’un bloquant subsiste')
       if (!(await dossier.locator('.dossier-versions li', { hasText: 'Version 1' }).count())) erreurs.push('dossier : la version 1 n’est pas listée')
+      // (159) L'avis D3 avec sa prescription, le lien d'avis D1 et son bouton de copie.
+      const av = await dossier.locator('.dossier-avis').textContent().catch(() => '')
+      if (!/D3 — Police.*favorable sous conditions/.test(av) || !/Plan de circulation/.test(av)) erreurs.push('dossier : l’avis D3 et sa prescription manquent')
+      if (!/Zone de secours/.test(av) || !(await dossier.locator('.dossier-avis button', { hasText: 'Copier le lien' }).count())) erreurs.push('dossier : le lien d’avis D1 manque')
     }
     // (158) Rubrique Partage : la liaison commune, son récepteur et sa ligne.
     await page.locator('.rubrique-reglages select').selectOption('partage')

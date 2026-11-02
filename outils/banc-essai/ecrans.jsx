@@ -3,6 +3,7 @@ import Securite from '../../src/Securite.jsx'
 import Situation from '../../src/Situation.jsx'
 import Terrain from '../../src/Terrain.jsx'
 import Autorite from '../../src/Autorite.jsx'
+import AvisAutorite from '../../src/AvisAutorite.jsx'
 import Participant from '../../src/Participant.jsx'
 import ColonneSituation from '../../src/ColonneSituation.jsx'
 import Logistique from '../../src/Logistique.jsx'
@@ -58,6 +59,8 @@ export const ECRANS = {
   situation: () => <Situation evenement={evenement} peut={peut} toutPouvoir onAller={() => {}} />,
   terrain: () => <Terrain evenement={evenement} membre={membre} />,
   autorite: () => <Autorite jeton="jeton-essai" />,
+  // (159) La page d'avis d'une discipline sur le dossier déposé, par lien.
+  avis: () => <AvisAutorite jeton="jeton-avis" />,
   participant: () => <Participant jeton="jeton-essai" codeLieu={null} />,
   colonne: () => <ColonneSituation evenement={evenement} palier="large" onAller={() => {}} />,
   // (129) Le Gantt : en préparation, l'onglet par défaut du Planning. Les dates de l'événement posent les bandes et le trait J.

@@ -11,6 +11,9 @@ export const DONNEES = {
   liaisons_commune: [{ id: 'lc1', evenement_id: 'ev1', commune: 'Ferrières', entete: 'X-Commune-Secret', actif: true, est_exercice: false, exercice_code: null, nb_messages: 1, dernier_message_le: '2026-11-11T21:02:00+01:00', created_at: '2026-10-01T10:00:00+02:00' }],
   messages_commune: [{ id: 'mc1', evenement_id: 'ev1', liaison_id: 'lc1', reference: 'CW-001', niveau: 'urgence', titre: 'Évacuation partielle du camping', message: 'Montée de l’Ourthe annoncée pour 23 h.', consigne: 'Rassembler les campeurs au PRV', incident_type: 'inondation', incident_phase: 'communale', emise_le: '2026-11-11T21:00:00+01:00', recu_le: '2026-11-11T21:02:00+01:00', lu_par: null, lu_le: null, est_exercice: false, exercice_code: null }],
   messages_commune_accuses: [], journal_receptions: [],
+  // (159) Un avis D3 favorable avec une prescription, et un lien d'avis ouvert pour D1.
+  avis_autorite: [{ id: 'av1', dossier_id: 'dos1', version: 1, discipline: 'D3', avis: 'favorable_conditions', commentaire: 'Sous réserve du plan de circulation.', rendu_le: '2026-10-21T09:00:00+02:00', remplace_le: null, rendu_par: 'ZP Condroz', prescriptions_dossier: [{ id: 'pr1', texte: 'Plan de circulation validé par la police', caractere: 'obligatoire' }] }],
+  acces_autorite: [{ id: 'aa1', evenement_id: 'ev1', jeton: 'jeton-avis', libelle: 'Zone de secours', organisation: 'ZS', niveau: 'avis', discipline: 'D1', actif: true, expire_le: null, nb_acces: 0, dernier_acces: null, created_at: '2026-10-20T10:00:00+02:00' }],
   // (157) Un dossier déposé une fois, avec sa version figée.
   dossiers_securite: [{ id: 'dos1', evenement_id: 'ev1', statut: 'depose', version_courante: 1, depose_le: '2026-10-20T10:00:00+02:00', decide_le: null, niveau_dmp: null, score_dmp: null }],
   dossier_versions: [{ id: 'dv1', dossier_id: 'dos1', version: 1, created_at: '2026-10-20T10:00:00+02:00', auteur_nom: 'Ren', contenu: { evenement: { frequentation_max: 1200, date_montage: '2026-11-09', date_demontage: '2026-11-13' }, prescriptions: [{ code: 'H1' }], lieux: [{}, {}], plan: [{}], contacts: [{}], controles: [{ gravite: 'alerte' }] } }],
@@ -134,6 +137,20 @@ function constructeur(table, fn, args) {
       { code: 'VEILLE_INACTIVE', gravite: 'veille', titre: 'Veille météo inactive', detail: 'Aucun seuil ne déclenchera rien', table_source: 'veille_meteo', source_id: null, stimulus: 'Météo…', objectif: 'METEO' }
     ],
     deposer_dossier: [{ dossier_id: 'dos1', version: 2, statut: 'depose' }],
+    // (159) Le lien D1 lit le dossier déposé ; la D3 a déjà rendu son avis.
+    dossier_par_jeton: { destinataire: { libelle: 'Zone de secours', organisation: 'ZS Vesdre-Hoëgne & Plateau', discipline: 'D1', niveau: 'avis' },
+      evenement: { nom: 'Rando VTT 2026', commune: 'Ferrières', phase: 'preparation' },
+      dossier: { id: 'dos1', statut: 'en_instruction', version: 1, depose_le: '2026-10-20T10:00:00+02:00', niveau_dmp: null },
+      contenu: { evenement: { nom: 'Rando VTT 2026', commune: 'Ferrières', province: 'Liège', zone_secours: 'Vesdre-Hoëgne & Plateau', date_montage: '2026-11-09', date_debut: '2026-11-11', date_fin: '2026-11-11', date_demontage: '2026-11-13', frequentation_min: 300, frequentation_max: 1200 },
+        organisateur: { nom: 'Les Amis du Vélo', contact_nom: 'Ren', contact_tel: '0470 00 00 00' },
+        profil_securite: { responsable_legal: 'Jean Dupont', responsable_legal_tel: '0470 11 11 11', assurance_compagnie: 'Ethias', assurance_police: 'RC-123', securite_nom: 'Marie Martin', securite_tel: '0470 22 22 22' },
+        questionnaire: { structure: { chapiteau: true }, cuisson: { gaz: true, barbecue: false } },
+        prescriptions: [{ code: 'H1', titre: 'Extincteur par stand de cuisson', caractere: 'obligatoire', referentiel: 'HEMECO' }],
+        lieux: [{ code: 'P0', nom: 'Point 0', type: 'pc_ops' }], plan: [{}, {}], secours: [{ type: 'secouristes', quantite: 4 }],
+        contacts: [{ nom: 'Coord A', telephone: '0470 00 00 01', role_autorite: 'interlocuteur' }], controles: [{ gravite: 'alerte', titre: 'Plan d’implantation vide' }] },
+      avis: [{ id: 'av1', discipline: 'D3', avis: 'favorable', commentaire: 'RAS', rendu_le: '2026-10-21T09:00:00+02:00', rendu_par: 'ZP Condroz', prescriptions: [] }],
+      mon_avis: null },
+    deposer_avis: [{ avis_id: 'av2', discipline: 'D1', version: 1, prescriptions: 1, statut: 'en_instruction' }],
     // (154) Une demande P1 qui attend plus que d'habitude (seuil appris : 15 min) : le bandeau « Attente ».
     missions_en_souffrance: [{ mission_id: 'm1', reference: 'SEC-001', titre: 'Renfort', priorite: 'P1', module: 'securite', attente_min: 22, seuil_min: 15, depassement: 1.5 }],
     seuils_prise_en_charge: [{ priorite: 'P1', seuil_min: 15, mesures: 22, source: 'appris : 9 demandes sur 10 prises en charge sous ce délai' }, { priorite: 'P2', seuil_min: 32, mesures: 15, source: 'appris : 9 demandes sur 10 prises en charge sous ce délai' }, { priorite: 'P3', seuil_min: 32, mesures: 21, source: 'appris, relevé au niveau de la priorité plus urgente' }, { priorite: 'P4', seuil_min: 120, mesures: 0, source: 'par défaut : moins de 10 mesures dans les événements clos' }],

@@ -3519,3 +3519,15 @@ body.qg-actif { overflow: hidden; }
 .rejets-liaison { margin-top: 8px; }
 .rejets-liaison ul { margin: 4px 0 0; padding-left: 18px; }
 .messages-commune-liste .ligne-retard .meta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+
+/* (159, 2/11) Page d'avis d'une discipline sur le dossier. */
+.avis-dossier .autorite-corps { display: grid; gap: 12px; padding: 12px 16px 40px; max-width: 980px; margin: 0 auto; }
+.avis-dossier .fiche-cles { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; font-size: 14px; }
+.avis-dossier .fiche-cles dt { color: var(--sourdine); }
+.avis-dossier .fiche-cles dd { margin: 0; }
+.avis-dossier .liste-prescriptions, .avis-dossier .liste-avis { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 6px; }
+.avis-dossier .prescription-ligne { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.avis-dossier .prescription-ligne input { flex: 1; }
+.avis-dossier .prescription-ligne select { width: auto; margin: 0; }
+.avis-dossier textarea { width: 100%; }
+@media (max-width: 700px) { .avis-dossier .fiche-cles { grid-template-columns: 1fr; gap: 2px; } .avis-dossier .fiche-cles dt { margin-top: 6px; } }

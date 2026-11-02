@@ -28,6 +28,9 @@ const quand = (iso) => (iso ? new Date(iso).toLocaleString('fr-BE', { dateStyle:
 export default function Dossier({ evenement, peut, toutPouvoir, setMessage }) {
   const [dossier, setDossier] = useState(null)
   const [versions, setVersions] = useState([])
+  const [avis, setAvis] = useState([])
+  const [liens, setLiens] = useState([])
+  const [discipline, setDiscipline] = useState('D1')
   const [controles, setControles] = useState([])
   const [erreur, setErreur] = useState(null)
   const [occupe, setOccupe] = useState(false)
@@ -43,9 +46,35 @@ export default function Dossier({ evenement, peut, toutPouvoir, setMessage }) {
     else { setErreur(null); setControles(k.data ?? []) }
     setDossier(d.data ?? null)
     if (d.data?.id) {
-      const v = await supabase.from('dossier_versions').select('id, version, created_at, auteur_nom, contenu').eq('dossier_id', d.data.id).order('version', { ascending: false })
+      const [v, a] = await Promise.all([
+        supabase.from('dossier_versions').select('id, version, created_at, auteur_nom, contenu').eq('dossier_id', d.data.id).order('version', { ascending: false }),
+        // (159) Les avis de la version courante, en vigueur, avec leurs prescriptions.
+        supabase.from('avis_autorite').select('*, prescriptions_dossier(*)').eq('dossier_id', d.data.id).eq('version', d.data.version_courante).is('remplace_le', null).order('discipline')
+      ])
       setVersions(v.data ?? [])
-    } else setVersions([])
+      setAvis(a.data ?? [])
+    } else { setVersions([]); setAvis([]) }
+    const l = await supabase.from('acces_autorite').select('id, jeton, libelle, organisation, niveau, discipline, actif, nb_acces, dernier_acces')
+      .eq('evenement_id', evenement.id).in('niveau', ['avis', 'instruction']).is('deleted_at', null).order('created_at')
+    setLiens(l.data ?? [])
+  }
+
+  const base = `${window.location.origin}${window.location.pathname}?autorite=`
+  const DISCIPLINES = { D1: 'D1 — Secours', D2: 'D2 — Médical', D3: 'D3 — Police', D4: 'D4 — Logistique', D5: 'D5 — Information', COAMU: 'CoAMU', COMMUNE: 'Commune' }
+  const AVIS_LIB = { favorable: 'favorable', favorable_conditions: 'favorable sous conditions', defavorable: 'DÉFAVORABLE' }
+
+  async function ouvrirLien() {
+    const commune = discipline === 'COMMUNE'
+    const { error } = await supabase.from('acces_autorite').insert({
+      evenement_id: evenement.id, libelle: commune ? `Commune de ${evenement.commune ?? '?'}` : `Avis ${discipline}`,
+      niveau: commune ? 'instruction' : 'avis', discipline
+    })
+    if (error) return setMessage({ type: 'erreur', texte: texteErreur(error) })
+    charger()
+  }
+
+  function copier(texte) {
+    navigator.clipboard?.writeText(texte).then(() => setMessage({ type: 'succes', texte: 'Lien copié.' })).catch(() => {})
   }
 
   useEffect(() => { charger() }, [evenement.id])
@@ -145,6 +174,49 @@ export default function Dossier({ evenement, peut, toutPouvoir, setMessage }) {
               )
             })}
           </ul>
+        </div>
+      )}
+
+      {/* (159) Les avis des disciplines sur la version déposée, et les liens qui permettent de les rendre. */}
+      {dossier?.version_courante > 0 && (
+        <div className="dossier-avis">
+          <div className="pave-titre">Avis des disciplines — version {dossier.version_courante} ({avis.length})</div>
+          {avis.length === 0 ? <p className="vide">Aucun avis rendu sur cette version.</p> : (
+            <ul>
+              {avis.map((a) => (
+                <li key={a.id} className={a.avis === 'defavorable' ? 'controle-bloquant' : a.avis === 'favorable_conditions' ? 'controle-alerte' : ''}>
+                  <strong>{DISCIPLINES[a.discipline] ?? a.discipline}</strong> : {AVIS_LIB[a.avis]}{a.rendu_par ? ` (${a.rendu_par})` : ''} <span className="aide">{quand(a.rendu_le)}</span>
+                  {a.commentaire && <div className="aide">{a.commentaire}</div>}
+                  {(a.prescriptions_dossier ?? []).length > 0 && (
+                    <ul>{a.prescriptions_dossier.map((p) => <li key={p.id}>{p.texte}{p.caractere === 'recommande' ? ' (recommandé)' : ''}</li>)}</ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {toutPouvoir && (
+            <>
+              <div className="pave-titre">Liens d’avis</div>
+              {liens.length > 0 && (
+                <ul>
+                  {liens.map((l) => (
+                    <li key={l.id} className={l.actif ? '' : 'inactif'}>
+                      {l.libelle}{l.organisation ? ` · ${l.organisation}` : ''} <span className="prc-jeton veille">{l.discipline}</span>{' '}
+                      <span className="aide">{l.nb_acces ? `${l.nb_acces} visite(s)` : 'jamais consulté'}{l.actif ? '' : ' · révoqué'}</span>{' '}
+                      {l.actif && <button className="discret" onClick={() => copier(base + l.jeton)}>Copier le lien</button>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="ligne-boutons">
+                <select value={discipline} onChange={(e) => setDiscipline(e.target.value)} aria-label="Discipline">
+                  {Object.entries(DISCIPLINES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                </select>
+                <button className="discret" onClick={ouvrirLien}>+ Ouvrir un lien d’avis</button>
+              </div>
+              <p className="aide">Le lien se révoque et se date dans Partage › Accès autorité.</p>
+            </>
+          )}
         </div>
       )}
 

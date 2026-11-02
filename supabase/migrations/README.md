@@ -612,6 +612,14 @@ Dossier de sécurité, étape 2. Tests : `../../outils/replique/tests/157.sql` (
 |---|---|
 | `20261102150000_158_reception_commune.sql` | `liaisons_commune` (commune, nom d'en-tête, secret **haché** — rendu une seule fois par `creer_liaison_commune` / `regenerer_secret_liaison`, colonne illisible depuis l'application), `messages_commune` (ajout seul, unique par référence), `messages_commune_accuses` (qui a lu, quand ; le premier accusé marque le message lu), `journal_receptions` (rejets, jamais le secret). `recevoir_message_commune(jeton, en-têtes, charge)` réservée au rôle de service : retrouve l'événement par `jeton_public`, vérifie l'en-tête et le secret, tient déjà I2 (le réel refuse l'exercice) et I3 (le bac à sable refuse le réel), idempotente, inscrit une entrée système au journal. RLS : liaisons par `alertes : creer`, messages et accusés par membre, rejets par tout pouvoir. Aucun DROP, rejouable |
 
+### 159 : PAS ENCORE APPLIQUÉE — éprouvée sur la réplique locale — avis des disciplines sur le dossier
+
+| Fichier | Fait |
+|---|---|
+| `20261102160000_159_avis_disciplines.sql` | `acces_autorite.niveau` accepte `avis` et `instruction`, colonne `discipline` (D1–D5, COAMU, COMMUNE). `avis_autorite` (un avis par discipline et par version ; un nouvel avis remplace l'ancien par `remplace_le`, sans l'effacer), `prescriptions_dossier` (dédiée, choix de Ren), `controles_lignes.prescription_id`. Fonctions publiques par jeton, `security definer`, jeton vérifié dès la première ligne : `dossier_par_jeton` (P0002/P0005/P0006/P0008/P0009), `deposer_avis` (passe le dossier en instruction au premier avis), `accuser_reception_dossier` (la commune). `situation_autorite` **rebranchée en place** (comme la 153) pour refuser les liens d'avis (P0007). `demarrer_controle` redéfinie : les prescriptions en vigueur entrent dans la check-list du jour J. Aucun DROP de données (la contrainte de contrôle sur `niveau` est remplacée) |
+
+Dossier de sécurité, étape 4. Tests : `../../outils/replique/tests/159.sql` (lecture par lien D1, lien expiré/révoqué/situation refusés, avis + prescriptions, remplacement sans effacement, accusé de la commune, check-list, cloisonnement).
+
 Pont commune, partie A (briefing 02). Va avec l'Edge Function `reception-commune` (`../functions/`, à déployer `--no-verify-jwt`). Tests : `../../outils/replique/tests/158.sql` (réel reçu + journal, rejoué = doublon, mauvais secret et en-tête absent journalisés sans secret, jeton inconnu, charge invalide, I2, I3, bon code d'exercice accepté, accusé nominatif, cloisonnement, anonyme).
 
 ## Ne jamais rejouer 088 → 154 par `db push` sans les lignes ci-dessus
