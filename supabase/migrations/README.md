@@ -620,6 +620,14 @@ Dossier de sécurité, étape 2. Tests : `../../outils/replique/tests/157.sql` (
 
 Dossier de sécurité, étape 4. Tests : `../../outils/replique/tests/159.sql` (lecture par lien D1, lien expiré/révoqué/situation refusés, avis + prescriptions, remplacement sans effacement, accusé de la commune, check-list, cloisonnement).
 
+### 160 : PAS ENCORE APPLIQUÉE — éprouvée sur la réplique locale — grille DMP
+
+| Fichier | Fait |
+|---|---|
+| `20261102170000_160_grille_dmp.sql` | `grilles_dmp` (partagée ou d'organisation, par province), `grille_dmp_criteres` (famille, source `frequentation`/`conformite`/`manuel`, points), `grille_dmp_seuils` (niveaux 1–5, avis CoAMU), `dmp_reponses` (critères manuels cochés par événement). Grille initiale `PLANU_2009` : les cinq seuils connus (≤10, 11–20, 21–30, 31–35*, ≥36*), six familles à **0 point** (rien d'inventé, à saisir par formulaire) et les deux correctifs connus (ambulance < 10 min −3, sans antécédent −1). `calcul_dmp` (score, niveau, détail), `grille_dmp_pour`, `niveau_dmp_pour`, `peut_editer_grille_dmp`. `deposer_dossier` redéfinie : le DMP est copié dans le dossier et dans la version. RLS : grille partagée éditée par l'exploitant, grille d'organisation par qui gère l'organisation, réponses par `referentiels : creer`. Aucun DROP, rejouable |
+
+Dossier de sécurité, étape 5. Tests : `../../outils/replique/tests/160.sql` (niveaux aux bornes 10/11/20/21/30/31/35/36, calcul par source, grille d'organisation prioritaire, copie au dépôt, droits).
+
 Pont commune, partie A (briefing 02). Va avec l'Edge Function `reception-commune` (`../functions/`, à déployer `--no-verify-jwt`). Tests : `../../outils/replique/tests/158.sql` (réel reçu + journal, rejoué = doublon, mauvais secret et en-tête absent journalisés sans secret, jeton inconnu, charge invalide, I2, I3, bon code d'exercice accepté, accusé nominatif, cloisonnement, anonyme).
 
 ## Ne jamais rejouer 088 → 154 par `db push` sans les lignes ci-dessus

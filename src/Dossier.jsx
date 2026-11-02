@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import DossierSecurite from './DossierSecurite'
+import { Dmp } from './Dmp'
 
 /**
  * DOSSIER DE SÉCURITÉ (157, étape 2).
@@ -63,11 +64,11 @@ export default function Dossier({ evenement, peut, toutPouvoir, setMessage }) {
   const DISCIPLINES = { D1: 'D1 — Secours', D2: 'D2 — Médical', D3: 'D3 — Police', D4: 'D4 — Logistique', D5: 'D5 — Information', COAMU: 'CoAMU', COMMUNE: 'Commune' }
   const AVIS_LIB = { favorable: 'favorable', favorable_conditions: 'favorable sous conditions', defavorable: 'DÉFAVORABLE' }
 
-  async function ouvrirLien() {
-    const commune = discipline === 'COMMUNE'
+  async function ouvrirLien(d = discipline) {
+    const commune = d === 'COMMUNE'
     const { error } = await supabase.from('acces_autorite').insert({
-      evenement_id: evenement.id, libelle: commune ? `Commune de ${evenement.commune ?? '?'}` : `Avis ${discipline}`,
-      niveau: commune ? 'instruction' : 'avis', discipline
+      evenement_id: evenement.id, libelle: commune ? `Commune de ${evenement.commune ?? '?'}` : `Avis ${d}`,
+      niveau: commune ? 'instruction' : 'avis', discipline: d
     })
     if (error) return setMessage({ type: 'erreur', texte: texteErreur(error) })
     charger()
@@ -177,6 +178,10 @@ export default function Dossier({ evenement, peut, toutPouvoir, setMessage }) {
         </div>
       )}
 
+      {/* (160) Le dispositif médical préventif : score, niveau, critères à cocher, lien CoAMU aux niveaux 4 et 5. */}
+      <Dmp evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage}
+        onLienCoamu={toutPouvoir ? () => { setDiscipline('COAMU'); ouvrirLien('COAMU') } : null} />
+
       {/* (159) Les avis des disciplines sur la version déposée, et les liens qui permettent de les rendre. */}
       {dossier?.version_courante > 0 && (
         <div className="dossier-avis">
@@ -212,7 +217,7 @@ export default function Dossier({ evenement, peut, toutPouvoir, setMessage }) {
                 <select value={discipline} onChange={(e) => setDiscipline(e.target.value)} aria-label="Discipline">
                   {Object.entries(DISCIPLINES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                 </select>
-                <button className="discret" onClick={ouvrirLien}>+ Ouvrir un lien d’avis</button>
+                <button className="discret" onClick={() => ouvrirLien()}>+ Ouvrir un lien d’avis</button>
               </div>
               <p className="aide">Le lien se révoque et se date dans Partage › Accès autorité.</p>
             </>

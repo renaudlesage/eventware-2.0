@@ -3531,3 +3531,15 @@ body.qg-actif { overflow: hidden; }
 .avis-dossier .prescription-ligne select { width: auto; margin: 0; }
 .avis-dossier textarea { width: 100%; }
 @media (max-width: 700px) { .avis-dossier .fiche-cles { grid-template-columns: 1fr; gap: 2px; } .avis-dossier .fiche-cles dt { margin-top: 6px; } }
+
+/* (160, 2/11) DMP : critères par famille, points, éditeur de grille. */
+.dmp { margin: 10px 0; }
+.dmp-resume { margin: 4px 0 6px; }
+.dmp-criteres tr.dmp-famille th { text-align: left; padding-top: 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--sourdine); }
+.dmp-criteres tr.applique td { font-weight: 600; }
+.dmp-criteres td.dmp-points { text-align: right; width: 60px; }
+.dmp-criteres label { display: inline; }
+.dmp-criteres input[type=checkbox] { width: auto; margin: 0 4px 0 0; }
+.dmp-points-saisie { width: 72px; margin: 0; }
+.grille-dmp { margin-top: 8px; }
+.grille-dmp-ajout .saisie-rapide { margin-bottom: 6px; }

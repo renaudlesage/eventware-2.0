@@ -886,6 +886,13 @@ for (const ecran of ecrans) {
       if (!(await bouton.count())) erreurs.push('dossier : pas de bouton Déposer')
       else if (!(await bouton.isDisabled())) erreurs.push('dossier : Déposer devrait être désactivé tant qu’un bloquant subsiste')
       if (!(await dossier.locator('.dossier-versions li', { hasText: 'Version 1' }).count())) erreurs.push('dossier : la version 1 n’est pas listée')
+      // (160) Le DMP : 33 points, niveau 4, avis CoAMU ; le critère manuel se coche et envoie un upsert.
+      const dmp = await dossier.locator('.dmp').textContent().catch(() => '')
+      if (!/33 points → niveau 4/.test(dmp) || !/avis CoAMU requis/.test(dmp)) erreurs.push('dmp : score, niveau ou avis CoAMU absents')
+      await page.evaluate(() => { window.__ecritures = [] })
+      await dossier.locator('.dmp input[type=checkbox]').last().click({ force: true })
+      await page.waitForTimeout(200)
+      if (!(await page.evaluate(() => (window.__ecritures ?? []).some((e) => e.table === 'dmp_reponses' && e.op === 'upsert' && e.champs?.critere_id === 'k4')))) erreurs.push('dmp : cocher un critère n’envoie pas de réponse')
       // (159) L'avis D3 avec sa prescription, le lien d'avis D1 et son bouton de copie.
       const av = await dossier.locator('.dossier-avis').textContent().catch(() => '')
       if (!/D3 — Police.*favorable sous conditions/.test(av) || !/Plan de circulation/.test(av)) erreurs.push('dossier : l’avis D3 et sa prescription manquent')
