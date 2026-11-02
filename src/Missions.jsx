@@ -6,6 +6,7 @@ import { texteErreur } from './erreurs'
 import SuggestionsDemande from './SuggestionsDemande'
 import { MODULES_SAISIE } from './Journal'
 import { PRIORITES } from './referentielsProduit'
+import EnSouffrance from './EnSouffrance'
 
 /**
  * Demandes (missions), leur formulaire et leur fil de commentaires,
@@ -162,6 +163,9 @@ export function Missions({ evenement, membre, peut, toutPouvoir, setMessage, mod
           </button>
         ))}
       </div>
+
+      {/* (154) Les demandes de ce module qui attendent plus que d'habitude : un clic déplie la ligne. */}
+      <EnSouffrance evenementId={evenement.id} module={module} onOuvrir={(m) => { setFiltre('tout'); setOuvert(m.mission_id) }} />
 
       <div className="actions-missions">
         <button className="discret" onClick={() => exporterMissions(missions, module)}>

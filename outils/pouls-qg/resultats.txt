@@ -1,0 +1,27 @@
+=== 1. Seuils appris pour l'organisation (attendu : P1 15, P2 32, P3 32, P4 120)
+ priorite | seuil_min | mesures |                          source                           
+----------+-----------+---------+-----------------------------------------------------------
+ P1       |        15 |      22 | appris : 9 demandes sur 10 prises en charge sous ce délai
+ P2       |        32 |      15 | appris : 9 demandes sur 10 prises en charge sous ce délai
+ P3       |        32 |      21 | appris, relevé au niveau de la priorité plus urgente
+ P4       |       120 |       0 | par défaut : moins de 10 mesures dans les événements clos
+(4 rows)
+
+=== 2. Organisation sans historique : valeurs par défaut
+ priorite | seuil_min | mesures |                          source                           
+----------+-----------+---------+-----------------------------------------------------------
+ P1       |        10 |       0 | par défaut : moins de 10 mesures dans les événements clos
+ P2       |        30 |       0 | par défaut : moins de 10 mesures dans les événements clos
+ P3       |        60 |       0 | par défaut : moins de 10 mesures dans les événements clos
+ P4       |       120 |       0 | par défaut : moins de 10 mesures dans les événements clos
+(4 rows)
+
+=== 3. Rando VTT en cours : qui souffre ?
+ reference | priorite | attente_min | seuil_min | depassement 
+-----------+----------+-------------+-----------+-------------
+ LOG-A     | P1       |          20 |        15 |         1.3
+ LOG-D     | P3       |          40 |        32 |         1.3
+(2 rows)
+
+=== 4. Anonyme : refusé
+psql:tests/scenario.sql:18: ERROR:  permission denied for function missions_en_souffrance

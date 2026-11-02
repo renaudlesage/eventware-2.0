@@ -3493,3 +3493,7 @@ body.qg-actif { overflow: hidden; }
 .phase-titre { margin-top: 14px; }
 .phase-titre.phase-courante { color: var(--encre); }
 .phase-suggeree { margin-top: 8px; }
+
+/* (154, 2/11) Bandeau « Attente » : les demandes qui attendent plus que d'habitude. */
+.souffrance-liste { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+.souffrance-liste button { text-align: left; font-size: 13px; padding: 2px 0; }

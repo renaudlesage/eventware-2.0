@@ -566,7 +566,21 @@ Vérification : `../verifications/153-soleil.sql` (attendu 16:57, 17:33, 16:39, 
 
 Appliquée et inscrite (version 20261101200000).
 
-## Ne jamais rejouer 088 → 153 par `db push` sans les lignes ci-dessus
+### 154 : appliquée le 2/11 (par Claude, via l'outil Supabase) — pouls du QG, seuils de prise en charge appris
+
+| Fichier | Fait |
+|---|---|
+| `20261102090000_154_pouls_qg.sql` | `seuils_prise_en_charge(organisation)` : par priorité, le délai sous lequel 9 demandes sur 10 ont été prises en charge (attribution ou démarrage, le premier des deux) lors des événements clos ou archivés de l'organisation ; sous 10 mesures, valeur par défaut signalée (P1 10, P2 30, P3 60, P4 120 min) ; borné 3–240 min, jamais plus court qu'une priorité plus urgente. `missions_en_souffrance(evenement)` : les demandes à traiter, ni attribuées ni démarrées, qui attendent plus que leur seuil (avec leur module). Lecture seule, `security invoker`, fermées aux anonymes. Aucun DROP |
+
+Pourquoi : sur les 68 demandes logistiques du BFMF 2026, 10 n'ont aucune trace de prise en charge, dont 4 P1 closes jusqu'à 130 min après leur création ; rien ne mesurait l'attente (`en_retard`, 011, ne regarde que l'échéance). Le QG n'a jamais saturé (9 demandes ouvertes au pic, délai indépendant de la charge).
+
+Seuils constatés en production à l'application : **P1 15 min (22 mesures), P2 32 (15), P3 32 (26 appris, relevé au niveau de P2), P4 120 (défaut)**. Ils se recalculent à chaque appel : chaque événement archivé enrichit l'historique.
+
+Vérification : `../verifications/154-pouls-qg.sql` (lecture seule) ; analyse des 68 demandes, réplique locale et scénario de test dans `../../outils/pouls-qg/`.
+
+Appliquée et inscrite (version 20261102090000).
+
+## Ne jamais rejouer 088 → 154 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

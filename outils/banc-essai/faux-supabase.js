@@ -115,6 +115,9 @@ function constructeur(table, fn, args) {
     prc_synthese: [{ lieux_niveau_3: 1, grappes: 2, demandes_ouvertes: 3, demandes_en_retard: 0, demandes_sans_lieu: 0, charge_totale: 4.5 }],
     // (129) Huit jalons dans deux groupes, quatre dépendances dont une violée (GJ-05 commence avant la fin de GJ-04).
     gantt: GANTT, deplacer_jalon: [{ deplaces: 2, apres_j: 1 }], recaler_jalons: [{ touches: 3, exemples: ['Chapiteau', 'Scène'] }],
+    // (154) Une demande P1 qui attend plus que d'habitude (seuil appris : 15 min) : le bandeau « Attente ».
+    missions_en_souffrance: [{ mission_id: 'm1', reference: 'SEC-001', titre: 'Renfort', priorite: 'P1', module: 'securite', attente_min: 22, seuil_min: 15, depassement: 1.5 }],
+    seuils_prise_en_charge: [{ priorite: 'P1', seuil_min: 15, mesures: 22, source: 'appris : 9 demandes sur 10 prises en charge sous ce délai' }, { priorite: 'P2', seuil_min: 32, mesures: 15, source: 'appris : 9 demandes sur 10 prises en charge sous ce délai' }, { priorite: 'P3', seuil_min: 32, mesures: 21, source: 'appris, relevé au niveau de la priorité plus urgente' }, { priorite: 'P4', seuil_min: 120, mesures: 0, source: 'par défaut : moins de 10 mesures dans les événements clos' }],
     // (130, 131) ?ecran=…-lecture : membre qui lit sans gérer l'annuaire.
     mes_droits_annuaire: [{ lire: true, gerer: !(typeof location !== 'undefined' && /-lecture/.test(location.search)) }],
     annuaire: ANNUAIRE, historique_fournisseur: [{ consultation_id: 'h1', evenement_id: 'ev0', evenement: 'Rando VTT 2025', reference: 'DP-02', objet: 'Barriérage', statut: 'retenue', montant_ht: 120, taux_tva: 21, envoyee_le: '2025-10-01T10:00:00Z', retenue: true }],
