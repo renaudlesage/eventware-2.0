@@ -7,6 +7,9 @@ export const DONNEES = {
   ],
   missions: [{ id: 'm1', reference: 'SEC-001', titre: 'Renfort', priorite: 'P1', statut: 'attribuee', module: 'securite', signalement_id: 's1', latitude: 50.385, longitude: 5.62, lieu_id: null, equipe_id: 'e1', membre_id: null, attribuee_le: new Date().toISOString(), demarree_le: null, equipe: { code: 'A' }, lieu: null, membre: null }],
   traces: [{ id: 't1', nom: 'Boucle', couleur: null, points: [[50.38, 5.61, 300], [50.39, 5.62, 310], [50.395, 5.63, 320]] }],
+  // (157) Un dossier déposé une fois, avec sa version figée.
+  dossiers_securite: [{ id: 'dos1', evenement_id: 'ev1', statut: 'depose', version_courante: 1, depose_le: '2026-10-20T10:00:00+02:00', decide_le: null, niveau_dmp: null, score_dmp: null }],
+  dossier_versions: [{ id: 'dv1', dossier_id: 'dos1', version: 1, created_at: '2026-10-20T10:00:00+02:00', auteur_nom: 'Ren', contenu: { evenement: { frequentation_max: 1200, date_montage: '2026-11-09', date_demontage: '2026-11-13' }, prescriptions: [{ code: 'H1' }], lieux: [{}, {}], plan: [{}], contacts: [{}], controles: [{ gravite: 'alerte' }] } }],
   // (155) Un profil de sécurité à moitié rempli : trois champs à compléter.
   organisations_profil_securite: [{ organisation_id: 'org1', responsable_legal: 'Jean Dupont', responsable_legal_tel: '0470 11 11 11', assurance_compagnie: 'Ethias', assurance_police: null, securite_nom: null, securite_tel: null }],
   // (152) Deux jalons de l'événement : l'un en préparation (par sa date), l'autre forcé en montage.
@@ -119,6 +122,14 @@ function constructeur(table, fn, args) {
     gantt: GANTT, deplacer_jalon: [{ deplaces: 2, apres_j: 1 }], recaler_jalons: [{ touches: 3, exemples: ['Chapiteau', 'Scène'] }],
     // (155) Le coordinateur gère le profil de sécurité de son organisation.
     mes_droits_organisation: [{ lire: true, gerer: true }],
+    // (156, 157) Deux bloquants, une alerte, une ligne d'avant-vol : le dépôt attend.
+    controle_dossier: [
+      { code: 'DOS_COORDINATEUR', gravite: 'bloquant', titre: 'Coordinateur sécurité non désigné ou sans téléphone', detail: 'Réglages › Partage › Interlocuteur', table_source: 'contacts', source_id: null, stimulus: null, objectif: 'DOSSIER' },
+      { code: 'DOS_PC_OPS', gravite: 'bloquant', titre: 'PC-Ops non positionné', detail: 'Préparation › Lieux', table_source: 'lieux', source_id: null, stimulus: null, objectif: 'DOSSIER' },
+      { code: 'DOS_SECOURS', gravite: 'alerte', titre: 'Aucun moyen de premiers secours déclaré', detail: 'Réglages › Conformité', table_source: 'moyens_premiers_secours', source_id: null, stimulus: null, objectif: 'DOSSIER' },
+      { code: 'VEILLE_INACTIVE', gravite: 'veille', titre: 'Veille météo inactive', detail: 'Aucun seuil ne déclenchera rien', table_source: 'veille_meteo', source_id: null, stimulus: 'Météo…', objectif: 'METEO' }
+    ],
+    deposer_dossier: [{ dossier_id: 'dos1', version: 2, statut: 'depose' }],
     // (154) Une demande P1 qui attend plus que d'habitude (seuil appris : 15 min) : le bandeau « Attente ».
     missions_en_souffrance: [{ mission_id: 'm1', reference: 'SEC-001', titre: 'Renfort', priorite: 'P1', module: 'securite', attente_min: 22, seuil_min: 15, depassement: 1.5 }],
     seuils_prise_en_charge: [{ priorite: 'P1', seuil_min: 15, mesures: 22, source: 'appris : 9 demandes sur 10 prises en charge sous ce délai' }, { priorite: 'P2', seuil_min: 32, mesures: 15, source: 'appris : 9 demandes sur 10 prises en charge sous ce délai' }, { priorite: 'P3', seuil_min: 32, mesures: 21, source: 'appris, relevé au niveau de la priorité plus urgente' }, { priorite: 'P4', seuil_min: 120, mesures: 0, source: 'par défaut : moins de 10 mesures dans les événements clos' }],

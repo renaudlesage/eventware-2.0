@@ -6,7 +6,7 @@ import ImportKml from './ImportKml'
 import Roles from './Roles'
 import AccesAutorite from './AccesAutorite'
 import Conformite from './Conformite'
-import DossierSecurite from './DossierSecurite'
+import Dossier from './Dossier'
 import ProfilSecurite from './ProfilSecurite'
 import MonCompte from './MonCompte'
 import LogoEvenement from './LogoEvenement'
@@ -46,6 +46,7 @@ const PANNEAUX = [
   ['dispositif', 'Dispositif'],
   ['roles', 'Rôles'],
   ['conformite', 'Conformité'],
+  ['dossier', 'Dossier de sécurité'],
   ['organisation', 'Organisation'],
   ['donnees', 'Données'],
   ['partage', 'Partage'],
@@ -203,8 +204,12 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
             toutPouvoir={toutPouvoir}
             setMessage={setMessage}
           />
-          <DossierSecurite evenement={evenement} setMessage={setMessage} />
         </>
+      )}
+
+      {/* (157) Le dossier déposé à la commune : contrôles, dépôt, versions figées, document. */}
+      {panneau === 'dossier' && (
+        <Dossier evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} />
       )}
 
       {/* (155) Ce qui vaut pour tous les événements de l'organisation : le profil de sécurité. */}

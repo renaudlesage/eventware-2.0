@@ -590,6 +590,22 @@ Dossier de sécurité, étape 1 (briefing 01). Tests : `../../outils/replique/te
 
 À appliquer via l'outil Supabase sur accord de Ren, puis inscrire (version 20261102120000) et passer cette section en « appliquée ».
 
+### 156 : PAS ENCORE APPLIQUÉE — éprouvée sur la réplique locale — contrôle de complétude du dossier
+
+| Fichier | Fait |
+|---|---|
+| `20261102130000_156_controle_dossier.sql` | `controle_dossier(evenement)`, même signature qu'`avant_vol` : reprend ses lignes telles quelles (gravités `chaud`/`veille`, informatives) et ajoute les `DOS_*` — commune, fréquentation maximale, dates du montage au démontage, coordinateur sécurité (interlocuteur des autorités avec téléphone), PC-Ops positionné, numéros zone de secours et police, questionnaire rempli, profil de sécurité complet (bloquants) ; plan vide, moyens de secours absents (alertes). Droits : `referentiels : creer` ou tout pouvoir. **`avant_vol` n'est pas modifiée** (le générateur d'exercices n'est pas touché ; le test le vérifie). Aucun DROP, rejouable |
+
+Dossier de sécurité, étape 3. Tests : `../../outils/replique/tests/156.sql`.
+
+### 157 : PAS ENCORE APPLIQUÉE — éprouvée sur la réplique locale — dossier de sécurité : statuts, versions, dépôt
+
+| Fichier | Fait |
+|---|---|
+| `20261102140000_157_dossier_securite.sql` | `dossiers_securite` (un par événement : statut brouillon/depose/en_instruction/autorise/refuse/retire, version courante, dates, niveau et score DMP), `dossier_versions` (instantané jsonb complet à chaque dépôt, ajout seul). `instantane_dossier` (fiche, organisateur, profil 155, questionnaire, prescriptions applicables selon la règle de l'écran Conformité, lieux, plan, secours, contacts visibles des autorités, contrôles 156). `deposer_dossier` : droits, refuse tant qu'un bloquant subsiste (P0010), fige l'instantané, statut `depose`, journal. `retirer_dossier` (tout pouvoir, P0011). RLS : lecture par `referentiels : lire` ; aucune écriture directe, seulement par fonctions. Aucun DROP, rejouable |
+
+Dossier de sécurité, étape 2. Tests : `../../outils/replique/tests/157.sql` (dépôt refusé avec un bloquant, accepté ensuite, version figée malgré la modification de l'événement, écriture directe sans effet, retrait, cloisonnement entre organisations).
+
 ## Ne jamais rejouer 088 → 154 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations

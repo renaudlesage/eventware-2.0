@@ -851,6 +851,21 @@ for (const ecran of ecrans) {
   if (ecran === 'reglages') {
     const sug = await page.locator('.phase-suggeree').textContent().catch(() => '')
     if (!/Phase suggérée par les dates/.test(sug)) erreurs.push(`réglages : pas de phase suggérée (${sug.slice(0, 60)})`)
+    // (157) Rubrique Dossier de sécurité : statut, deux bloquants qui retiennent le dépôt, la version figée.
+    await page.locator('.rubrique-reglages select').selectOption('dossier')
+    await page.waitForTimeout(400)
+    const dossier = page.locator('.dossier-securite')
+    if (!(await dossier.count())) erreurs.push('dossier : pas d’écran')
+    else {
+      const t = await dossier.textContent()
+      if (!/Déposé/.test(t) || !/version 1/.test(t)) erreurs.push('dossier : statut « Déposé » ou « version 1 » absent')
+      if (!/2 points bloquants/.test(t)) erreurs.push('dossier : « 2 points bloquants » absent')
+      if ((await dossier.locator('li.controle-bloquant').count()) !== 2) erreurs.push('dossier : les deux bloquants ne sont pas listés')
+      const bouton = dossier.getByRole('button', { name: /^Déposer/ })
+      if (!(await bouton.count())) erreurs.push('dossier : pas de bouton Déposer')
+      else if (!(await bouton.isDisabled())) erreurs.push('dossier : Déposer devrait être désactivé tant qu’un bloquant subsiste')
+      if (!(await dossier.locator('.dossier-versions li', { hasText: 'Version 1' }).count())) erreurs.push('dossier : la version 1 n’est pas listée')
+    }
     // (155) Rubrique Organisation : le profil de sécurité, six champs, trois à compléter ; Enregistrer envoie un upsert.
     await page.locator('.rubrique-reglages select').selectOption('organisation')
     await page.waitForTimeout(400)

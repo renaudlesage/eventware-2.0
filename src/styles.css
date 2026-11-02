@@ -3502,3 +3502,13 @@ body.qg-actif { overflow: hidden; }
 .profil-securite .grille-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
 .profil-securite .grille-2 label { display: block; }
 @media (max-width: 700px) { .profil-securite .grille-2 { grid-template-columns: 1fr; } }
+
+/* (157, 2/11) Dossier de sécurité : état, contrôles par gravité, versions figées. */
+.dossier-etat { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.prc-jeton.ok { color: var(--etat-ok, #2e7d32); border-color: var(--etat-ok, #2e7d32); }
+.dossier-controles ul, .dossier-versions ul { list-style: none; margin: 4px 0 10px; padding: 0; display: grid; gap: 4px; }
+.dossier-controles li { padding-left: 10px; border-left: 3px solid var(--trait); font-size: 13px; }
+.dossier-controles li.controle-bloquant, .dossier-controles li.controle-chaud { border-left-color: var(--etat-chaud); }
+.dossier-controles li.controle-alerte, .dossier-controles li.controle-veille { border-left-color: var(--etat-veille); }
+.dossier-controles .pave-titre.chaud { color: var(--etat-chaud); }
+.dossier-version-detail { margin: 2px 0 6px 12px; }
