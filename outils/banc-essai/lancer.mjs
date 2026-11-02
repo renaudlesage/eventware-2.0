@@ -904,6 +904,14 @@ for (const ecran of ecrans) {
     if (!(await phases.count())) erreurs.push('fiche du jalon : pas de choix de phase')
     else if (!/déduite : Préparation/.test(await phases.first().locator('option').first().textContent())) erreurs.push('fiche du jalon : la phase déduite n’est pas affichée')
   }
+  // (2/11, remarque de Ren) Mémento › Contacts : les responsables du profil de sécurité de l'organisation y figurent.
+  if (ecran === 'memento') {
+    await page.getByRole('button', { name: /^Contacts/ }).click()
+    await page.waitForTimeout(200)
+    const t = await page.locator('.memento').textContent().catch(() => '')
+    if (!/Jean Dupont/.test(t) || !/Responsable légal/.test(t) || !/profil de sécurité de l’organisation/.test(t)) erreurs.push('mémento : le responsable légal du profil d’organisation n’est pas dans les contacts')
+    if (!/Bucolique Ferrières/.test(t)) erreurs.push('mémento : l’organisation du responsable n’est pas affichée')
+  }
   // (152) Réglages : la phase suggérée par les dates, avec le passage en un clic.
   if (ecran === 'reglages') {
     const sug = await page.locator('.phase-suggeree').textContent().catch(() => '')
@@ -935,13 +943,19 @@ for (const ecran of ecrans) {
         const octets = fs.readFileSync(chemin)
         if (octets.length < 2000 || octets.subarray(0, 5).toString() !== '%PDF-') erreurs.push('dossier : le fichier téléchargé n’est pas un PDF')
       }
-      // (160) Le DMP : 33 points, niveau 4, avis CoAMU ; le critère manuel se coche et envoie un upsert.
-      const dmp = await dossier.locator('.dmp').textContent().catch(() => '')
-      if (!/33 points → niveau 4/.test(dmp) || !/avis CoAMU requis/.test(dmp)) erreurs.push('dmp : score, niveau ou avis CoAMU absents')
+      // (164) La grille PRIMA : zone ÉLEVÉ, score 34,17, niveau 4, provenances ; un choix de densité part en upsert ; le détail du calcul s'ouvre.
+      const prima = dossier.locator('.prima')
+      const tp = await prima.textContent().catch(() => '')
+      if (!/Élevé — avis CoAMU demandé/.test(tp) || !/score 34\.17/.test(tp) || !/niveau 4 : Poste de soins médicalisé/.test(tp)) erreurs.push('prima : zone, score ou niveau absents')
+      if (!(await prima.locator('.prima-source', { hasText: 'Eventware' }).count()) || !(await prima.locator('.prima-source', { hasText: 'par défaut' }).count())) erreurs.push('prima : provenances Eventware / par défaut absentes')
+      if (!/À confirmer : la durée/.test(tp)) erreurs.push('prima : « à confirmer » absent')
       await page.evaluate(() => { window.__ecritures = [] })
-      await dossier.locator('.dmp input[type=checkbox]').last().click({ force: true })
+      await prima.locator('tr', { hasText: 'Densité maximale' }).locator('select').selectOption('4')
       await page.waitForTimeout(200)
-      if (!(await page.evaluate(() => (window.__ecritures ?? []).some((e) => e.table === 'dmp_reponses' && e.op === 'upsert' && e.champs?.critere_id === 'k4')))) erreurs.push('dmp : cocher un critère n’envoie pas de réponse')
+      if (!(await page.evaluate(() => (window.__ecritures ?? []).some((e) => e.table === 'prima_saisies' && e.op === 'upsert' && e.champs?.densite === 4)))) erreurs.push('prima : choisir une densité n’envoie pas la saisie')
+      await prima.getByRole('button', { name: 'Détail du calcul' }).evaluate((b) => b.click())
+      await page.waitForTimeout(100)
+      if (!/888/.test(await prima.locator('.prima-detail').textContent().catch(() => ''))) erreurs.push('prima : le détail du calcul ne montre pas le scoring')
       // (163) Le formulaire communal : le compteur, les sections où il manque une obligatoire ouvertes, le pré-rempli signalé,
       // une saisie qui part en upsert, un retour au pré-rempli qui efface.
       const formulaire = dossier.locator('.formulaire-communal')

@@ -57,7 +57,8 @@ export const ECRANS = {
   rh: () => <Rh evenement={evenement} membre={membre} peut={peut} toutPouvoir onRecharger={() => {}} />,
   parcours: () => <Parcours evenement={evenement} membre={membre} peut={peut} toutPouvoir />,
   analyse: () => <Analyse evenement={{ ...evenement, modules: { ...evenement.modules, analyse: true } }} membre={membre} peut={peut} toutPouvoir />,
-  memento: () => <Memento evenement={evenement} />,
+  // (2/11) Avec l'organisation : les responsables du profil de sécurité comptent parmi les contacts.
+  memento: () => <Memento evenement={{ ...evenement, organisation_id: 'org1' }} />,
   securite: () => <Securite evenement={evenement} membre={membre} session={session} peut={peut} toutPouvoir />,
   situation: () => <Situation evenement={evenement} peut={peut} toutPouvoir onAller={() => {}} />,
   terrain: () => <Terrain evenement={evenement} membre={membre} />,

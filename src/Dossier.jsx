@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import DossierSecurite from './DossierSecurite'
-import { Dmp } from './Dmp'
+import { Prima } from './Prima'
 import FormulaireCommunal from './FormulaireCommunal'
 import { telechargerDossierPdf } from './exportDossierPdf'
 import { diffuserDossier } from './diffuserDossier'
@@ -228,8 +228,9 @@ export default function Dossier({ evenement, peut, toutPouvoir, setMessage }) {
           Une réponse change les contrôles (DOS_FORMULAIRE) : on les recharge. */}
       <FormulaireCommunal evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} onChange={charger} />
 
-      {/* (160) Le dispositif médical préventif : score, niveau, critères à cocher, lien CoAMU aux niveaux 4 et 5. */}
-      <Dmp evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage}
+      {/* (164) La grille PRIMA de la CoAMU : score de risque, zone, niveau du dispositif médical préventif ; elle remplace la grille à points de la 160.
+          Une saisie change les contrôles (DOS_PRIMA_*) : on les recharge. */}
+      <Prima evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} onChange={charger}
         onLienCoamu={toutPouvoir ? () => { setDiscipline('COAMU'); ouvrirLien('COAMU') } : null} />
 
       {/* (159) Les avis des disciplines sur la version déposée, et les liens qui permettent de les rendre. */}

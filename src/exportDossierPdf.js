@@ -152,8 +152,25 @@ export function construireDossierPdf({ evenement, contenu, version, deposeLe, st
   titre(`${n(5)} Dispositif de secours et DMP`)
   if (!(c.secours ?? []).length) ligne('Aucun moyen de premiers secours déclaré.')
   tableau(['Moyen', 'Quantité', 'Commentaire'], (c.secours ?? []).map((m) => [m.type, m.quantite, m.commentaire ?? '']))
+  const prima = c.prima
   const dmp = c.dmp ?? {}
-  if (dmp.niveau != null) {
+  if (prima?.zone) {
+    // (164) La grille PRIMA de la CoAMU, telle que figée au dépôt.
+    ligne(`Grille PRIMA (${prima.version}) : ${prima.message}`)
+    if (prima.score != null) ligne(`Score de risque ${prima.score} — scoring ${prima.scoring?.total} points → niveau ${prima.niveau} : ${prima.dispositif}.`)
+    if (prima.composition) ligne(prima.composition, 9)
+    const en = prima.entrees ?? {}
+    const lib = (k) => (en[k]?.libelle ?? (en[k]?.valeur != null ? String(en[k].valeur) : '—')) + (en[k]?.source === 'defaut' ? ' (par défaut)' : '')
+    tableau(['Entrée', 'Valeur'], [
+      ['Type d\'événement', lib('type_evenement')], ['Spectateurs', lib('spectateurs')], ['Participants actifs', lib('actifs')], ['Personnalités', lib('vip')],
+      ['Heures par jour', lib('duree_h')], ['Moments', Object.entries(en.moments ?? {}).filter(([k, v]) => v === true && k !== 'source').map(([k]) => ({ journee: 'journée', soiree: 'soirée', nuit: 'nuit', multijour: 'multi-jour' })[k]).join(', ') || '—'],
+      ['Clôture', lib('cloture')], ['Surface ou distance', lib('surface')], ['Structures', lib('structure')], ['Infrastructures', lib('infrastructure')], ['Certitude globale', lib('certitude')],
+      ['Type de public', lib('type_public')], ['Âge des spectateurs', lib('age_spectateurs')], ['Groupes à risque', lib('groupes_risque')], ['Densité maximale', lib('densite')],
+      ['Type d\'actifs', lib('type_actifs')], ['Âge des actifs', lib('age_actifs')], ['Violence', lib('violence')], ['Alcool, drogue', lib('alcool')], ['Météo', lib('meteo')],
+      ['Impact sur les riverains', en.impact_riverains?.valeur ? 'oui' : 'non']
+    ])
+    if (prima.remarques) ligne(`Remarques : ${prima.remarques}`)
+  } else if (dmp.niveau != null) {
     ligne(`Dispositif médical préventif : ${dmp.score} points, niveau ${dmp.niveau}${dmp.avis_coamu ? ' — avis de la CoAMU requis' : ''}${dmp.grille?.libelle ? ` (${dmp.grille.libelle})` : ''}.`)
     tableau(['Critère', 'Famille', 'Points'], (dmp.details ?? []).filter((d) => d.applique).map((d) => [d.libelle, d.famille, d.points]))
   } else ligne('Dispositif médical préventif : non calculé.')

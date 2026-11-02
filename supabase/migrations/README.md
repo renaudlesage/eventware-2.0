@@ -654,7 +654,15 @@ Pont commune, partie A (briefing 02). Va avec l'Edge Function `reception-commune
 
 Dossier de sécurité, suite du briefing 01 sur les documents réels (Ren, 2/11). Tests : `../../outils/replique/tests/163.sql` (catalogue, applicables Ferrières puis IBZ, pré-rempli, saisie qui prime et s'efface, codes propres à chaque formulaire, traçabilité, figé au dépôt, DOS_FORMULAIRE ×2, DOS_DELAI, droits, anonyme). Appliquée et inscrite (version 20261102200000) ; 211 questions IBZ et 89 questions Ferrières semées, 8 policies.
 
-## Ne jamais rejouer 088 → 163 par `db push` sans les lignes ci-dessus
+### 164 : appliquée le 2/11 (par Claude, via l'outil Supabase, sur le « Go164 » de Ren, en trois temps : référentiel et saisies, fonctions de calcul, dossier et RLS) — grille PRIMA de la CoAMU
+
+| Fichier | Fait |
+|---|---|
+| `20261102210000_164_prima.sql` | `prima_referentiel` (15 familles, coefficients multiplicatifs et scorings DMP du classeur PRIMA v1.0 janvier 2024 : 36 types d'événements, clôture, surface/distance, structures, infrastructures, moment, certitude, type de public, âge, groupes à risque, densité, type d'actifs, violence, alcool/drogue, météo ; un défaut par famille sauf le type), `prima_seuils` (niveaux 1–5 : 450/750/850/875/1 000, dispositif et composition du mémento v1.6), `prima_saisies` (entrées d'un événement, traçabilité). `prima_prerempli` (spectateurs, durée et moments du programme, multi-jour, clôture et étendue du plan, longueur des tracés/parcours, structures et type depuis la conformité, certitude, alcool, VIP), `prima_retenir`, `calcul_prima` (score = (spectateurs pondérés + actifs pondérés) × type × durée × moment × lieux × certitude × VIP × risques / 10 000 ; zones faible < 10, moyen 10–20, élevé ≥ 20, extrêmement faible IAS 2003, avis d'office sur six seuils critiques ; scoring additif → niveau et dispositif ; provenance de chaque entrée ; `incomplet` sans type). `deposer_dossier` redéfinie (niveau et score PRIMA dans le dossier), `instantane_dossier` redéfinie (`prima`), `controle_dossier` redéfinie (`DOS_PRIMA_TYPE` alerte, `DOS_PRIMA_AVIS` alerte avec les délais 90–60 jours et CU 112, `DOS_PRIMA_INFO` veille). RLS : référentiel et seuils lus par tous, édités par l'exploitant ; saisies par `referentiels : lire/creer`. La grille PLANU 2009 (160) reste en base, plus affichée. Aucun DROP, rejouable |
+
+Dossier de sécurité, étape 5 reprise sur la grille réelle (Ren, 2/11). Tests : `../../outils/replique/tests/164.sql` (référentiel, pré-rempli, incomplet sans type, scores 2,28 / 34,17 / 12,81 recalculés à la main, zones, avis d'office actifs et riverains, plafond 100 000, IAS 2003, VIP ×2,04 et scoring 88, dépôt, traçabilité, droits, anonyme). Appliquée et inscrite (version 20261102210000) ; 96 lignes de référentiel, 5 seuils, 6 policies.
+
+## Ne jamais rejouer 088 → 164 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

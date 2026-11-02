@@ -21,6 +21,17 @@ export const DONNEES = {
   grille_dmp_criteres: [{ id: 'k1', grille_id: 'g1', code: 'PUBLIC_1000', libelle: 'Plus de 1 000 personnes', famille: 'Affluence', source: 'frequentation', seuil_min: 1000, seuil_max: null, points: 20, ordre: 10 }],
   grille_dmp_seuils: [{ id: 's1', grille_id: 'g1', niveau: 1, score_min: -100, score_max: 10, avis_coamu: false }, { id: 's4', grille_id: 'g1', niveau: 4, score_min: 31, score_max: 35, avis_coamu: true }],
   dmp_reponses: [],
+  prima_referentiel: [
+    { famille: 'type_evenement', code: 3, libelle: 'Rock, pop, …', groupe: 'Concert', coefficient: 10, scoring: 100 }, { famille: 'type_evenement', code: 12, libelle: 'Fête de quartier (braderie, brocante, …)', groupe: 'Rassemblement', coefficient: 6, scoring: 60 },
+    { famille: 'cloture', code: 1, libelle: 'Zone ouverte', coefficient: 0.75, scoring: 75 }, { famille: 'cloture', code: 3, libelle: 'Zone clôturée (par Nadar / Heras)', coefficient: 1, scoring: 100 },
+    { famille: 'surface', code: 2, libelle: 'Surface entre 0,01 km² et 1 km²', coefficient: 1, scoring: 50 }, { famille: 'structure', code: 2, libelle: 'Site provisoire', coefficient: 1.5, scoring: 100 },
+    { famille: 'infrastructure', code: 2, libelle: 'Chapiteau(x) de plus de 15 m²', coefficient: 1.5, scoring: 100 }, { famille: 'certitude', code: 2, libelle: 'Raisonnable', coefficient: 1.5, scoring: 15 },
+    { famille: 'type_public', code: 3, libelle: 'Debout, dynamique', coefficient: 1.5, scoring: 100 }, { famille: 'age', code: 2, libelle: 'Jeunes / jeunes adultes', coefficient: 1.5, scoring: 75 }, { famille: 'age', code: 5, libelle: 'Public mixte', coefficient: 1, scoring: 50 },
+    { famille: 'groupes_risque', code: 1, libelle: 'Exclue', coefficient: 1, scoring: 50 }, { famille: 'densite', code: 2, libelle: 'Moyenne', coefficient: 1, scoring: 50 }, { famille: 'densite', code: 4, libelle: 'Très forte', coefficient: 10, scoring: 100 },
+    { famille: 'type_actifs', code: 5, libelle: 'Concert — non professionnels', coefficient: 2, scoring: 50 }, { famille: 'violence', code: 1, libelle: 'Exclue', coefficient: 1, scoring: 0 },
+    { famille: 'alcool', code: 3, libelle: 'Probable / médiane', coefficient: 2, scoring: 75 }, { famille: 'meteo', code: 2, libelle: 'Possible / mineure', coefficient: 1.25, scoring: null }
+  ],
+  prima_saisies: [],
   // (159) Un avis D3 favorable avec une prescription, et un lien d'avis ouvert pour D1.
   avis_autorite: [{ id: 'av1', dossier_id: 'dos1', version: 1, discipline: 'D3', avis: 'favorable_conditions', commentaire: 'Sous réserve du plan de circulation.', rendu_le: '2026-10-21T09:00:00+02:00', remplace_le: null, rendu_par: 'ZP Condroz', prescriptions_dossier: [{ id: 'pr1', texte: 'Plan de circulation validé par la police', caractere: 'obligatoire' }] }],
   acces_autorite: [{ id: 'aa1', evenement_id: 'ev1', jeton: 'jeton-avis', libelle: 'Zone de secours', organisation: 'ZS', niveau: 'avis', discipline: 'D1', actif: true, expire_le: null, nb_acces: 0, dernier_acces: null, created_at: '2026-10-20T10:00:00+02:00' }],
@@ -190,6 +201,28 @@ function constructeur(table, fn, args) {
         { id: 'k3', code: 'NUIT', libelle: 'Manifestation nocturne', famille: 'Facteurs aggravants', source: 'manuel', points: 5, applique: true },
         { id: 'k4', code: 'AMBU', libelle: 'Ambulance à moins de 10 min', famille: 'Correctifs', source: 'manuel', points: -3, applique: false }] },
     peut_editer_grille_dmp: [false],
+    // (164) La grille PRIMA : concert rock de nuit, 1 200 personnes → 34,17, ÉLEVÉ, niveau 4 ; le type vient d'une saisie, les spectateurs d'Eventware, le reste par défaut.
+    calcul_prima: {
+      version: 'PRIMA v1.0 (janvier 2024), mémento v1.6 (mars 2025)',
+      entrees: {
+        type_evenement: { code: 3, libelle: 'Rock, pop, …', coefficient: 10, scoring: 100, source: 'saisie' },
+        spectateurs: { valeur: 1200, source: 'eventware' }, actifs: { valeur: 0, source: 'defaut' }, vip: { valeur: 0, source: 'defaut' }, duree_h: { valeur: 6, source: 'defaut' },
+        moments: { journee: false, soiree: false, nuit: true, multijour: false, source: 'saisie' }, impact_riverains: { valeur: false, source: 'defaut' },
+        cloture: { code: 1, libelle: 'Zone ouverte', coefficient: 0.75, scoring: 75, source: 'defaut' }, surface: { code: 2, libelle: 'Surface entre 0,01 km² et 1 km²', coefficient: 1, scoring: 50, source: 'defaut' },
+        structure: { code: 2, libelle: 'Site provisoire et/ou non prévu à cet effet', coefficient: 1.5, scoring: 100, source: 'defaut' }, infrastructure: { code: 2, libelle: 'Chapiteau(x) de plus de 15 m²', coefficient: 1.5, scoring: 100, source: 'eventware' },
+        certitude: { code: 2, libelle: 'Raisonnable', coefficient: 1.5, scoring: 15, source: 'eventware' }, type_public: { code: 3, libelle: 'Debout, dynamique, démonstratif, revendicateur', coefficient: 1.5, scoring: 100, source: 'saisie' },
+        age_spectateurs: { code: 2, libelle: 'Jeunes / jeunes adultes', coefficient: 1.5, scoring: 75, source: 'saisie' }, groupes_risque: { code: 1, libelle: 'Exclue', coefficient: 1, scoring: 50, source: 'defaut' },
+        densite: { code: 2, libelle: 'Moyenne', coefficient: 1, scoring: 50, source: 'defaut' }, type_actifs: { code: 5, libelle: 'Concert — non professionnels', coefficient: 2, scoring: 50, source: 'defaut' },
+        age_actifs: { code: 5, libelle: 'Public mixte', coefficient: 1, scoring: 50, source: 'defaut' }, violence: { code: 1, libelle: 'Exclue', coefficient: 1, scoring: 0, source: 'defaut' },
+        alcool: { code: 3, libelle: 'Probable / médiane', coefficient: 2, scoring: 75, source: 'saisie' }, meteo: { code: 2, libelle: 'Possible / mineure', coefficient: 1.25, scoring: null, source: 'defaut' }
+      },
+      facteurs: { type: 10, duree: 1, moment: 2, lieux: 1.688, certitude: 1.5, spectateurs: 2700, actifs: 0, vip: 1, risques: 2.5 },
+      score: 34.17, zone: 'eleve', message: 'ÉLEVÉ : risques majeurs — l’avis de la CoAMU est demandé.', motifs_avis_office: [], ias2003: false, avis_coamu: true, informer_coamu: false,
+      scoring: { total: 888, details: [{ critere: 'Type d’événement', points: 100 }, { critere: 'Surface ou distance', points: 50 }, { critere: 'Moment', points: 100 }],
+        seuils: [{ niveau: 1, seuil: 450, dispositif: 'Point d’alerte (PA)' }, { niveau: 4, seuil: 875, dispositif: 'Poste de soins médicalisé (PS Med)' }] },
+      niveau: 4, dispositif: 'Poste de soins médicalisé (PS Med)', composition: '1 médecin SMA/SMU/TPPSU, 1 infirmier titré SISU, 2 secouristes, 2 secouristes-ambulanciers ; 2 ou plusieurs équipes d’intervention.',
+      remarques: null, a_confirmer: ['duree_h']
+    },
     // (154) Une demande P1 qui attend plus que d'habitude (seuil appris : 15 min) : le bandeau « Attente ».
     missions_en_souffrance: [{ mission_id: 'm1', reference: 'SEC-001', titre: 'Renfort', priorite: 'P1', module: 'securite', attente_min: 22, seuil_min: 15, depassement: 1.5 }],
     seuils_prise_en_charge: [{ priorite: 'P1', seuil_min: 15, mesures: 22, source: 'appris : 9 demandes sur 10 prises en charge sous ce délai' }, { priorite: 'P2', seuil_min: 32, mesures: 15, source: 'appris : 9 demandes sur 10 prises en charge sous ce délai' }, { priorite: 'P3', seuil_min: 32, mesures: 21, source: 'appris, relevé au niveau de la priorité plus urgente' }, { priorite: 'P4', seuil_min: 120, mesures: 0, source: 'par défaut : moins de 10 mesures dans les événements clos' }],
