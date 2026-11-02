@@ -201,6 +201,18 @@ function constructeur(table, fn, args) {
         { id: 'k3', code: 'NUIT', libelle: 'Manifestation nocturne', famille: 'Facteurs aggravants', source: 'manuel', points: 5, applique: true },
         { id: 'k4', code: 'AMBU', libelle: 'Ambulance à moins de 10 min', famille: 'Correctifs', source: 'manuel', points: -3, applique: false }] },
     peut_editer_grille_dmp: [false],
+    // (165) La notification DMP : pré-remplie (prestataire, créneaux, adresses), pas encore envoyée, date limite au 28/10/2026.
+    notification_dmp: {
+      nom: 'Essai', nature: 'Rock, pop, …', creneaux: [{ date: '2026-11-11', acces_debut: '14:00', acces_fin: '23:00', dmp_debut: '14:00', dmp_fin: '23:00' }],
+      documents: ['plan(s) d’implantation du site', 'localisation du/des poste(s) de soins'],
+      prestataire_interne: false, prestataire_nom: 'Croix-Rouge, section de Ferrières', contact_nom: 'Anne Secours', contact_gsm: '0471 00 00 00',
+      responsable_dmp: { nom: 'Anne Secours', gsm: '0471 00 00 00' }, medecin_coordinateur: {}, personnel: [], effectifs: { secouriste: 6 },
+      moyens: { poste_soins: { fixes: 1, mobiles: 0 } }, vecteurs: {}, informations: '2 ambulance(s) déclarée(s) dans Eventware : à répartir entre ATNUP et agréées 112 (partie I, vecteurs).',
+      adresses: { acces_public: { rue: 'Rue de la Fête 1', localite: 'Ferrières' }, poste_soins: { rue: 'Poste de secours', localite: 'Ferrières' } }, ambulances_112: [], smur: [],
+      preremplis: ['nature', 'creneaux', 'documents', 'prestataire_nom', 'contact_nom', 'contact_gsm', 'responsable_dmp', 'effectifs', 'moyens', 'informations', 'adresses'],
+      destinataires: { coamu: 'admin.lie@health.fgov.be', cu112: 'expert@cs112.com' }, date_limite: '2026-10-28', jours_ouvres_restants: -4, niveau_dossier: 4, complete: true,
+      version: 'Formulaire de notification DMP CoAMU & CU 112, v1.6 (février 2025)'
+    },
     // (164) La grille PRIMA : concert rock de nuit, 1 200 personnes → 34,17, ÉLEVÉ, niveau 4 ; le type vient d'une saisie, les spectateurs d'Eventware, le reste par défaut.
     calcul_prima: {
       version: 'PRIMA v1.0 (janvier 2024), mémento v1.6 (mars 2025)',

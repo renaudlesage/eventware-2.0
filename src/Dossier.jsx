@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import DossierSecurite from './DossierSecurite'
 import { Prima } from './Prima'
+import NotificationDmp from './NotificationDmp'
 import FormulaireCommunal from './FormulaireCommunal'
 import { telechargerDossierPdf } from './exportDossierPdf'
 import { diffuserDossier } from './diffuserDossier'
@@ -232,6 +233,9 @@ export default function Dossier({ evenement, peut, toutPouvoir, setMessage }) {
           Une saisie change les contrôles (DOS_PRIMA_*) : on les recharge. */}
       <Prima evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} onChange={charger}
         onLienCoamu={toutPouvoir ? () => { setDiscipline('COAMU'); ouvrirLien('COAMU') } : null} />
+
+      {/* (165) La notification du dispositif médical préventif à la CoAMU et à la CU 112, 10 jours ouvrés avant. */}
+      <NotificationDmp evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} onChange={charger} />
 
       {/* (159) Les avis des disciplines sur la version déposée, et les liens qui permettent de les rendre. */}
       {dossier?.version_courante > 0 && (

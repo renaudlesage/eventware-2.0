@@ -985,6 +985,24 @@ for (const ecran of ecrans) {
           if (!r) erreurs.push('formulaire : le retour au pré-rempli ne recharge pas le formulaire')
         }
       }
+      // (165) La notification DMP : prête, date limite, destinataires ; le formulaire s'ouvre, pré-rempli ; une saisie part en upsert ; le PDF se télécharge.
+      const notif = dossier.locator('.notification-dmp')
+      const tn = await notif.textContent().catch(() => '')
+      if (!/prête à envoyer/.test(tn) || !/28\/10\/2026/.test(tn) || !/admin\.lie@health\.fgov\.be/.test(tn)) erreurs.push('notification : état, date limite ou destinataire absents')
+      await notif.getByRole('button', { name: 'Compléter la notification' }).evaluate((b) => b.click())
+      await page.waitForTimeout(200)
+      if ((await notif.locator('input[value="Croix-Rouge, section de Ferrières"]').count()) !== 1) erreurs.push('notification : le prestataire pré-rempli n’est pas dans le formulaire')
+      if (!(await notif.locator('.prima-source', { hasText: 'Eventware' }).count())) erreurs.push('notification : provenance Eventware absente')
+      await page.evaluate(() => { window.__ecritures = [] })
+      await notif.locator('input[type=number]').first().fill('2')
+      await notif.locator('input[type=number]').first().dispatchEvent('input')
+      await page.waitForTimeout(1200)
+      if (!(await page.evaluate(() => (window.__ecritures ?? []).some((e) => e.table === 'notifications_dmp' && e.op === 'upsert' && e.champs?.effectifs)))) erreurs.push('notification : une saisie d’effectif n’envoie pas d’upsert')
+      const [pdfNotif] = await Promise.all([
+        page.waitForEvent('download', { timeout: 8000 }).catch(() => null),
+        notif.getByRole('button', { name: /Télécharger le PDF \(formulaire v1\.6\)/ }).evaluate((b) => b.click())
+      ])
+      if (!pdfNotif || !/^Notification-DMP-.*\.pdf$/.test(pdfNotif.suggestedFilename())) erreurs.push('notification : le PDF ne se télécharge pas')
       // (159) L'avis D3 avec sa prescription, le lien d'avis D1 et son bouton de copie.
       const av = await dossier.locator('.dossier-avis').textContent().catch(() => '')
       if (!/D3 — Police.*favorable sous conditions/.test(av) || !/Plan de circulation/.test(av)) erreurs.push('dossier : l’avis D3 et sa prescription manquent')

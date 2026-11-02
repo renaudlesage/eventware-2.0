@@ -3560,6 +3560,21 @@ body.qg-actif { overflow: hidden; }
 .prima-points { text-align: right; width: 90px; }
 .prima-detail tr.applique td { font-weight: 600; }
 .prima .prc-jeton { display: inline-block; width: auto; }
+/* (165) La notification DMP : résumé, formulaire en sections, listes. */
+.notification-dmp { margin: 14px 0; }
+.notification-dmp .prc-jeton { display: inline-block; width: auto; }
+.notif-resume { margin: 4px 0 2px; }
+.notif-delai.depasse { color: var(--etat-chaud); font-weight: 600; }
+.notif-formulaire { margin-top: 8px; }
+.notif-formulaire .pave-titre { margin-top: 12px; }
+.notif-formulaire .grille-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 10px; }
+.notif-formulaire label { display: block; font-size: 12px; }
+.notif-formulaire label input, .notif-formulaire label select, .notif-formulaire label textarea { width: 100%; margin: 2px 0 0; }
+.notif-liste { margin: 4px 0 6px; }
+.notif-liste input, .notif-liste select { width: 100%; margin: 0; min-width: 70px; }
+.notif-documents { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0; }
+.notif-documents label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; white-space: nowrap; }
+.notif-documents input { width: auto; margin: 0; }
 /* (163) Le formulaire multidisciplinaire de la commune : sections repliées, code · question · réponse. */
 .formulaire-communal { margin: 14px 0; }
 .formulaire-progres { margin: 4px 0 8px; }

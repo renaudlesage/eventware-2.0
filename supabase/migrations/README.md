@@ -662,6 +662,14 @@ Dossier de sécurité, suite du briefing 01 sur les documents réels (Ren, 2/11)
 
 Dossier de sécurité, étape 5 reprise sur la grille réelle (Ren, 2/11). Tests : `../../outils/replique/tests/164.sql` (référentiel, pré-rempli, incomplet sans type, scores 2,28 / 34,17 / 12,81 recalculés à la main, zones, avis d'office actifs et riverains, plafond 100 000, IAS 2003, VIP ×2,04 et scoring 88, dépôt, traçabilité, droits, anonyme). Appliquée et inscrite (version 20261102210000) ; 96 lignes de référentiel, 5 seuils, 6 policies.
 
+### 165 : à appliquer (sur le « Go » de Ren) — notification du dispositif médical préventif (CoAMU & CU 112)
+
+| Fichier | Fait |
+|---|---|
+| `20261102220000_165_notification_dmp.sql` | `notifications_dmp` (une ligne par événement : nature, créneaux, documents joints, prestataire et contact, responsable DMP, médecin coordinateur, personnel nominatif et effectifs, moyens, vecteurs, informations, adresses, ambulances agréées 112, SMUR, envoyée le/à ; traçabilité), `notification_dmp_categories()`, `jours_ouvres_avant`, `jours_ouvres_entre` (samedis et dimanches exclus, fériés non comptés), `notification_dmp_prerempli` (nom, nature PRIMA ou formulaire IBZ 1.05, un créneau par jour aux heures du programme, documents produisibles, prestataire et responsable depuis les contacts, secouristes et postes depuis les moyens et les lieux, ambulances à répartir, adresses accès public / accès secours / poste de soins), `notification_dmp` (saisie par-dessus le pré-rempli, provenance, destinataires par province, date limite à 10 jours ouvrés, niveau du dernier dépôt, complétude). `controle_dossier` redéfinie : `DOS_NOTIF_DMP` (alerte) quand PRIMA attend un dispositif (niveau ≥ 2), que la notification n'est pas envoyée et que la date limite est à moins de 30 jours. RLS par `referentiels : lire/creer`. Aucun DROP, rejouable |
+
+Formulaire v1.6 (février 2025) des clusters BHN-LILU (page Google Sites de la CoAMU, 2/11). Tests : `../../outils/replique/tests/165.sql` (jours ouvrés, créneaux, date limite, destinataires, pré-rempli depuis contacts/lieux/moyens, saisie qui prime, provenance, traçabilité, DOS_NOTIF_DMP et son extinction une fois envoyée, droits, anonyme). **Pas encore appliquée en production.**
+
 ## Ne jamais rejouer 088 → 164 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations

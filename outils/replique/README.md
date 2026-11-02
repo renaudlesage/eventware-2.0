@@ -28,7 +28,7 @@ outils/replique/rejouer.sh 20261102120000   # seulement à partir de ce nom de f
 ```sh
 PS="psql -h /var/lib/postgresql/replique -p 5433 -U postgres -d replique -v ON_ERROR_STOP=1 -q"
 $PS -f outils/replique/tests/00_jeu.sql
-for n in 155 156 157 159 160 158 161 162 163 164; do $PS -f outils/replique/tests/$n.sql; done
+for n in 155 156 157 159 160 158 161 162 163 164 165; do $PS -f outils/replique/tests/$n.sql; done
 ```
 
 L'ordre compte un peu : 157 suppose 155 et 156 (profil complet, aucun bloquant), 159 suppose 157 (dossier déposé), 161 suppose 159 (lien d'instruction).
