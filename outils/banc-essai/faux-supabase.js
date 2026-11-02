@@ -7,6 +7,10 @@ export const DONNEES = {
   ],
   missions: [{ id: 'm1', reference: 'SEC-001', titre: 'Renfort', priorite: 'P1', statut: 'attribuee', module: 'securite', signalement_id: 's1', latitude: 50.385, longitude: 5.62, lieu_id: null, equipe_id: 'e1', membre_id: null, attribuee_le: new Date().toISOString(), demarree_le: null, equipe: { code: 'A' }, lieu: null, membre: null }],
   traces: [{ id: 't1', nom: 'Boucle', couleur: null, points: [[50.38, 5.61, 300], [50.39, 5.62, 310], [50.395, 5.63, 320]] }],
+  // (158) Une liaison avec la commune, un message d'urgence non lu, aucun accusé encore.
+  liaisons_commune: [{ id: 'lc1', evenement_id: 'ev1', commune: 'Ferrières', entete: 'X-Commune-Secret', actif: true, est_exercice: false, exercice_code: null, nb_messages: 1, dernier_message_le: '2026-11-11T21:02:00+01:00', created_at: '2026-10-01T10:00:00+02:00' }],
+  messages_commune: [{ id: 'mc1', evenement_id: 'ev1', liaison_id: 'lc1', reference: 'CW-001', niveau: 'urgence', titre: 'Évacuation partielle du camping', message: 'Montée de l’Ourthe annoncée pour 23 h.', consigne: 'Rassembler les campeurs au PRV', incident_type: 'inondation', incident_phase: 'communale', emise_le: '2026-11-11T21:00:00+01:00', recu_le: '2026-11-11T21:02:00+01:00', lu_par: null, lu_le: null, est_exercice: false, exercice_code: null }],
+  messages_commune_accuses: [], journal_receptions: [],
   // (157) Un dossier déposé une fois, avec sa version figée.
   dossiers_securite: [{ id: 'dos1', evenement_id: 'ev1', statut: 'depose', version_courante: 1, depose_le: '2026-10-20T10:00:00+02:00', decide_le: null, niveau_dmp: null, score_dmp: null }],
   dossier_versions: [{ id: 'dv1', dossier_id: 'dos1', version: 1, created_at: '2026-10-20T10:00:00+02:00', auteur_nom: 'Ren', contenu: { evenement: { frequentation_max: 1200, date_montage: '2026-11-09', date_demontage: '2026-11-13' }, prescriptions: [{ code: 'H1' }], lieux: [{}, {}], plan: [{}], contacts: [{}], controles: [{ gravite: 'alerte' }] } }],

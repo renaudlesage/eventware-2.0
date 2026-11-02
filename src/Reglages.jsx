@@ -7,6 +7,7 @@ import Roles from './Roles'
 import AccesAutorite from './AccesAutorite'
 import Conformite from './Conformite'
 import Dossier from './Dossier'
+import LiaisonsCommune from './LiaisonsCommune'
 import ProfilSecurite from './ProfilSecurite'
 import MonCompte from './MonCompte'
 import LogoEvenement from './LogoEvenement'
@@ -261,6 +262,8 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
               coordinateur de BFMF2027 n'avait rien à ouvrir (2b-07). */}
           <QrCodes evenement={evenement} />
           <Diffusion evenement={evenement} setMessage={setMessage} />
+          {/* (158) Le sens inverse : ce que la commune écrit à l'événement. */}
+          <LiaisonsCommune evenement={evenement} setMessage={setMessage} />
         </>
       )}
 

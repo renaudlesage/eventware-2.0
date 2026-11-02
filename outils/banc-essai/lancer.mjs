@@ -330,6 +330,14 @@ for (const ecran of ecrans) {
       if (await page.locator('.mode-qg').count()) erreurs.push('mode QG : Échap ne quitte pas')
       if (!(await page.getByRole('button', { name: /Son OFF/ }).count())) erreurs.push('mode QG : en sortant, le son ne revient pas à son état d’avant')
     }
+    // (158) Le message d'urgence de la commune reste en bandeau ; « Bien reçu » n'apparaît que connecté (le banc ne l'est pas).
+    const commune = page.locator('.message-commune.niv-urgence')
+    if (!(await commune.count())) erreurs.push('commune : pas de bandeau pour le message d’urgence')
+    else {
+      const t = await commune.textContent()
+      if (!/Évacuation partielle du camping/.test(t) || !/Rassembler les campeurs/.test(t)) erreurs.push('commune : titre ou consigne absents du bandeau')
+      if (!/inondation \(communale\)/.test(t)) erreurs.push('commune : incident absent du bandeau')
+    }
     // (154) Le bandeau « Attente » : la P1 qui attend 22 min (seuil appris 15) est signalée en urgence.
     const attente = page.locator('.en-souffrance')
     if (!(await attente.count())) erreurs.push('en souffrance : pas de bandeau « Attente »')
@@ -865,6 +873,17 @@ for (const ecran of ecrans) {
       if (!(await bouton.count())) erreurs.push('dossier : pas de bouton Déposer')
       else if (!(await bouton.isDisabled())) erreurs.push('dossier : Déposer devrait être désactivé tant qu’un bloquant subsiste')
       if (!(await dossier.locator('.dossier-versions li', { hasText: 'Version 1' }).count())) erreurs.push('dossier : la version 1 n’est pas listée')
+    }
+    // (158) Rubrique Partage : la liaison commune, son récepteur et sa ligne.
+    await page.locator('.rubrique-reglages select').selectOption('partage')
+    await page.waitForTimeout(500)
+    const liaisons = page.locator('.liaisons-commune')
+    if (!(await liaisons.count())) erreurs.push('partage : pas de bloc Liaison commune')
+    else {
+      const t = await liaisons.textContent()
+      if (!/functions\/v1\/reception-commune/.test(t)) erreurs.push('partage : adresse du récepteur absente')
+      if (!(await liaisons.locator('tbody tr', { hasText: 'Ferrières' }).count())) erreurs.push('partage : la liaison « Ferrières » n’est pas listée')
+      if (!(await liaisons.getByRole('button', { name: '+ Nouvelle liaison' }).count())) erreurs.push('partage : pas de bouton Nouvelle liaison')
     }
     // (155) Rubrique Organisation : le profil de sécurité, six champs, trois à compléter ; Enregistrer envoie un upsert.
     await page.locator('.rubrique-reglages select').selectOption('organisation')

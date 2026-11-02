@@ -25,8 +25,8 @@ exception when others then
   return p_code is null or sqlstate = p_code;
 end $$;
 
-grant usage on schema tests to anon, authenticated;
-grant execute on all functions in schema tests to anon, authenticated;
+grant usage on schema tests to anon, authenticated, service_role;
+grant execute on all functions in schema tests to anon, authenticated, service_role;
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000a001', 'coord.a@test.local'),

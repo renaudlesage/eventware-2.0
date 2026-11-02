@@ -3512,3 +3512,10 @@ body.qg-actif { overflow: hidden; }
 .dossier-controles li.controle-alerte, .dossier-controles li.controle-veille { border-left-color: var(--etat-veille); }
 .dossier-controles .pave-titre.chaud { color: var(--etat-chaud); }
 .dossier-version-detail { margin: 2px 0 6px 12px; }
+
+/* (158, 2/11) Liaison commune et messages reçus. */
+.secret-liaison code { user-select: all; }
+.liaisons-commune tr.inactif td { opacity: 0.55; }
+.rejets-liaison { margin-top: 8px; }
+.rejets-liaison ul { margin: 4px 0 0; padding-left: 18px; }
+.messages-commune-liste .ligne-retard .meta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }

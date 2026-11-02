@@ -14,6 +14,7 @@ import { libelleEtapeTransport, aParcours } from './libelles'
 import { Accuses } from './Bandeau'
 import ModeQG from './ModeQG'
 import EnSouffrance from './EnSouffrance'
+import MessagesCommune from './MessagesCommune'
 
 /**
  * Tableau de bord général — la vue QG.
@@ -511,6 +512,9 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
           </div>
         </div>
       ))}
+
+      {/* (158) Ce que la commune a écrit au QG : urgences en bandeau jusqu'au « Bien reçu ». */}
+      <MessagesCommune evenement={evenement} />
 
       {/* (154) Les demandes qui attendent plus que d'habitude, tous modules : on ouvre la liste du bon module. */}
       <EnSouffrance evenementId={evenement.id} onOuvrir={(m) => onAller(m.module === 'logistique' ? 'logistique' : 'securite')} />

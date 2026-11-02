@@ -606,6 +606,14 @@ Dossier de sécurité, étape 3. Tests : `../../outils/replique/tests/156.sql`.
 
 Dossier de sécurité, étape 2. Tests : `../../outils/replique/tests/157.sql` (dépôt refusé avec un bloquant, accepté ensuite, version figée malgré la modification de l'événement, écriture directe sans effet, retrait, cloisonnement entre organisations).
 
+### 158 : PAS ENCORE APPLIQUÉE — éprouvée sur la réplique locale — réception des messages de la commune
+
+| Fichier | Fait |
+|---|---|
+| `20261102150000_158_reception_commune.sql` | `liaisons_commune` (commune, nom d'en-tête, secret **haché** — rendu une seule fois par `creer_liaison_commune` / `regenerer_secret_liaison`, colonne illisible depuis l'application), `messages_commune` (ajout seul, unique par référence), `messages_commune_accuses` (qui a lu, quand ; le premier accusé marque le message lu), `journal_receptions` (rejets, jamais le secret). `recevoir_message_commune(jeton, en-têtes, charge)` réservée au rôle de service : retrouve l'événement par `jeton_public`, vérifie l'en-tête et le secret, tient déjà I2 (le réel refuse l'exercice) et I3 (le bac à sable refuse le réel), idempotente, inscrit une entrée système au journal. RLS : liaisons par `alertes : creer`, messages et accusés par membre, rejets par tout pouvoir. Aucun DROP, rejouable |
+
+Pont commune, partie A (briefing 02). Va avec l'Edge Function `reception-commune` (`../functions/`, à déployer `--no-verify-jwt`). Tests : `../../outils/replique/tests/158.sql` (réel reçu + journal, rejoué = doublon, mauvais secret et en-tête absent journalisés sans secret, jeton inconnu, charge invalide, I2, I3, bon code d'exercice accepté, accusé nominatif, cloisonnement, anonyme).
+
 ## Ne jamais rejouer 088 → 154 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
