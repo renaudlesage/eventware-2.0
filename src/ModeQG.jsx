@@ -3,6 +3,8 @@ import { CarteTactique, useTactique } from './ColonneSituation'
 import Meteo from './Meteo'
 import { TYPES } from './PcOps'
 import { libelleStatut, libelleEtapeTransport, aParcours } from './libelles'
+import { useMessagesVocaux, urgentVocal, heureVocal } from './messagesVocaux'
+import { motifReconnaissance } from './Talkie'
 
 /**
  * Mode QG — la Situation en plein écran, pour l'écran du PC-Ops (1/11,
@@ -25,7 +27,7 @@ import { libelleStatut, libelleEtapeTransport, aParcours } from './libelles'
  * Situation ordinaire.
  */
 
-const RANG = { mayday: 6, alerte: 5, recherche: 5, sos_recu: 4, p1: 3, sos: 2, p2: 2, autre: 1, jalon_retard: 4, jalon: 1 }
+const RANG = { mayday: 6, alerte: 5, recherche: 5, sos_recu: 4, p1: 3, sos: 2, p2: 2, autre: 1, jalon_retard: 4, jalon: 1, vocal_urgent: 4, vocal_nouveau: 3, vocal_entendu: 1 }
 
 const hhmm = (d) => (d ? new Date(d).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }) : '')
 const jjmm = (d) => (d ? new Date(d).toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit' }) : '')
@@ -39,8 +41,20 @@ function ecoule(date, maintenant) {
 }
 
 /** La file « à décider », construite depuis ce que la Situation a déjà. */
-function construireFile({ s, signalements, demandes, phase, maintenant }) {
+function construireFile({ s, signalements, demandes, phase, maintenant, vocaux = [], qui = () => '' }) {
   const items = []
+  // (3/11, remarque de Ren) Les messages vocaux à entendre : une urgence reconnue vaut une alerte, un « nouveau » vaut une P1.
+  for (const m of vocaux) {
+    if (m.statut === 'traite') continue
+    const urgent = urgentVocal(m)
+    items.push({
+      cle: 'v' + m.id, rang: urgent ? RANG.vocal_urgent : m.statut === 'nouveau' ? RANG.vocal_nouveau : RANG.vocal_entendu, genre: 'vocal', objet: m,
+      titre: m.transcription_corrigee || m.transcription || `${m.duree_s ?? '?'} s d'audio${m.reconnaissance && m.reconnaissance !== 'ok' ? ` — ${motifReconnaissance(m.reconnaissance)}` : ''}`,
+      detail: m.reponse ? `${m.reponse_source === 'auto' ? 'réponse automatique' : 'réponse du QG'} : ${m.reponse}` : null,
+      depuis: m.parle_le, statut: m.statut === 'nouveau' ? 'à entendre' : `entendu à ${heureVocal(m.entendu_le)}`, chaud: urgent,
+      nature: `${urgent ? (m.intention === 'URGENCE_DOUTEUSE' ? 'Urgence ? · ' : 'Urgence · ') : ''}Message vocal de ${qui(m)}`
+    })
+  }
   for (const a of s.alertes ?? []) {
     items.push({ cle: 'al' + (a.id ?? a.titre), rang: RANG.alerte, genre: 'alerte', titre: a.titre, detail: a.consigne || a.message, depuis: a.emise_le, statut: a.acquittee_le ? 'vue par le PC' : 'active', chaud: true, nature: 'Alerte ' + a.niveau })
   }
@@ -75,8 +89,10 @@ function construireFile({ s, signalements, demandes, phase, maintenant }) {
   return items.sort((a, b) => b.rang - a.rang || (new Date(a.depuis ?? 0) - new Date(b.depuis ?? 0)))
 }
 
-export default function ModeQG({ evenement, s, signalements, demandes, equipes, maj, surTrace, peutSos, peutMissions, occupe, agir, attribuer, convertir, peut, toutPouvoir, onAller, onQuitter, sonActif, onSon, veilleActive, veilleIndisponible, onVeille }) {
+export default function ModeQG({ evenement, membre, s, signalements, demandes, equipes, maj, surTrace, peutSos, peutMissions, occupe, agir, attribuer, convertir, peut, toutPouvoir, onAller, onQuitter, sonActif, onSon, veilleActive, veilleIndisponible, onVeille, setMessage }) {
   const { fond, vif, lieux } = useTactique(evenement)
+  // (3/11) Les messages vocaux entrent dans la file à décider, avec Écouter, Entendu, Classer.
+  const vocaux = useMessagesVocaux({ evenement, membre, setMessage, actif: evenement.modules?.talkie === true })
   const [maintenant, setMaintenant] = useState(() => new Date())
   useEffect(() => {
     const t = setInterval(() => setMaintenant(new Date()), 15000)
@@ -95,7 +111,8 @@ export default function ModeQG({ evenement, s, signalements, demandes, equipes, 
   }, [onQuitter])
 
   const phase = s.evenement?.phase ?? evenement.phase ?? 'exploitation'
-  const file = useMemo(() => construireFile({ s, signalements, demandes, phase, maintenant }), [s, signalements, demandes, phase, maintenant])
+  const file = useMemo(() => construireFile({ s, signalements, demandes, phase, maintenant, vocaux: vocaux.messages, qui: vocaux.qui }),
+    [s, signalements, demandes, phase, maintenant, vocaux.messages, vocaux.membres])
   const parModule = s.missions?.par_module ?? {}
   const secu = parModule.securite ?? { ouvertes: 0, p1: 0 }
   const logi = parModule.logistique ?? { ouvertes: 0, p1: 0 }
@@ -203,6 +220,15 @@ export default function ModeQG({ evenement, s, signalements, demandes, equipes, 
                   </div>
                 )}
                 {it.genre === 'jalon' && <div className="qg-actions"><button className="lien" onClick={() => onAller?.('planning')}>Ouvrir le planning</button></div>}
+                {it.genre === 'vocal' && (
+                  <div className="qg-actions">
+                    {it.objet.chemin_audio && (vocaux.audio[it.objet.id]
+                      ? <audio controls src={vocaux.audio[it.objet.id]} preload="none" />
+                      : <button className="discret" onClick={() => vocaux.ecouter(it.objet)}>▶ Écouter</button>)}
+                    {peutMissions && it.objet.statut === 'nouveau' && <button className="discret" onClick={() => vocaux.entendre(it.objet)}>Entendu</button>}
+                    {peutMissions && <button className="discret" onClick={() => vocaux.classer(it.objet)}>Classer</button>}
+                  </div>
+                )}
               </li>
             ))}
           </ol>

@@ -338,8 +338,17 @@ for (const ecran of ecrans) {
     else {
       const natures = await page.locator('.qg-file .qg-item .qg-nature').allTextContents()
       if (natures.length < 2) erreurs.push(`mode QG : ${natures.length} élément(s) à décider (attendu au moins le SOS et la demande P1)`)
-      if (!/^SOS/.test(natures[0] ?? '')) erreurs.push(`mode QG : premier à décider « ${natures[0]} » (attendu le SOS reçu)`)
+      if (!/^(SOS|Urgence)/.test(natures[0] ?? '')) erreurs.push(`mode QG : premier à décider « ${natures[0]} » (attendu le SOS reçu ou l’urgence vocale)`)
       if (!(await page.locator('.qg-fil .qg-chrono li', { hasText: 'Alerte météo levée' }).count())) erreurs.push('mode QG : la main courante est vide')
+      // (3/11, remarque de Ren) Les messages vocaux sont dans la file à décider : l'urgence en tête, avec Écouter et Entendu.
+      const vocalQg = page.locator('.qg-item.genre-vocal')
+      if (!(await vocalQg.count())) erreurs.push('mode QG : aucun message vocal dans la file à décider')
+      else {
+        const t = await vocalQg.first().textContent()
+        if (!/Urgence · Message vocal de Ren/.test(t) || !/blessé à l’étape 2/.test(t)) erreurs.push('mode QG : le message vocal urgent n’est pas en tête avec sa transcription')
+        if (!(await vocalQg.first().getByRole('button', { name: /Écouter/ }).count()) || !(await vocalQg.first().getByRole('button', { name: 'Entendu' }).count())) erreurs.push('mode QG : Écouter ou Entendu manquent sur le message vocal')
+        if (!/refusé le micro/.test(await page.locator('.qg-item.genre-vocal', { hasText: 'audio —' }).textContent().catch(() => ''))) erreurs.push('mode QG : le message muet ne dit pas pourquoi')
+      }
       if (!(await page.locator('.qg-avenir .qg-chrono li', { hasText: 'TRA-001' }).count())) erreurs.push('mode QG : le transport manque dans « À venir »')
       if (!(await page.locator('.qg-carte .leaflet-container').count())) erreurs.push('mode QG : pas de carte')
       if (!(await page.locator('.qg-chiffre', { hasText: 'SOS à traiter' }).count())) erreurs.push('mode QG : les chiffres de tête manquent')
