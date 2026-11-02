@@ -670,15 +670,15 @@ Dossier de sécurité, étape 5 reprise sur la grille réelle (Ren, 2/11). Tests
 
 Formulaire v1.6 (février 2025) des clusters BHN-LILU (page Google Sites de la CoAMU, 2/11). Tests : `../../outils/replique/tests/165.sql` (jours ouvrés, créneaux, date limite, destinataires, pré-rempli depuis contacts/lieux/moyens, saisie qui prime, provenance, traçabilité, DOS_NOTIF_DMP et son extinction une fois envoyée, droits, anonyme). Appliquée et inscrite (version 20261102220000) ; 2 policies.
 
-### 166 : à appliquer (sur le « Go » de Ren) — talkie : sort de la reconnaissance, suppression par le QG
+### 166 : appliquée le 2/11 (par Claude, via l'outil Supabase, sur le « Go 166 » de Ren, en un temps) — talkie : sort de la reconnaissance, suppression par le QG
 
 | Fichier | Fait |
 |---|---|
 | `20261102230000_166_talkie_reconnaissance_suppression.sql` | `messages_vocaux.reconnaissance` (ok, absente, vide, erreur:<motif>) : le téléphone dit pourquoi le texte manque. `trg_talkie_transcription` corrigé : la réponse automatique (mots-clés) part aussi quand le QG tape lui-même le texte (`transcription_corrigee`), ce que la 162 ne faisait pas. `supprimer_message_vocal(message)` : effacement logique réservé à `missions : modifier` ou tout pouvoir, journal, chemin de l'audio rendu pour que l'application retire le fichier ; police `vocaux_suppression_qg` sur le compartiment. Aucun DROP, rejouable |
 
-Constat du 2/11 : aucun des messages reçus en production n'a de transcription (le téléphone refuse le micro à la reconnaissance pendant l'enregistrement, ou n'en a pas). Tests : `../../outils/replique/tests/166.sql`. **Pas encore appliquée en production.**
+Constat du 2/11 : aucun des messages reçus en production n'a de transcription (le téléphone refuse le micro à la reconnaissance pendant l'enregistrement, ou n'en a pas). Tests : `../../outils/replique/tests/166.sql`. Appliquée et inscrite (version 20261102230000).
 
-## Ne jamais rejouer 088 → 165 par `db push` sans les lignes ci-dessus
+## Ne jamais rejouer 088 → 166 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`
