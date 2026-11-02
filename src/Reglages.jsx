@@ -210,6 +210,22 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
                 />{' '}
                 Réponses automatiques (canal, nuit, DEA, statut de ma demande ; jamais d'information à une urgence hormis le 112)
               </label>
+              {/* (transcription serveur) Le téléphone ne transcrit presque jamais : un service externe peut le faire, à la minute. */}
+              <label className="case">
+                <input
+                  type="checkbox"
+                  checked={evenement.modules?.talkie_transcription_serveur === true}
+                  disabled={occupe}
+                  onChange={async (e) => {
+                    setOccupe(true)
+                    const refus = await modifierOuRefuser('evenements', { modules: { ...evenement.modules, talkie_transcription_serveur: e.target.checked } }, { id: evenement.id })
+                    if (refus) setMessage({ type: 'erreur', texte: refus })
+                    else onRecharger()
+                    setOccupe(false)
+                  }}
+                />{' '}
+                Transcription par le serveur : l'audio de chaque message est envoyé à un service de reconnaissance externe (OpenAI, facturé à la minute à l'éditeur), le texte revient en quelques secondes et les mots-clés sont reconnus
+              </label>
               <p className="aide">Les enregistrements vocaux s'effacent à la clôture de l'événement ; les transcriptions restent.</p>
             </section>
           )}

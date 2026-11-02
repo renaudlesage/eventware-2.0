@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient'
 import { surRetourReseau } from './reessai'
+import { transcrireVocal } from './transcrireVocal'
 
 /**
  * La file des messages vocaux (162).
@@ -86,6 +87,9 @@ async function envoyer(m) {
   })
   // Déjà insérée par un essai précédent dont la réponse s'est perdue : c'est envoyé.
   if (error && error.code !== '23505') throw error
+  // (transcription serveur) Sans texte du téléphone et si l'événement le demande, le serveur transcrit
+  // l'audio en tâche de fond : un échec ne change rien au message, qui est parti.
+  if (m.transcrire && !m.transcription && chemin) transcrireVocal(m.id).catch(() => {})
 }
 
 /** Vide la file, dans l'ordre ; s'arrête à la première panne réseau. */

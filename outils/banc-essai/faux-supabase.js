@@ -271,6 +271,8 @@ export const supabase = {
     // (27/10) Conversion DWG : adresses signées du projet, et le DXF « converti » est celui que le banc a glissé dans window.__dxfConverti.
     createSignedUploadUrl: async (chemin) => ({ data: { signedUrl: `https://kunvnnfejhnuhflycyfz.supabase.co/storage/v1/object/upload/sign/plans/${chemin}?token=x`, token: 'x', path: chemin } }),
     download: async () => ({ data: new Blob([window.__dxfConverti ?? ''], { type: 'application/dxf' }) }) }) },
+  // (transcription serveur) Les appels aux Edge Functions sont notés comme les RPC.
+  functions: { invoke: async (fn, opts) => { if (typeof window !== 'undefined') (window.__appels ||= []).push({ fn, args: opts?.body }); return { data: fn === 'transcrire-vocal' ? { transcription: 'texte transcrit par le serveur' } : {}, error: null } } },
   channel: () => ({ on() { return this }, subscribe() { return this } }),
   removeChannel() {}
 }
