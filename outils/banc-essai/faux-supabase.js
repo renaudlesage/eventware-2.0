@@ -10,7 +10,9 @@ export const DONNEES = {
   // (162) Deux messages vocaux : une urgence reconnue, à entendre ; une question de canal déjà répondue et entendue.
   messages_vocaux: [
     { id: 'mv1', evenement_id: 'ev1', membre_id: 'mb1', parle_le: '2026-11-11T20:58:00+01:00', recu_le: '2026-11-11T21:03:00+01:00', duree_s: 6, chemin_audio: 'ev1/mb1/mv1.webm', transcription: 'il y a un blessé à l’étape 2', transcription_corrigee: null, latitude: null, longitude: null, lieu_id: 'l1', urgence: true, statut: 'nouveau', entendu_le: null, entendu_par: null, mission_id: null, reponse: 'Si quelqu’un est en danger, appelle le 112 maintenant. Le QG a reçu ton message.', reponse_le: '2026-11-11T21:03:01+01:00', reponse_source: 'auto', intention: 'URGENCE', deleted_at: null },
-    { id: 'mv2', evenement_id: 'ev1', membre_id: 'mb1', parle_le: '2026-11-11T20:40:00+01:00', recu_le: '2026-11-11T20:40:05+01:00', duree_s: 3, chemin_audio: 'ev1/mb1/mv2.webm', transcription: 'c’est quoi mon canal', transcription_corrigee: null, latitude: null, longitude: null, lieu_id: null, urgence: false, statut: 'entendu', entendu_le: '2026-11-11T20:42:00+01:00', entendu_par: 'u1', mission_id: null, reponse: 'Ton canal : 3 Logistique. Urgence : canal 8 Urgence.', reponse_le: '2026-11-11T20:40:06+01:00', reponse_source: 'auto', intention: 'CANAL', deleted_at: null }
+    { id: 'mv2', evenement_id: 'ev1', membre_id: 'mb1', parle_le: '2026-11-11T20:40:00+01:00', recu_le: '2026-11-11T20:40:05+01:00', duree_s: 3, chemin_audio: 'ev1/mb1/mv2.webm', transcription: 'c’est quoi mon canal', transcription_corrigee: null, latitude: null, longitude: null, lieu_id: null, urgence: false, statut: 'entendu', entendu_le: '2026-11-11T20:42:00+01:00', entendu_par: 'u1', mission_id: null, reponse: 'Ton canal : 3 Logistique. Urgence : canal 8 Urgence.', reponse_le: '2026-11-11T20:40:06+01:00', reponse_source: 'auto', intention: 'CANAL', deleted_at: null },
+    // (166) Un message sans transcription : le téléphone a refusé le micro à la reconnaissance.
+    { id: 'mv3', evenement_id: 'ev1', membre_id: 'mb1', parle_le: '2026-11-11T20:30:00+01:00', recu_le: '2026-11-11T20:30:04+01:00', duree_s: 5, chemin_audio: 'ev1/mb1/mv3.webm', transcription: null, transcription_corrigee: null, reconnaissance: 'erreur:audio-capture', latitude: null, longitude: null, lieu_id: null, urgence: false, statut: 'entendu', entendu_le: '2026-11-11T20:31:00+01:00', entendu_par: 'u1', mission_id: null, reponse: null, reponse_le: null, reponse_source: null, intention: null, deleted_at: null }
   ],
   talkie_intentions: [{ id: 'ti1', code: 'URGENCE', libelle: 'Urgence vitale', motifs: ['malaise', 'bless', '112'], ordre: 10, actif: true }, { id: 'ti2', code: 'CANAL', libelle: 'Quel canal radio', motifs: ['canal'], ordre: 40, actif: true }],
   // (158) Une liaison avec la commune, un message d'urgence non lu, aucun accusé encore.
@@ -242,7 +244,9 @@ function constructeur(table, fn, args) {
     mes_droits_annuaire: [{ lire: true, gerer: !(typeof location !== 'undefined' && /-lecture/.test(location.search)) }],
     annuaire: ANNUAIRE, historique_fournisseur: [{ consultation_id: 'h1', evenement_id: 'ev0', evenement: 'Rando VTT 2025', reference: 'DP-02', objet: 'Barriérage', statut: 'retenue', montant_ht: 120, taux_tva: 21, envoyee_le: '2025-10-01T10:00:00Z', retenue: true }],
     demandes_prix_vue: DEMANDES_PRIX, comparaison: COMPARAISON, suivi_demandes: [{ categorie: 'a_comparer', demande_id: 'dp1', reference: 'DP-01', objet: 'Barriérage périmètre scène', date_limite: '2026-11-01T12:00:00+01:00', consultation_id: null, fournisseur: null, detail: '2 offres reçues' }],
-    retenir_offre: 'cmd1', marquer_envoyee: true, relancer: true, epingler_fournisseur: 'ct9'
+    retenir_offre: 'cmd1', marquer_envoyee: true, relancer: true, epingler_fournisseur: 'ct9',
+    // (166) La suppression d'un message vocal rend le chemin de l'audio.
+    supprimer_message_vocal: 'ev1/mb1/mv3.webm'
   }
   // ?site=1 : un site sans parcours ni lieu (un festival), pour voir une carte se cadrer sur le plan.
   const site = typeof location !== 'undefined' && new URLSearchParams(location.search).get('site') === '1'

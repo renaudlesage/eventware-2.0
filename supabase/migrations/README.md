@@ -670,6 +670,14 @@ Dossier de sécurité, étape 5 reprise sur la grille réelle (Ren, 2/11). Tests
 
 Formulaire v1.6 (février 2025) des clusters BHN-LILU (page Google Sites de la CoAMU, 2/11). Tests : `../../outils/replique/tests/165.sql` (jours ouvrés, créneaux, date limite, destinataires, pré-rempli depuis contacts/lieux/moyens, saisie qui prime, provenance, traçabilité, DOS_NOTIF_DMP et son extinction une fois envoyée, droits, anonyme). **Pas encore appliquée en production.**
 
+### 166 : à appliquer (sur le « Go » de Ren) — talkie : sort de la reconnaissance, suppression par le QG
+
+| Fichier | Fait |
+|---|---|
+| `20261102230000_166_talkie_reconnaissance_suppression.sql` | `messages_vocaux.reconnaissance` (ok, absente, vide, erreur:<motif>) : le téléphone dit pourquoi le texte manque. `trg_talkie_transcription` corrigé : la réponse automatique (mots-clés) part aussi quand le QG tape lui-même le texte (`transcription_corrigee`), ce que la 162 ne faisait pas. `supprimer_message_vocal(message)` : effacement logique réservé à `missions : modifier` ou tout pouvoir, journal, chemin de l'audio rendu pour que l'application retire le fichier ; police `vocaux_suppression_qg` sur le compartiment. Aucun DROP, rejouable |
+
+Constat du 2/11 : aucun des messages reçus en production n'a de transcription (le téléphone refuse le micro à la reconnaissance pendant l'enregistrement, ou n'en a pas). Tests : `../../outils/replique/tests/166.sql`. **Pas encore appliquée en production.**
+
 ## Ne jamais rejouer 088 → 164 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations

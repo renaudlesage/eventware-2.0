@@ -365,6 +365,15 @@ for (const ecran of ecrans) {
       await page.waitForTimeout(300)
       if (!(await page.evaluate(() => (window.__ecritures ?? []).some((e) => e.table === 'messages_vocaux' && e.op === 'update' && e.champs?.statut === 'entendu' && e.champs?.entendu_le)))) erreurs.push('entendu : le bouton n’envoie pas l’accusé')
       if (!(await premier.getByRole('button', { name: '→ Demande' }).count())) erreurs.push('entendu : « → Demande » absent')
+      // (166) Le message sans transcription dit pourquoi ; Supprimer appelle la fonction serveur après confirmation.
+      const sans = fil.locator('.message-vocal', { hasText: 'refusé le micro à la reconnaissance' }).first()
+      if (!(await sans.count())) erreurs.push('entendu : le message sans transcription n’affiche pas le motif')
+      else {
+        await page.evaluate(() => { window.__appels = []; window.confirm = () => true })
+        await sans.getByRole('button', { name: 'Supprimer' }).evaluate((b) => b.click())
+        await page.waitForTimeout(300)
+        if (!(await page.evaluate(() => (window.__appels ?? []).some((a) => a.fn === 'supprimer_message_vocal' && a.args?.p_message === 'mv3')))) erreurs.push('entendu : Supprimer n’appelle pas la fonction serveur')
+      }
     }
     // (158) Le message d'urgence de la commune reste en bandeau ; « Bien reçu » n'apparaît que connecté (le banc ne l'est pas).
     const commune = page.locator('.message-commune.niv-urgence')

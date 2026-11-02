@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import { FormDemande } from './Missions'
+import { motifReconnaissance } from './Talkie'
 
 /**
  * LE FIL « ENTENDU » — les messages vocaux au QG (162).
@@ -83,6 +84,15 @@ export default function FilEntendu({ evenement, membre, peut, toutPouvoir, setMe
     }
     setDemande(null)
   }
+  // (166) Supprimer un message reçu : effacement logique par la fonction serveur, audio retiré du compartiment.
+  async function supprimer(m) {
+    if (!window.confirm(`Supprimer le message vocal de ${qui(m)} (${heure(m.parle_le)}) ? L'audio est effacé, le journal garde la trace.`)) return
+    const { data, error } = await supabase.rpc('supprimer_message_vocal', { p_message: m.id })
+    if (error) return setMessage?.({ type: 'erreur', texte: texteErreur(error) })
+    const chemin = Array.isArray(data) ? data[0] : data
+    if (chemin) await supabase.storage.from('vocaux').remove([chemin]).catch(() => {})
+    lire()
+  }
   async function ecouter(m) {
     if (audio[m.id] || !m.chemin_audio) return
     const { data, error } = await supabase.storage.from('vocaux').createSignedUrl(m.chemin_audio, 600)
@@ -129,10 +139,13 @@ export default function FilEntendu({ evenement, membre, peut, toutPouvoir, setMe
                 <input
                   className="vocal-transcription"
                   defaultValue={m.transcription_corrigee ?? m.transcription ?? ''}
-                  placeholder={m.transcription ? '' : 'Pas de transcription : écrire ce qui a été dit'}
+                  placeholder={m.transcription ? '' : 'Pas de transcription : écrire ce qui a été dit (les mots-clés seront reconnus)'}
                   onBlur={(e) => { const v = e.target.value.trim(); if (v !== (m.transcription_corrigee ?? m.transcription ?? '')) maj(m, { transcription_corrigee: v || null }) }}
                 />
               ) : <span>{m.transcription_corrigee ?? m.transcription}</span>}
+              {!m.transcription && !m.transcription_corrigee && m.reconnaissance && m.reconnaissance !== 'ok' && (
+                <span className="aide vocal-motif">{motifReconnaissance(m.reconnaissance)}</span>
+              )}
             </div>
             <div className="meta">
               {peutGerer ? (
@@ -153,7 +166,11 @@ export default function FilEntendu({ evenement, membre, peut, toutPouvoir, setMe
                 <button className="discret" onClick={() => repondre(m)} disabled={!(reponse[m.id] ?? '').trim()}>Envoyer</button>
                 <button className="discret" onClick={() => setDemande(m)}>→ Demande</button>
                 <button className="discret" onClick={() => classer(m)}>Classer</button>
+                <button className="discret" onClick={() => supprimer(m)}>Supprimer</button>
               </div>
+            )}
+            {peutGerer && m.statut === 'traite' && (
+              <div className="ligne-boutons vocal-gestes"><button className="discret" onClick={() => supprimer(m)}>Supprimer</button></div>
             )}
           </div>
         )
