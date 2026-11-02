@@ -662,7 +662,23 @@ Dossier de sécurité, suite du briefing 01 sur les documents réels (Ren, 2/11)
 
 Dossier de sécurité, étape 5 reprise sur la grille réelle (Ren, 2/11). Tests : `../../outils/replique/tests/164.sql` (référentiel, pré-rempli, incomplet sans type, scores 2,28 / 34,17 / 12,81 recalculés à la main, zones, avis d'office actifs et riverains, plafond 100 000, IAS 2003, VIP ×2,04 et scoring 88, dépôt, traçabilité, droits, anonyme). Appliquée et inscrite (version 20261102210000) ; 96 lignes de référentiel, 5 seuils, 6 policies.
 
-## Ne jamais rejouer 088 → 164 par `db push` sans les lignes ci-dessus
+### 165 : appliquée le 2/11 (par Claude, via l'outil Supabase, sur le « Go 165 » de Ren, en deux temps : table et fonctions, contrôles et RLS) — notification du dispositif médical préventif (CoAMU & CU 112)
+
+| Fichier | Fait |
+|---|---|
+| `20261102220000_165_notification_dmp.sql` | `notifications_dmp` (une ligne par événement : nature, créneaux, documents joints, prestataire et contact, responsable DMP, médecin coordinateur, personnel nominatif et effectifs, moyens, vecteurs, informations, adresses, ambulances agréées 112, SMUR, envoyée le/à ; traçabilité), `notification_dmp_categories()`, `jours_ouvres_avant`, `jours_ouvres_entre` (samedis et dimanches exclus, fériés non comptés), `notification_dmp_prerempli` (nom, nature PRIMA ou formulaire IBZ 1.05, un créneau par jour aux heures du programme, documents produisibles, prestataire et responsable depuis les contacts, secouristes et postes depuis les moyens et les lieux, ambulances à répartir, adresses accès public / accès secours / poste de soins), `notification_dmp` (saisie par-dessus le pré-rempli, provenance, destinataires par province, date limite à 10 jours ouvrés, niveau du dernier dépôt, complétude). `controle_dossier` redéfinie : `DOS_NOTIF_DMP` (alerte) quand PRIMA attend un dispositif (niveau ≥ 2), que la notification n'est pas envoyée et que la date limite est à moins de 30 jours. RLS par `referentiels : lire/creer`. Aucun DROP, rejouable |
+
+Formulaire v1.6 (février 2025) des clusters BHN-LILU (page Google Sites de la CoAMU, 2/11). Tests : `../../outils/replique/tests/165.sql` (jours ouvrés, créneaux, date limite, destinataires, pré-rempli depuis contacts/lieux/moyens, saisie qui prime, provenance, traçabilité, DOS_NOTIF_DMP et son extinction une fois envoyée, droits, anonyme). Appliquée et inscrite (version 20261102220000) ; 2 policies.
+
+### 166 : appliquée le 2/11 (par Claude, via l'outil Supabase, sur le « Go 166 » de Ren, en un temps) — talkie : sort de la reconnaissance, suppression par le QG
+
+| Fichier | Fait |
+|---|---|
+| `20261102230000_166_talkie_reconnaissance_suppression.sql` | `messages_vocaux.reconnaissance` (ok, absente, vide, erreur:<motif>) : le téléphone dit pourquoi le texte manque. `trg_talkie_transcription` corrigé : la réponse automatique (mots-clés) part aussi quand le QG tape lui-même le texte (`transcription_corrigee`), ce que la 162 ne faisait pas. `supprimer_message_vocal(message)` : effacement logique réservé à `missions : modifier` ou tout pouvoir, journal, chemin de l'audio rendu pour que l'application retire le fichier ; police `vocaux_suppression_qg` sur le compartiment. Aucun DROP, rejouable |
+
+Constat du 2/11 : aucun des messages reçus en production n'a de transcription (le téléphone refuse le micro à la reconnaissance pendant l'enregistrement, ou n'en a pas). Tests : `../../outils/replique/tests/166.sql`. Appliquée et inscrite (version 20261102230000).
+
+## Ne jamais rejouer 088 → 166 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

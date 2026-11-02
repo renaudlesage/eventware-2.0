@@ -47,6 +47,18 @@ export function InfoTalkie({ onAccepter, onRefuser }) {
   )
 }
 
+/** (166) Pourquoi un message n'a pas de texte : le sort de la reconnaissance sur le téléphone, en clair. */
+export function motifReconnaissance(sort) {
+  if (!sort || sort === 'ok') return ''
+  if (sort === 'absente') return 'pas de reconnaissance vocale sur ce téléphone (Firefox, ou navigateur ancien)'
+  if (sort === 'vide') return 'rien reconnu par le téléphone'
+  const motif = sort.replace(/^erreur:/, '')
+  if (motif === 'audio-capture' || motif === 'not-allowed' || motif === 'service-not-allowed') return 'le téléphone a refusé le micro à la reconnaissance (déjà pris par l’enregistrement, ou autorisation refusée)'
+  if (motif === 'network') return 'reconnaissance impossible sans réseau sur ce téléphone'
+  if (motif === 'language-not-supported') return 'français non reconnu par ce téléphone'
+  return `reconnaissance en erreur (${motif})`
+}
+
 export function BoutonParler({ evenement, membre, onEnvoye, variante = 'pave' }) {
   const [etat, setEtat] = useState('repos') // repos | enregistre | annule
   const [reste, setReste] = useState(DUREE_MAX_S)
@@ -57,6 +69,7 @@ export function BoutonParler({ evenement, membre, onEnvoye, variante = 'pave' })
   const debut = useRef(null)
   const minuteur = useRef(null)
   const reconnaissance = useRef(null)
+  const sort = useRef('absente') // ok | absente | vide | erreur:<motif>
   const texte = useRef('')
   const position = useRef(null)
   const annule = useRef(false)
@@ -95,17 +108,21 @@ export function BoutonParler({ evenement, membre, onEnvoye, variante = 'pave' })
         () => {}, { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
       )
       // La reconnaissance sur l'appareil, en option : certaines plateformes refusent le micro à deux
-      // consommateurs. Si elle échoue, le message part sans transcription, jamais sans audio.
+      // consommateurs. Si elle échoue, le message part sans transcription, jamais sans audio — mais
+      // avec le motif (166), pour que le QG sache pourquoi le texte manque.
       const Reconnaissance = window.SpeechRecognition || window.webkitSpeechRecognition
+      sort.current = Reconnaissance ? 'vide' : 'absente'
       if (Reconnaissance) {
         try {
           const rec = new Reconnaissance()
           rec.lang = 'fr-BE'; rec.continuous = true; rec.interimResults = true
-          rec.onresult = (e) => { texte.current = Array.from(e.results).map((x) => x[0]?.transcript ?? '').join(' ').trim() }
-          rec.onerror = () => {}
+          rec.onresult = (e) => { texte.current = Array.from(e.results).map((x) => x[0]?.transcript ?? '').join(' ').trim(); if (texte.current) sort.current = 'ok' }
+          rec.onerror = (e) => { if (e?.error && e.error !== 'no-speech' && e.error !== 'aborted') sort.current = `erreur:${e.error}` }
+          // Sur Android, la reconnaissance s'arrête d'elle-même au premier silence : on la relance tant qu'on parle.
+          rec.onend = () => { if (enregistreur.current && enregistreur.current.state === 'recording' && !String(sort.current).startsWith('erreur')) { try { rec.start() } catch { /* rien */ } } }
           rec.start()
           reconnaissance.current = rec
-        } catch { reconnaissance.current = null }
+        } catch (e) { reconnaissance.current = null; sort.current = `erreur:${e?.name ?? 'inconnue'}` }
       }
     } catch (e) {
       setErreur(e?.name === 'NotAllowedError' ? 'Micro refusé : autorise-le dans les réglages du navigateur.' : 'Micro indisponible sur cet appareil.')
@@ -117,8 +134,8 @@ export function BoutonParler({ evenement, membre, onEnvoye, variante = 'pave' })
     if (etat !== 'enregistre' && !enregistreur.current) return
     annule.current = annuler
     clearInterval(minuteur.current)
-    try { reconnaissance.current?.stop() } catch { /* rien */ }
     try { enregistreur.current?.state !== 'inactive' && enregistreur.current?.stop() } catch { /* rien */ }
+    try { if (reconnaissance.current) { reconnaissance.current.onend = null; reconnaissance.current.stop() } } catch { /* rien */ }
     navigator.vibrate?.(annuler ? [20, 40, 20] : 50)
     setEtat(annuler ? 'annule' : 'repos')
     if (annuler) setTimeout(() => setEtat('repos'), 900)
@@ -135,7 +152,7 @@ export function BoutonParler({ evenement, membre, onEnvoye, variante = 'pave' })
     await ajouterVocal({
       id: crypto.randomUUID(), evenement_id: evenement.id, membre_id: membre.id,
       parle_le: debut.current.toISOString(), duree_s: duree, blob, mime: blob.type,
-      transcription: texte.current || null, ...(position.current ?? {})
+      transcription: texte.current || null, reconnaissance: texte.current ? 'ok' : sort.current, ...(position.current ?? {})
     })
     onEnvoye?.()
   }
@@ -181,7 +198,7 @@ export function MesMessages({ evenement, membre, onCompteurs }) {
     if (!membre?.id) return
     const { data } = await supabase
       .from('messages_vocaux')
-      .select('id, parle_le, recu_le, duree_s, transcription, transcription_corrigee, statut, entendu_le, reponse, reponse_le, reponse_source, intention, urgence, mission_id')
+      .select('id, parle_le, recu_le, duree_s, transcription, transcription_corrigee, reconnaissance, statut, entendu_le, reponse, reponse_le, reponse_source, intention, urgence, mission_id')
       .eq('evenement_id', evenement.id).eq('membre_id', membre.id).order('parle_le', { ascending: false }).limit(20)
     setEnvoyes(data ?? [])
     onCompteurs?.({ attente: enAttente.filter((m) => !m.definitif).length, reponses: (data ?? []).filter((m) => m.reponse).length })
@@ -215,6 +232,7 @@ export function MesMessages({ evenement, membre, onCompteurs }) {
             envoyé à {heure(m.recu_le)}
             {m.entendu_le ? ` · entendu par le QG à ${heure(m.entendu_le)}` : ' · pas encore entendu'}
             {m.mission_id ? ' · demande créée' : ''}
+            {!m.transcription && !m.transcription_corrigee && m.reconnaissance && m.reconnaissance !== 'ok' ? ` · ${motifReconnaissance(m.reconnaissance)}` : ''}
           </div>
           {m.reponse && (
             <div className={`talkie-reponse ${m.reponse_source}`}>

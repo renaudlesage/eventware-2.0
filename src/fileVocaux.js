@@ -81,7 +81,7 @@ async function envoyer(m) {
   }
   const { error } = await supabase.from('messages_vocaux').insert({
     id: m.id, evenement_id: m.evenement_id, membre_id: m.membre_id, parle_le: m.parle_le, duree_s: m.duree_s,
-    chemin_audio: chemin, transcription: m.transcription || null,
+    chemin_audio: chemin, transcription: m.transcription || null, reconnaissance: m.reconnaissance ?? null,
     latitude: m.latitude ?? null, longitude: m.longitude ?? null, precision_m: m.precision_m ?? null
   })
   // Déjà insérée par un essai précédent dont la réponse s'est perdue : c'est envoyé.
