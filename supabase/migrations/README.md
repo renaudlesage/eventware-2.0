@@ -620,13 +620,13 @@ Dossier de sécurité, étape 2. Tests : `../../outils/replique/tests/157.sql` (
 
 Dossier de sécurité, étape 4. Tests : `../../outils/replique/tests/159.sql` (lecture par lien D1, lien expiré/révoqué/situation refusés, avis + prescriptions, remplacement sans effacement, accusé de la commune, check-list, cloisonnement). Appliquée et inscrite (version 20261102160000).
 
-### 162 : PAS ENCORE APPLIQUÉE — éprouvée sur la réplique locale — talkie-téléphone
+### 162 : appliquée le 2/11 (par Claude, via l'outil Supabase, sur le « Go 162 » de Ren) — talkie-téléphone
 
 | Fichier | Fait |
 |---|---|
 | `20261102190000_162_talkie.sql` | `messages_vocaux` (un membre insère les siens et ne lit que les siens ; `missions : modifier` lit tout et met à jour ; `parle_le` = heure du téléphone, `recu_le` = arrivée), `talkie_intentions` (référentiel des mots-clés, exploitant), `talkie_mon_membre`, `talkie_normaliser`, `talkie_lieu` (nom d'un lieu, « étape 3 », sinon le plus proche à moins de 150 m, sinon rien), `talkie_repondre` (`security definer` justifié : lit canaux_radio, elements_plan, missions ; n'accepte que les messages de l'appelant ; ne change jamais `statut` ; négation « pas de blessé » → `URGENCE_DOUTEUSE`), déclencheur sur la transcription, `purger_vocaux` (vide `chemin_audio`, garde les transcriptions ; l'application supprime d'abord les fichiers par l'API Storage, à la bascule en clôture). Compartiment privé `vocaux` (1 Mo, chemin `<evenement>/<membre>/<uuid>`), policies par membre et par `missions : modifier`. Le contrôle de licence accepte une option `<module>_<option>` d'un module souscrit (`talkie_reponses_auto`). Aucun DROP, rejouable |
 
-Activation : l'exploitant souscrit `talkie` à l'organisation puis l'active sur l'événement (Réglages › Modules) ; la coordination règle « Réponses automatiques ». Tests : `../../outils/replique/tests/162.sql` (droits, idempotence, les six réponses attendues, négation, lieux proposés, journal, désactivation, purge, anonyme).
+Activation : l'exploitant souscrit `talkie` à l'organisation puis l'active sur l'événement (Réglages › Modules) ; la coordination règle « Réponses automatiques ». Tests : `../../outils/replique/tests/162.sql` (droits, idempotence, les six réponses attendues, négation, lieux proposés, journal, désactivation, purge, anonyme). Appliquée et inscrite (version 20261102190000) ; compartiment `vocaux` créé, cinq intentions semées.
 
 ### 160 : appliquée le 2/11 (par Claude, via l'outil Supabase, sur le « Go » de Ren) — grille DMP
 
@@ -646,7 +646,7 @@ Dossier de sécurité, étapes 7 et 8. Va avec l'Edge Function `diffuser-dossier
 
 Pont commune, partie A (briefing 02). Va avec l'Edge Function `reception-commune` (`../functions/`, à déployer `--no-verify-jwt`). Tests : `../../outils/replique/tests/158.sql` (réel reçu + journal, rejoué = doublon, mauvais secret et en-tête absent journalisés sans secret, jeton inconnu, charge invalide, I2, I3, bon code d'exercice accepté, accusé nominatif, cloisonnement, anonyme). Appliquée et inscrite (version 20261102150000) ; Edge Function `reception-commune` déployée (sans JWT).
 
-## Ne jamais rejouer 088 → 161 par `db push` sans les lignes ci-dessus
+## Ne jamais rejouer 088 → 162 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`
