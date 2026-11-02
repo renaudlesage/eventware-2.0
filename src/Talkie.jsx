@@ -49,7 +49,12 @@ export function InfoTalkie({ onAccepter, onRefuser }) {
 
 /** (166) Pourquoi un message n'a pas de texte : le sort de la reconnaissance sur le téléphone, en clair. */
 export function motifReconnaissance(sort) {
-  if (!sort || sort === 'ok') return ''
+  if (!sort || sort === 'ok' || sort === 'serveur') return ''
+  if (sort.startsWith('erreur:serveur:')) {
+    const motif = sort.slice('erreur:serveur:'.length)
+    return ({ 'cle-absente': 'transcription par le serveur impossible : secret OPENAI_API_KEY non déclaré', 'audio-introuvable': 'transcription par le serveur impossible : audio introuvable',
+      reseau: 'service de transcription injoignable', vide: 'le serveur n’a rien reconnu dans l’audio' })[motif] ?? `service de transcription en erreur (${motif})`
+  }
   if (sort === 'absente') return 'pas de reconnaissance vocale sur ce téléphone (Firefox, ou navigateur ancien)'
   if (sort === 'vide') return 'rien reconnu par le téléphone'
   const motif = sort.replace(/^erreur:/, '')
@@ -152,7 +157,8 @@ export function BoutonParler({ evenement, membre, onEnvoye, variante = 'pave' })
     await ajouterVocal({
       id: crypto.randomUUID(), evenement_id: evenement.id, membre_id: membre.id,
       parle_le: debut.current.toISOString(), duree_s: duree, blob, mime: blob.type,
-      transcription: texte.current || null, reconnaissance: texte.current ? 'ok' : sort.current, ...(position.current ?? {})
+      transcription: texte.current || null, reconnaissance: texte.current ? 'ok' : sort.current,
+      transcrire: evenement.modules?.talkie_transcription_serveur === true, ...(position.current ?? {})
     })
     onEnvoye?.()
   }

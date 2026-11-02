@@ -27,7 +27,7 @@ import { DONNEES } from './faux-supabase.js'
  * Les écrans montés par le banc d'essai, avec un événement et un
  * membre factices. Les données viennent de faux-supabase.js.
  */
-const evenement = { id: 'ev1', nom: 'Essai', phase: 'exploitation', jeton_public: 'j', modules: { sos_participants: true, securite: true, logistique: true, parcours: true, talkie: true, talkie_reponses_auto: true }, point_0_lat: 50.38, point_0_lon: 5.61, geometrie: 'parcours' }
+const evenement = { id: 'ev1', nom: 'Essai', phase: 'exploitation', jeton_public: 'j', modules: { sos_participants: true, securite: true, logistique: true, parcours: true, talkie: true, talkie_reponses_auto: true, talkie_transcription_serveur: true }, point_0_lat: 50.38, point_0_lon: 5.61, geometrie: 'parcours' }
 const membre = { id: 'mb1', nom_affiche: 'Ren', user_id: 'u1' }
 const session = { user: { id: 'u1' } }
 const peut = () => true

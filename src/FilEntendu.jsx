@@ -4,6 +4,7 @@ import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import { FormDemande } from './Missions'
 import { motifReconnaissance } from './Talkie'
+import { transcrireVocal } from './transcrireVocal'
 
 /**
  * LE FIL « ENTENDU » — les messages vocaux au QG (162).
@@ -29,7 +30,19 @@ export default function FilEntendu({ evenement, membre, peut, toutPouvoir, setMe
   const [demande, setDemande] = useState(null) // message → formulaire
   const [tout, setTout] = useState(false)
   const [tic, setTic] = useState(0)
+  const [transcriptionEnCours, setTranscriptionEnCours] = useState({}) // id → true
   const peutGerer = toutPouvoir || peut?.('missions', 'modifier')
+  const transcriptionServeur = evenement.modules?.talkie_transcription_serveur === true
+
+  // (transcription serveur) Le QG demande la transcription d'un message muet ; le résultat arrive par le temps réel.
+  async function transcrire(m) {
+    setTranscriptionEnCours((t) => ({ ...t, [m.id]: true }))
+    const r = await transcrireVocal(m.id, !!m.transcription)
+    setTranscriptionEnCours((t) => { const n = { ...t }; delete n[m.id]; return n })
+    if (r.erreur) setMessage?.({ type: 'erreur', texte: `Transcription : ${r.erreur}` })
+    else if (r.vide) setMessage?.({ type: 'erreur', texte: 'Le serveur n’a rien reconnu dans cet audio.' })
+    lire()
+  }
 
   async function lire() {
     const [m, mb, l] = await Promise.all([
@@ -145,6 +158,12 @@ export default function FilEntendu({ evenement, membre, peut, toutPouvoir, setMe
               ) : <span>{m.transcription_corrigee ?? m.transcription}</span>}
               {!m.transcription && !m.transcription_corrigee && m.reconnaissance && m.reconnaissance !== 'ok' && (
                 <span className="aide vocal-motif">{motifReconnaissance(m.reconnaissance)}</span>
+              )}
+              {m.reconnaissance === 'serveur' && <span className="prc-jeton veille" title="texte produit par le service de transcription">transcrit par le serveur</span>}
+              {transcriptionServeur && peutGerer && m.chemin_audio && !m.transcription_corrigee && (
+                <button className="discret" disabled={!!transcriptionEnCours[m.id]} onClick={() => transcrire(m)}>
+                  {transcriptionEnCours[m.id] ? 'Transcription…' : m.transcription ? 'Retranscrire' : 'Transcrire'}
+                </button>
               )}
             </div>
             <div className="meta">

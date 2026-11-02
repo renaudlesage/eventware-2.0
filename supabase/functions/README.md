@@ -11,6 +11,7 @@ redéployer.
 | `irm-vigilance`   | **non**    | `src/MoniteurIrm.jsx` (`fetch` direct, GET)      |
 | `reception-commune` | **non**  | la commune (Crisiware), POST — déployée le 2/11 (158) |
 | `diffuser-dossier` | oui     | `src/diffuserDossier.js` après chaque changement de statut du dossier — déployée le 2/11 (161) |
+| `transcrire-vocal` | oui     | `src/transcrireVocal.js` : le téléphone après l'envoi d'un message vocal sans texte, le QG par « Transcrire » (fil Entendu) — déployée le 2/11 |
 
 `reception-commune` est ouverte parce que la commune n'a pas de compte :
 ce qui l'authentifie, c'est le secret de sa liaison (Réglages › Partage
@@ -32,6 +33,7 @@ supabase functions deploy diffuser-alerte
 supabase functions deploy irm-vigilance --no-verify-jwt
 supabase functions deploy reception-commune --no-verify-jwt
 supabase functions deploy diffuser-dossier
+supabase functions deploy transcrire-vocal
 ```
 
 Le drapeau `--no-verify-jwt` sur `irm-vigilance` est indispensable :
@@ -42,3 +44,15 @@ IRM ne charge plus.
 
 `diffuser-alerte` lit `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY`,
 fournis automatiquement par la plateforme. Aucun secret à déclarer.
+
+`transcrire-vocal` a besoin de **`OPENAI_API_KEY`** (clé de l'API OpenAI,
+déclarée par Ren dans Supabase › Edge Functions › Secrets, ou
+`supabase secrets set OPENAI_API_KEY=…`) et lit en option
+`TRANSCRIPTION_MODELE` (par défaut `gpt-4o-mini-transcribe`). Sans la clé,
+la fonction répond 503 et note `erreur:serveur:cle-absente` sur le
+message ; rien d'autre ne change. Elle ne tourne que si l'événement a
+l'option « Transcription par le serveur » (Réglages › Modules ›
+Talkie-téléphone). L'audio n'est envoyé qu'au service, jamais conservé
+ailleurs que dans le compartiment `vocaux` ; le texte revient dans
+`messages_vocaux.transcription` avec `reconnaissance = 'serveur'`, et le
+déclencheur de la 162/166 reconnaît les mots-clés.

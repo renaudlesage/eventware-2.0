@@ -369,6 +369,11 @@ for (const ecran of ecrans) {
       const sans = fil.locator('.message-vocal', { hasText: 'refusé le micro à la reconnaissance' }).first()
       if (!(await sans.count())) erreurs.push('entendu : le message sans transcription n’affiche pas le motif')
       else {
+        // (transcription serveur) Transcrire appelle l'Edge Function pour ce message.
+        await page.evaluate(() => { window.__appels = [] })
+        await sans.getByRole('button', { name: 'Transcrire' }).evaluate((b) => b.click())
+        await page.waitForTimeout(300)
+        if (!(await page.evaluate(() => (window.__appels ?? []).some((a) => a.fn === 'transcrire-vocal' && a.args?.message_id === 'mv3')))) erreurs.push('entendu : Transcrire n’appelle pas la fonction de transcription')
         await page.evaluate(() => { window.__appels = []; window.confirm = () => true })
         await sans.getByRole('button', { name: 'Supprimer' }).evaluate((b) => b.click())
         await page.waitForTimeout(300)
