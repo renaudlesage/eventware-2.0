@@ -6,7 +6,9 @@ import ImportKml from './ImportKml'
 import Roles from './Roles'
 import AccesAutorite from './AccesAutorite'
 import Conformite from './Conformite'
-import DossierSecurite from './DossierSecurite'
+import Dossier from './Dossier'
+import LiaisonsCommune from './LiaisonsCommune'
+import ProfilSecurite from './ProfilSecurite'
 import MonCompte from './MonCompte'
 import LogoEvenement from './LogoEvenement'
 import Point0 from './Point0'
@@ -45,6 +47,8 @@ const PANNEAUX = [
   ['dispositif', 'Dispositif'],
   ['roles', 'Rôles'],
   ['conformite', 'Conformité'],
+  ['dossier', 'Dossier de sécurité'],
+  ['organisation', 'Organisation'],
   ['donnees', 'Données'],
   ['partage', 'Partage'],
   ['compte', 'Mon compte']
@@ -72,6 +76,16 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
       .eq('id', evenement.id)
     if (error) return setMessage({ type: 'erreur', texte: texteErreur(error) })
     if (count === 0) return setMessage({ type: 'erreur', texte: 'Changement refusé.' })
+
+    // (162) À la clôture, la voix s'efface : les fichiers par l'API Storage,
+    // puis purger_vocaux vide les chemins et garde les transcriptions.
+    if (phase === 'cloture' && evenement.modules?.talkie) {
+      const { data: vocaux } = await supabase.from('messages_vocaux').select('chemin_audio').eq('evenement_id', evenement.id).not('chemin_audio', 'is', null)
+      const chemins = (vocaux ?? []).map((v) => v.chemin_audio)
+      if (chemins.length) await supabase.storage.from('vocaux').remove(chemins)
+      const { error: erreurPurge } = await supabase.rpc('purger_vocaux', { p_evenement: evenement.id })
+      if (erreurPurge) setMessage({ type: 'erreur', texte: `Clôture faite, mais la purge des vocaux a échoué : ${texteErreur(erreurPurge)}` })
+    }
 
     // L'entrée et la sortie d'exploitation recomposent le « Mon poste »
     // de tout le monde, sans prévenir personne : les blocs de terrain
@@ -177,6 +191,29 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
             </p>
           </section>
 
+          {/* (162) L'option du talkie, réglable par la coordination : la réponse automatique. */}
+          {evenement.modules?.talkie && (
+            <section className="bloc talkie-option">
+              <h2>Talkie-téléphone</h2>
+              <label className="case">
+                <input
+                  type="checkbox"
+                  checked={evenement.modules?.talkie_reponses_auto !== false}
+                  disabled={occupe}
+                  onChange={async (e) => {
+                    setOccupe(true)
+                    const refus = await modifierOuRefuser('evenements', { modules: { ...evenement.modules, talkie_reponses_auto: e.target.checked } }, { id: evenement.id })
+                    if (refus) setMessage({ type: 'erreur', texte: refus })
+                    else onRecharger()
+                    setOccupe(false)
+                  }}
+                />{' '}
+                Réponses automatiques (canal, nuit, DEA, statut de ma demande ; jamais d'information à une urgence hormis le 112)
+              </label>
+              <p className="aide">Les enregistrements vocaux s'effacent à la clôture de l'événement ; les transcriptions restent.</p>
+            </section>
+          )}
+
           <Reconduire evenement={evenement} onFait={onRecharger} />
         </>
       )}
@@ -201,8 +238,17 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
             toutPouvoir={toutPouvoir}
             setMessage={setMessage}
           />
-          <DossierSecurite evenement={evenement} setMessage={setMessage} />
         </>
+      )}
+
+      {/* (157) Le dossier déposé à la commune : contrôles, dépôt, versions figées, document. */}
+      {panneau === 'dossier' && (
+        <Dossier evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} />
+      )}
+
+      {/* (155) Ce qui vaut pour tous les événements de l'organisation : le profil de sécurité. */}
+      {panneau === 'organisation' && (
+        <ProfilSecurite organisation={evenement.organisation_id} setMessage={setMessage} />
       )}
 
       {panneau === 'donnees' && (
@@ -249,6 +295,8 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
               coordinateur de BFMF2027 n'avait rien à ouvrir (2b-07). */}
           <QrCodes evenement={evenement} />
           <Diffusion evenement={evenement} setMessage={setMessage} />
+          {/* (158) Le sens inverse : ce que la commune écrit à l'événement. */}
+          <LiaisonsCommune evenement={evenement} setMessage={setMessage} />
         </>
       )}
 

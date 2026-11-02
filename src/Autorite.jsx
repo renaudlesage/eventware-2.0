@@ -11,6 +11,7 @@ import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { appliquerIconeEvenement } from './logoPwa'
 import MoniteurIrm from './MoniteurIrm'
+import AvisAutorite from './AvisAutorite'
 
 const REFUS = {
   P0002: "Ce lien ne correspond à aucun accès.",
@@ -521,10 +522,13 @@ export default function Autorite({ jeton }) {
   const [maj, setMaj] = useState(null)
   const [maintenant, setMaintenant] = useState(() => new Date())
   const [vue, setVue] = useState('situation')
+  // (159) Un lien de niveau avis ou instruction : la page du dossier, pas la situation.
+  const [dossier, setDossier] = useState(false)
 
   async function charger() {
     const { data, error } = await supabase.rpc('situation_autorite', { p_jeton: jeton })
     if (error) {
+      if (error.code === 'P0007') return setDossier(true)
       // Un refus (révoqué, expiré, inconnu) remplace la page ; une panne
       // de réseau, non : on garde la dernière situation, marquée.
       if (REFUS[error.code]) setErreur(REFUS[error.code])
@@ -551,6 +555,8 @@ export default function Autorite({ jeton }) {
   useEffect(() => {
     if (s) appliquerIconeEvenement(s.evenement?.nom, s.evenement?.logo_url)
   }, [s?.evenement?.logo_url])
+
+  if (dossier) return <AvisAutorite jeton={jeton} />
 
   if (erreur && !s)
     return (

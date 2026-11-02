@@ -7,6 +7,28 @@ export const DONNEES = {
   ],
   missions: [{ id: 'm1', reference: 'SEC-001', titre: 'Renfort', priorite: 'P1', statut: 'attribuee', module: 'securite', signalement_id: 's1', latitude: 50.385, longitude: 5.62, lieu_id: null, equipe_id: 'e1', membre_id: null, attribuee_le: new Date().toISOString(), demarree_le: null, equipe: { code: 'A' }, lieu: null, membre: null }],
   traces: [{ id: 't1', nom: 'Boucle', couleur: null, points: [[50.38, 5.61, 300], [50.39, 5.62, 310], [50.395, 5.63, 320]] }],
+  // (162) Deux messages vocaux : une urgence reconnue, à entendre ; une question de canal déjà répondue et entendue.
+  messages_vocaux: [
+    { id: 'mv1', evenement_id: 'ev1', membre_id: 'mb1', parle_le: '2026-11-11T20:58:00+01:00', recu_le: '2026-11-11T21:03:00+01:00', duree_s: 6, chemin_audio: 'ev1/mb1/mv1.webm', transcription: 'il y a un blessé à l’étape 2', transcription_corrigee: null, latitude: null, longitude: null, lieu_id: 'l1', urgence: true, statut: 'nouveau', entendu_le: null, entendu_par: null, mission_id: null, reponse: 'Si quelqu’un est en danger, appelle le 112 maintenant. Le QG a reçu ton message.', reponse_le: '2026-11-11T21:03:01+01:00', reponse_source: 'auto', intention: 'URGENCE', deleted_at: null },
+    { id: 'mv2', evenement_id: 'ev1', membre_id: 'mb1', parle_le: '2026-11-11T20:40:00+01:00', recu_le: '2026-11-11T20:40:05+01:00', duree_s: 3, chemin_audio: 'ev1/mb1/mv2.webm', transcription: 'c’est quoi mon canal', transcription_corrigee: null, latitude: null, longitude: null, lieu_id: null, urgence: false, statut: 'entendu', entendu_le: '2026-11-11T20:42:00+01:00', entendu_par: 'u1', mission_id: null, reponse: 'Ton canal : 3 Logistique. Urgence : canal 8 Urgence.', reponse_le: '2026-11-11T20:40:06+01:00', reponse_source: 'auto', intention: 'CANAL', deleted_at: null }
+  ],
+  talkie_intentions: [{ id: 'ti1', code: 'URGENCE', libelle: 'Urgence vitale', motifs: ['malaise', 'bless', '112'], ordre: 10, actif: true }, { id: 'ti2', code: 'CANAL', libelle: 'Quel canal radio', motifs: ['canal'], ordre: 40, actif: true }],
+  // (158) Une liaison avec la commune, un message d'urgence non lu, aucun accusé encore.
+  liaisons_commune: [{ id: 'lc1', evenement_id: 'ev1', commune: 'Ferrières', entete: 'X-Commune-Secret', actif: true, est_exercice: false, exercice_code: null, nb_messages: 1, dernier_message_le: '2026-11-11T21:02:00+01:00', created_at: '2026-10-01T10:00:00+02:00' }],
+  messages_commune: [{ id: 'mc1', evenement_id: 'ev1', liaison_id: 'lc1', reference: 'CW-001', niveau: 'urgence', titre: 'Évacuation partielle du camping', message: 'Montée de l’Ourthe annoncée pour 23 h.', consigne: 'Rassembler les campeurs au PRV', incident_type: 'inondation', incident_phase: 'communale', emise_le: '2026-11-11T21:00:00+01:00', recu_le: '2026-11-11T21:02:00+01:00', lu_par: null, lu_le: null, est_exercice: false, exercice_code: null }],
+  messages_commune_accuses: [], journal_receptions: [],
+  // (160) La grille de test lue par l'éditeur.
+  grille_dmp_criteres: [{ id: 'k1', grille_id: 'g1', code: 'PUBLIC_1000', libelle: 'Plus de 1 000 personnes', famille: 'Affluence', source: 'frequentation', seuil_min: 1000, seuil_max: null, points: 20, ordre: 10 }],
+  grille_dmp_seuils: [{ id: 's1', grille_id: 'g1', niveau: 1, score_min: -100, score_max: 10, avis_coamu: false }, { id: 's4', grille_id: 'g1', niveau: 4, score_min: 31, score_max: 35, avis_coamu: true }],
+  dmp_reponses: [],
+  // (159) Un avis D3 favorable avec une prescription, et un lien d'avis ouvert pour D1.
+  avis_autorite: [{ id: 'av1', dossier_id: 'dos1', version: 1, discipline: 'D3', avis: 'favorable_conditions', commentaire: 'Sous réserve du plan de circulation.', rendu_le: '2026-10-21T09:00:00+02:00', remplace_le: null, rendu_par: 'ZP Condroz', prescriptions_dossier: [{ id: 'pr1', texte: 'Plan de circulation validé par la police', caractere: 'obligatoire' }] }],
+  acces_autorite: [{ id: 'aa1', evenement_id: 'ev1', jeton: 'jeton-avis', libelle: 'Zone de secours', organisation: 'ZS', niveau: 'avis', discipline: 'D1', actif: true, expire_le: null, nb_acces: 0, dernier_acces: null, created_at: '2026-10-20T10:00:00+02:00' }],
+  // (157) Un dossier déposé une fois, avec sa version figée.
+  dossiers_securite: [{ id: 'dos1', evenement_id: 'ev1', statut: 'depose', version_courante: 1, depose_le: '2026-10-20T10:00:00+02:00', decide_le: null, niveau_dmp: null, score_dmp: null }],
+  dossier_versions: [{ id: 'dv1', dossier_id: 'dos1', version: 1, created_at: '2026-10-20T10:00:00+02:00', auteur_nom: 'Ren', contenu: { evenement: { frequentation_max: 1200, date_montage: '2026-11-09', date_demontage: '2026-11-13' }, prescriptions: [{ code: 'H1' }], lieux: [{}, {}], plan: [{}], contacts: [{}], controles: [{ gravite: 'alerte' }] } }],
+  // (155) Un profil de sécurité à moitié rempli : trois champs à compléter.
+  organisations_profil_securite: [{ organisation_id: 'org1', responsable_legal: 'Jean Dupont', responsable_legal_tel: '0470 11 11 11', assurance_compagnie: 'Ethias', assurance_police: null, securite_nom: null, securite_tel: null }],
   // (152) Deux jalons de l'événement : l'un en préparation (par sa date), l'autre forcé en montage.
   jalons: [
     { id: 'j1', evenement_id: 'ev1', code: 'J-01', libelle: 'Dossier commune', echeance: '2026-10-20T17:00:00+02:00', statut: 'a_venir', critique: true, groupe_travail_id: null, phase_cible: null, avancement: 0, visibilite: 'membres' },
@@ -115,6 +137,37 @@ function constructeur(table, fn, args) {
     prc_synthese: [{ lieux_niveau_3: 1, grappes: 2, demandes_ouvertes: 3, demandes_en_retard: 0, demandes_sans_lieu: 0, charge_totale: 4.5 }],
     // (129) Huit jalons dans deux groupes, quatre dépendances dont une violée (GJ-05 commence avant la fin de GJ-04).
     gantt: GANTT, deplacer_jalon: [{ deplaces: 2, apres_j: 1 }], recaler_jalons: [{ touches: 3, exemples: ['Chapiteau', 'Scène'] }],
+    // (155) Le coordinateur gère le profil de sécurité de son organisation.
+    mes_droits_organisation: [{ lire: true, gerer: true }],
+    // (156, 157) Deux bloquants, une alerte, une ligne d'avant-vol : le dépôt attend.
+    controle_dossier: [
+      { code: 'DOS_COORDINATEUR', gravite: 'bloquant', titre: 'Coordinateur sécurité non désigné ou sans téléphone', detail: 'Réglages › Partage › Interlocuteur', table_source: 'contacts', source_id: null, stimulus: null, objectif: 'DOSSIER' },
+      { code: 'DOS_PC_OPS', gravite: 'bloquant', titre: 'PC-Ops non positionné', detail: 'Préparation › Lieux', table_source: 'lieux', source_id: null, stimulus: null, objectif: 'DOSSIER' },
+      { code: 'DOS_SECOURS', gravite: 'alerte', titre: 'Aucun moyen de premiers secours déclaré', detail: 'Réglages › Conformité', table_source: 'moyens_premiers_secours', source_id: null, stimulus: null, objectif: 'DOSSIER' },
+      { code: 'VEILLE_INACTIVE', gravite: 'veille', titre: 'Veille météo inactive', detail: 'Aucun seuil ne déclenchera rien', table_source: 'veille_meteo', source_id: null, stimulus: 'Météo…', objectif: 'METEO' }
+    ],
+    deposer_dossier: [{ dossier_id: 'dos1', version: 2, statut: 'depose' }],
+    // (159) Le lien D1 lit le dossier déposé ; la D3 a déjà rendu son avis.
+    dossier_par_jeton: { destinataire: { libelle: 'Zone de secours', organisation: 'ZS Vesdre-Hoëgne & Plateau', discipline: 'D1', niveau: 'avis' },
+      evenement: { nom: 'Rando VTT 2026', commune: 'Ferrières', phase: 'preparation' },
+      dossier: { id: 'dos1', statut: 'en_instruction', version: 1, depose_le: '2026-10-20T10:00:00+02:00', niveau_dmp: null },
+      contenu: { evenement: { nom: 'Rando VTT 2026', commune: 'Ferrières', province: 'Liège', zone_secours: 'Vesdre-Hoëgne & Plateau', date_montage: '2026-11-09', date_debut: '2026-11-11', date_fin: '2026-11-11', date_demontage: '2026-11-13', frequentation_min: 300, frequentation_max: 1200 },
+        organisateur: { nom: 'Les Amis du Vélo', contact_nom: 'Ren', contact_tel: '0470 00 00 00' },
+        profil_securite: { responsable_legal: 'Jean Dupont', responsable_legal_tel: '0470 11 11 11', assurance_compagnie: 'Ethias', assurance_police: 'RC-123', securite_nom: 'Marie Martin', securite_tel: '0470 22 22 22' },
+        questionnaire: { structure: { chapiteau: true }, cuisson: { gaz: true, barbecue: false } },
+        prescriptions: [{ code: 'H1', titre: 'Extincteur par stand de cuisson', caractere: 'obligatoire', referentiel: 'HEMECO' }],
+        lieux: [{ code: 'P0', nom: 'Point 0', type: 'pc_ops' }], plan: [{}, {}], secours: [{ type: 'secouristes', quantite: 4 }],
+        contacts: [{ nom: 'Coord A', telephone: '0470 00 00 01', role_autorite: 'interlocuteur' }], controles: [{ gravite: 'alerte', titre: 'Plan d’implantation vide' }] },
+      avis: [{ id: 'av1', discipline: 'D3', avis: 'favorable', commentaire: 'RAS', rendu_le: '2026-10-21T09:00:00+02:00', rendu_par: 'ZP Condroz', prescriptions: [] }],
+      mon_avis: null },
+    deposer_avis: [{ avis_id: 'av2', discipline: 'D1', version: 1, prescriptions: 1, statut: 'en_instruction' }],
+    // (160) 33 points : niveau 4, avis CoAMU ; le critère « nocturne » se coche.
+    calcul_dmp: { grille: { id: 'g1', code: 'T', libelle: 'Grille de test', organisation_id: null }, score: 33, niveau: 4, avis_coamu: true, points_a_saisir: 0,
+      details: [{ id: 'k1', code: 'PUBLIC_1000', libelle: 'Plus de 1 000 personnes', famille: 'Affluence', source: 'frequentation', points: 20, applique: true },
+        { id: 'k2', code: 'CHAPITEAU', libelle: 'Chapiteau', famille: 'Aménagement du site', source: 'conformite', points: 8, applique: true },
+        { id: 'k3', code: 'NUIT', libelle: 'Manifestation nocturne', famille: 'Facteurs aggravants', source: 'manuel', points: 5, applique: true },
+        { id: 'k4', code: 'AMBU', libelle: 'Ambulance à moins de 10 min', famille: 'Correctifs', source: 'manuel', points: -3, applique: false }] },
+    peut_editer_grille_dmp: [false],
     // (154) Une demande P1 qui attend plus que d'habitude (seuil appris : 15 min) : le bandeau « Attente ».
     missions_en_souffrance: [{ mission_id: 'm1', reference: 'SEC-001', titre: 'Renfort', priorite: 'P1', module: 'securite', attente_min: 22, seuil_min: 15, depassement: 1.5 }],
     seuils_prise_en_charge: [{ priorite: 'P1', seuil_min: 15, mesures: 22, source: 'appris : 9 demandes sur 10 prises en charge sous ce délai' }, { priorite: 'P2', seuil_min: 32, mesures: 15, source: 'appris : 9 demandes sur 10 prises en charge sous ce délai' }, { priorite: 'P3', seuil_min: 32, mesures: 21, source: 'appris, relevé au niveau de la priorité plus urgente' }, { priorite: 'P4', seuil_min: 120, mesures: 0, source: 'par défaut : moins de 10 mesures dans les événements clos' }],
@@ -133,7 +186,7 @@ function constructeur(table, fn, args) {
       if (prop === 'then') return (res, rej) => Promise.resolve(resultat()).then(res, rej)
       if (prop === 'maybeSingle' || prop === 'single') return () => Promise.resolve({ data: (DONNEES[table] ?? [])[0] ?? null, error: null })
       // (28/10) Les écritures sont notées aussi, pour vérifier ce qu'un écran envoie.
-      if (prop === 'update' || prop === 'insert') return (champs) => { if (typeof window !== 'undefined') (window.__ecritures ||= []).push({ table, op: prop, champs }); return b }
+      if (prop === 'update' || prop === 'insert' || prop === 'upsert') return (champs) => { if (typeof window !== 'undefined') (window.__ecritures ||= []).push({ table, op: prop, champs }); return b }
       return () => b
     }
   })

@@ -37,6 +37,26 @@ if (!pw) {
 const esbuild = require('esbuild')
 
 const sortie = path.join(racine, 'node_modules', '.banc-essai')
+
+// (162) Le bouton « Parler » et sa consigne 112 ; au premier appui, l'écran d'information qui vaut
+// consentement ; « Mes messages » s'ouvre. Seulement si le navigateur du banc sait enregistrer.
+async function verifierTalkie(page, erreurs) {
+  const dispo = await page.evaluate(() => !!(window.MediaRecorder && navigator.mediaDevices?.getUserMedia))
+  if (!dispo) return
+  const parler = page.locator('.flottant.parler')
+  if (!(await parler.count())) { erreurs.push('talkie : pas de bouton Parler'); return }
+  if (!(await page.locator('.talkie-112', { hasText: '112' }).count())) erreurs.push('talkie : « appelle le 112 » absent sous le bouton')
+  await parler.dispatchEvent('pointerdown', { pointerId: 1 })
+  await page.waitForTimeout(200)
+  if (!(await page.locator('.talkie-info').count())) erreurs.push('talkie : pas d’écran d’information au premier appui')
+  await page.locator('.talkie-info button', { hasText: 'Pas maintenant' }).evaluate((b) => b.click()).catch(() => {})
+  await page.waitForTimeout(150)
+  if (await page.locator('.talkie-info').count()) erreurs.push('talkie : « Pas maintenant » ne ferme pas l’information')
+  await page.locator('.flottant.vocaux').evaluate((b) => b.click())
+  await page.waitForTimeout(300)
+  if (!(await page.locator('.tiroir .mes-messages li, .tiroir .vide').count())) erreurs.push('talkie : « Mes messages » ne s’ouvre pas')
+  await page.keyboard.press('Escape').catch(() => {})
+}
 fs.mkdirSync(sortie, { recursive: true })
 await esbuild.build({
   entryPoints: [path.join(ici, 'ecrans.jsx')],
@@ -63,7 +83,7 @@ fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><me
 fs.writeFileSync(path.join(sortie, 'page-tel.html'), '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"><link rel="stylesheet" href="../../src/mobile.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
 
 const demandes = process.argv.slice(2)
-const ecrans = demandes.length ? demandes : ['coquille', 'coquille-preparation', 'coquille-montage', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0']
+const ecrans = demandes.length ? demandes : ['coquille', 'coquille-preparation', 'coquille-montage', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'avis', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0']
 const navigateur = await pw.chromium.launch()
 let echecs = 0
 for (const ecran of ecrans) {
@@ -308,6 +328,7 @@ for (const ecran of ecrans) {
     // (31/10) La carte s'ouvre sur le point zéro au zoom 18, comme la Conception, pas cadrée sur tous les objets.
     if (!(await page.locator('.leaflet-container[data-cadrage="point0"]').count())) erreurs.push('carte : pas cadrée sur le point zéro')
   }
+  if (ecran === 'coquille') await verifierTalkie(page, erreurs)
   if (ecran === 'situation') {
     // (1/11) Mode QG : plein écran, la file « à décider » commence par le SOS reçu (avant la demande P1),
     // la main courante et l'à-venir sont remplis, Échap rend la Situation.
@@ -329,6 +350,29 @@ for (const ecran of ecrans) {
       await page.waitForTimeout(300)
       if (await page.locator('.mode-qg').count()) erreurs.push('mode QG : Échap ne quitte pas')
       if (!(await page.getByRole('button', { name: /Son OFF/ }).count())) erreurs.push('mode QG : en sortant, le son ne revient pas à son état d’avant')
+    }
+    // (162) Le fil « Entendu » : l'urgence d'abord, « 1 à entendre » ; Entendu envoie la mise à jour.
+    const fil = page.locator('.fil-entendu')
+    if (!(await fil.count())) erreurs.push('entendu : pas de fil des messages vocaux')
+    else {
+      if (!/1 à entendre/.test(await fil.textContent())) erreurs.push('entendu : « 1 à entendre » absent')
+      const premier = fil.locator('.message-vocal').first()
+      if (!(await premier.locator('.prc-jeton.chaud', { hasText: 'urgence' }).count())) erreurs.push('entendu : l’urgence n’est pas en tête')
+      if (!/blessé à l’étape 2/.test(await premier.locator('.vocal-transcription').inputValue().catch(() => ''))) erreurs.push('entendu : la transcription manque')
+      if (!(await premier.locator('button', { hasText: 'Écouter' }).count())) erreurs.push('entendu : pas de lecteur audio')
+      await page.evaluate(() => { window.__ecritures = [] })
+      await premier.getByRole('button', { name: 'Entendu' }).click()
+      await page.waitForTimeout(300)
+      if (!(await page.evaluate(() => (window.__ecritures ?? []).some((e) => e.table === 'messages_vocaux' && e.op === 'update' && e.champs?.statut === 'entendu' && e.champs?.entendu_le)))) erreurs.push('entendu : le bouton n’envoie pas l’accusé')
+      if (!(await premier.getByRole('button', { name: '→ Demande' }).count())) erreurs.push('entendu : « → Demande » absent')
+    }
+    // (158) Le message d'urgence de la commune reste en bandeau ; « Bien reçu » n'apparaît que connecté (le banc ne l'est pas).
+    const commune = page.locator('.message-commune.niv-urgence')
+    if (!(await commune.count())) erreurs.push('commune : pas de bandeau pour le message d’urgence')
+    else {
+      const t = await commune.textContent()
+      if (!/Évacuation partielle du camping/.test(t) || !/Rassembler les campeurs/.test(t)) erreurs.push('commune : titre ou consigne absents du bandeau')
+      if (!/inondation \(communale\)/.test(t)) erreurs.push('commune : incident absent du bandeau')
     }
     // (154) Le bandeau « Attente » : la P1 qui attend 22 min (seuil appris 15) est signalée en urgence.
     const attente = page.locator('.en-souffrance')
@@ -759,6 +803,19 @@ for (const ecran of ecrans) {
   // écran comme les autres cartes, le plan dessiné par couchesPlan ; le dessin
   // vectoriel reste disponible en repli. Tous les PRV en tête de page, avec
   // leur adresse ; le schéma unifilaire dans le dossier.
+  if (ecran === 'avis') {
+    // (159) La page d'avis : le dossier figé, l'avis déjà rendu par D3, le formulaire de D1 avec ses prescriptions.
+    const t = await page.locator('.avis-dossier').textContent().catch(() => '')
+    if (!/Rando VTT 2026/.test(t) || !/version 1/.test(t)) erreurs.push('avis : en-tête du dossier absent')
+    if (!/Jean Dupont/.test(t) || !/Ethias/.test(t)) erreurs.push('avis : organisateur ou assurance absents')
+    if (!/H1/.test(t) || !/Extincteur par stand/.test(t)) erreurs.push('avis : prescription applicable absente')
+    if (!/D3 — Police/.test(t) || !/Favorable/.test(t)) erreurs.push('avis : l’avis déjà rendu par D3 est absent')
+    if ((await page.getByRole('radio').count()) !== 3) erreurs.push(`avis : ${await page.getByRole('radio').count()} choix d’avis (attendu 3)`)
+    await page.getByRole('button', { name: '+ Prescription' }).click()
+    await page.waitForTimeout(100)
+    if (!(await page.locator('.prescription-ligne input').count())) erreurs.push('avis : + Prescription n’ajoute pas de ligne')
+    if (!(await page.getByRole('button', { name: "Rendre l'avis" }).count())) erreurs.push('avis : bouton « Rendre l’avis » absent')
+  }
   if (ecran === 'autorite') {
     if (!(await page.locator('.calques-carte').count())) erreurs.push('filtre des calques absent')
     if (!(await page.locator('.carte-autorite .leaflet-container').count())) erreurs.push('carte à tuiles absente')
@@ -851,6 +908,71 @@ for (const ecran of ecrans) {
   if (ecran === 'reglages') {
     const sug = await page.locator('.phase-suggeree').textContent().catch(() => '')
     if (!/Phase suggérée par les dates/.test(sug)) erreurs.push(`réglages : pas de phase suggérée (${sug.slice(0, 60)})`)
+    // (157) Rubrique Dossier de sécurité : statut, deux bloquants qui retiennent le dépôt, la version figée.
+    await page.locator('.rubrique-reglages select').selectOption('dossier')
+    await page.waitForTimeout(400)
+    const dossier = page.locator('.dossier-securite')
+    if (!(await dossier.count())) erreurs.push('dossier : pas d’écran')
+    else {
+      const t = await dossier.textContent()
+      if (!/Déposé/.test(t) || !/version 1/.test(t)) erreurs.push('dossier : statut « Déposé » ou « version 1 » absent')
+      if (!/2 points bloquants/.test(t)) erreurs.push('dossier : « 2 points bloquants » absent')
+      if ((await dossier.locator('li.controle-bloquant').count()) !== 2) erreurs.push('dossier : les deux bloquants ne sont pas listés')
+      const bouton = dossier.getByRole('button', { name: /^Déposer/ })
+      if (!(await bouton.count())) erreurs.push('dossier : pas de bouton Déposer')
+      else if (!(await bouton.isDisabled())) erreurs.push('dossier : Déposer devrait être désactivé tant qu’un bloquant subsiste')
+      if (!(await dossier.locator('.dossier-versions li', { hasText: 'Version 1' }).count())) erreurs.push('dossier : la version 1 n’est pas listée')
+      // (étape 6) Le PDF de la version 1 se télécharge.
+      const [telechargement] = await Promise.all([
+        page.waitForEvent('download', { timeout: 8000 }).catch(() => null),
+        dossier.getByRole('button', { name: /Télécharger le PDF \(version 1\)/ }).click()
+      ])
+      if (!telechargement) erreurs.push('dossier : le PDF ne se télécharge pas')
+      else {
+        if (!/^Dossier-securite-.*-v1\.pdf$/.test(telechargement.suggestedFilename())) erreurs.push(`dossier : nom du PDF « ${telechargement.suggestedFilename()} »`)
+        const chemin = path.join(sortie, 'dossier-v1.pdf')
+        await telechargement.saveAs(chemin)
+        const octets = fs.readFileSync(chemin)
+        if (octets.length < 2000 || octets.subarray(0, 5).toString() !== '%PDF-') erreurs.push('dossier : le fichier téléchargé n’est pas un PDF')
+      }
+      // (160) Le DMP : 33 points, niveau 4, avis CoAMU ; le critère manuel se coche et envoie un upsert.
+      const dmp = await dossier.locator('.dmp').textContent().catch(() => '')
+      if (!/33 points → niveau 4/.test(dmp) || !/avis CoAMU requis/.test(dmp)) erreurs.push('dmp : score, niveau ou avis CoAMU absents')
+      await page.evaluate(() => { window.__ecritures = [] })
+      await dossier.locator('.dmp input[type=checkbox]').last().click({ force: true })
+      await page.waitForTimeout(200)
+      if (!(await page.evaluate(() => (window.__ecritures ?? []).some((e) => e.table === 'dmp_reponses' && e.op === 'upsert' && e.champs?.critere_id === 'k4')))) erreurs.push('dmp : cocher un critère n’envoie pas de réponse')
+      // (159) L'avis D3 avec sa prescription, le lien d'avis D1 et son bouton de copie.
+      const av = await dossier.locator('.dossier-avis').textContent().catch(() => '')
+      if (!/D3 — Police.*favorable sous conditions/.test(av) || !/Plan de circulation/.test(av)) erreurs.push('dossier : l’avis D3 et sa prescription manquent')
+      if (!/Zone de secours/.test(av) || !(await dossier.locator('.dossier-avis button', { hasText: 'Copier le lien' }).count())) erreurs.push('dossier : le lien d’avis D1 manque')
+    }
+    // (158) Rubrique Partage : la liaison commune, son récepteur et sa ligne.
+    await page.locator('.rubrique-reglages select').selectOption('partage')
+    await page.waitForTimeout(500)
+    const liaisons = page.locator('.liaisons-commune')
+    if (!(await liaisons.count())) erreurs.push('partage : pas de bloc Liaison commune')
+    else {
+      const t = await liaisons.textContent()
+      if (!/functions\/v1\/reception-commune/.test(t)) erreurs.push('partage : adresse du récepteur absente')
+      if (!(await liaisons.locator('tbody tr', { hasText: 'Ferrières' }).count())) erreurs.push('partage : la liaison « Ferrières » n’est pas listée')
+      if (!(await liaisons.getByRole('button', { name: '+ Nouvelle liaison' }).count())) erreurs.push('partage : pas de bouton Nouvelle liaison')
+    }
+    // (155) Rubrique Organisation : le profil de sécurité, six champs, trois à compléter ; Enregistrer envoie un upsert.
+    await page.locator('.rubrique-reglages select').selectOption('organisation')
+    await page.waitForTimeout(400)
+    const profil = page.locator('.profil-securite')
+    if (!(await profil.count())) erreurs.push('organisation : pas de profil de sécurité')
+    else {
+      if ((await profil.locator('input').count()) !== 6) erreurs.push(`organisation : ${await profil.locator('input').count()} champs (attendu 6)`)
+      if (!/3 champs à compléter/.test(await profil.textContent())) erreurs.push('organisation : « 3 champs à compléter » absent')
+      await page.evaluate(() => { window.__ecritures = [] })
+      await profil.locator('input').nth(3).fill('RC-123')
+      await profil.getByRole('button', { name: 'Enregistrer' }).click()
+      await page.waitForTimeout(300)
+      const ecrit = (await page.evaluate(() => window.__ecritures ?? [])).find((e) => e.table === 'organisations_profil_securite' && e.op === 'upsert' && e.champs?.assurance_police === 'RC-123')
+      if (!ecrit) erreurs.push('organisation : Enregistrer n’envoie pas le numéro de police')
+    }
   }
   if (ecran === 'coquille') {
     // Le bandeau d'état tient sur une ligne de quatre cadrans ; REX s'ouvre depuis « Plus ».
@@ -861,6 +983,8 @@ for (const ecran of ecrans) {
     await page.locator('.barre-onglets button', { hasText: 'Plus' }).evaluate((b) => b.click())
     await page.waitForTimeout(200)
     if (!(await page.locator('.tiroir-plus .rex-plus').count())) erreurs.push('REX absent du tiroir « Plus »')
+    await page.keyboard.press('Escape').catch(() => {})
+    await verifierTalkie(page, erreurs)
   }
   if (m.petits.length) erreurs.push(`champs sous 16 px (zoom iPhone) : ${[...new Set(m.petits)].slice(0, 4).join(', ')}`)
   if (erreurs.length) echecs++

@@ -25,7 +25,9 @@ export default function Diffusion({ evenement, setMessage }) {
     libelle: '',
     url: '',
     secret_entete: '',
-    niveaux_declencheurs: ['urgence', 'evacuation']
+    niveaux_declencheurs: ['urgence', 'evacuation'],
+    // (161) Ce que le canal reçoit : les alertes, le dossier de sécurité.
+    objets: ['alerte']
   })
 
   async function charger() {
@@ -58,11 +60,12 @@ export default function Diffusion({ evenement, setMessage }) {
       libelle: f.libelle.trim(),
       url: f.url.trim(),
       secret_entete: f.secret_entete.trim() || null,
-      niveaux_declencheurs: f.niveaux_declencheurs
+      niveaux_declencheurs: f.niveaux_declencheurs,
+      objets: f.objets.length ? f.objets : ['alerte']
     })
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
-      setF({ libelle: '', url: '', secret_entete: '', niveaux_declencheurs: ['urgence', 'evacuation'] })
+      setF({ libelle: '', url: '', secret_entete: '', niveaux_declencheurs: ['urgence', 'evacuation'], objets: ['alerte'] })
       setOuvrir(false)
       charger()
     }
@@ -131,6 +134,18 @@ export default function Diffusion({ evenement, setMessage }) {
               </button>
             ))}
           </div>
+          <label>Transmet</label>
+          <div className="ligne-boutons" style={{ marginBottom: 10 }}>
+            {[['alerte', 'les alertes'], ['dossier', 'le dossier de sécurité']].map(([v, l]) => (
+              <button
+                key={v}
+                className={`module ${f.objets.includes(v) ? 'actif' : ''}`}
+                onClick={() => setF((x) => ({ ...x, objets: x.objets.includes(v) ? x.objets.filter((o) => o !== v) : [...x.objets, v] }))}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
           <button disabled={!f.libelle.trim() || !f.url.trim()} onClick={creer}>
             Enregistrer le canal
           </button>
@@ -154,6 +169,7 @@ export default function Diffusion({ evenement, setMessage }) {
             <div className="meta">
               <span className="mono">{c.url}</span>
               <span>{c.niveaux_declencheurs.join(', ')}</span>
+              {(c.objets ?? ['alerte']).includes('dossier') && <span>+ dossier de sécurité</span>}
             </div>
             <div className="ligne-boutons" style={{ marginTop: 8 }}>
               <button className="discret" onClick={() => basculerActif(c)}>
@@ -181,6 +197,7 @@ export default function Diffusion({ evenement, setMessage }) {
               </span>
               <span className="corps">
                 {d.canaux_diffusion?.libelle ?? 'canal supprimé'} —{' '}
+                {d.objet === 'dossier' ? `dossier ${d.reference ?? ''} — ` : ''}
                 {d.statut === 'ok'
                   ? `envoyé (${d.code_reponse})`
                   : `échec${d.erreur ? ' : ' + d.erreur : ''}`}

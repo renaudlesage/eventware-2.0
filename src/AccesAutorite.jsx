@@ -12,8 +12,18 @@ const NIVEAUX = {
   operationnel: {
     libelle: 'Opérationnel',
     aide: "Dir-PC-Ops, zone de secours, police : en plus, la description des signalements et des missions, l'âge et le signalement physique d'une personne recherchée."
+  },
+  // (159) Le dossier de sécurité, pas la situation.
+  avis: {
+    libelle: 'Avis sur le dossier',
+    aide: 'D1 à D5, CoAMU : lit le dossier de sécurité déposé et rend son avis, avec ses prescriptions. Aucune vue de la situation.'
+  },
+  instruction: {
+    libelle: 'Instruction (commune)',
+    aide: 'La commune : accuse réception du dossier, suit les avis des disciplines. Aucune vue de la situation.'
   }
 }
+const DISCIPLINES = [['D1', 'D1 — Secours'], ['D2', 'D2 — Médical'], ['D3', 'D3 — Police'], ['D4', 'D4 — Logistique'], ['D5', 'D5 — Information'], ['COAMU', 'CoAMU']]
 
 /**
  * Réglages › Partage › Accès autorité (refonte du 24/09, migration 109).
@@ -27,7 +37,7 @@ const NIVEAUX = {
  */
 export default function AccesAutorite({ evenement, setMessage }) {
   const [acces, setAcces] = useState([])
-  const [f, setF] = useState({ libelle: '', organisation: '', niveau: 'situation', expire: '' })
+  const [f, setF] = useState({ libelle: '', organisation: '', niveau: 'situation', discipline: 'D1', expire: '' })
   const [ouvert, setOuvert] = useState(null)
   const [occupe, setOccupe] = useState(false)
 
@@ -56,6 +66,8 @@ export default function AccesAutorite({ evenement, setMessage }) {
       libelle: f.libelle.trim(),
       organisation: f.organisation.trim() || null,
       niveau: f.niveau,
+      // (159) La discipline qui rend l'avis ; la commune pour l'instruction.
+      discipline: f.niveau === 'avis' ? f.discipline : f.niveau === 'instruction' ? 'COMMUNE' : null,
       // (lot 2) La validité, vérifiée côté serveur depuis la 109
       // (situation_autorite refuse un lien expiré) mais que rien ne
       // permettait de poser.
@@ -63,7 +75,7 @@ export default function AccesAutorite({ evenement, setMessage }) {
     })
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
-      setF({ libelle: '', organisation: '', niveau: 'situation', expire: '' })
+      setF({ libelle: '', organisation: '', niveau: 'situation', discipline: 'D1', expire: '' })
       charger()
     }
     setOccupe(false)
@@ -122,6 +134,14 @@ export default function AccesAutorite({ evenement, setMessage }) {
             ))}
           </div>
           <p className="aide">{NIVEAUX[f.niveau].aide}</p>
+          {f.niveau === 'avis' && (
+            <label>
+              Discipline
+              <select value={f.discipline} onChange={(e) => setF({ ...f, discipline: e.target.value })}>
+                {DISCIPLINES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+            </label>
+          )}
           <label htmlFor="acces-expire">Valable jusqu'au (facultatif)</label>
           <input
             id="acces-expire"
@@ -147,7 +167,7 @@ export default function AccesAutorite({ evenement, setMessage }) {
                 {a.libelle}
                 <span className={`jeton ${a.niveau === 'operationnel' ? 'alerte-jeton' : ''}`}>
                   {' '}
-                  {NIVEAUX[a.niveau]?.libelle ?? a.niveau}
+                  {NIVEAUX[a.niveau]?.libelle ?? a.niveau}{a.discipline ? ` · ${a.discipline}` : ''}
                 </span>
                 {!a.actif && <span className="jeton"> révoqué</span>}
                 {a.actif && a.expire_le && new Date(a.expire_le) < new Date() && (
@@ -191,7 +211,7 @@ export default function AccesAutorite({ evenement, setMessage }) {
                     >
                       Copier le lien
                     </button>
-                    <button
+                    {['situation', 'operationnel'].includes(a.niveau) && <button
                       className="discret"
                       onClick={() => {
                         const cible = a.niveau === 'operationnel' ? 'situation' : 'operationnel'
@@ -204,7 +224,7 @@ export default function AccesAutorite({ evenement, setMessage }) {
                       }}
                     >
                       Passer en {NIVEAUX[a.niveau === 'operationnel' ? 'situation' : 'operationnel'].libelle.toLowerCase()}
-                    </button>
+                    </button>}
                     <button
                       onClick={() => {
                         if (confirm(`Révoquer l'accès de ${a.libelle} ?`)) revoquer(a.id)

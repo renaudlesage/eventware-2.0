@@ -580,7 +580,73 @@ Vérification : `../verifications/154-pouls-qg.sql` (lecture seule) ; analyse de
 
 Appliquée et inscrite (version 20261102090000).
 
-## Ne jamais rejouer 088 → 154 par `db push` sans les lignes ci-dessus
+### 155 : appliquée le 2/11 (par Claude, via l'outil Supabase, sur le « Go » de Ren) — profil de sécurité de l'organisation
+
+| Fichier | Fait |
+|---|---|
+| `20261102120000_155_profil_securite_organisation.sql` | Table `organisations_profil_securite` (une ligne par organisation : responsable légal et téléphone, compagnie et numéro de police d'assurance, responsable sécurité et téléphone). `peut_gerer_organisation` (même règle que l'annuaire), `mes_droits_organisation`, `profil_securite_manques` (la liste de ce qui manque, lue par les contrôles du dossier). RLS : lecture `appartient_organisation`, écriture `peut_gerer_organisation`. Aucun DROP, rejouable |
+
+Dossier de sécurité, étape 1 (briefing 01). Tests : `../../outils/replique/tests/155.sql` (anonyme refusé, coordinateur A gère A et ne voit pas B, bénévole lit sans écrire, exploitant gère tout, traçabilité).
+
+Appliquée et inscrite (version 20261102120000).
+
+### 156 : appliquée le 2/11 (par Claude, via l'outil Supabase, sur le « Go » de Ren) — contrôle de complétude du dossier
+
+| Fichier | Fait |
+|---|---|
+| `20261102130000_156_controle_dossier.sql` | `controle_dossier(evenement)`, même signature qu'`avant_vol` : reprend ses lignes telles quelles (gravités `chaud`/`veille`, informatives) et ajoute les `DOS_*` — commune, fréquentation maximale, dates du montage au démontage, coordinateur sécurité (interlocuteur des autorités avec téléphone), PC-Ops positionné, numéros zone de secours et police, questionnaire rempli, profil de sécurité complet (bloquants) ; plan vide, moyens de secours absents (alertes). Droits : `referentiels : creer` ou tout pouvoir. **`avant_vol` n'est pas modifiée** (le générateur d'exercices n'est pas touché ; le test le vérifie). Aucun DROP, rejouable |
+
+Dossier de sécurité, étape 3. Tests : `../../outils/replique/tests/156.sql`. Appliquée et inscrite (version 20261102130000).
+
+### 157 : appliquée le 2/11 (par Claude, via l'outil Supabase, sur le « Go » de Ren) — dossier de sécurité : statuts, versions, dépôt
+
+| Fichier | Fait |
+|---|---|
+| `20261102140000_157_dossier_securite.sql` | `dossiers_securite` (un par événement : statut brouillon/depose/en_instruction/autorise/refuse/retire, version courante, dates, niveau et score DMP), `dossier_versions` (instantané jsonb complet à chaque dépôt, ajout seul). `instantane_dossier` (fiche, organisateur, profil 155, questionnaire, prescriptions applicables selon la règle de l'écran Conformité, lieux, plan, secours, contacts visibles des autorités, contrôles 156). `deposer_dossier` : droits, refuse tant qu'un bloquant subsiste (P0010), fige l'instantané, statut `depose`, journal. `retirer_dossier` (tout pouvoir, P0011). RLS : lecture par `referentiels : lire` ; aucune écriture directe, seulement par fonctions. Aucun DROP, rejouable |
+
+Dossier de sécurité, étape 2. Tests : `../../outils/replique/tests/157.sql` (dépôt refusé avec un bloquant, accepté ensuite, version figée malgré la modification de l'événement, écriture directe sans effet, retrait, cloisonnement entre organisations). Appliquée et inscrite (version 20261102140000).
+
+### 158 : appliquée le 2/11 (par Claude, via l'outil Supabase, sur le « Go » de Ren) — réception des messages de la commune
+
+| Fichier | Fait |
+|---|---|
+| `20261102150000_158_reception_commune.sql` | `liaisons_commune` (commune, nom d'en-tête, secret **haché** — rendu une seule fois par `creer_liaison_commune` / `regenerer_secret_liaison`, colonne illisible depuis l'application), `messages_commune` (ajout seul, unique par référence), `messages_commune_accuses` (qui a lu, quand ; le premier accusé marque le message lu), `journal_receptions` (rejets, jamais le secret). `recevoir_message_commune(jeton, en-têtes, charge)` réservée au rôle de service : retrouve l'événement par `jeton_public`, vérifie l'en-tête et le secret, tient déjà I2 (le réel refuse l'exercice) et I3 (le bac à sable refuse le réel), idempotente, inscrit une entrée système au journal. RLS : liaisons par `alertes : creer`, messages et accusés par membre, rejets par tout pouvoir. Aucun DROP, rejouable |
+
+### 159 : appliquée le 2/11 (par Claude, via l'outil Supabase, en deux temps : la contrainte, puis le reste) — avis des disciplines sur le dossier
+
+| Fichier | Fait |
+|---|---|
+| `20261102160000_159_avis_disciplines.sql` | `acces_autorite.niveau` accepte `avis` et `instruction`, colonne `discipline` (D1–D5, COAMU, COMMUNE). `avis_autorite` (un avis par discipline et par version ; un nouvel avis remplace l'ancien par `remplace_le`, sans l'effacer), `prescriptions_dossier` (dédiée, choix de Ren), `controles_lignes.prescription_id`. Fonctions publiques par jeton, `security definer`, jeton vérifié dès la première ligne : `dossier_par_jeton` (P0002/P0005/P0006/P0008/P0009), `deposer_avis` (passe le dossier en instruction au premier avis), `accuser_reception_dossier` (la commune). `situation_autorite` **rebranchée en place** (comme la 153) pour refuser les liens d'avis (P0007). `demarrer_controle` redéfinie : les prescriptions en vigueur entrent dans la check-list du jour J. Aucun DROP de données (la contrainte de contrôle sur `niveau` est remplacée) |
+
+Dossier de sécurité, étape 4. Tests : `../../outils/replique/tests/159.sql` (lecture par lien D1, lien expiré/révoqué/situation refusés, avis + prescriptions, remplacement sans effacement, accusé de la commune, check-list, cloisonnement). Appliquée et inscrite (version 20261102160000).
+
+### 162 : appliquée le 2/11 (par Claude, via l'outil Supabase, sur le « Go 162 » de Ren) — talkie-téléphone
+
+| Fichier | Fait |
+|---|---|
+| `20261102190000_162_talkie.sql` | `messages_vocaux` (un membre insère les siens et ne lit que les siens ; `missions : modifier` lit tout et met à jour ; `parle_le` = heure du téléphone, `recu_le` = arrivée), `talkie_intentions` (référentiel des mots-clés, exploitant), `talkie_mon_membre`, `talkie_normaliser`, `talkie_lieu` (nom d'un lieu, « étape 3 », sinon le plus proche à moins de 150 m, sinon rien), `talkie_repondre` (`security definer` justifié : lit canaux_radio, elements_plan, missions ; n'accepte que les messages de l'appelant ; ne change jamais `statut` ; négation « pas de blessé » → `URGENCE_DOUTEUSE`), déclencheur sur la transcription, `purger_vocaux` (vide `chemin_audio`, garde les transcriptions ; l'application supprime d'abord les fichiers par l'API Storage, à la bascule en clôture). Compartiment privé `vocaux` (1 Mo, chemin `<evenement>/<membre>/<uuid>`), policies par membre et par `missions : modifier`. Le contrôle de licence accepte une option `<module>_<option>` d'un module souscrit (`talkie_reponses_auto`). Aucun DROP, rejouable |
+
+Activation : l'exploitant souscrit `talkie` à l'organisation puis l'active sur l'événement (Réglages › Modules) ; la coordination règle « Réponses automatiques ». Tests : `../../outils/replique/tests/162.sql` (droits, idempotence, les six réponses attendues, négation, lieux proposés, journal, désactivation, purge, anonyme). Appliquée et inscrite (version 20261102190000) ; compartiment `vocaux` créé, cinq intentions semées.
+
+### 160 : appliquée le 2/11 (par Claude, via l'outil Supabase, sur le « Go » de Ren) — grille DMP
+
+| Fichier | Fait |
+|---|---|
+| `20261102170000_160_grille_dmp.sql` | `grilles_dmp` (partagée ou d'organisation, par province), `grille_dmp_criteres` (famille, source `frequentation`/`conformite`/`manuel`, points), `grille_dmp_seuils` (niveaux 1–5, avis CoAMU), `dmp_reponses` (critères manuels cochés par événement). Grille initiale `PLANU_2009` : les cinq seuils connus (≤10, 11–20, 21–30, 31–35*, ≥36*), six familles à **0 point** (rien d'inventé, à saisir par formulaire) et les deux correctifs connus (ambulance < 10 min −3, sans antécédent −1). `calcul_dmp` (score, niveau, détail), `grille_dmp_pour`, `niveau_dmp_pour`, `peut_editer_grille_dmp`. `deposer_dossier` redéfinie : le DMP est copié dans le dossier et dans la version. RLS : grille partagée éditée par l'exploitant, grille d'organisation par qui gère l'organisation, réponses par `referentiels : creer`. Aucun DROP, rejouable |
+
+Dossier de sécurité, étape 5. Tests : `../../outils/replique/tests/160.sql` (niveaux aux bornes 10/11/20/21/30/31/35/36, calcul par source, grille d'organisation prioritaire, copie au dépôt, droits). Appliquée et inscrite (version 20261102170000).
+
+### 161 : appliquée le 2/11 (par Claude, via l'outil Supabase, sur le « Go » de Ren) — décision de la commune, transmission du dossier
+
+| Fichier | Fait |
+|---|---|
+| `20261102180000_161_decision_et_transmission_dossier.sql` | `decider_dossier(evenement, autorise/refuse, commentaire)` : tout pouvoir, dossier déposé ou en instruction, `decide_le`, journal (étape 7, MVP : l'organisateur consigne l'arrêté reçu, déposé dans Partage › Documents). `canaux_diffusion.objets` (`{alerte}` par défaut ; `dossier` pour recevoir le dossier), `diffusions.objet` et `reference`, `transmission_dossier(evenement, base_url)` réservée au rôle de service : la charge `dossier_securite` du contrat partagé avec Crisiware (briefing 03, partie B), lien de consultation sur un accès de niveau instruction. Aucun DROP, rejouable |
+
+Dossier de sécurité, étapes 7 et 8. Va avec l'Edge Function `diffuser-dossier` (`../functions/`, JWT requis, clé de service), appelée après chaque changement de statut. Tests : `../../outils/replique/tests/161.sql`. Appliquée et inscrite (version 20261102180000) ; Edge Function `diffuser-dossier` déployée.
+
+Pont commune, partie A (briefing 02). Va avec l'Edge Function `reception-commune` (`../functions/`, à déployer `--no-verify-jwt`). Tests : `../../outils/replique/tests/158.sql` (réel reçu + journal, rejoué = doublon, mauvais secret et en-tête absent journalisés sans secret, jeton inconnu, charge invalide, I2, I3, bon code d'exercice accepté, accusé nominatif, cloisonnement, anonyme). Appliquée et inscrite (version 20261102150000) ; Edge Function `reception-commune` déployée (sans JWT).
+
+## Ne jamais rejouer 088 → 162 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

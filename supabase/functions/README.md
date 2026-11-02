@@ -9,6 +9,14 @@ redéployer.
 |-------------------|------------|--------------------------------------------------|
 | `diffuser-alerte` | oui        | `src/diffuserAlerte.js` (`supabase.functions.invoke`) |
 | `irm-vigilance`   | **non**    | `src/MoniteurIrm.jsx` (`fetch` direct, GET)      |
+| `reception-commune` | **non**  | la commune (Crisiware), POST — déployée le 2/11 (158) |
+| `diffuser-dossier` | oui     | `src/diffuserDossier.js` après chaque changement de statut du dossier — déployée le 2/11 (161) |
+
+`reception-commune` est ouverte parce que la commune n'a pas de compte :
+ce qui l'authentifie, c'est le secret de sa liaison (Réglages › Partage
+› Liaison commune), vérifié en base par `recevoir_message_commune`
+(migration 158), qui journalise les rejets sans jamais écrire le
+secret. Elle tourne avec la clé de service.
 
 `irm-vigilance` est volontairement ouverte : elle relaie une donnée
 publique (Meteoalarm) et l'écran qui l'appelle peut être consulté sans
@@ -22,6 +30,8 @@ Avec la CLI Supabase, depuis la racine du dépôt :
 ```
 supabase functions deploy diffuser-alerte
 supabase functions deploy irm-vigilance --no-verify-jwt
+supabase functions deploy reception-commune --no-verify-jwt
+supabase functions deploy diffuser-dossier
 ```
 
 Le drapeau `--no-verify-jwt` sur `irm-vigilance` est indispensable :
