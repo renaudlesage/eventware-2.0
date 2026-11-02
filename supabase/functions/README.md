@@ -9,8 +9,8 @@ redéployer.
 |-------------------|------------|--------------------------------------------------|
 | `diffuser-alerte` | oui        | `src/diffuserAlerte.js` (`supabase.functions.invoke`) |
 | `irm-vigilance`   | **non**    | `src/MoniteurIrm.jsx` (`fetch` direct, GET)      |
-| `reception-commune` | **non**  | la commune (Crisiware), POST — **pas encore déployée** (158, accord de Ren requis) |
-| `diffuser-dossier` | oui     | `src/diffuserDossier.js` après chaque changement de statut du dossier — **pas encore déployée** (161) |
+| `reception-commune` | **non**  | la commune (Crisiware), POST — déployée le 2/11 (158) |
+| `diffuser-dossier` | oui     | `src/diffuserDossier.js` après chaque changement de statut du dossier — déployée le 2/11 (161) |
 
 `reception-commune` est ouverte parce que la commune n'a pas de compte :
 ce qui l'authentifie, c'est le secret de sa liaison (Réglages › Partage
