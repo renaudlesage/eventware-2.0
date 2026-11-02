@@ -646,15 +646,15 @@ Dossier de sécurité, étapes 7 et 8. Va avec l'Edge Function `diffuser-dossier
 
 Pont commune, partie A (briefing 02). Va avec l'Edge Function `reception-commune` (`../functions/`, à déployer `--no-verify-jwt`). Tests : `../../outils/replique/tests/158.sql` (réel reçu + journal, rejoué = doublon, mauvais secret et en-tête absent journalisés sans secret, jeton inconnu, charge invalide, I2, I3, bon code d'exercice accepté, accusé nominatif, cloisonnement, anonyme). Appliquée et inscrite (version 20261102150000) ; Edge Function `reception-commune` déployée (sans JWT).
 
-### 163 : à appliquer (sur le « Go » de Ren) — formulaires de demande d'autorisation
+### 163 : appliquée le 2/11 (par Claude, via l'outil Supabase, sur le « Go163 » de Ren, en quatre temps : tables et formulaires, catalogue IBZ, catalogue Ferrières et applicables, fonctions et RLS) — formulaires de demande d'autorisation
 
 | Fichier | Fait |
 |---|---|
 | `20261102200000_163_formulaire_multidisciplinaire.sql` | `formulaires` (code, portée fédéral/province/commune, délai, adresse d'envoi) semés avec `FERRIERES_2023` (commune de Ferrières, zone de police du Condroz, zone de secours HEMECO, collège du 16/11/2023, 60 jours avant la mise en place, 90 si police) et `IBZ_2017` (formulaire multidisciplinaire fédéral, celui que le coordinateur PLANU reporte dans la grille PRIMA de la CoAMU). `formulaire_sections`, `formulaire_questions` (douze sections chacun, ≈ 90 et ≈ 210 questions, types texte/nombre/oui-non/choix/multi/date/contact/annexe, code de source pour le pré-remplissage), `formulaire_reponses` (par événement et formulaire, valeur jsonb, traçabilité). `formulaires_applicables(evenement)` (sa commune, sa province, le fédéral), `formulaire_prerempli(evenement)` (ce qu'Eventware sait : événement, organisation, profil 155, conformité, plan, parcours, radio, fiches réflexe, contacts, fournisseurs…), `formulaire_dossier(evenement, formulaire)` (saisie par-dessus le pré-rempli, manques obligatoires). `instantane_dossier` redéfinie (`formulaire`, `formulaires`), `controle_dossier` redéfinie : `DOS_FORMULAIRE` par formulaire (alerte), `DOS_DELAI` quand le délai de dépôt est à moins de 14 jours ou dépassé et que le dossier n'est pas déposé (alerte). RLS : catalogue lu par tous, édité par l'exploitant ; réponses par `referentiels : lire/creer`. Aucun DROP, rejouable |
 
-Dossier de sécurité, suite du briefing 01 sur les documents réels (Ren, 2/11). Tests : `../../outils/replique/tests/163.sql` (catalogue, applicables Ferrières puis IBZ, pré-rempli, saisie qui prime et s'efface, codes propres à chaque formulaire, traçabilité, figé au dépôt, DOS_FORMULAIRE ×2, DOS_DELAI, droits, anonyme). **Pas encore appliquée en production.**
+Dossier de sécurité, suite du briefing 01 sur les documents réels (Ren, 2/11). Tests : `../../outils/replique/tests/163.sql` (catalogue, applicables Ferrières puis IBZ, pré-rempli, saisie qui prime et s'efface, codes propres à chaque formulaire, traçabilité, figé au dépôt, DOS_FORMULAIRE ×2, DOS_DELAI, droits, anonyme). Appliquée et inscrite (version 20261102200000) ; 211 questions IBZ et 89 questions Ferrières semées, 8 policies.
 
-## Ne jamais rejouer 088 → 162 par `db push` sans les lignes ci-dessus
+## Ne jamais rejouer 088 → 163 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`
