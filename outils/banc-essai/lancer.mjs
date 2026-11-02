@@ -851,6 +851,21 @@ for (const ecran of ecrans) {
   if (ecran === 'reglages') {
     const sug = await page.locator('.phase-suggeree').textContent().catch(() => '')
     if (!/Phase suggérée par les dates/.test(sug)) erreurs.push(`réglages : pas de phase suggérée (${sug.slice(0, 60)})`)
+    // (155) Rubrique Organisation : le profil de sécurité, six champs, trois à compléter ; Enregistrer envoie un upsert.
+    await page.locator('.rubrique-reglages select').selectOption('organisation')
+    await page.waitForTimeout(400)
+    const profil = page.locator('.profil-securite')
+    if (!(await profil.count())) erreurs.push('organisation : pas de profil de sécurité')
+    else {
+      if ((await profil.locator('input').count()) !== 6) erreurs.push(`organisation : ${await profil.locator('input').count()} champs (attendu 6)`)
+      if (!/3 champs à compléter/.test(await profil.textContent())) erreurs.push('organisation : « 3 champs à compléter » absent')
+      await page.evaluate(() => { window.__ecritures = [] })
+      await profil.locator('input').nth(3).fill('RC-123')
+      await profil.getByRole('button', { name: 'Enregistrer' }).click()
+      await page.waitForTimeout(300)
+      const ecrit = (await page.evaluate(() => window.__ecritures ?? [])).find((e) => e.table === 'organisations_profil_securite' && e.op === 'upsert' && e.champs?.assurance_police === 'RC-123')
+      if (!ecrit) erreurs.push('organisation : Enregistrer n’envoie pas le numéro de police')
+    }
   }
   if (ecran === 'coquille') {
     // Le bandeau d'état tient sur une ligne de quatre cadrans ; REX s'ouvre depuis « Plus ».

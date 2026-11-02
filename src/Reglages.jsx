@@ -7,6 +7,7 @@ import Roles from './Roles'
 import AccesAutorite from './AccesAutorite'
 import Conformite from './Conformite'
 import DossierSecurite from './DossierSecurite'
+import ProfilSecurite from './ProfilSecurite'
 import MonCompte from './MonCompte'
 import LogoEvenement from './LogoEvenement'
 import Point0 from './Point0'
@@ -45,6 +46,7 @@ const PANNEAUX = [
   ['dispositif', 'Dispositif'],
   ['roles', 'Rôles'],
   ['conformite', 'Conformité'],
+  ['organisation', 'Organisation'],
   ['donnees', 'Données'],
   ['partage', 'Partage'],
   ['compte', 'Mon compte']
@@ -203,6 +205,11 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
           />
           <DossierSecurite evenement={evenement} setMessage={setMessage} />
         </>
+      )}
+
+      {/* (155) Ce qui vaut pour tous les événements de l'organisation : le profil de sécurité. */}
+      {panneau === 'organisation' && (
+        <ProfilSecurite organisation={evenement.organisation_id} setMessage={setMessage} />
       )}
 
       {panneau === 'donnees' && (

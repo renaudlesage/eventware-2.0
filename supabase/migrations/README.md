@@ -580,6 +580,16 @@ Vérification : `../verifications/154-pouls-qg.sql` (lecture seule) ; analyse de
 
 Appliquée et inscrite (version 20261102090000).
 
+### 155 : PAS ENCORE APPLIQUÉE — éprouvée sur la réplique locale, en attente de l'accord de Ren — profil de sécurité de l'organisation
+
+| Fichier | Fait |
+|---|---|
+| `20261102120000_155_profil_securite_organisation.sql` | Table `organisations_profil_securite` (une ligne par organisation : responsable légal et téléphone, compagnie et numéro de police d'assurance, responsable sécurité et téléphone). `peut_gerer_organisation` (même règle que l'annuaire), `mes_droits_organisation`, `profil_securite_manques` (la liste de ce qui manque, lue par les contrôles du dossier). RLS : lecture `appartient_organisation`, écriture `peut_gerer_organisation`. Aucun DROP, rejouable |
+
+Dossier de sécurité, étape 1 (briefing 01). Tests : `../../outils/replique/tests/155.sql` (anonyme refusé, coordinateur A gère A et ne voit pas B, bénévole lit sans écrire, exploitant gère tout, traçabilité).
+
+À appliquer via l'outil Supabase sur accord de Ren, puis inscrire (version 20261102120000) et passer cette section en « appliquée ».
+
 ## Ne jamais rejouer 088 → 154 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations

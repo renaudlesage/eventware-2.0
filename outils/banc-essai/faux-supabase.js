@@ -7,6 +7,8 @@ export const DONNEES = {
   ],
   missions: [{ id: 'm1', reference: 'SEC-001', titre: 'Renfort', priorite: 'P1', statut: 'attribuee', module: 'securite', signalement_id: 's1', latitude: 50.385, longitude: 5.62, lieu_id: null, equipe_id: 'e1', membre_id: null, attribuee_le: new Date().toISOString(), demarree_le: null, equipe: { code: 'A' }, lieu: null, membre: null }],
   traces: [{ id: 't1', nom: 'Boucle', couleur: null, points: [[50.38, 5.61, 300], [50.39, 5.62, 310], [50.395, 5.63, 320]] }],
+  // (155) Un profil de sécurité à moitié rempli : trois champs à compléter.
+  organisations_profil_securite: [{ organisation_id: 'org1', responsable_legal: 'Jean Dupont', responsable_legal_tel: '0470 11 11 11', assurance_compagnie: 'Ethias', assurance_police: null, securite_nom: null, securite_tel: null }],
   // (152) Deux jalons de l'événement : l'un en préparation (par sa date), l'autre forcé en montage.
   jalons: [
     { id: 'j1', evenement_id: 'ev1', code: 'J-01', libelle: 'Dossier commune', echeance: '2026-10-20T17:00:00+02:00', statut: 'a_venir', critique: true, groupe_travail_id: null, phase_cible: null, avancement: 0, visibilite: 'membres' },
@@ -115,6 +117,8 @@ function constructeur(table, fn, args) {
     prc_synthese: [{ lieux_niveau_3: 1, grappes: 2, demandes_ouvertes: 3, demandes_en_retard: 0, demandes_sans_lieu: 0, charge_totale: 4.5 }],
     // (129) Huit jalons dans deux groupes, quatre dépendances dont une violée (GJ-05 commence avant la fin de GJ-04).
     gantt: GANTT, deplacer_jalon: [{ deplaces: 2, apres_j: 1 }], recaler_jalons: [{ touches: 3, exemples: ['Chapiteau', 'Scène'] }],
+    // (155) Le coordinateur gère le profil de sécurité de son organisation.
+    mes_droits_organisation: [{ lire: true, gerer: true }],
     // (154) Une demande P1 qui attend plus que d'habitude (seuil appris : 15 min) : le bandeau « Attente ».
     missions_en_souffrance: [{ mission_id: 'm1', reference: 'SEC-001', titre: 'Renfort', priorite: 'P1', module: 'securite', attente_min: 22, seuil_min: 15, depassement: 1.5 }],
     seuils_prise_en_charge: [{ priorite: 'P1', seuil_min: 15, mesures: 22, source: 'appris : 9 demandes sur 10 prises en charge sous ce délai' }, { priorite: 'P2', seuil_min: 32, mesures: 15, source: 'appris : 9 demandes sur 10 prises en charge sous ce délai' }, { priorite: 'P3', seuil_min: 32, mesures: 21, source: 'appris, relevé au niveau de la priorité plus urgente' }, { priorite: 'P4', seuil_min: 120, mesures: 0, source: 'par défaut : moins de 10 mesures dans les événements clos' }],
@@ -133,7 +137,7 @@ function constructeur(table, fn, args) {
       if (prop === 'then') return (res, rej) => Promise.resolve(resultat()).then(res, rej)
       if (prop === 'maybeSingle' || prop === 'single') return () => Promise.resolve({ data: (DONNEES[table] ?? [])[0] ?? null, error: null })
       // (28/10) Les écritures sont notées aussi, pour vérifier ce qu'un écran envoie.
-      if (prop === 'update' || prop === 'insert') return (champs) => { if (typeof window !== 'undefined') (window.__ecritures ||= []).push({ table, op: prop, champs }); return b }
+      if (prop === 'update' || prop === 'insert' || prop === 'upsert') return (champs) => { if (typeof window !== 'undefined') (window.__ecritures ||= []).push({ table, op: prop, champs }); return b }
       return () => b
     }
   })
