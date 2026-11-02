@@ -13,6 +13,7 @@ import { CarteTactique, useTactique, Radio } from './ColonneSituation'
 import { libelleEtapeTransport, aParcours } from './libelles'
 import { Accuses } from './Bandeau'
 import ModeQG from './ModeQG'
+import EnSouffrance from './EnSouffrance'
 
 /**
  * Tableau de bord général — la vue QG.
@@ -510,6 +511,9 @@ export default function Situation({ evenement, peut, toutPouvoir, onAller }) {
           </div>
         </div>
       ))}
+
+      {/* (154) Les demandes qui attendent plus que d'habitude, tous modules : on ouvre la liste du bon module. */}
+      <EnSouffrance evenementId={evenement.id} onOuvrir={(m) => onAller(m.module === 'logistique' ? 'logistique' : 'securite')} />
 
       {(s.recherches ?? []).length > 0 && (
         <div className="bloc-alerte">

@@ -168,6 +168,16 @@ for (const ecran of ecrans) {
       await liste.selectOption('fiches')
       await page.waitForTimeout(300)
       if (await page.locator('.bloc.dom-grenat .meteo-compact').count()) erreurs.push('menu : la veille météo reste affichée sur Documents')
+      // (154) Demandes sécurité : le bandeau « Attente » liste la P1 qui attend 22 min ; un clic déplie sa ligne.
+      await liste.selectOption('missions')
+      await page.waitForTimeout(400)
+      const attente = page.locator('.en-souffrance')
+      if (!(await attente.count())) erreurs.push('demandes : pas de bandeau « Attente »')
+      else {
+        await attente.locator('.souffrance-liste button').first().click()
+        await page.waitForTimeout(300)
+        if (!(await page.locator('.ligne-mission-detail').count())) erreurs.push('demandes : le clic sur la demande en souffrance ne déplie pas sa ligne')
+      }
       await liste.selectOption('effectifs')
       await page.waitForTimeout(200)
     }
@@ -319,6 +329,15 @@ for (const ecran of ecrans) {
       await page.waitForTimeout(300)
       if (await page.locator('.mode-qg').count()) erreurs.push('mode QG : Échap ne quitte pas')
       if (!(await page.getByRole('button', { name: /Son OFF/ }).count())) erreurs.push('mode QG : en sortant, le son ne revient pas à son état d’avant')
+    }
+    // (154) Le bandeau « Attente » : la P1 qui attend 22 min (seuil appris 15) est signalée en urgence.
+    const attente = page.locator('.en-souffrance')
+    if (!(await attente.count())) erreurs.push('en souffrance : pas de bandeau « Attente »')
+    else {
+      const texte = await attente.textContent()
+      if (!/1 demande attend plus que d.habitude/.test(texte)) erreurs.push(`en souffrance : titre « ${texte.slice(0, 60)} »`)
+      if (!/SEC-001.*22 min.*moins de 15 min/.test(texte)) erreurs.push('en souffrance : la P1 SEC-001 (22 min, seuil 15) manque')
+      if (!(await attente.evaluate((e) => e.classList.contains('niv-urgence')))) erreurs.push('en souffrance : une P1 doit passer le bandeau en urgence')
     }
     const deplier = page.getByRole('button', { name: /^Déplier$/ })
     if (await deplier.count()) await deplier.first().click()
