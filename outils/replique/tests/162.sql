@@ -113,4 +113,6 @@ select tests.ok(tests.refuse($$select talkie_repondre('00000000-0000-0000-0000-0
 reset role;
 select tests.ok((select file_size_limit from storage.buckets where id = 'vocaux') = 1048576 and not (select public from storage.buckets where id = 'vocaux'), 'compartiment vocaux : privé, 1 Mo');
 drop table mb;
+-- Le DEA de test ne doit pas rester sur le plan (156 attend un plan vide).
+delete from elements_plan where evenement_id = :EA and code = 'T162-DEA';
 \echo '=== 162 OK'

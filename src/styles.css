@@ -3541,6 +3541,36 @@ body.qg-actif { overflow: hidden; }
 .dmp-criteres label { display: inline; }
 .dmp-criteres input[type=checkbox] { width: auto; margin: 0 4px 0 0; }
 .dmp-points-saisie { width: 72px; margin: 0; }
+/* (163) Le formulaire multidisciplinaire de la commune : sections repliées, code · question · réponse. */
+.formulaire-communal { margin: 14px 0; }
+.formulaire-progres { margin: 4px 0 8px; }
+.formulaire-communal .prc-jeton { display: inline-block; width: auto; }
+.formulaire-choix { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.formulaire-choix button.actif { border-color: var(--accent, var(--encre)); font-weight: 600; }
+.formulaire-entete { margin: 4px 0 8px; line-height: 1.5; }
+.formulaire-delai { color: var(--etat-veille); }
+.formulaire-delai.depasse { color: var(--etat-chaud); font-weight: 600; }
+.formulaire-section { border-top: 1px solid var(--trait); }
+.formulaire-section-titre { display: block; width: 100%; text-align: left; padding: 8px 0; font-weight: 600; }
+.formulaire-questions { margin-bottom: 8px; }
+.formulaire-questions tr.formulaire-sous-section th { padding-top: 10px; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--sourdine); }
+.formulaire-questions tr.manquante td.formulaire-code { color: var(--etat-veille); font-weight: 600; }
+.formulaire-code { width: 48px; font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+.formulaire-libelle { width: 40%; }
+.formulaire-reponse input[type=text], .formulaire-reponse input[type=number], .formulaire-reponse input[type=date], .formulaire-reponse select, .formulaire-reponse textarea { width: 100%; margin: 0; }
+.formulaire-reponse textarea { min-height: 32px; resize: vertical; }
+.formulaire-multi, .formulaire-oui-non { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.formulaire-multi label, .formulaire-oui-non label { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
+.formulaire-multi input, .formulaire-oui-non input[type=radio] { width: auto; margin: 0; }
+.formulaire-oui-non input[type=text] { flex: 1 1 160px; }
+.formulaire-contact { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 4px; }
+.formulaire-prerempli { margin-top: 4px; display: inline-block; color: var(--accent, var(--sourdine)); }
+@media (max-width: 640px) {
+  .formulaire-questions, .formulaire-questions tbody, .formulaire-questions tr { display: block; }
+  .formulaire-questions td { display: block; width: auto; border-bottom: 0; padding: 2px 0; }
+  .formulaire-questions tr { border-bottom: 1px solid var(--trait); padding: 6px 0; }
+  .formulaire-questions tr.formulaire-sous-section th { display: block; }
+}
 .grille-dmp { margin-top: 8px; }
 .grille-dmp-ajout .saisie-rapide { margin-bottom: 6px; }
 

@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import DossierSecurite from './DossierSecurite'
 import { Dmp } from './Dmp'
+import FormulaireCommunal from './FormulaireCommunal'
 import { telechargerDossierPdf } from './exportDossierPdf'
 import { diffuserDossier } from './diffuserDossier'
 
@@ -213,6 +214,7 @@ export default function Dossier({ evenement, peut, toutPouvoir, setMessage }) {
                       Fréquentation {c.evenement?.frequentation_max ?? '?'} · du {c.evenement?.date_montage ?? '?'} au {c.evenement?.date_demontage ?? '?'} ·{' '}
                       {(c.prescriptions ?? []).length} prescriptions · {(c.lieux ?? []).length} lieux · {(c.plan ?? []).length} objets du plan ·{' '}
                       {(c.contacts ?? []).length} contacts · {(c.controles ?? []).filter((k) => k.gravite === 'alerte').length} alertes au dépôt
+                      {c.formulaire && <> · formulaire communal {c.formulaire.repondues}/{c.formulaire.total}</>}
                     </div>
                   )}
                 </li>
@@ -221,6 +223,10 @@ export default function Dossier({ evenement, peut, toutPouvoir, setMessage }) {
           </ul>
         </div>
       )}
+
+      {/* (163) Le formulaire multidisciplinaire de la commune : douze sections, pré-remplies par Eventware, complétées ici.
+          Une réponse change les contrôles (DOS_FORMULAIRE) : on les recharge. */}
+      <FormulaireCommunal evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} onChange={charger} />
 
       {/* (160) Le dispositif médical préventif : score, niveau, critères à cocher, lien CoAMU aux niveaux 4 et 5. */}
       <Dmp evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage}

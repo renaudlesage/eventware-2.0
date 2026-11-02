@@ -147,6 +147,28 @@ function constructeur(table, fn, args) {
       { code: 'VEILLE_INACTIVE', gravite: 'veille', titre: 'Veille météo inactive', detail: 'Aucun seuil ne déclenchera rien', table_source: 'veille_meteo', source_id: null, stimulus: 'Météo…', objectif: 'METEO' }
     ],
     deposer_dossier: [{ dossier_id: 'dos1', version: 2, statut: 'depose' }],
+    // (163) Deux formulaires applicables (la commune, le fédéral) ; le formulaire lu : trois sections visibles, un pré-rempli,
+    // une saisie qui prime, une obligatoire qui manque, un délai de 60 jours.
+    formulaires_applicables: [
+      { id: 'f1', code: 'FERRIERES_2023', libelle: 'Organisation de manifestations publiques — commune de Ferrières', portee: 'commune', commune: 'Ferrières', province: 'Liège', delai_jours: 60 },
+      { id: 'f2', code: 'IBZ_2017', libelle: 'Formulaire multidisciplinaire événement', portee: 'federal', delai_jours: 90 }
+    ],
+    formulaire_dossier: {
+      formulaire: { id: 'f1', code: 'FERRIERES_2023', libelle: 'Organisation de manifestations publiques — commune de Ferrières', autorite: 'Commune de Ferrières, zone de police du Condroz, zone de secours HEMECO',
+        portee: 'commune', version: 'Collège communal du 16 novembre 2023', delai_jours: 60, delai_note: '90 jours si une présence policière est requise.', adresse_envoi: 'manifestations@ferrieres.be' },
+      sections: [{ section: 1, titre: 'Information générale sur l’événement' }, { section: 3, titre: 'Données sur le public' }, { section: 11, titre: 'Coordonnées de contacts utiles pendant l’événement' }],
+      questions: [
+        { code: '1.01', section: 1, sous_section: null, libelle: 'Dénomination de l’événement', aide: null, type: 'texte', options: null, obligatoire: true, valeur: 'Rando VTT 2026', prerempli: 'Rando VTT 2026', saisie: null },
+        { code: '1.04', section: 1, sous_section: null, libelle: 'Domaine public, lieu accessible au public ou terrain privé ?', aide: null, type: 'choix', options: ['Domaine public', 'Lieu publiquement accessible', 'Terrain privé'], obligatoire: true, valeur: null, prerempli: null, saisie: null },
+        { code: '1.09', section: 1, sous_section: null, libelle: 'Date de début', aide: null, type: 'date', options: null, obligatoire: true, valeur: '2026-11-11', prerempli: '2026-11-11', saisie: null },
+        { code: '3.01', section: 3, sous_section: null, libelle: 'Nombre de visiteurs attendus', aide: null, type: 'nombre', options: null, obligatoire: true, valeur: 1500, prerempli: 1200, saisie: 1500 },
+        { code: '3.05', section: 3, sous_section: null, libelle: 'Public assis, debout ou mixte ?', aide: null, type: 'choix', options: ['Assis', 'Debout', 'Mixte'], obligatoire: false, valeur: null, prerempli: null, saisie: null },
+        { code: '4.48', section: 3, sous_section: '4.4 Infrastructure', libelle: 'Structures sur le terrain', aide: null, type: 'multi', options: ['Podium', 'Tribune', 'Tente'], obligatoire: true, valeur: ['Tente'], prerempli: ['Tente'], saisie: null },
+        { code: '11.02', section: 11, sous_section: null, libelle: 'Responsable sécurité événement', aide: 'Nom, fonction, GSM', type: 'contact', options: null, obligatoire: true, valeur: { nom: 'Marie Martin', fonction: 'responsable sécurité', gsm: '0470 22 22 22' }, prerempli: { nom: 'Marie Martin', fonction: 'responsable sécurité', gsm: '0470 22 22 22' }, saisie: null },
+        { code: '11.04', section: 11, sous_section: null, libelle: 'Hôpital le plus proche (conforme AMU)', aide: null, type: 'contact', options: null, obligatoire: true, valeur: null, prerempli: null, saisie: null }
+      ],
+      repondues: 5, total: 8, obligatoires_manquantes: ['1.04', '11.04']
+    },
     // (159) Le lien D1 lit le dossier déposé ; la D3 a déjà rendu son avis.
     dossier_par_jeton: { destinataire: { libelle: 'Zone de secours', organisation: 'ZS Vesdre-Hoëgne & Plateau', discipline: 'D1', niveau: 'avis' },
       evenement: { nom: 'Rando VTT 2026', commune: 'Ferrières', phase: 'preparation' },
