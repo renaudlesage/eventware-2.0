@@ -3541,6 +3541,25 @@ body.qg-actif { overflow: hidden; }
 .dmp-criteres label { display: inline; }
 .dmp-criteres input[type=checkbox] { width: auto; margin: 0 4px 0 0; }
 .dmp-points-saisie { width: 72px; margin: 0; }
+/* (164) La grille PRIMA : résumé, entrées par section, provenance, détail du calcul. */
+.prima { margin: 14px 0; }
+.prima-resume { margin: 4px 0 2px; }
+.prima-message.chaud { color: var(--etat-chaud); }
+.prima-message.veille { color: var(--etat-veille); }
+.prima-composition { margin: 2px 0 8px; }
+.prima-entrees tr.prima-section th { padding-top: 10px; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--sourdine); text-align: left; }
+.prima-entrees td:first-child { width: 38%; }
+.prima-entrees tr.manquante td:first-child { color: var(--etat-veille); font-weight: 600; }
+.prima-entrees select, .prima-nombre { margin: 0; max-width: 100%; }
+.prima-nombre { width: 110px; }
+.prima-moments { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.prima-moments label, .prima-case { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
+.prima-moments input, .prima-case input { width: auto; margin: 0; }
+.prima-source { margin-left: 6px; display: inline-block; width: auto; }
+.prima-remarques { width: 100%; margin: 8px 0; resize: vertical; }
+.prima-points { text-align: right; width: 90px; }
+.prima-detail tr.applique td { font-weight: 600; }
+.prima .prc-jeton { display: inline-block; width: auto; }
 /* (163) Le formulaire multidisciplinaire de la commune : sections repliées, code · question · réponse. */
 .formulaire-communal { margin: 14px 0; }
 .formulaire-progres { margin: 4px 0 8px; }

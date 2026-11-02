@@ -11,7 +11,7 @@ export default function Memento({ evenement }) {
   const [section, setSection] = useState('fiches')
 
   async function rafraichir() {
-    const [f, c, r] = await Promise.all([
+    const [f, c, r, p, o] = await Promise.all([
       supabase
         .from('fiches_reflexe')
         .select('*')
@@ -21,20 +21,35 @@ export default function Memento({ evenement }) {
         .from('contacts')
         .select('*')
         .eq('evenement_id', evenement.id)
+        .is('deleted_at', null)
         .order('nom'),
       supabase
         .from('elements_plan')
         .select('*')
         .eq('evenement_id', evenement.id)
         .eq('est_risque', true)
-        .order('code')
+        .order('code'),
+      // (2/11, remarque de Ren) Les responsables du profil de sécurité de l'organisation (155)
+      // comptent parmi les contacts : ils ne sont encodés qu'une fois, dans Réglages › Organisation.
+      evenement.organisation_id
+        ? supabase.from('organisations_profil_securite').select('responsable_legal, responsable_legal_tel, securite_nom, securite_tel').eq('organisation_id', evenement.organisation_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      evenement.organisation_id
+        ? supabase.from('organisations').select('nom').eq('id', evenement.organisation_id).maybeSingle()
+        : Promise.resolve({ data: null })
     ])
     // Un seul échec suffit à invalider le rafraîchissement : mieux vaut
     // garder un cache cohérent qu'un mélange de neuf et d'ancien.
     if (f.error || c.error || r.error) return
+    const profil = p.data ?? {}
+    const organisation = o.data?.nom ?? 'Organisation'
+    const responsables = [
+      profil.responsable_legal && { id: 'profil-legal', nom: profil.responsable_legal, organisation, fonction: 'Responsable légal', telephone: profil.responsable_legal_tel, profil: true },
+      profil.securite_nom && { id: 'profil-securite', nom: profil.securite_nom, organisation, fonction: 'Responsable sécurité', telephone: profil.securite_tel, profil: true }
+    ].filter(Boolean)
     const nouveau = {
       fiches: f.data ?? [],
-      contacts: c.data ?? [],
+      contacts: [...responsables, ...(c.data ?? [])],
       risques: r.data ?? [],
       evenement: evenement.nom
     }
@@ -217,6 +232,7 @@ export default function Memento({ evenement }) {
                   {c.organisation && <span>{c.organisation}</span>}
                   {c.fonction && <span>{c.fonction}</span>}
                   {c.disponibilite && <span>{c.disponibilite}</span>}
+                  {c.profil && <span className="aide">profil de sécurité de l’organisation</span>}
                 </div>
                 {c.telephone && (
                   <div className="ligne-boutons" style={{ marginTop: 8 }}>
