@@ -83,7 +83,7 @@ fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><me
 fs.writeFileSync(path.join(sortie, 'page-tel.html'), '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"><link rel="stylesheet" href="../../src/mobile.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
 
 const demandes = process.argv.slice(2)
-const ecrans = demandes.length ? demandes : ['coquille', 'coquille-preparation', 'coquille-montage', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'avis', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0']
+const ecrans = demandes.length ? demandes : ['coquille', 'coquille-preparation', 'coquille-montage', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'avis', 'participant', 'poste-public', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0']
 const navigateur = await pw.chromium.launch()
 let echecs = 0
 for (const ecran of ecrans) {
@@ -935,11 +935,75 @@ for (const ecran of ecrans) {
     if (!/Jean Dupont/.test(t) || !/Responsable légal/.test(t) || !/profil de sécurité de l’organisation/.test(t)) erreurs.push('mémento : le responsable légal du profil d’organisation n’est pas dans les contacts')
     if (!/Bucolique Ferrières/.test(t)) erreurs.push('mémento : l’organisation du responsable n’est pas affichée')
   }
+  // (168) La page du poste : QG et 112 en tête, canaux, créneau en cours, fiche, secours, fiche réflexe dépliable ; aucun numéro personnel.
+  if (ecran === 'poste-public') {
+    const t = await page.locator('.page-poste').textContent().catch(() => '')
+    for (const attendu of ['Bar étape 1', 'Joindre le QG', '0470 99 88 77', '112', 'Canal de l’équipe', 'Canal d’urgence', 'En cours', 'Compter les fûts', 'DEA (défibrillateur)', 'à 110 m', 'Malaise']) {
+      if (!t.includes(attendu)) erreurs.push(`page du poste : « ${attendu} » absent`)
+    }
+    if (!/\d{2}:\d{2} → \d{2}:\d{2}/.test(t)) erreurs.push('page du poste : les heures du créneau manquent')
+    if (/0470 12 34 56|0499/.test(t)) erreurs.push('page du poste : un numéro personnel est affiché')
+    if (!(await page.locator('.poste-contact.qg[href="tel:0470998877"]').count())) erreurs.push('page du poste : le lien tel: du QG manque')
+    await page.locator('.poste-reflexe .lien').first().click()
+    await page.waitForTimeout(200)
+    if (!(await page.locator('.poste-reflexe-corps', { hasText: 'Appeler le 112' }).count())) erreurs.push('page du poste : la fiche réflexe ne se déplie pas')
+  }
+  // (167) Analyse : les familles de demandes et la mémoire des lieux en synthèse ; en constats, le bouton « Proposer » appelle rex_proposer, le jeton et le filtre.
+  if (ecran === 'analyse') {
+    const synthese = await page.locator('.securite').textContent().catch(() => '')
+    if (!/Ce qui revient/.test(synthese) || !/Réassort boissons/.test(synthese) || !/28 min/.test(synthese)) erreurs.push('analyse : les familles de demandes manquent en synthèse')
+    if (!(await page.locator('.familles-demande .prc-jeton', { hasText: 'ronde' }).count())) erreurs.push('analyse : la famille boissons n’est pas marquée « ronde »')
+    if (!(await page.locator('.memoire-lieu', { hasText: 'Étape 1' }).count()) || !/11 demandes/.test(synthese) || !/réassort boissons ×9/.test(synthese)) erreurs.push('analyse : la mémoire des lieux manque')
+    await page.getByRole('button', { name: /Rattacher les demandes sans lieu/ }).click()
+    await page.waitForTimeout(200)
+    await page.getByRole('button', { name: /^Constats$/ }).click()
+    await page.waitForTimeout(300)
+    if ((await page.locator('.carte.rex-auto').count()) !== 1 || !(await page.locator('.carte .prc-jeton', { hasText: 'proposé par Eventware' }).count())) erreurs.push('analyse : le constat proposé par Eventware n’est pas marqué')
+    await page.getByRole('button', { name: /Proposer les constats d’Eventware/ }).click()
+    await page.waitForTimeout(300)
+    const appels = await page.evaluate(() => (window.__appels ?? []).map((a) => a.fn))
+    if (!appels.includes('rex_proposer')) erreurs.push('analyse : « Proposer » n’appelle pas rex_proposer')
+    if (!appels.includes('rattacher_demandes_lieux')) erreurs.push('analyse : « Rattacher » n’appelle pas rattacher_demandes_lieux')
+    if (!(await page.locator('.rex-filtre .module.actif', { hasText: 'Proposés par Eventware (1)' }).count())) erreurs.push('analyse : après « Proposer », le filtre Eventware n’est pas actif')
+    if ((await page.locator('.carte').count()) !== 1) erreurs.push(`analyse : filtre Eventware → ${await page.locator('.carte').count()} carte(s) (attendu 1)`)
+    await page.locator('.rex-filtre .module', { hasText: 'Consignés (1)' }).click()
+    await page.waitForTimeout(200)
+    if (!(await page.locator('.carte', { hasText: 'briefing du matin' }).count())) erreurs.push('analyse : le filtre « Consignés » ne montre pas le constat humain')
+  }
   // (152) Réglages : la phase suggérée par les dates, avec le passage en un clic.
   if (ecran === 'reglages') {
     const sug = await page.locator('.phase-suggeree').textContent().catch(() => '')
     if (!/Phase suggérée par les dates/.test(sug)) erreurs.push(`réglages : pas de phase suggérée (${sug.slice(0, 60)})`)
     // (157) Rubrique Dossier de sécurité : statut, deux bloquants qui retiennent le dépôt, la version figée.
+    // (167) Réglages › Données : l'édition précédente se choisit et « Rapprocher les lieux » appelle rapprocher_lieux.
+    await page.locator('.rubrique-reglages select').selectOption('donnees')
+    await page.waitForTimeout(400)
+    const edition = page.locator('.edition-precedente')
+    if (!(await edition.count())) erreurs.push('réglages : pas de bloc « Édition précédente »')
+    else {
+      await edition.locator('select').selectOption('ev0')
+      await edition.getByRole('button', { name: /Rapprocher les lieux/ }).click()
+      await page.waitForTimeout(200)
+      const appels = await page.evaluate(() => (window.__appels ?? []).filter((a) => a.fn === 'rapprocher_lieux'))
+      if (!appels.length || appels[0].args?.p_source !== 'ev0') erreurs.push('réglages : « Rapprocher les lieux » n’appelle pas rapprocher_lieux avec l’édition choisie')
+    }
+    // (168) Réglages › Partage › QR du poste : la liste, le poste sans fiche signalé, « Générer » appelle generer_postes_qr, une planche s'imprime.
+    await page.locator('.rubrique-reglages select').selectOption('partage')
+    await page.waitForTimeout(500)
+    const qrp = page.locator('.qr-postes')
+    if (!(await qrp.count())) erreurs.push('réglages : pas de bloc « QR du poste »')
+    else {
+      if ((await qrp.locator('.qr-postes-table tbody tr').count()) !== 2) erreurs.push('qr du poste : 2 postes attendus')
+      if (!/1 poste sans fiche/.test(await qrp.textContent())) erreurs.push('qr du poste : le poste sans fiche n’est pas signalé')
+      await qrp.getByRole('button', { name: /Générer les QR depuis les créneaux/ }).click()
+      await page.waitForTimeout(200)
+      const appels = await page.evaluate(() => (window.__appels ?? []).map((a) => a.fn))
+      if (!appels.includes('generer_postes_qr')) erreurs.push('qr du poste : « Générer » n’appelle pas generer_postes_qr')
+      await qrp.getByRole('button', { name: /^Tout sélectionner$/ }).click()
+      await page.waitForTimeout(200)
+      if ((await qrp.locator('.planche-poste').count()) !== 2) erreurs.push(`qr du poste : ${await qrp.locator('.planche-poste').count()} planche(s) (attendu 2)`)
+      if (!(await qrp.locator('.planche-poste a, .qr-postes-table a[href*="?poste=jeton-poste-1"]').count())) erreurs.push('qr du poste : le lien ?poste= manque')
+    }
     await page.locator('.rubrique-reglages select').selectOption('dossier')
     await page.waitForTimeout(400)
     const dossier = page.locator('.dossier-securite')

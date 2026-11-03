@@ -3643,3 +3643,47 @@ body.qg-actif { overflow: hidden; }
 .parler-pave.enregistre { background: var(--etat-chaud); animation: talkie-pulse 1s ease-in-out infinite; }
 .parler-pave.annule { background: var(--sourdine); }
 .talkie-pile.pave .talkie-112 { text-align: center; font-size: 12px; }
+
+/* (167) Eventware qui apprend : constats proposés, familles, mémoire des lieux. */
+.rex-eventware { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
+.rex-eventware .aide { margin: 0; flex: 1 1 320px; }
+.rex-filtre { margin-bottom: 8px; }
+.carte.rex-auto { border-left: 3px solid var(--etat-veille); }
+.carte .prc-jeton { display: inline-block; width: auto; }
+.prc-jeton.auto { color: var(--etat-veille); border-color: var(--etat-veille); }
+.familles-demande { width: 100%; border-collapse: collapse; font-size: 13px; }
+.familles-demande th, .familles-demande td { text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--trait); vertical-align: top; }
+.familles-demande th { font-weight: 600; color: var(--sourdine); font-size: 12px; }
+.edition-precedente .saisie-rapide { align-items: center; }
+
+/* (168) La page du poste (publique) et les QR de poste. */
+.page-poste h2 { font-size: 15px; margin: 0 0 8px; }
+.page-poste .logo-evenement { max-height: 40px; display: block; margin-bottom: 6px; }
+.poste-contacts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+.poste-contact { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 8px; border: 2px solid var(--trait-fort); border-radius: 6px; text-decoration: none; color: inherit; }
+.poste-contact strong { font-size: 22px; font-family: var(--mono); }
+.poste-contact.urgence { border-color: var(--etat-chaud); color: var(--etat-chaud); }
+.poste-contact.qg:only-child { grid-column: 1 / -1; }
+.poste-bloc { margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--trait); }
+.poste-canaux { display: flex; gap: 12px; flex-wrap: wrap; }
+.poste-canal { display: flex; flex-direction: column; align-items: flex-start; padding: 8px 12px; border: 1px solid var(--trait); border-radius: 6px; min-width: 120px; }
+.poste-canal strong { font-size: 24px; font-family: var(--mono); }
+.poste-canal.urgence { border-color: var(--etat-chaud); }
+.poste-canal .aide { margin: 0; }
+.poste-creneau { margin: 0 0 8px; line-height: 1.5; }
+.poste-creneau.courant { padding: 8px 10px; border-left: 3px solid var(--etat-ok); background: var(--surface); }
+.poste-taches { margin: 6px 0 10px; padding-left: 22px; line-height: 1.6; }
+.poste-consigne { padding: 8px 10px; background: var(--surface); border: 1px solid var(--trait); border-radius: 4px; }
+.poste-secours ul { margin: 0; padding-left: 18px; line-height: 1.7; }
+.poste-reflexe { border-top: 1px solid var(--trait); padding: 6px 0; }
+.poste-reflexe > .lien { font-size: 15px; text-align: left; width: auto; padding: 4px 0; }
+.poste-reflexe-corps { padding: 4px 0 6px 8px; }
+.poste-pied { margin-top: 24px; }
+.urgence-112 { margin-top: 20px; color: var(--etat-chaud); }
+.qr-postes { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--trait); }
+.qr-postes-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+.qr-postes-table th, .qr-postes-table td { text-align: left; padding: 6px 8px 6px 0; border-bottom: 1px solid var(--trait); vertical-align: top; }
+.qr-postes-table th { font-weight: 600; color: var(--sourdine); font-size: 12px; }
+.qr-postes-table select { margin-bottom: 0; width: auto; max-width: 200px; }
+.qr-postes-table tr.inactif td { opacity: 0.55; }
+@media print { .qr-postes h2, .qr-postes .aide, .qr-postes label, .qr-postes .saisie-rapide, .qr-postes-table, .qr-postes .ligne-boutons, .qr-postes .message { display: none; } }

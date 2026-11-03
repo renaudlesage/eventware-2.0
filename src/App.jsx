@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import Participant from './Participant'
 import Autorite from './Autorite'
+import PagePoste from './PagePoste'
 import Connexion from './Connexion'
 import Poste from './Poste'
 
@@ -29,6 +30,8 @@ export default function App() {
   const jetonSos = parametres.get('sos')
   const codeLieu = parametres.get('lieu')
   const jetonAutorite = parametres.get('autorite')
+  // (168) Le QR collé sur un poste : la page publique du poste, sans compte.
+  const jetonPoste = parametres.get('poste')
 
   useEffect(() => {
     const racine = document.documentElement
@@ -48,6 +51,7 @@ export default function App() {
 
   if (jetonSos) return <Participant jeton={jetonSos} codeLieu={codeLieu} />
   if (jetonAutorite) return <Autorite jeton={jetonAutorite} />
+  if (jetonPoste) return <PagePoste jeton={jetonPoste} />
   if (chargement) return <div className="attente">Chargement…</div>
   if (!session) return <Connexion theme={theme} setTheme={setTheme} />
 

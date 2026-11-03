@@ -6,6 +6,7 @@ import Autorite from '../../src/Autorite.jsx'
 import AvisAutorite from '../../src/AvisAutorite.jsx'
 import BoutonsFlottants from '../../src/BoutonsFlottants.jsx'
 import Participant from '../../src/Participant.jsx'
+import PagePoste from '../../src/PagePoste.jsx'
 import ColonneSituation from '../../src/ColonneSituation.jsx'
 import Logistique from '../../src/Logistique.jsx'
 import Implantation from '../../src/Implantation.jsx'
@@ -66,6 +67,8 @@ export const ECRANS = {
   // (159) La page d'avis d'une discipline sur le dossier déposé, par lien.
   avis: () => <AvisAutorite jeton="jeton-avis" />,
   participant: () => <Participant jeton="jeton-essai" codeLieu={null} />,
+  // (168) La page publique du poste, par QR.
+  'poste-public': () => <PagePoste jeton="jeton-poste-1" />,
   colonne: () => <ColonneSituation evenement={evenement} palier="large" onAller={() => {}} />,
   // (129) Le Gantt : en préparation, l'onglet par défaut du Planning. Les dates de l'événement posent les bandes et le trait J.
   gantt: () => <Planning evenement={{ ...evenement, phase: 'preparation', date_debut: '2026-11-11', date_fin: '2026-11-11', date_montage: '2026-11-09', date_demontage: '2026-11-13' }} peut={peut} toutPouvoir onAller={() => {}} />,

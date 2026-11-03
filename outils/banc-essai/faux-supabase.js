@@ -23,6 +23,18 @@ export const DONNEES = {
   grille_dmp_criteres: [{ id: 'k1', grille_id: 'g1', code: 'PUBLIC_1000', libelle: 'Plus de 1 000 personnes', famille: 'Affluence', source: 'frequentation', seuil_min: 1000, seuil_max: null, points: 20, ordre: 10 }],
   grille_dmp_seuils: [{ id: 's1', grille_id: 'g1', niveau: 1, score_min: -100, score_max: 10, avis_coamu: false }, { id: 's4', grille_id: 'g1', niveau: 4, score_min: 31, score_max: 35, avis_coamu: true }],
   dmp_reponses: [],
+  // (167) Un constat proposé par Eventware, un consigné par un humain ; une édition précédente dans l'organisation.
+  rex_entrees: [
+    { id: 'rx1', evenement_id: 'ev1', nature: 'suggestion', module: 'logistique', impact: 'gene', phase: 'cloture', constat: '12 demandes « Réassort boissons » au fil de l’événement, une toutes les 28 min en médiane — surtout à Étape 1 ×9.', proposition: 'Prévoir une ronde « réassort boissons » toutes les 15 min sur ces lieux plutôt qu’attendre les demandes.', statut: 'a_arbitrer', source: 'eventware', cle_auto: 'famille_boissons', lieu_id: 'l1', created_at: '2026-11-12T10:00:00Z' },
+    { id: 'rx2', evenement_id: 'ev1', nature: 'reussite', module: 'rh', impact: 'mineur', phase: 'exploitation', constat: 'Le briefing du matin a mis tout le monde au même niveau.', proposition: null, statut: 'retenu', source: 'humain', porteur: 'Ren', created_at: '2026-11-11T08:00:00Z' }
+  ],
+  // (168) Deux QR de poste, l'un sans fiche ; une fiche de poste.
+  postes_qr: [
+    { id: 'pq1', evenement_id: 'ev1', poste: 'Bar étape 1', jeton: 'jeton-poste-1', fiche_id: 'fp1', lieu_id: 'l1', equipe_id: 'e1', consigne: null, actif: true, nb_acces: 4 },
+    { id: 'pq2', evenement_id: 'ev1', poste: 'Jetons', jeton: 'jeton-poste-2', fiche_id: null, lieu_id: null, equipe_id: null, consigne: null, actif: true, nb_acces: 0 }
+  ],
+  fiches_poste: [{ id: 'fp1', evenement_id: 'ev1', intitule: 'Bar' }],
+  evenements: [{ id: 'ev0', nom: 'Rando VTT 2025', date_debut: '2025-11-08', edition_precedente_id: null, organisation_id: 'org1' }],
   prima_referentiel: [
     { famille: 'type_evenement', code: 3, libelle: 'Rock, pop, …', groupe: 'Concert', coefficient: 10, scoring: 100 }, { famille: 'type_evenement', code: 12, libelle: 'Fête de quartier (braderie, brocante, …)', groupe: 'Rassemblement', coefficient: 6, scoring: 60 },
     { famille: 'cloture', code: 1, libelle: 'Zone ouverte', coefficient: 0.75, scoring: 75 }, { famille: 'cloture', code: 3, libelle: 'Zone clôturée (par Nadar / Heras)', coefficient: 1, scoring: 100 },
@@ -246,7 +258,26 @@ function constructeur(table, fn, args) {
     demandes_prix_vue: DEMANDES_PRIX, comparaison: COMPARAISON, suivi_demandes: [{ categorie: 'a_comparer', demande_id: 'dp1', reference: 'DP-01', objet: 'Barriérage périmètre scène', date_limite: '2026-11-01T12:00:00+01:00', consultation_id: null, fournisseur: null, detail: '2 offres reçues' }],
     retenir_offre: 'cmd1', marquer_envoyee: true, relancer: true, epingler_fournisseur: 'ct9',
     // (166) La suppression d'un message vocal rend le chemin de l'audio.
-    supprimer_message_vocal: 'ev1/mb1/mv3.webm'
+    supprimer_message_vocal: 'ev1/mb1/mv3.webm',
+    // (167) Eventware qui apprend : familles, mémoire des lieux, constats proposés.
+    familles_evenement: [
+      { famille: 'boissons', libelle: 'Réassort boissons', ronde: true, module: 'logistique', n: 12, intervalle_median_min: 28, lieux: 'Étape 1 ×9, Point 0 ×3', lieu_id: 'l1' },
+      { famille: 'transport_personnes', libelle: 'Transport de personnes', ronde: false, module: 'logistique', n: 4, intervalle_median_min: 95, lieux: null, lieu_id: null }
+    ],
+    memoire_lieux: [{ lieu_id: 'l1', nom: 'Étape 1', editions: 1, demandes: 11, familles: [{ code: 'boissons', libelle: 'Réassort boissons', n: 9 }, { code: 'jetons', libelle: 'Jetons et caisses', n: 2 }], signalements: 1, rex: 1, constats: ['12 demandes « Réassort boissons » au fil de l’événement, une toutes les 28 min en médiane — surtout à Étape 1 ×9.'] }],
+    rex_proposer: 3, rattacher_demandes_lieux: 2, rapprocher_lieux: 2,
+    // (168) La page du poste, telle que le serveur la rend (numéros déjà masqués).
+    generer_postes_qr: 2,
+    poste_par_jeton: {
+      evenement: { nom: 'Essai', logo_url: null, phase: 'exploitation', date_debut: '2026-11-11', date_fin: '2026-11-11', telephone_qg: '0470 99 88 77' },
+      poste: { poste: 'Bar étape 1', consigne: 'Clé des fûts chez le QG : [numéro : voir le QG].', lieu: 'Étape 1', equipe: 'A · Alpha' },
+      fiche: { intitule: 'Bar', mission: 'Servir et tenir la caisse.', taches: ['Servir', 'Compter les fûts'], materiel: 'Tablier, pompe', a_signaler: 'Bagarre, malaise', contact: 'Marc [numéro : voir le QG] ou le 112' },
+      creneau_courant: { code: 'CR-01', debut: '2026-11-11T14:00:00+01:00', fin: '2026-11-11T18:00:00+01:00', consignes: null, besoin: 2, equipe: 'A', lieu: 'Étape 1' },
+      creneau_suivant: { code: 'CR-02', debut: '2026-11-11T18:00:00+01:00', fin: '2026-11-11T22:00:00+01:00', consignes: 'Fermer la caisse à 22 h', besoin: 2, equipe: 'A', lieu: 'Étape 1' },
+      radio: { equipe: { numero: '3', libelle: 'Équipe Alpha' }, urgence: { numero: '1', libelle: 'Urgence' } },
+      secours: [{ categorie: 'dea', nom: 'DEA', distance_m: 110 }, { categorie: 'sortie_secours', nom: 'Sortie nord', distance_m: 240 }],
+      reflexes: [{ code: 'R1', titre: 'Malaise', categorie: 'sanitaire', declencheur: 'Une personne s’effondre', conduite: ['Appeler le 112', 'Prévenir le QG'], a_ne_pas_faire: ['Déplacer la personne'], contacts: 'QG [numéro : voir le QG], secours 112' }]
+    }
   }
   // ?site=1 : un site sans parcours ni lieu (un festival), pour voir une carte se cadrer sur le plan.
   const site = typeof location !== 'undefined' && new URLSearchParams(location.search).get('site') === '1'
