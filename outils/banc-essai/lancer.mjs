@@ -935,11 +935,45 @@ for (const ecran of ecrans) {
     if (!/Jean Dupont/.test(t) || !/Responsable légal/.test(t) || !/profil de sécurité de l’organisation/.test(t)) erreurs.push('mémento : le responsable légal du profil d’organisation n’est pas dans les contacts')
     if (!/Bucolique Ferrières/.test(t)) erreurs.push('mémento : l’organisation du responsable n’est pas affichée')
   }
+  // (167) Analyse : les familles de demandes et la mémoire des lieux en synthèse ; en constats, le bouton « Proposer » appelle rex_proposer, le jeton et le filtre.
+  if (ecran === 'analyse') {
+    const synthese = await page.locator('.securite').textContent().catch(() => '')
+    if (!/Ce qui revient/.test(synthese) || !/Réassort boissons/.test(synthese) || !/28 min/.test(synthese)) erreurs.push('analyse : les familles de demandes manquent en synthèse')
+    if (!(await page.locator('.familles-demande .prc-jeton', { hasText: 'ronde' }).count())) erreurs.push('analyse : la famille boissons n’est pas marquée « ronde »')
+    if (!(await page.locator('.memoire-lieu', { hasText: 'Étape 1' }).count()) || !/11 demandes/.test(synthese) || !/réassort boissons ×9/.test(synthese)) erreurs.push('analyse : la mémoire des lieux manque')
+    await page.getByRole('button', { name: /Rattacher les demandes sans lieu/ }).click()
+    await page.waitForTimeout(200)
+    await page.getByRole('button', { name: /^Constats$/ }).click()
+    await page.waitForTimeout(300)
+    if ((await page.locator('.carte.rex-auto').count()) !== 1 || !(await page.locator('.carte .prc-jeton', { hasText: 'proposé par Eventware' }).count())) erreurs.push('analyse : le constat proposé par Eventware n’est pas marqué')
+    await page.getByRole('button', { name: /Proposer les constats d’Eventware/ }).click()
+    await page.waitForTimeout(300)
+    const appels = await page.evaluate(() => (window.__appels ?? []).map((a) => a.fn))
+    if (!appels.includes('rex_proposer')) erreurs.push('analyse : « Proposer » n’appelle pas rex_proposer')
+    if (!appels.includes('rattacher_demandes_lieux')) erreurs.push('analyse : « Rattacher » n’appelle pas rattacher_demandes_lieux')
+    if (!(await page.locator('.rex-filtre .module.actif', { hasText: 'Proposés par Eventware (1)' }).count())) erreurs.push('analyse : après « Proposer », le filtre Eventware n’est pas actif')
+    if ((await page.locator('.carte').count()) !== 1) erreurs.push(`analyse : filtre Eventware → ${await page.locator('.carte').count()} carte(s) (attendu 1)`)
+    await page.locator('.rex-filtre .module', { hasText: 'Consignés (1)' }).click()
+    await page.waitForTimeout(200)
+    if (!(await page.locator('.carte', { hasText: 'briefing du matin' }).count())) erreurs.push('analyse : le filtre « Consignés » ne montre pas le constat humain')
+  }
   // (152) Réglages : la phase suggérée par les dates, avec le passage en un clic.
   if (ecran === 'reglages') {
     const sug = await page.locator('.phase-suggeree').textContent().catch(() => '')
     if (!/Phase suggérée par les dates/.test(sug)) erreurs.push(`réglages : pas de phase suggérée (${sug.slice(0, 60)})`)
     // (157) Rubrique Dossier de sécurité : statut, deux bloquants qui retiennent le dépôt, la version figée.
+    // (167) Réglages › Données : l'édition précédente se choisit et « Rapprocher les lieux » appelle rapprocher_lieux.
+    await page.locator('.rubrique-reglages select').selectOption('donnees')
+    await page.waitForTimeout(400)
+    const edition = page.locator('.edition-precedente')
+    if (!(await edition.count())) erreurs.push('réglages : pas de bloc « Édition précédente »')
+    else {
+      await edition.locator('select').selectOption('ev0')
+      await edition.getByRole('button', { name: /Rapprocher les lieux/ }).click()
+      await page.waitForTimeout(200)
+      const appels = await page.evaluate(() => (window.__appels ?? []).filter((a) => a.fn === 'rapprocher_lieux'))
+      if (!appels.length || appels[0].args?.p_source !== 'ev0') erreurs.push('réglages : « Rapprocher les lieux » n’appelle pas rapprocher_lieux avec l’édition choisie')
+    }
     await page.locator('.rubrique-reglages select').selectOption('dossier')
     await page.waitForTimeout(400)
     const dossier = page.locator('.dossier-securite')

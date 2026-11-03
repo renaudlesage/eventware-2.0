@@ -87,6 +87,16 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
       if (erreurPurge) setMessage({ type: 'erreur', texte: `Clôture faite, mais la purge des vocaux a échoué : ${texteErreur(erreurPurge)}` })
     }
 
+    // (167) À la clôture, Eventware relit l'événement et dépose ses constats au REX,
+    // à arbitrer. C'est le moment où les chiffres sont complets et la mémoire fraîche.
+    if (phase === 'cloture' && avant !== 'cloture') {
+      const { data: n, error: erreurRex } = await supabase.rpc('rex_proposer', { p_evenement: evenement.id })
+      if (erreurRex) setMessage({ type: 'erreur', texte: `Clôture faite, mais Eventware n'a pas pu proposer ses constats : ${texteErreur(erreurRex)}` })
+      else if (Number(Array.isArray(n) ? n[0] : n) > 0) {
+        setMessage({ type: 'succes', texte: `Clôture — Eventware a proposé ${Number(Array.isArray(n) ? n[0] : n)} constat(s) au REX (Analyse › Constats), à arbitrer.` })
+      }
+    }
+
     // L'entrée et la sortie d'exploitation recomposent le « Mon poste »
     // de tout le monde, sans prévenir personne : les blocs de terrain
     // redeviennent obligatoires, ou cessent de l'être. Quelqu'un qui
@@ -282,6 +292,10 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
           </section>
 
           <ImportKml evenement={evenement} setMessage={setMessage} />
+
+          {(toutPouvoir || peut?.('referentiels', 'modifier')) && evenement.organisation_id && (
+            <EditionPrecedente evenement={evenement} setMessage={setMessage} onFait={onRecharger} />
+          )}
 
           {(toutPouvoir || peut?.('rh', 'modifier')) && (
             <RecalerPlanning evenement={evenement} setMessage={setMessage} />
@@ -582,6 +596,73 @@ function DatesEvenement({ evenement, onFait, setMessage }) {
   )
 }
 
+/* ================================================================== */
+/* (167) L'édition précédente — la mémoire des lieux                   */
+/* ================================================================== */
+
+/**
+ * Un événement créé par « Reconduire » connaît déjà son édition
+ * précédente. Celui qui a été créé à la main (ou avant la 167) la
+ * choisit ici : les lieux sont rapprochés par code, sinon par nom, et
+ * l'Analyse raconte à chaque lieu ce qui s'y est passé l'an dernier.
+ */
+function EditionPrecedente({ evenement, setMessage, onFait }) {
+  const [editions, setEditions] = useState([])
+  const [choix, setChoix] = useState('')
+  const [occupe, setOccupe] = useState(false)
+  const [rapproches, setRapproches] = useState(null)
+
+  useEffect(() => {
+    let vivant = true
+    Promise.all([
+      supabase.from('evenements').select('id, nom, date_debut, edition_precedente_id').eq('organisation_id', evenement.organisation_id).neq('id', evenement.id).is('deleted_at', null).order('date_debut', { ascending: false }),
+      supabase.from('lieux').select('id', { count: 'exact', head: true }).eq('evenement_id', evenement.id).is('deleted_at', null).not('lieu_precedent_id', 'is', null),
+      supabase.from('evenements').select('edition_precedente_id').eq('id', evenement.id).maybeSingle()
+    ]).then(([e, l, moi]) => {
+      if (!vivant) return
+      setEditions(e.data ?? [])
+      setRapproches(l.count ?? 0)
+      setChoix(moi.data?.edition_precedente_id ?? '')
+    })
+    return () => { vivant = false }
+  }, [evenement.id, evenement.organisation_id])
+
+  async function rapprocher() {
+    if (!choix) return
+    setOccupe(true)
+    const { data, error } = await supabase.rpc('rapprocher_lieux', { p_cible: evenement.id, p_source: choix })
+    setOccupe(false)
+    if (error) return setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const n = Number(Array.isArray(data) ? data[0] : data) || 0
+    setRapproches((r) => (r ?? 0) + n)
+    setMessage({ type: 'succes', texte: n ? `${n} lieu(x) rapproché(s) de l'édition précédente : leur mémoire se lit dans Analyse › Synthèse.` : 'Aucun lieu nouveau à rapprocher : codes et noms ne correspondent pas, ou tout est déjà fait.' })
+    onFait?.()
+  }
+
+  if (!editions.length) return null
+  const precedente = editions.find((e) => e.id === choix)
+  return (
+    <section className="bloc edition-precedente">
+      <h2>Édition précédente</h2>
+      <p className="aide" style={{ marginTop: 0 }}>
+        Relie cet événement à l&rsquo;édition d&rsquo;avant pour que chaque lieu garde sa mémoire : demandes,
+        SOS, constats retenus. Les lieux sont appariés par code, sinon par nom.
+        {rapproches > 0 && <> Aujourd&rsquo;hui : {rapproches} lieu(x) ont une mémoire.</>}
+      </p>
+      <div className="saisie-rapide">
+        <select value={choix} onChange={(e) => setChoix(e.target.value)} style={{ width: 'auto', marginBottom: 0 }} aria-label="Édition précédente">
+          <option value="">— choisir l&rsquo;édition précédente —</option>
+          {editions.map((e) => (
+            <option key={e.id} value={e.id}>{e.nom}{e.date_debut ? ` (${new Date(e.date_debut).getFullYear()})` : ''}</option>
+          ))}
+        </select>
+        <button disabled={occupe || !choix} onClick={rapprocher}>{occupe ? 'Rapprochement…' : 'Rapprocher les lieux'}</button>
+      </div>
+      {precedente && <p className="aide">Édition précédente : {precedente.nom}.</p>}
+    </section>
+  )
+}
+
 /**
  * (129) Recaler le planning sur les dates de l'événement : chaque jalon
  * garde sa position en jours par rapport à son ancre (J, fin, montage,
@@ -667,9 +748,13 @@ function Reconduire({ evenement, onFait }) {
     })
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else {
+      // (167) L'édition suivante garde la mémoire des lieux : chaque lieu copié
+      // est rapproché de son original (même code), et l'événement sait de qui il vient.
+      const { data: rapproches, error: erreurMemoire } = await supabase.rpc('rapprocher_lieux', { p_cible: data, p_source: evenement.id })
+      const memoire = erreurMemoire ? ' (la mémoire des lieux n’a pas pu être posée : Réglages › Données › Édition précédente)' : rapproches ? ` — ${Number(Array.isArray(rapproches) ? rapproches[0] : rapproches)} lieu(x) gardent leur mémoire` : ''
       setMessage({
         type: 'succes',
-        texte: `« ${nom.trim()} » est créé en préparation — sélectionnez-le dans le menu en haut de l'écran.`
+        texte: `« ${nom.trim()} » est créé en préparation — sélectionnez-le dans le menu en haut de l'écran${memoire}.`
       })
       setOuvert(false)
       setNom('')

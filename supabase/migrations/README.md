@@ -678,7 +678,15 @@ Formulaire v1.6 (février 2025) des clusters BHN-LILU (page Google Sites de la C
 
 Constat du 2/11 : aucun des messages reçus en production n'a de transcription (le téléphone refuse le micro à la reconnaissance pendant l'enregistrement, ou n'en a pas). Tests : `../../outils/replique/tests/166.sql`. Appliquée et inscrite (version 20261102230000).
 
-## Ne jamais rejouer 088 → 166 par `db push` sans les lignes ci-dessus
+### 167 : écrite le 3/11, **pas encore appliquée** (attend le « Go 167 » de Ren) — Eventware qui apprend (1) : le REX qui s'écrit tout seul, les familles de demandes, la mémoire des lieux
+
+| Fichier | Fait |
+|---|---|
+| `20261102240000_167_eventware_qui_apprend.sql` | `rex_entrees.source` (humain / eventware) et `cle_auto` (unique par événement). `familles_demande` (13 familles : soins, sécurité, jetons, boissons, nourriture, sanitaires, propreté, énergie, transport de personnes, transport de matériel, technique, bénévoles, accès ; mots du texte normalisé, `ronde`, module), `famille_demande(evenement, texte)`, `familles_evenement(evenement)` (combien, intervalle médian, lieux). `rex_proposer(evenement)` (réservé à `analyse : modifier`) : relit demandes, SOS, vocaux, journal météo et créneaux et dépose des constats « à arbitrer » — demandes closes sans trace, délai P1…P4 face aux seuils de la 154 (dysfonctionnement ou réussite), pic de charge, familles répétées → ronde (avec le lieu), demandes ouvertes au rangement, seuils météo franchis, SOS (délai, sans suite), vocaux non entendus, postes sans fiche ; rejouable (un constat arbitré ne bouge plus, un constat supprimé ne revient pas, un constat à arbitrer se met à jour) ; jamais un prénom. `lieux.lieu_precedent_id`, `evenements.edition_precedente_id`, `rapprocher_lieux(cible, source)` (par code puis par nom, même organisation, `referentiels : modifier`), `rattacher_demandes_lieux(evenement)` (le lieu nommé dans le texte, `missions : modifier`), `memoire_lieux(evenement)` (par lieu, en remontant la chaîne : demandes par famille, SOS, constats retenus). Aucun DROP, rejouable |
+
+Document « Eventware qui apprend — cinq pistes » (Ren, 3/11), pistes 1 à 3. Tests : `../../outils/replique/tests/167.sql` (familles, jeu d'essai daté d'une journée, neuf constats vérifiés chiffre par chiffre, rejouabilité, arbitrage respecté, suppression respectée, droits, rattachement, rapprochement par code et par nom, mémoire). L'application appelle `rex_proposer` à la clôture et sur le bouton d'Analyse › Constats, `rapprocher_lieux` après « Reconduire » et dans Réglages › Données › Édition précédente.
+
+## Ne jamais rejouer 088 → 167 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

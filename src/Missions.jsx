@@ -373,6 +373,16 @@ function echeanceDepuisDelai(delai) {
  * code), un clic choisit. Soixante lieux dans un menu déroulant, sur un
  * téléphone, ce n'était pas tenable.
  */
+// (167) « Édition précédente : 8 demandes ici, surtout réassort boissons ×7 ; 1 constat retenu. »
+export function ligneMemoire(m) {
+  const morceaux = [`${m.demandes} demande${m.demandes > 1 ? 's' : ''} ici`]
+  const f = (m.familles ?? [])[0]
+  if (f && f.code !== 'autre') morceaux[0] += `, surtout ${f.libelle.toLowerCase()} ×${f.n}`
+  if (m.signalements > 0) morceaux.push(`${m.signalements} SOS`)
+  if (m.rex > 0) morceaux.push(`${m.rex} constat${m.rex > 1 ? 's' : ''} retenu${m.rex > 1 ? 's' : ''}`)
+  return `${m.editions > 1 ? `${m.editions} éditions précédentes` : 'Édition précédente'} : ${morceaux.join(' ; ')}.`
+}
+
 function ChoixLieu({ id, lieux, valeur, onChoisir }) {
   const [recherche, setRecherche] = useState('')
   const choisi = lieux.find((l) => l.id === valeur)
@@ -432,6 +442,15 @@ export function FormDemande({ mode, evenement, membre, module, libelle, lieux, s
   const [bloquant, setBloquant] = useState(false)
   const [position, setPosition] = useState(null)
   const [occupe, setOccupe] = useState(false)
+  // (167) La mémoire des lieux : ce que le lieu choisi a vécu aux éditions précédentes, en une ligne.
+  const [memoire, setMemoire] = useState({})
+
+  useEffect(() => {
+    if (urgent) return
+    supabase.rpc('memoire_lieux', { p_evenement: evenement.id }).then(({ data }) => {
+      setMemoire(Object.fromEntries((data ?? []).map((l) => [l.lieu_id, l])))
+    })
+  }, [evenement.id, urgent])
 
   useEffect(() => {
     if (urgent) return
@@ -630,6 +649,7 @@ export function FormDemande({ mode, evenement, membre, module, libelle, lieux, s
             <div style={{ flex: 1 }}>
               <label htmlFor="lieu-normale">Localisation</label>
               <ChoixLieu id="lieu-normale" lieux={lieux} valeur={lieuId} onChoisir={setLieuId} />
+              {lieuId && memoire[lieuId] && <p className="aide memoire-lieu-ligne">{ligneMemoire(memoire[lieuId])}</p>}
             </div>
             <div style={{ flex: 1 }}>
               <label htmlFor="delai">Délai souhaité</label>

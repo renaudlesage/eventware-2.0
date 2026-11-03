@@ -3643,3 +3643,15 @@ body.qg-actif { overflow: hidden; }
 .parler-pave.enregistre { background: var(--etat-chaud); animation: talkie-pulse 1s ease-in-out infinite; }
 .parler-pave.annule { background: var(--sourdine); }
 .talkie-pile.pave .talkie-112 { text-align: center; font-size: 12px; }
+
+/* (167) Eventware qui apprend : constats proposés, familles, mémoire des lieux. */
+.rex-eventware { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
+.rex-eventware .aide { margin: 0; flex: 1 1 320px; }
+.rex-filtre { margin-bottom: 8px; }
+.carte.rex-auto { border-left: 3px solid var(--etat-veille); }
+.carte .prc-jeton { display: inline-block; width: auto; }
+.prc-jeton.auto { color: var(--etat-veille); border-color: var(--etat-veille); }
+.familles-demande { width: 100%; border-collapse: collapse; font-size: 13px; }
+.familles-demande th, .familles-demande td { text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--trait); vertical-align: top; }
+.familles-demande th { font-weight: 600; color: var(--sourdine); font-size: 12px; }
+.edition-precedente .saisie-rapide { align-items: center; }

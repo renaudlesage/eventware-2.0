@@ -58,6 +58,8 @@ export default function Analyse({ evenement, membre, peut, toutPouvoir }) {
       {onglet === 'synthese' ? (
         <>
           <Synthese evenement={evenement} setMessage={setMessage} />
+          <Familles evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} />
+          <MemoireLieux evenement={evenement} />
           <EvaluationsFournisseurs evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} />
         </>
       ) : (
@@ -251,6 +253,9 @@ function exporter(evenement, s) {
 
 export function Constats({ evenement, membre, peut, toutPouvoir, setMessage, compact }) {
   const [lignes, setLignes] = useState([])
+  // (167) tous | eventware | humain : ce qu'Eventware a proposé se lit à part, ou mêlé au reste.
+  const [filtre, setFiltre] = useState('tous')
+  const [proposition, setProposition] = useState(false)
   const [f, setF] = useState({
     nature: 'dysfonctionnement',
     module: 'securite',
@@ -298,8 +303,36 @@ export function Constats({ evenement, membre, peut, toutPouvoir, setMessage, com
     else charger()
   }
 
+  // (167) Eventware relit l'événement — demandes, SOS, vocaux, météo, créneaux —
+  // et dépose ses constats « à arbitrer ». Rejouable : un constat arbitré ne
+  // bouge plus, un constat rejeté ne revient pas. Jamais un prénom dedans.
+  async function proposer() {
+    setProposition(true)
+    const { data, error } = await supabase.rpc('rex_proposer', { p_evenement: evenement.id })
+    setProposition(false)
+    if (error) return setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const n = Number(Array.isArray(data) ? data[0] : data) || 0
+    setMessage({ type: 'succes', texte: n ? `Eventware propose ${n} constat${n > 1 ? 's' : ''} — à arbitrer comme les autres.` : 'Rien de nouveau : les constats d’Eventware sont déjà à jour.' })
+    if (n) setFiltre('eventware')
+    charger()
+  }
+
+  const nbAuto = lignes.filter((r) => r.source === 'eventware').length
+  const visibles = lignes.filter((r) => filtre === 'tous' || (filtre === 'eventware' ? r.source === 'eventware' : r.source !== 'eventware'))
+
   return (
     <>
+      {peutArbitrer && !compact && (
+        <div className="rex-eventware">
+          <button className="discret" disabled={proposition} onClick={proposer}>
+            {proposition ? 'Relecture…' : 'Proposer les constats d’Eventware'}
+          </button>
+          <span className="aide">
+            Relit les demandes, les SOS, les messages vocaux, la météo et les créneaux, et consigne ce que les chiffres disent :
+            des constats à arbitrer, sans jamais nommer quelqu’un. Se fait aussi tout seul à la clôture.
+          </span>
+        </div>
+      )}
       {peutConsigner && (
         <div className="formulaire">
           <div className="saisie-rapide">
@@ -358,16 +391,25 @@ export function Constats({ evenement, membre, peut, toutPouvoir, setMessage, com
         </div>
       )}
 
+      {!compact && nbAuto > 0 && (
+        <div className="onglets rex-filtre">
+          {[['tous', `Tous (${lignes.length})`], ['eventware', `Proposés par Eventware (${nbAuto})`], ['humain', `Consignés (${lignes.length - nbAuto})`]].map(([v, l]) => (
+            <button key={v} className={`module ${filtre === v ? 'actif' : ''}`} onClick={() => setFiltre(v)}>{l}</button>
+          ))}
+        </div>
+      )}
+
       {compact ? null : lignes.length === 0 ? (
         <p className="vide">Aucun constat.</p>
       ) : (
-        lignes.map((r) => (
+        visibles.map((r) => (
           <div
-            className={`carte ${['bloquant', 'dangereux'].includes(r.impact) ? 'urgent' : ''}`}
+            className={`carte ${['bloquant', 'dangereux'].includes(r.impact) ? 'urgent' : ''} ${r.source === 'eventware' ? 'rex-auto' : ''}`}
             key={r.id}
           >
             <div className="titre">{r.constat}</div>
             <div className="meta">
+              {r.source === 'eventware' && <span className="prc-jeton auto" title="constat calculé par Eventware à partir des données de l’événement">proposé par Eventware</span>}
               <span className="jeton">{r.nature}</span>
               <span className={['bloquant', 'dangereux'].includes(r.impact) ? 'alerte-texte' : ''}>
                 {r.impact}
@@ -424,5 +466,107 @@ export function Constats({ evenement, membre, peut, toutPouvoir, setMessage, com
         ))
       )}
     </>
+  )
+}
+
+/* ================================================================== */
+/* (167) Ce qui revient : les familles de demandes                     */
+/* ================================================================== */
+
+// Les demandes rangées par famille (jetons, boissons, sanitaires…) :
+// combien, tous les combien, où. Une famille qui revient toutes les
+// 30 min aux mêmes lieux se prévient par une ronde, pas par dix demandes.
+function Familles({ evenement, peut, toutPouvoir, setMessage }) {
+  const [lignes, setLignes] = useState(null)
+  const [rattachement, setRattachement] = useState(false)
+  const peutRattacher = toutPouvoir || peut?.('missions', 'modifier')
+
+  async function charger() {
+    const { data, error } = await supabase.rpc('familles_evenement', { p_evenement: evenement.id })
+    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    else setLignes(data ?? [])
+  }
+  useEffect(() => {
+    charger()
+  }, [evenement.id])
+
+  // Les demandes sans lieu qui en nomment un dans leur texte reçoivent ce lieu :
+  // c'est ce qui donne aux lieux leur mémoire.
+  async function rattacher() {
+    setRattachement(true)
+    const { data, error } = await supabase.rpc('rattacher_demandes_lieux', { p_evenement: evenement.id })
+    setRattachement(false)
+    if (error) return setMessage({ type: 'erreur', texte: texteErreur(error) })
+    const n = Number(Array.isArray(data) ? data[0] : data) || 0
+    setMessage({ type: 'succes', texte: n ? `${n} demande${n > 1 ? 's' : ''} rattachée${n > 1 ? 's' : ''} à un lieu d’après leur texte.` : 'Aucune demande sans lieu ne nomme un lieu dans son texte.' })
+    charger()
+  }
+
+  if (!lignes || !lignes.length) return null
+  return (
+    <Bloc titre="Ce qui revient — familles de demandes">
+      <table className="familles-demande">
+        <thead>
+          <tr><th>Famille</th><th>Demandes</th><th>Tous les</th><th>Surtout à</th></tr>
+        </thead>
+        <tbody>
+          {lignes.map((l) => (
+            <tr key={l.famille}>
+              <td>
+                {l.libelle}
+                {l.ronde && l.n >= 3 && <span className="prc-jeton auto" style={{ marginLeft: 6 }}>ronde</span>}
+              </td>
+              <td>{l.n}</td>
+              <td>{l.intervalle_median_min != null ? `${l.intervalle_median_min} min` : '—'}</td>
+              <td>{l.lieux ?? <span className="aide" style={{ margin: 0 }}>sans lieu</span>}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="aide">
+        « Proposer les constats d’Eventware » (onglet Constats) écrit au REX les rondes à prévoir.
+        {peutRattacher && (
+          <>
+            {' '}
+            <button className="lien" disabled={rattachement} onClick={rattacher}>
+              {rattachement ? 'Rattachement…' : 'Rattacher les demandes sans lieu d’après leur texte'}
+            </button>
+          </>
+        )}
+      </p>
+    </Bloc>
+  )
+}
+
+/* ================================================================== */
+/* (167) La mémoire des lieux                                          */
+/* ================================================================== */
+
+// Ce que chaque lieu a vécu aux éditions précédentes (chaîne
+// lieu_precedent_id, posée par « Reconduire » ou par Réglages › Données).
+function MemoireLieux({ evenement }) {
+  const [lignes, setLignes] = useState([])
+  useEffect(() => {
+    supabase.rpc('memoire_lieux', { p_evenement: evenement.id }).then(({ data }) => setLignes(data ?? []))
+  }, [evenement.id])
+  if (!lignes.length) return null
+  return (
+    <Bloc titre="Mémoire des lieux — éditions précédentes">
+      {lignes.map((l) => (
+        <div className="carte memoire-lieu" key={l.lieu_id}>
+          <div className="titre">{l.nom}</div>
+          <div className="meta">
+            <span>{l.demandes} demande{l.demandes > 1 ? 's' : ''}</span>
+            {l.signalements > 0 && <span>{l.signalements} SOS</span>}
+            {l.rex > 0 && <span>{l.rex} constat{l.rex > 1 ? 's' : ''} retenu{l.rex > 1 ? 's' : ''}</span>}
+            <span>{l.editions} édition{l.editions > 1 ? 's' : ''} en arrière</span>
+          </div>
+          {(l.familles ?? []).length > 0 && (
+            <p className="aide">{l.familles.slice(0, 4).map((f) => `${f.libelle.toLowerCase()} ×${f.n}`).join(', ')}</p>
+          )}
+          {(l.constats ?? []).map((c, i) => <p className="aide" key={i}>→ {c}</p>)}
+        </div>
+      ))}
+    </Bloc>
   )
 }
