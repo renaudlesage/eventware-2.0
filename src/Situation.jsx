@@ -417,6 +417,8 @@ export default function Situation({ evenement, membre, peut, toutPouvoir, onAlle
     return (
       <ModeQG
         evenement={evenement}
+        membre={membre}
+        setMessage={(m) => setRetour({ type: m.type === 'erreur' ? 'erreur' : 'ok', texte: m.texte })}
         s={s}
         signalements={signalementsRecents}
         demandes={[...demandesSecurite, ...demandesLogistique]}

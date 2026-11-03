@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
-import { modifierOuRefuser } from './ecriture'
 import { FormDemande } from './Missions'
 import { motifReconnaissance } from './Talkie'
 import { transcrireVocal } from './transcrireVocal'
+import { useMessagesVocaux, INTENTIONS, heureVocal as heure, urgentVocal as urgent } from './messagesVocaux'
 
 /**
  * LE FIL « ENTENDU » — les messages vocaux au QG (162).
@@ -17,19 +17,16 @@ import { transcrireVocal } from './transcrireVocal'
  * vigilance, en urgence s'il est marqué urgent. Chaque geste du QG
  * (Entendu, Répondre, → Demande, Classer) passe au journal.
  */
-const INTENTIONS = { URGENCE: 'Urgence', URGENCE_DOUTEUSE: 'Urgence ?', DEA: 'DEA', STATUT_DEMANDE: 'Statut de demande', CANAL: 'Canal radio', NUIT: 'Nuit', AUCUNE: '' }
-const heure = (iso) => (iso ? new Date(iso).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }) : '')
 const minutes = (iso) => (iso ? Math.round((Date.now() - new Date(iso).getTime()) / 60000) : 0)
 
 export default function FilEntendu({ evenement, membre, peut, toutPouvoir, setMessage }) {
-  const [messages, setMessages] = useState([])
-  const [membres, setMembres] = useState({})
-  const [lieux, setLieux] = useState([])
-  const [audio, setAudio] = useState({}) // id → url signée
+  // (3/11) Lecture, temps réel, Entendu, Classer, écoute : partagés avec le mode QG.
+  const { messages, membres, lieux, audio, lire, maj, journal, qui, entendre, classer, ecouter } = useMessagesVocaux({ evenement, membre, setMessage })
   const [reponse, setReponse] = useState({}) // id → brouillon
   const [demande, setDemande] = useState(null) // message → formulaire
   const [tout, setTout] = useState(false)
   const [tic, setTic] = useState(0)
+  useEffect(() => { const t = setInterval(() => setTic((x) => x + 1), 30000); return () => clearInterval(t) }, [])
   const [transcriptionEnCours, setTranscriptionEnCours] = useState({}) // id → true
   const peutGerer = toutPouvoir || peut?.('missions', 'modifier')
   const transcriptionServeur = evenement.modules?.talkie_transcription_serveur === true
@@ -44,51 +41,12 @@ export default function FilEntendu({ evenement, membre, peut, toutPouvoir, setMe
     lire()
   }
 
-  async function lire() {
-    const [m, mb, l] = await Promise.all([
-      supabase.from('messages_vocaux').select('*').eq('evenement_id', evenement.id).is('deleted_at', null).order('parle_le', { ascending: false }).limit(100),
-      supabase.from('membres_evenement').select('id, nom_affiche, equipes(code, nom)').eq('evenement_id', evenement.id),
-      supabase.from('lieux').select('id, code, nom').eq('evenement_id', evenement.id).is('deleted_at', null).order('nom')
-    ])
-    setMessages(m.data ?? [])
-    setMembres(Object.fromEntries((mb.data ?? []).map((x) => [x.id, x])))
-    setLieux(l.data ?? [])
-  }
-
-  useEffect(() => {
-    lire()
-    const canal = supabase.channel(`entendu-${evenement.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages_vocaux', filter: `evenement_id=eq.${evenement.id}` }, lire)
-      .subscribe()
-    const t = setInterval(() => setTic((x) => x + 1), 30000)
-    return () => { supabase.removeChannel(canal); clearInterval(t) }
-  }, [evenement.id])
-
-  async function journal(categorie, m, texte) {
-    await supabase.rpc('journaliser', { p_evenement: evenement.id, p_module: 'talkie', p_categorie: categorie, p_texte: texte, p_importance: 'routine', p_objet_type: 'messages_vocaux', p_objet_id: m.id, p_objet_ref: null })
-  }
-  async function maj(m, champs) {
-    const refus = await modifierOuRefuser('messages_vocaux', champs, { id: m.id })
-    if (refus) { setMessage?.({ type: 'erreur', texte: refus }); return false }
-    lire()
-    return true
-  }
-  const qui = (m) => membres[m.membre_id]?.nom_affiche ?? 'membre inconnu'
-
-  async function entendre(m) {
-    if (await maj(m, { statut: m.statut === 'nouveau' ? 'entendu' : m.statut, entendu_le: m.entendu_le ?? new Date().toISOString(), entendu_par: membre?.user_id ?? null })) {
-      journal('entendu', m, `Message vocal de ${qui(m)} (${heure(m.parle_le)}) entendu`)
-    }
-  }
   async function repondre(m) {
     const texte = (reponse[m.id] ?? '').trim()
     if (!texte) return
     const champs = { reponse: texte, reponse_le: new Date().toISOString(), reponse_source: 'qg' }
     if (m.statut === 'nouveau') Object.assign(champs, { statut: 'entendu', entendu_le: new Date().toISOString(), entendu_par: membre?.user_id ?? null })
     if (await maj(m, champs)) { setReponse({ ...reponse, [m.id]: '' }); journal('reponse', m, `Réponse du QG à ${qui(m)} : ${texte}`) }
-  }
-  async function classer(m) {
-    if (await maj(m, { statut: 'traite' })) journal('classe', m, `Message vocal de ${qui(m)} classé sans suite`)
   }
   async function lier(m, missionId) {
     if (!missionId) { setDemande(null); return }
@@ -106,14 +64,6 @@ export default function FilEntendu({ evenement, membre, peut, toutPouvoir, setMe
     if (chemin) await supabase.storage.from('vocaux').remove([chemin]).catch(() => {})
     lire()
   }
-  async function ecouter(m) {
-    if (audio[m.id] || !m.chemin_audio) return
-    const { data, error } = await supabase.storage.from('vocaux').createSignedUrl(m.chemin_audio, 600)
-    if (error) return setMessage?.({ type: 'erreur', texte: texteErreur(error) })
-    setAudio({ ...audio, [m.id]: data?.signedUrl })
-  }
-
-  const urgent = (m) => m.urgence || ['URGENCE', 'URGENCE_DOUTEUSE'].includes(m.intention)
   const rang = (m) => (m.statut !== 'traite' && urgent(m) ? 0 : m.statut === 'nouveau' ? 1 : m.statut === 'entendu' ? 2 : 3)
   const tries = [...messages].sort((a, b) => rang(a) - rang(b) || (rang(a) === 1 ? a.parle_le.localeCompare(b.parle_le) : b.parle_le.localeCompare(a.parle_le)))
   const visibles = tout ? tries : tries.filter((m) => m.statut !== 'traite').concat(tries.filter((m) => m.statut === 'traite').slice(0, 3))
