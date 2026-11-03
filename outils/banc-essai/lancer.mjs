@@ -83,7 +83,7 @@ fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><me
 fs.writeFileSync(path.join(sortie, 'page-tel.html'), '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"><link rel="stylesheet" href="../../src/mobile.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
 
 const demandes = process.argv.slice(2)
-const ecrans = demandes.length ? demandes : ['coquille', 'coquille-preparation', 'coquille-montage', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'avis', 'participant', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0']
+const ecrans = demandes.length ? demandes : ['coquille', 'coquille-preparation', 'coquille-montage', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'avis', 'participant', 'poste-public', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0']
 const navigateur = await pw.chromium.launch()
 let echecs = 0
 for (const ecran of ecrans) {
@@ -935,6 +935,19 @@ for (const ecran of ecrans) {
     if (!/Jean Dupont/.test(t) || !/Responsable légal/.test(t) || !/profil de sécurité de l’organisation/.test(t)) erreurs.push('mémento : le responsable légal du profil d’organisation n’est pas dans les contacts')
     if (!/Bucolique Ferrières/.test(t)) erreurs.push('mémento : l’organisation du responsable n’est pas affichée')
   }
+  // (168) La page du poste : QG et 112 en tête, canaux, créneau en cours, fiche, secours, fiche réflexe dépliable ; aucun numéro personnel.
+  if (ecran === 'poste-public') {
+    const t = await page.locator('.page-poste').textContent().catch(() => '')
+    for (const attendu of ['Bar étape 1', 'Joindre le QG', '0470 99 88 77', '112', 'Canal de l’équipe', 'Canal d’urgence', 'En cours', 'Compter les fûts', 'DEA (défibrillateur)', 'à 110 m', 'Malaise']) {
+      if (!t.includes(attendu)) erreurs.push(`page du poste : « ${attendu} » absent`)
+    }
+    if (!/\d{2}:\d{2} → \d{2}:\d{2}/.test(t)) erreurs.push('page du poste : les heures du créneau manquent')
+    if (/0470 12 34 56|0499/.test(t)) erreurs.push('page du poste : un numéro personnel est affiché')
+    if (!(await page.locator('.poste-contact.qg[href="tel:0470998877"]').count())) erreurs.push('page du poste : le lien tel: du QG manque')
+    await page.locator('.poste-reflexe .lien').first().click()
+    await page.waitForTimeout(200)
+    if (!(await page.locator('.poste-reflexe-corps', { hasText: 'Appeler le 112' }).count())) erreurs.push('page du poste : la fiche réflexe ne se déplie pas')
+  }
   // (167) Analyse : les familles de demandes et la mémoire des lieux en synthèse ; en constats, le bouton « Proposer » appelle rex_proposer, le jeton et le filtre.
   if (ecran === 'analyse') {
     const synthese = await page.locator('.securite').textContent().catch(() => '')
@@ -973,6 +986,23 @@ for (const ecran of ecrans) {
       await page.waitForTimeout(200)
       const appels = await page.evaluate(() => (window.__appels ?? []).filter((a) => a.fn === 'rapprocher_lieux'))
       if (!appels.length || appels[0].args?.p_source !== 'ev0') erreurs.push('réglages : « Rapprocher les lieux » n’appelle pas rapprocher_lieux avec l’édition choisie')
+    }
+    // (168) Réglages › Partage › QR du poste : la liste, le poste sans fiche signalé, « Générer » appelle generer_postes_qr, une planche s'imprime.
+    await page.locator('.rubrique-reglages select').selectOption('partage')
+    await page.waitForTimeout(500)
+    const qrp = page.locator('.qr-postes')
+    if (!(await qrp.count())) erreurs.push('réglages : pas de bloc « QR du poste »')
+    else {
+      if ((await qrp.locator('.qr-postes-table tbody tr').count()) !== 2) erreurs.push('qr du poste : 2 postes attendus')
+      if (!/1 poste sans fiche/.test(await qrp.textContent())) erreurs.push('qr du poste : le poste sans fiche n’est pas signalé')
+      await qrp.getByRole('button', { name: /Générer les QR depuis les créneaux/ }).click()
+      await page.waitForTimeout(200)
+      const appels = await page.evaluate(() => (window.__appels ?? []).map((a) => a.fn))
+      if (!appels.includes('generer_postes_qr')) erreurs.push('qr du poste : « Générer » n’appelle pas generer_postes_qr')
+      await qrp.getByRole('button', { name: /^Tout sélectionner$/ }).click()
+      await page.waitForTimeout(200)
+      if ((await qrp.locator('.planche-poste').count()) !== 2) erreurs.push(`qr du poste : ${await qrp.locator('.planche-poste').count()} planche(s) (attendu 2)`)
+      if (!(await qrp.locator('.planche-poste a, .qr-postes-table a[href*="?poste=jeton-poste-1"]').count())) erreurs.push('qr du poste : le lien ?poste= manque')
     }
     await page.locator('.rubrique-reglages select').selectOption('dossier')
     await page.waitForTimeout(400)

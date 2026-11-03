@@ -686,7 +686,15 @@ Constat du 2/11 : aucun des messages reçus en production n'a de transcription (
 
 Document « Eventware qui apprend — cinq pistes » (Ren, 3/11), pistes 1 à 3. Tests : `../../outils/replique/tests/167.sql` (familles, jeu d'essai daté d'une journée, neuf constats vérifiés chiffre par chiffre, rejouabilité, arbitrage respecté, suppression respectée, droits, rattachement, rapprochement par code et par nom, mémoire). L'application appelle `rex_proposer` à la clôture et sur le bouton d'Analyse › Constats, `rapprocher_lieux` après « Reconduire » et dans Réglages › Données › Édition précédente.
 
-## Ne jamais rejouer 088 → 167 par `db push` sans les lignes ci-dessus
+### 168 : écrite le 3/11, **pas encore appliquée** (attend le « Go 168 » de Ren) — Eventware qui apprend (2) : le QR du poste
+
+| Fichier | Fait |
+|---|---|
+| `20261103100000_168_qr_du_poste.sql` | `evenements.telephone_qg` (le seul numéro public). `postes_qr` (un jeton par poste : poste, fiche, lieu, équipe, consigne, actif, compteur d'accès ; unique par événement et libellé ; traçabilité ; RLS lecture membres, écriture `rh : modifier` ; fermée à anon). `generer_postes_qr(evenement)` (un poste par libellé distinct de créneau, fiche/lieu/équipe pris sur les créneaux). `masquer_numeros(texte)` (tout numéro de 8 chiffres et plus devient « [numéro : voir le QG] », 100/101/112 restent). `poste_par_jeton(jeton)` pour anon : événement et numéro du QG, poste (lieu, équipe en code), fiche (mission, tâches, matériel, à signaler, contact masqué), créneau en cours et suivant (consignes masquées), canal de l'équipe et canal d'urgence, secours les plus proches (DEA, poste de secours, sortie, point de rencontre, PRV, avec la distance depuis le lieu du poste), fiches réflexe (contacts masqués) ; P0002 inconnu, P0003 désactivé ; compte les accès. Aucun DROP, rejouable |
+
+Document « Eventware qui apprend — cinq pistes » (Ren, 3/11), piste 6. Tests : `../../outils/replique/tests/168.sql` (masquage, génération et normalisation des libellés, héritage fiche/lieu/équipe, droits, RLS entre organisations, page anonyme champ par champ, aucun nom ni numéro personnel, compteur, désactivation). L'application : `?poste=<jeton>` ouvre `PagePoste.jsx` ; Réglages › Partage › QR du poste (numéro du QG, génération, fiche et lieu par poste, activation, planches).
+
+## Ne jamais rejouer 088 → 168 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`
