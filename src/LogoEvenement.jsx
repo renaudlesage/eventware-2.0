@@ -51,6 +51,7 @@ export default function LogoEvenement({ evenement, onFait, setMessage }) {
   }
 
   async function retirer() {
+    if (!window.confirm('Retirer le logo ? Il faudra le téléverser de nouveau pour le retrouver.')) return
     const refus = await modifierOuRefuser('evenements', { logo_url: null }, { id: evenement.id })
     if (refus) setMessage({ type: 'erreur', texte: refus })
     else onFait()

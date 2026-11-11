@@ -89,6 +89,7 @@ export default function Situation({ evenement, membre, peut, toutPouvoir, onAlle
   const [engagement, setEngagement] = useState(null) // formulaire « engager une équipe »
   const [demandesLogistique, setDemandesLogistique] = useState([])
   const [demandesSecurite, setDemandesSecurite] = useState([])
+  const [demandesEnPlus, setDemandesEnPlus] = useState({ logistique: 0, securite: 0 })
   // Retour d'une action faite depuis un moniteur (prise en charge,
   // clôture) : une ligne, pas une erreur qui remplacerait l'écran.
   const [retour, setRetour] = useState(null)
@@ -192,7 +193,10 @@ export default function Situation({ evenement, membre, peut, toutPouvoir, onAlle
         .not('statut', 'in', '("resolue","annulee")')
         .order('priorite')
         .order('created_at', { ascending: false })
-        .limit(12),
+        // (11/11, audit C6) 60 et non 12 : logistique et sécurité partagent cette
+        // requête, et douze demandes logistiques pouvaient masquer toutes celles
+        // de sécurité. On montre six par domaine et on dit combien il en reste.
+        .limit(60),
       // (122) Les équipes, pour attribuer une demande sans quitter
       // l'écran projeté — un clic dans BFMF, quatre et un changement
       // d'écran ici.
@@ -213,8 +217,11 @@ export default function Situation({ evenement, membre, peut, toutPouvoir, onAlle
       setS(data)
       setSignalementsRecents(sig.data ?? [])
       if (!eq.error) setEquipes(eq.data ?? [])
-      setDemandesLogistique((logi.data ?? []).filter((d) => d.module === 'logistique').slice(0, 6))
-      setDemandesSecurite((logi.data ?? []).filter((d) => d.module === 'securite').slice(0, 6))
+      const logistique = (logi.data ?? []).filter((d) => d.module === 'logistique')
+      const securite = (logi.data ?? []).filter((d) => d.module === 'securite')
+      setDemandesLogistique(logistique.slice(0, 6))
+      setDemandesSecurite(securite.slice(0, 6))
+      setDemandesEnPlus({ logistique: Math.max(0, logistique.length - 6), securite: Math.max(0, securite.length - 6) })
       setMaj(new Date())
       setErreur(null)
     }
@@ -695,6 +702,11 @@ export default function Situation({ evenement, membre, peut, toutPouvoir, onAlle
               {demandesSecurite.map((d) => (
                 <LigneDemande key={d.id} d={d} peut={peutMissions} occupe={occupe} agir={agir} equipes={equipes} attribuer={attribuer} />
               ))}
+              {demandesEnPlus.securite > 0 && (
+                <button className="moniteur-lien" onClick={() => onAller('securite', 'missions')}>
+                  et {demandesEnPlus.securite} autre{demandesEnPlus.securite > 1 ? 's' : ''} demande{demandesEnPlus.securite > 1 ? 's' : ''} de sécurité ouverte{demandesEnPlus.securite > 1 ? 's' : ''} →
+                </button>
+              )}
             </>
           )}
           {peutMissions && equipes.length > 0 && (
@@ -786,6 +798,11 @@ export default function Situation({ evenement, membre, peut, toutPouvoir, onAlle
                 {demandesLogistique.map((d) => (
                   <LigneDemande key={d.id} d={d} peut={peutMissions} occupe={occupe} agir={agir} equipes={equipes} attribuer={attribuer} />
                 ))}
+                {demandesEnPlus.logistique > 0 && (
+                  <button className="moniteur-lien" onClick={() => onAller('logistique', 'interventions')}>
+                    et {demandesEnPlus.logistique} autre{demandesEnPlus.logistique > 1 ? 's' : ''} demande{demandesEnPlus.logistique > 1 ? 's' : ''} logistique{demandesEnPlus.logistique > 1 ? 's' : ''} ouverte{demandesEnPlus.logistique > 1 ? 's' : ''} →
+                  </button>
+                )}
                 {/* (122) Les six prochains transports, avec chauffeur et
                     RDV : un compteur seul ne disait pas où en est la
                     navette de la gare. */}

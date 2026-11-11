@@ -68,7 +68,25 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
     setOccupe(false)
   }
 
+  // (11/11, audit C5) Un changement de phase ouvre et ferme des droits pour tout le
+  // monde, et la clôture efface les audios du talkie : on le dit avant, et un double
+  // clic ne lance pas deux fois la suite (purge, constats).
+  const [phaseOccupee, setPhaseOccupee] = useState(false)
   async function changerPhase(phase) {
+    if (phase === evenement.phase || phaseOccupee) return
+    const texte = phase === 'cloture'
+      ? `Clôturer « ${evenement.nom} » ?\n\nLes écritures de terrain se ferment pour tous les membres.${evenement.modules?.talkie ? '\nLes enregistrements audio du talkie sont effacés pour de bon ; les transcriptions restent.' : ''}\nEventware relit l’événement et propose ses constats au REX.`
+      : `Passer « ${evenement.nom} » en ${LIBELLE_PHASE[phase].toLowerCase()} ?\n\nLa phase ouvre et ferme des droits d’écriture pour tous les membres.${phase === 'exploitation' ? '\nLes blocs de terrain redeviennent obligatoires sur le « Mon poste » de chacun.' : ''}`
+    if (!window.confirm(texte)) return
+    setPhaseOccupee(true)
+    try {
+      await appliquerPhase(phase)
+    } finally {
+      setPhaseOccupee(false)
+    }
+  }
+
+  async function appliquerPhase(phase) {
     const avant = evenement.phase
     const { error, count } = await supabase
       .from('evenements')
@@ -150,9 +168,11 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
                 <button
                   key={p}
                   className={`plaque-nav ${evenement.phase === p ? 'actif' : ''}`}
+                  aria-pressed={evenement.phase === p}
+                  disabled={phaseOccupee}
                   onClick={() => changerPhase(p)}
                 >
-                  {p}
+                  {LIBELLE_PHASE[p]}
                 </button>
               ))}
             </div>
@@ -172,7 +192,9 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
             })()}
             <p className="aide">
               La phase ouvre et ferme des droits d&rsquo;écriture. Elle est réversible : on
-              repasse en montage le vendredi soir sans que ce soit un incident.
+              repasse en montage le vendredi soir sans que ce soit un incident. Une seule
+              exception : la clôture efface les enregistrements audio du talkie, et eux ne
+              reviennent pas.
               <br />
               L&rsquo;exploitation a un effet de plus : elle rend obligatoires, pour tout le
               monde, les blocs de terrain de « Mon poste ».
@@ -208,7 +230,7 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
               <label className="case">
                 <input
                   type="checkbox"
-                  checked={evenement.modules?.talkie_reponses_auto !== false}
+                  checked={evenement.modules?.talkie_reponses_auto === true}
                   disabled={occupe}
                   onChange={async (e) => {
                     setOccupe(true)

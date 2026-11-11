@@ -153,7 +153,7 @@ export default function Poste({ session, theme, setTheme }) {
         // correctement enregistré en base. `date_debut`, `date_fin` et
         // la fréquentation manquaient — d'où des champs qui
         // s'affichaient vides et un avertissement qui ne partait jamais.
-        'id, nom, slug, geometrie, phase, jeton_public, point_0_lat, point_0_lon, province, commune, organisation_id, mode_parcours, modules, logo_url, date_debut, date_fin, date_montage, date_demontage, frequentation_min, frequentation_max, membres_evenement(id, role, user_id, nom_affiche, perimetre, paves, equipe_id)'
+        'id, nom, slug, geometrie, phase, jeton_public, point_0_lat, point_0_lon, province, commune, organisation_id, mode_parcours, modules, logo_url, date_debut, date_fin, date_montage, date_demontage, frequentation_min, frequentation_max, telephone_qg, edition_precedente_id, membres_evenement(id, role, user_id, nom_affiche, perimetre, paves, equipe_id)'
       )
       .order('nom')
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
@@ -277,12 +277,12 @@ export default function Poste({ session, theme, setTheme }) {
 
       </div>
 
-      {/* Les alertes en tête de page… sauf quand la colonne de veille
-          les porte déjà : à partir de 1440 px elles y vivent, à côté du
-          journal, et ne sont plus répétées au-dessus du travail. */}
-      {!(courant && moi && moi.nom_affiche && !compteOuvert && palier !== 'simple' && palier !== 'mobile') && (
-        <Bandeau evenement={courant} membre={moi} />
-      )}
+      {/* (11/11, audit C1) Les alertes en tête de page, à toutes les largeurs et
+          sur tous les écrans. Elles étaient masquées dès 1440 px au motif que la
+          colonne de veille les portait ; or cette colonne n'existe que sur la
+          Situation : ailleurs, une alerte active n'apparaissait nulle part, et
+          « Bien reçu » non plus. */}
+      <Bandeau evenement={courant} membre={moi} />
 
       {message && (
         <div ref={messageRef} className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>

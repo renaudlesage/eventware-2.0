@@ -20,29 +20,54 @@ import { useAccuses, BienRecu } from './accuses.jsx'
  */
 export default function Bandeau({ evenement, membre }) {
   const [alertes, setAlertes] = useState([])
+  // (audit C3) Hors réseau, on garde les alertes qu'on connaissait, datées : les
+  // effacer au premier relevé raté revenait à dire « plus d'alerte ».
+  const [releve, setReleve] = useState(null) // heure du dernier relevé réussi
+  const [horsReseau, setHorsReseau] = useState(false)
   const { mes, accuser } = useAccuses(evenement, membre)
+  const clef = evenement?.id ? `eventware.alertes.${evenement.id}` : null
 
   async function charger() {
     if (!evenement?.id) return setAlertes([])
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('alertes')
       .select('*')
       .eq('evenement_id', evenement.id)
       .eq('active', true)
       .order('emise_le', { ascending: false })
+    if (error) {
+      // Rien n'a été lu : on ne touche pas à ce qui est affiché.
+      setHorsReseau(true)
+      return
+    }
+    const quand = new Date().toISOString()
     setAlertes(data ?? [])
+    setReleve(quand)
+    setHorsReseau(false)
+    try { localStorage.setItem(clef, JSON.stringify({ quand, alertes: data ?? [] })) } catch { /* stockage plein ou interdit */ }
   }
 
   useEffect(() => {
+    // Au démarrage, ce que l'appareil savait, en attendant le premier relevé.
+    let connues = []
+    try {
+      const garde = JSON.parse(localStorage.getItem(clef) ?? 'null')
+      if (garde?.alertes) { connues = garde.alertes; setReleve(garde.quand) }
+    } catch { /* rien de gardé */ }
+    setAlertes(connues)
     charger()
     const t = setInterval(charger, 15000)
     return () => clearInterval(t)
   }, [evenement?.id])
 
   if (!alertes.length) return null
+  const heure = (iso) => new Date(iso).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
 
   return (
-    <div className="bandeaux">
+    <div className="bandeaux" role="alert" aria-live="assertive">
+      {horsReseau && releve && (
+        <div className="bandeau-perime">Hors réseau : alertes telles qu’elles étaient à {heure(releve)}. Elles ont pu changer depuis.</div>
+      )}
       {alertes.map((a) => (
         <div className={`bandeau-alerte niv-${a.niveau}`} key={a.id}>
           <div className="niv">{a.niveau}</div>
@@ -51,18 +76,8 @@ export default function Bandeau({ evenement, membre }) {
             {a.message && <div className="msg">{a.message}</div>}
             {a.consigne && <div className="consigne">→ {a.consigne}</div>}
             <div className="meta">
-              <span>
-                {new Date(a.emise_le).toLocaleTimeString('fr-BE', {
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </span>
-              {a.acquittee_le && (
-                <span>
-                  prise en compte par le PC à{' '}
-                  {new Date(a.acquittee_le).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              )}
+              <span>{heure(a.emise_le)}</span>
+              {a.acquittee_le && <span>prise en compte par le QG à {heure(a.acquittee_le)}</span>}
               <BienRecu alerte={a} mes={mes} accuser={accuser} membre={membre} />
             </div>
           </div>
@@ -80,6 +95,7 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
   const [alertes, setAlertes] = useState([])
   const [accuses, setAccuses] = useState({}) // alerte_id → [{nom, accuse_le}]
   const [ouvrir, setOuvrir] = useState(false)
+  const [occupe, setOccupe] = useState(false)
   const [f, setF] = useState({
     niveau: 'vigilance',
     titre: '',
@@ -102,8 +118,11 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
         .from('alertes')
         .select('*')
         .eq('evenement_id', evenement.id)
+        // (audit C6) Les actives d'abord : coupée aux 20 plus récentes, la liste
+        // perdait une alerte active plus ancienne.
+        .order('active', { ascending: false })
         .order('emise_le', { ascending: false })
-        .limit(20),
+        .limit(50),
       // (122) Qui a lu quoi : les accusés nominatifs, groupés par alerte.
       supabase
         .from('alertes_accuses')
@@ -141,14 +160,22 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
   }
 
   async function emettre() {
-    if (!f.titre.trim()) return
+    if (!f.titre.trim() || occupe) return
+    // (audit C5) Une alerte part vers tous les membres, parfois vers le public et
+    // les canaux externes : on le dit avant, et un double clic n'en crée pas deux.
+    const niveau = NIVEAUX.find(([v]) => v === f.niveau)?.[1] ?? f.niveau
+    const portee = estPublique ? 'tous les membres ET les participants (vitrine, lien participant)' : 'tous les membres de l’événement'
+    if (!window.confirm(`Diffuser cette alerte « ${niveau} » ?\n\n${f.titre.trim()}${f.consigne.trim() ? `\n→ ${f.consigne.trim()}` : ''}\n\nElle s’affichera chez ${portee}, et partira vers les canaux de diffusion externes s’il y en a.`)) return
+    setOccupe(true)
     const { data, error } = await supabase
       .from('alertes')
       .insert({ evenement_id: evenement.id, ...f, public: estPublique })
       .select('id')
       .single()
+    setOccupe(false)
     if (error) setMessage?.({ type: 'erreur', texte: texteErreur(error) })
     else {
+      setMessage?.({ type: 'succes', texte: `Alerte diffusée : ${f.titre.trim()}` })
       setF({ niveau: 'vigilance', titre: '', message: '', consigne: '' })
       setPublique(null)
       setOuvrir(false)
@@ -170,6 +197,7 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
   }
 
   async function basculerPublique(a) {
+    if (!a.public && !window.confirm(`Montrer « ${a.titre} » aux participants ?\n\nL’alerte deviendra visible sans compte, sur la vitrine et le lien participant.`)) return
     const { error, count } = await supabase
       .from('alertes')
       .update({ public: !a.public }, { count: 'exact' })
@@ -212,20 +240,26 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
               </option>
             ))}
           </select>
+          <label htmlFor="alerte-titre">Titre : ce qui se passe *</label>
           <input
+            id="alerte-titre"
             value={f.titre}
             onChange={(e) => setF({ ...f, titre: e.target.value })}
-            placeholder="Titre — ce qui se passe"
+            placeholder="Orage violent annoncé"
           />
+          <label htmlFor="alerte-message">Précisions (facultatif)</label>
           <input
+            id="alerte-message"
             value={f.message}
             onChange={(e) => setF({ ...f, message: e.target.value })}
-            placeholder="Précisions (facultatif)"
+            placeholder="Cellule orageuse à 20 min"
           />
+          <label htmlFor="alerte-consigne">Consigne : ce qu’il faut faire</label>
           <input
+            id="alerte-consigne"
             value={f.consigne}
             onChange={(e) => setF({ ...f, consigne: e.target.value })}
-            placeholder="Consigne — ce qu'il faut faire"
+            placeholder="Évacuer les chapiteaux"
           />
           <label className="case-a-cocher">
             <input
@@ -235,8 +269,8 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
             />
             Afficher aussi aux participants (vitrine et lien participant)
           </label>
-          <button disabled={!f.titre.trim()} onClick={emettre}>
-            Diffuser
+          <button disabled={!f.titre.trim() || occupe} onClick={emettre}>
+            {occupe ? 'Diffusion…' : 'Diffuser l’alerte'}
           </button>
           <p className="aide">
             La consigne est le champ le plus important. Une alerte qui décrit sans prescrire
@@ -258,7 +292,7 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
             <Accuses liste={accuses[a.id]} acquittee_le={a.acquittee_le} />
             <div className="ligne-boutons" style={{ marginTop: 10 }}>
               {!a.acquittee_le && (
-                <button className="discret" onClick={() => acquitter(a.id)} title="Le PC a vu et prend en compte, sans lever">
+                <button className="discret" onClick={() => acquitter(a.id)} title="Le QG a vu et prend en compte, sans lever">
                   Vu, pris en compte
                 </button>
               )}
@@ -290,7 +324,7 @@ export function Accuses({ liste = [], acquittee_le, acquittee_par, membresActifs
       </span>
       {acquittee_le && (
         <span className="acquittee">
-          · prise en compte{acquittee_par ? ` par ${acquittee_par}` : ' par le PC'} à {hm(acquittee_le)}
+          · prise en compte{acquittee_par ? ` par ${acquittee_par}` : ' par le QG'} à {hm(acquittee_le)}
         </span>
       )}
     </div>

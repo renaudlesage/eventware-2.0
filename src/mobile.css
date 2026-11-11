@@ -161,6 +161,20 @@
   .bandeau-alerte .consigne { font-size: 12px; line-height: 1.4; }
   .bandeau-alerte .meta { color: var(--on-teinte); opacity: 0.85; }
 
+  /* (11/11, audit C2) Sur l'aplat, « Bien reçu » était rouge sur rouge : invisible.
+     Bouton plein, à la couleur du texte de l'aplat, à hauteur de pouce. */
+  .bandeau-alerte .bien-recu {
+    background: var(--on-teinte); color: var(--etat-chaud); border-color: var(--on-teinte);
+    min-height: 44px; padding: 0 18px; font-size: 14px; border-radius: var(--rayon); margin-top: 6px;
+  }
+  .bandeau-alerte.niv-information .bien-recu { color: var(--etat-info); }
+  .bandeau-alerte.niv-vigilance .bien-recu { color: var(--etat-veille); }
+  .bandeau-alerte .bien-recu.lu { background: none; color: var(--on-teinte); border-color: transparent; min-height: 0; padding: 0; }
+  .bandeau-alerte .accuses, .bandeau-alerte .accuses .sourdine, .bandeau-alerte .accuses .acquittee { color: var(--on-teinte); opacity: 0.9; font-size: 12px; }
+  .bandeau-alerte .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; opacity: 1; }
+  .bandeau-alerte .meta > span:not(.bien-recu) { opacity: 0.85; }
+  .bandeau-perime { margin: 0; border: none; border-radius: 0; padding: 8px 16px; background: var(--surface); }
+
   .bandeau-alerte.niv-information { background: var(--etat-info); }
   .bandeau-alerte.niv-vigilance   { background: var(--etat-veille); }
   .bandeau-alerte.niv-urgence,

@@ -332,6 +332,7 @@ function Bilan({ evenement, peut, toutPouvoir, setMessage }) {
   }
 
   async function retirerComplement(id) {
+    if (!window.confirm('Supprimer ce complément ? Son texte est effacé pour de bon.')) return
     const { error } = await supabase.from('referentiel_locaux').delete().eq('id', id)
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else charger()

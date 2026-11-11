@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
+import { useSaisieDifferee } from './saisieDifferee'
 import { telechargerNotificationDmpPdf } from './exportNotificationDmpPdf'
 
 /**
@@ -31,7 +32,7 @@ export default function NotificationDmp({ evenement, peut, toutPouvoir, setMessa
   const [ouverte, setOuverte] = useState(false)
   const [brouillon, setBrouillon] = useState({})
   const enAttente = useRef({})
-  const minuterie = useRef(null)
+  const { planifier } = useSaisieDifferee()
   const peutSaisir = toutPouvoir || peut?.('referentiels', 'creer')
 
   async function charger() {
@@ -41,7 +42,6 @@ export default function NotificationDmp({ evenement, peut, toutPouvoir, setMessa
     setN(Array.isArray(data) ? data[0] : data)
   }
   useEffect(() => { charger(); setBrouillon({}) }, [evenement.id])
-  useEffect(() => () => clearTimeout(minuterie.current), [])
 
   async function enregistrer(champs) {
     const { error } = await supabase.from('notifications_dmp').upsert({ evenement_id: evenement.id, ...champs }, { onConflict: 'evenement_id' })
@@ -54,11 +54,10 @@ export default function NotificationDmp({ evenement, peut, toutPouvoir, setMessa
   function changer(champ, valeur, differe = true) {
     enAttente.current = { ...enAttente.current, [champ]: valeur }
     setBrouillon((b) => ({ ...b, [champ]: valeur }))
-    clearTimeout(minuterie.current)
-    minuterie.current = setTimeout(() => {
+    planifier('saisie', () => {
       const champs = enAttente.current
       enAttente.current = {}
-      enregistrer(champs)
+      if (Object.keys(champs).length) enregistrer(champs)
     }, differe ? 900 : 0)
   }
   const val = (champ) => (champ in brouillon ? brouillon[champ] : n?.[champ])

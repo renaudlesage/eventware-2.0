@@ -202,6 +202,7 @@ export function FicheFournisseur({ organisation, evenement, fournisseur, peutGer
     else { chargerDetail(); onFait() }
   }
   async function retirerContact(c) {
+    if (!window.confirm(`Retirer ${c.nom ?? 'ce contact'} des contacts de ce fournisseur ?`)) return
     const refus = await supprimerOuRefuser('fournisseur_contacts', c.id)
     if (refus) setMessage({ type: 'erreur', texte: refus })
     else { chargerDetail(); onFait() }

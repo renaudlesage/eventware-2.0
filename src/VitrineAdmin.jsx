@@ -195,6 +195,8 @@ function Communications({ evenement, setMessage }) {
   }
 
   async function publier(id, publie) {
+    // (audit C5) Publier rend le texte visible sans compte : on le dit avant.
+    if (publie && !window.confirm('Publier cette communication ?\n\nElle devient visible de toute personne qui ouvre le lien participant, sans compte.')) return
     const refus = await modifierOuRefuser(
       'communications',
       { publie_le: publie ? new Date().toISOString() : null },

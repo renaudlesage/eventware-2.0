@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { DOMAINES } from './libelles'
 import { texteErreur } from './erreurs'
+import { ecrireOuEmpiler } from './fileEcritures'
+import { nouvelleCle } from './reessai'
 
 /**
  * Main courante (journal), sorti de Securite.jsx au lot 12 (26/09),
@@ -43,43 +45,72 @@ export function Journal({ evenement, setMessage, moduleParDefaut = 'securite', p
   // `peut`.
   const peutInscrire = toutPouvoir || peut?.('journal', 'creer')
 
+  // (11/11, audit C6) La liste était coupée à 200 lignes sans le dire, filtrée
+  // après coup, et son compteur passait pour un total. Les filtres et la
+  // recherche partent maintenant au serveur, le total est le vrai, et on
+  // charge la suite à la demande.
+  const PAS = 200
+  const [limite, setLimite] = useState(PAS)
+  const [total, setTotal] = useState(null)
+  const [recherche, setRecherche] = useState('')
+  const [charge, setCharge] = useState(false)
+
   async function charger() {
-    const { data, error } = await supabase
+    let requete = supabase
       .from('journal')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('evenement_id', evenement.id)
-      .order('horodatage', { ascending: false })
-      .limit(200)
+    if (filtre === 'majeur') requete = requete.eq('importance', 'majeur')
+    if (filtre === 'saisie') requete = requete.eq('source', 'saisie')
+    if (filtreModule !== 'tout') requete = requete.eq('module', filtreModule)
+    const q = recherche.trim()
+    if (q) requete = requete.ilike('texte', `%${q.replace(/[%_]/g, ' ')}%`)
+    const { data, error, count } = await requete.order('horodatage', { ascending: false }).range(0, limite - 1)
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
-    else setLignes(data ?? [])
+    else {
+      setLignes(data ?? [])
+      setTotal(count ?? (data ?? []).length)
+    }
+    setCharge(true)
   }
 
   useEffect(() => {
-    charger()
+    // La recherche attend la fin de la frappe ; le reste part tout de suite.
+    const attente = setTimeout(charger, recherche ? 300 : 0)
     const t = setInterval(charger, 20000)
-    return () => clearInterval(t)
-  }, [evenement.id])
+    return () => { clearTimeout(attente); clearInterval(t) }
+  }, [evenement.id, filtre, filtreModule, recherche, limite])
 
   async function ajouter() {
     if (!texte.trim()) return
     setOccupe(true)
-    const { error } = await supabase.from('journal').insert({
-      evenement_id: evenement.id,
-      source: 'saisie',
-      module: moduleSaisie,
-      categorie: 'observation',
-      texte: texte.trim(),
-      phase: evenement.phase,
-      // Le nom tel qu'il se lit, figé à l'écriture : un SITREP doit
-      // dire qui a consigné, même si le membre quitte l'événement
-      // ensuite (comparatif BFMF 2026, main courante).
-      auteur_nom: membre?.nom_affiche ?? null,
-      // « Majeur » à la saisie (122) : BFMF avait l'étoile « Important »
-      // ; ici l'importance n'était posée que par les déclencheurs.
-      importance: majeur ? 'majeur' : 'routine'
+    // (audit C4) Par la file : une ligne dictée hors réseau part au retour du
+    // signal. Elle porte son identifiant, donc un rejeu ne la double pas.
+    const r = await ecrireOuEmpiler({
+      nature: 'insert',
+      table: 'journal',
+      libelle: `Main courante : ${texte.trim().slice(0, 40)}`,
+      champs: {
+        id: nouvelleCle(),
+        evenement_id: evenement.id,
+        source: 'saisie',
+        module: moduleSaisie,
+        categorie: 'observation',
+        texte: texte.trim(),
+        phase: evenement.phase,
+        horodatage: new Date().toISOString(),
+        // Le nom tel qu'il se lit, figé à l'écriture : un SITREP doit
+        // dire qui a consigné, même si le membre quitte l'événement
+        // ensuite (comparatif BFMF 2026, main courante).
+        auteur_nom: membre?.nom_affiche ?? null,
+        // « Majeur » à la saisie (122) : BFMF avait l'étoile « Important »
+        // ; ici l'importance n'était posée que par les déclencheurs.
+        importance: majeur ? 'majeur' : 'routine'
+      }
     })
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    if (r.statut === 'refus') setMessage({ type: 'erreur', texte: r.message })
     else {
+      if (r.statut === 'enfile') setMessage({ type: 'info', texte: 'Hors réseau : la ligne est gardée sur cet appareil et partira au retour du signal.' })
       setTexte('')
       setMajeur(false)
       charger()
@@ -87,11 +118,10 @@ export function Journal({ evenement, setMessage, moduleParDefaut = 'securite', p
     setOccupe(false)
   }
 
+  // Le serveur a déjà filtré.
   const visibles = lignes
-    .filter((l) =>
-      filtre === 'tout' ? true : filtre === 'saisie' ? l.source === 'saisie' : l.importance === 'majeur'
-    )
-    .filter((l) => filtreModule === 'tout' || l.module === filtreModule)
+  const filtree = filtre !== 'tout' || filtreModule !== 'tout' || !!recherche.trim()
+  const jourDe = (iso) => new Date(iso).toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
     <>
@@ -140,15 +170,28 @@ export function Journal({ evenement, setMessage, moduleParDefaut = 'securite', p
             {MODULES_JOURNAL.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </label>
-        <span className="aide journal-compte">{visibles.length} entrée{visibles.length > 1 ? 's' : ''}</span>
+        <label>
+          Chercher
+          <input type="search" value={recherche} onChange={(e) => { setRecherche(e.target.value); setLimite(PAS) }} placeholder="un mot, une référence…" aria-label="Chercher dans la main courante" />
+        </label>
+        <span className="aide journal-compte" role="status">
+          {total == null ? '' : visibles.length < total ? `${visibles.length} affichées sur ${total}` : `${total} entrée${total > 1 ? 's' : ''}`}
+        </span>
       </div>
 
-      {visibles.length === 0 ? (
-        <p className="vide">Aucune entrée.</p>
+      {!charge ? (
+        <p className="vide">Chargement…</p>
+      ) : visibles.length === 0 ? (
+        <p className="vide">
+          {filtree
+            ? 'Aucune entrée ne correspond à ces filtres. Élargis la recherche ou repasse sur « Tout ».'
+            : peutInscrire ? 'La main courante est vide. Inscris la première observation ci-dessus ; les autres modules y écrivent aussi d’eux-mêmes.' : 'La main courante est vide pour l’instant.'}
+        </p>
       ) : (
         <ul className="chrono">
-          {visibles.map((l) => (
+          {visibles.map((l, i) => (
             <li key={l.id} className={`imp-${l.importance} src-${l.source}`}>
+              {(i === 0 || jourDe(visibles[i - 1].horodatage) !== jourDe(l.horodatage)) && <span className="chrono-jour">{jourDe(l.horodatage)}</span>}
               <span className="heure mono">
                 {new Date(l.horodatage).toLocaleTimeString('fr-BE', {
                   hour: '2-digit',
@@ -162,6 +205,11 @@ export function Journal({ evenement, setMessage, moduleParDefaut = 'securite', p
             </li>
           ))}
         </ul>
+      )}
+      {charge && total != null && visibles.length < total && (
+        <button className="discret" onClick={() => setLimite((l) => l + PAS)}>
+          Afficher les {Math.min(PAS, total - visibles.length)} suivantes
+        </button>
       )}
       <p className="aide">
         Les entrées grises sont écrites automatiquement par les autres modules. Rien ne peut être

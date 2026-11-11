@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { ecrireOuEmpiler } from './fileEcritures'
 
 /**
  * « Bien reçu » — l'accusé de lecture nominatif d'une alerte (122).
@@ -18,15 +19,18 @@ export function useAccuses(evenement, membre) {
 
   async function charger() {
     if (!evenement?.id || !membre?.id) return setMes({})
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('alertes_accuses')
       .select('alerte_id, accuse_le')
       .eq('evenement_id', evenement.id)
       .eq('membre_id', membre.id)
-    setMes(Object.fromEntries((data ?? []).map((x) => [x.alerte_id, x.accuse_le])))
+    // (audit C4) Une lecture ratée ne fait pas réapparaître un bouton déjà pressé.
+    if (error) return
+    setMes((m) => ({ ...m, ...Object.fromEntries((data ?? []).map((x) => [x.alerte_id, x.accuse_le])) }))
   }
 
   useEffect(() => {
+    setMes({})
     charger()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evenement?.id, membre?.id])
@@ -34,13 +38,17 @@ export function useAccuses(evenement, membre) {
   async function accuser(alerteId) {
     if (!membre?.id) return
     const quand = new Date().toISOString()
-    // Optimiste : le bouton disparaît tout de suite, l'écriture suit.
+    // Optimiste : le bouton disparaît tout de suite, l'écriture suit — tout de
+    // suite si le réseau répond, par la file sinon (un doublon est un succès).
     setMes((m) => ({ ...m, [alerteId]: quand }))
-    const { error } = await supabase
-      .from('alertes_accuses')
-      .insert({ evenement_id: evenement.id, alerte_id: alerteId, membre_id: membre.id })
-    // Doublon (déjà accusé depuis un autre appareil) : c'est bon aussi.
-    if (error && error.code !== '23505') charger()
+    const r = await ecrireOuEmpiler({
+      nature: 'insert',
+      table: 'alertes_accuses',
+      champs: { evenement_id: evenement.id, alerte_id: alerteId, membre_id: membre.id },
+      doublonOk: true,
+      libelle: 'Accusé de réception d’une alerte'
+    })
+    if (r.statut === 'refus') setMes((m) => { const n = { ...m }; delete n[alerteId]; return n })
   }
 
   return { mes, accuser }

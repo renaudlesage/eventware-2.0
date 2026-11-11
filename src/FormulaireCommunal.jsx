@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
+import { useSaisieDifferee } from './saisieDifferee'
 
 /**
  * FORMULAIRES DE DEMANDE D'AUTORISATION (163).
@@ -111,7 +112,7 @@ export default function FormulaireCommunal({ evenement, peut, toutPouvoir, setMe
   const [erreur, setErreur] = useState(null)
   const [ouvertes, setOuvertes] = useState(() => new Set())
   const [brouillons, setBrouillons] = useState({})
-  const minuteries = useRef({})
+  const { planifier, annuler } = useSaisieDifferee()
   const peutEditer = toutPouvoir || peut?.('referentiels', 'creer')
 
   async function charger(code = choisi) {
@@ -129,7 +130,6 @@ export default function FormulaireCommunal({ evenement, peut, toutPouvoir, setMe
     setChoisi(null); setOuvertes(new Set()); setBrouillons({})
     charger(null)
   }, [evenement.id])
-  useEffect(() => () => Object.values(minuteries.current).forEach(clearTimeout), [])
 
   function choisir(code) { setChoisi(code); setOuvertes(new Set()); setBrouillons({}); charger(code) }
 
@@ -147,9 +147,8 @@ export default function FormulaireCommunal({ evenement, peut, toutPouvoir, setMe
   // Les textes attendent une seconde de silence avant de partir ; le reste part tout de suite.
   function changer(q, valeur) {
     setBrouillons((b) => ({ ...b, [q.code]: valeur }))
-    clearTimeout(minuteries.current[q.code])
     const delai = ['texte', 'nombre', 'contact', 'oui_non_explication', 'annexe'].includes(q.type) ? 900 : 0
-    minuteries.current[q.code] = setTimeout(() => enregistrer(q.code, valeur), delai)
+    planifier(q.code, () => enregistrer(q.code, valeur), delai)
   }
 
   if (erreur) return <p className="aide">Formulaires de demande : {erreur}</p>
@@ -158,7 +157,7 @@ export default function FormulaireCommunal({ evenement, peut, toutPouvoir, setMe
     return (
       <div className="formulaire-communal">
         <div className="pave-titre">Formulaires de demande d'autorisation</div>
-        <p className="vide">Aucun formulaire connu pour cette commune ni cette province. L'exploitant peut en ajouter un (Réglages › Formulaires).</p>
+        <p className="vide">Aucun formulaire connu pour cette commune ni cette province. Écris à l’exploitant de la plateforme pour qu’il ajoute celui de ta commune.</p>
       </div>
     )
   }
@@ -237,7 +236,7 @@ export default function FormulaireCommunal({ evenement, peut, toutPouvoir, setMe
                             <Reponse q={q} valeur={valeur} lectureSeule={!peutEditer} onChange={(v) => changer(q, v)} />
                             {preRempli && <span className="prc-jeton formulaire-prerempli" title={texteReponse(q, q.prerempli)}>pré-rempli par Eventware</span>}
                             {!preRempli && q.saisie != null && q.prerempli != null && peutEditer && (
-                              <button className="lien aide" title={`Eventware propose : ${texteReponse(q, q.prerempli)}`} onClick={() => { clearTimeout(minuteries.current[q.code]); enregistrer(q.code, null) }}>
+                              <button className="lien aide" title={`Eventware propose : ${texteReponse(q, q.prerempli)}`} onClick={() => { annuler(q.code); enregistrer(q.code, null) }}>
                                 ↺ revenir au pré-rempli
                               </button>
                             )}

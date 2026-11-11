@@ -337,6 +337,8 @@ function FicheDemande({ demande, evenement, membre, peutModifier, peutSaisirOffr
     else chargerTout()
   }
   async function retirerLigne(l) {
+    // (audit C5) Une ligne part pour de bon, avec les prix déjà reçus pour elle.
+    if (!window.confirm(`Supprimer la ligne « ${l.designation ?? 'sans désignation'} » ?\n\nElle disparaît pour de bon, avec les prix déjà saisis pour elle.`)) return
     const { error, count } = await supabase.from('demande_prix_lignes').delete({ count: 'exact' }).eq('id', l.id)
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) setMessage({ type: 'erreur', texte: 'Suppression refusée : droits insuffisants.' })

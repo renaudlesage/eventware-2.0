@@ -390,6 +390,8 @@ function ContactsAutorite({ evenement, setMessage }) {
   }, [evenement.id])
 
   async function basculer(c) {
+    // (audit C5) Le numéro part sur un lien ouvert sans compte : on le dit avant.
+    if (!c.visible_autorite && !window.confirm(`Rendre ${c.nom} visible des autorités ?\n\nSon nom et son numéro apparaîtront sur les liens autorité déjà diffusés.`)) return
     const refus = await modifierOuRefuser(
       'contacts',
       { visible_autorite: !c.visible_autorite },
