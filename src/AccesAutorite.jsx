@@ -390,6 +390,8 @@ function ContactsAutorite({ evenement, setMessage }) {
   }, [evenement.id])
 
   async function basculer(c) {
+    // (audit C5) Le numéro part sur un lien ouvert sans compte : on le dit avant.
+    if (!c.visible_autorite && !window.confirm(`Rendre ${c.nom} visible des autorités ?\n\nSon nom et son numéro apparaîtront sur les liens autorité déjà diffusés.`)) return
     const refus = await modifierOuRefuser(
       'contacts',
       { visible_autorite: !c.visible_autorite },
@@ -414,14 +416,14 @@ function ContactsAutorite({ evenement, setMessage }) {
     <section className="bloc">
       <h2>Annuaire sur le lien autorité</h2>
       <p className="aide">
-        Coche les contacts dont le numéro peut partir sur le lien : PC, coordinateur
+        Coche les contacts dont le numéro peut partir sur le lien : QG, coordinateur
         sécurité, suppléant, direction de l'événement… Rien n'est coché par défaut —
         l'annuaire contient souvent des bénévoles qui n'ont pas à être appelés par une
-        autorité. Les contacts s'importent dans Données › Référentiel.
+        autorité. Les contacts s'importent dans Réglages › Données › Référentiels.
       </p>
       <p className={`aide ${!interlocuteur ? 'alerte-texte' : ''}`}>
         {interlocuteur
-          ? `Interlocuteur au PC : ${interlocuteur.nom}${interlocuteur.telephone ? ` · ${interlocuteur.telephone}` : ''}.`
+          ? `Interlocuteur au QG : ${interlocuteur.nom}${interlocuteur.telephone ? ` · ${interlocuteur.telephone}` : ''}.`
           : "Aucun interlocuteur désigné : l'autorité ne sait pas qui appeler. Choisis-le dans la colonne de droite."}
       </p>
       {contacts.length === 0 ? (
@@ -457,7 +459,7 @@ function ContactsAutorite({ evenement, setMessage }) {
                       aria-label="Rôle vis-à-vis de l'autorité"
                     >
                       <option value="">—</option>
-                      <option value="interlocuteur">interlocuteur au PC</option>
+                      <option value="interlocuteur">interlocuteur au QG</option>
                       <option value="suppleant">suppléant</option>
                     </select>
                   </td>

@@ -1,8 +1,12 @@
+import { FormDemandeTerrain } from './DemandeTerrain'
+import { NATURES_REX } from './libelles'
+import { useTiroir } from './tiroir'
 import { useEffect, useState } from 'react'
 import { Siren, MessageSquareWarning, X, TriangleAlert } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { diffuserAlerte } from './diffuserAlerte'
+import { pousser } from './push'
 import { DOMAINES } from './libelles'
 import { detecterDoublons } from './doublons'
 import { nouvelleCle } from './reessai'
@@ -24,20 +28,14 @@ const TYPES_SOS = [
   ['malaise', 'Malaise'],
   ['blessure', 'Blessure'],
   ['danger', 'Danger'],
-  ['materiel', 'Matériel'],
+  ['materiel', 'Problème matériel'],
   ['egare', 'Personne égarée'],
   ['autre', 'Autre']
 ]
 
-const NATURES_REX = [
-  ['dysfonctionnement', 'Ça coince'],
-  ['reussite', 'Ça marche bien'],
-  ['suggestion', 'Suggestion'],
-  ['risque', 'Risque repéré']
-]
-
 export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir }) {
   const [ouvert, setOuvert] = useState(null)
+  const tiroir = useTiroir(!!ouvert, () => setOuvert(null))
 
   // SOS et Mayday écrivent tous deux dans le domaine sécurité, et ne
   // sont relevés que par l'écran Sécurité. Module coupé : personne ne
@@ -62,10 +60,20 @@ export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir 
     return () => window.removeEventListener('eventware:rex', ouvrirRex)
   }, [peutRex])
 
+  // (169) La demande du bénévole : pas de bouton flottant de plus, elle s'ouvre
+  // depuis le pavé « Mes demandes » et le tiroir « Plus », qui envoient cet événement.
+  const peutDemander = !!evenement.modules?.logistique && evenement.phase !== 'cloture'
+  useEffect(() => {
+    if (!peutDemander) return
+    const ouvrirDemande = () => setOuvert('demande')
+    window.addEventListener('eventware:demande', ouvrirDemande)
+    return () => window.removeEventListener('eventware:demande', ouvrirDemande)
+  }, [peutDemander])
+
   // (162) « Parler au QG » et « Mes messages » vivent dans « Mon poste »
   // (pavé talkie), pas ici : la pile flottante reste aux urgences.
 
-  if (!peutSos && !peutRex && !peutMayday) return null
+  if (!peutSos && !peutRex && !peutMayday && !peutDemander) return null
 
   return (
     <>
@@ -104,14 +112,16 @@ export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir 
 
       {ouvert && (
         <div className="voile" onClick={() => setOuvert(null)}>
-          <div className="tiroir" onClick={(e) => e.stopPropagation()}>
+          <div className="tiroir" {...tiroir} aria-label={ouvert === 'sos' ? 'Signaler un incident' : ouvert === 'mayday' ? 'Mayday, appel de détresse' : ouvert === 'demande' ? 'Demander quelque chose au QG' : 'Retour d’expérience'} onClick={(e) => e.stopPropagation()}>
             <div className="tiroir-tete">
               <strong>
                 {ouvert === 'sos'
                   ? 'Signaler un incident'
                   : ouvert === 'mayday'
                     ? 'Mayday — appel de détresse'
-                    : 'Retour d\u2019expérience'}
+                    : ouvert === 'demande'
+                      ? 'Demander quelque chose au QG'
+                      : 'Retour d\u2019expérience'}
               </strong>
               <button className="lien" onClick={() => setOuvert(null)} aria-label="Fermer">
                 <X size={18} strokeWidth={2} aria-hidden="true" />
@@ -125,6 +135,9 @@ export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir 
             )}
             {ouvert === 'rex' && (
               <FormRex evenement={evenement} membre={membre} onFini={() => setOuvert(null)} />
+            )}
+            {ouvert === 'demande' && (
+              <FormDemandeTerrain evenement={evenement} onFini={() => setOuvert(null)} />
             )}
           </div>
         </div>
@@ -162,13 +175,27 @@ function FormSos({ evenement, membre, onFini }) {
 
   const [enfile, setEnfile] = useState(false)
 
+  // (11/11, audit) Si la position est déjà autorisée sur cet appareil, on la joint sans rien
+  // demander : quand ça presse, un SOS doit pouvoir partir d'un seul appui, sans phrase.
+  useEffect(() => {
+    navigator.permissions?.query({ name: 'geolocation' }).then((p) => {
+      if (p.state !== 'granted') return
+      navigator.geolocation?.getCurrentPosition(
+        (g) => setPosition((deja) => deja ?? { latitude: g.coords.latitude, longitude: g.coords.longitude, precision_m: g.coords.accuracy }),
+        () => {},
+        { enableHighAccuracy: true, timeout: 12000 }
+      )
+    }).catch(() => {})
+  }, [])
+
   // (123) Même file hors réseau que les gestes de terrain : le SOS
   // d'un membre sous les arbres partait en erreur « Failed to fetch »
   // et c'était tout — le participant, lui, avait sa file depuis la
   // 007. Il est écrit dans le téléphone d'abord, envoyé ensuite ; la
   // barre du haut dit ce qui reste à partir.
   async function envoyer() {
-    if (!description.trim()) return
+    // La phrase n'est plus exigée : le QG sait qui signale, et rappelle. Sans elle, la nature tient lieu de texte.
+    const texte = description.trim() || `${TYPES_SOS.find(([v]) => v === type)?.[1] ?? 'Incident'} — sans précision, rappeler`
     setOccupe(true)
     setErreur(null)
     const reference =
@@ -186,11 +213,11 @@ function FormSos({ evenement, membre, onFini }) {
         // le compte comme arrivé.
         cle_client: cle,
         type,
-        description: description.trim(),
+        description: texte,
         emis_le: new Date().toISOString(),
         ...(position ?? {})
       },
-      libelle: `SOS ${reference} — ${description.trim().slice(0, 40)}`
+      libelle: `SOS ${reference} — ${texte.slice(0, 40)}`
     })
     if (r.statut === 'refus') setErreur(r.message)
     else if (r.statut === 'enfile') setEnfile(true)
@@ -204,7 +231,7 @@ function FormSos({ evenement, membre, onFini }) {
         <div className="message">
           <strong>Pas de réseau.</strong> Le signalement est enregistré dans ce téléphone et
           partira tout seul dès que le signal revient — la barre du haut le montre. Si tu
-          as une radio, annonce-le aussi au PC.
+          as une radio, annonce-le aussi au QG.
         </div>
         <button className="bouton-terrain" onClick={onFini}>
           Fermer
@@ -226,7 +253,7 @@ function FormSos({ evenement, membre, onFini }) {
         ))}
       </select>
 
-      <label htmlFor="sos-desc">Ce que tu constates</label>
+      <label htmlFor="sos-desc">Ce que tu constates <span className="aide">(si tu as le temps)</span></label>
       <input
         id="sos-desc"
         autoFocus
@@ -245,13 +272,13 @@ function FormSos({ evenement, membre, onFini }) {
 
       <button
         className="bouton-terrain"
-        disabled={occupe || !description.trim()}
+        disabled={occupe}
         onClick={envoyer}
       >
-        Envoyer au poste de commandement
+        {occupe ? 'Envoi…' : 'Envoyer au QG'}
       </button>
       <p className="aide">
-        En cas d'urgence vitale, appelle le 112 d'abord. Ce signalement prévient le PC, il
+        En cas d'urgence vitale, appelle le 112 d'abord. Ce signalement prévient le QG, il
         ne remplace pas les secours.
       </p>
     </div>
@@ -321,6 +348,7 @@ function FormMayday({ evenement, onFini }) {
       const ligne = Array.isArray(data) ? data[0] : data
       setEnvoye(ligne)
       diffuserAlerte(ligne.alerte_id)
+      pousser('alerte', ligne.alerte_id)
     }
     setOccupe(false)
   }
@@ -337,7 +365,7 @@ function FormMayday({ evenement, onFini }) {
             </>
           ) : (
             <>
-              <strong>{envoye.reference} transmis.</strong> Le poste de commandement est
+              <strong>{envoye.reference} transmis.</strong> Le QG est
               prévenu et une alerte est affichée sur tous les écrans. Reste où tu es si tu le
               peux, et garde la radio libre.
             </>
@@ -455,16 +483,23 @@ function FormRex({ evenement, membre, onFini }) {
   async function envoyer() {
     if (!constat.trim()) return
     setOccupe(true)
-    const { error } = await supabase.from('rex_entrees').insert({
-      evenement_id: evenement.id,
-      nature,
-      module: domaine,
-      impact: 'gene',
-      constat: constat.trim(),
-      phase: evenement.phase,
-      membre_id: membre.id
+    // (11/11, audit C4) Par la file : un constat noté hors réseau part au retour du signal.
+    const r = await ecrireOuEmpiler({
+      nature: 'insert',
+      table: 'rex_entrees',
+      libelle: `Constat : ${constat.trim().slice(0, 40)}`,
+      champs: {
+        id: nouvelleCle(),
+        evenement_id: evenement.id,
+        nature,
+        module: domaine,
+        impact: 'gene',
+        constat: constat.trim(),
+        phase: evenement.phase,
+        membre_id: membre.id
+      }
     })
-    if (error) setErreur(texteErreur(error))
+    if (r.statut === 'refus') setErreur(r.message)
     else onFini()
     setOccupe(false)
   }

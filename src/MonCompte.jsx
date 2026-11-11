@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
+import NotificationsAppareil from './NotificationsAppareil'
 
 /**
  * Mon compte — ce que l'utilisateur peut changer lui-même.
@@ -99,7 +100,7 @@ export default function MonCompte({ session, membre, evenement, setMessage, onRe
             id="c-affiche"
             value={nomAffiche}
             onChange={(e) => setNomAffiche(e.target.value)}
-            placeholder="Ce que voit le poste de commandement"
+            placeholder="Ce que voit le QG"
           />
           <p className="aide" style={{ marginTop: -4 }}>
             Propre à cet événement — on peut vouloir y apparaître autrement.
@@ -147,6 +148,8 @@ export default function MonCompte({ session, membre, evenement, setMessage, onRe
       <button className="discret" disabled={occupe === 'mdp' || mdp.length < 12} onClick={changerMdp}>
         Changer le mot de passe
       </button>
+
+      <NotificationsAppareil />
 
       <div className="identite" style={{ marginTop: 16 }}>
         <span className="etiquette">Mon identifiant</span>

@@ -80,7 +80,7 @@ function prevenir() {
  * `operation` :
  *   { nature: 'update', table, id, champs, libelle }
  *   { nature: 'rpc',    fonction, arguments, libelle }
- *   { nature: 'insert', table, champs, libelle }   (123 : SOS membre)
+ *   { nature: 'insert', table, champs, libelle }   (123 : SOS membre ; 11/11 : avec `id` propre ou `doublonOk`)
  *
  * Le libellé est ce que la personne lira dans l'indicateur : « Mission
  * LOG-012 → résolue », pas « update missions ». Une file illisible ne
@@ -197,7 +197,7 @@ async function envoyer(op) {
 
       if (data && data.updated_at >= op.cree_le) {
         throw Object.assign(
-          new Error('Quelqu’un a modifié cette ligne entre-temps — votre version n’a pas été appliquée.'),
+          new Error('Quelqu’un a modifié cette ligne entre-temps — ta version n’a pas été appliquée.'),
           { definitif: true, conflit: true }
         )
       }
@@ -218,7 +218,11 @@ async function envoyer(op) {
   // le rejeu heurte l'unicité — c'est un succès, pas une erreur.
   if (op.nature === 'insert') {
     const { error } = await supabase.from(op.table).insert(op.champs)
-    if (error && !(error.code === '23505' && /cle_client/.test(error.message ?? ''))) throw error
+    // (11/11) Deux autres insertions rejouables : celle qui porte son propre `id`
+    // (le rejeu heurte la clé primaire), et celle dont le doublon est un succès
+    // par nature (`doublonOk` : un accusé de lecture déjà posé).
+    const rejeu = error?.code === '23505' && (/cle_client/.test(error.message ?? '') || op.doublonOk || (op.champs?.id && /_pkey/.test(error.message ?? '')))
+    if (error && !rejeu) throw error
     return
   }
 

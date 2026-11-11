@@ -130,13 +130,14 @@ export default function Fiches({ evenement, peut, toutPouvoir }) {
           />
         ) : (
           <div className="carte" key={fi.id}>
-            <div
-              className="titre"
-              style={{ cursor: 'pointer' }}
+            <button
+              type="button"
+              className="titre titre-bouton"
+              aria-expanded={ouverte === fi.id}
               onClick={() => setOuverte(ouverte === fi.id ? null : fi.id)}
             >
               <span className="mono">{fi.code}</span> — {fi.titre}
-            </div>
+            </button>
             <div className="meta">
               {fi.declencheur && <span>{fi.declencheur}</span>}
               {fi.categorie && <span>{fi.categorie}</span>}

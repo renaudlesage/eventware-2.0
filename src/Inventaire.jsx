@@ -27,7 +27,11 @@ import { COLONNES_INVENTAIRE, modeleCsvInventaire, exempleCsvInventaire, normali
 const NATURES = [['pret', 'Prêt'], ['location', 'Location']]
 const STATUTS = { sorti: 'sorti', en_retard: 'en retard', rendu: 'rendu' }
 const dateFr = (d) => (d ? new Date(d + (d.length === 10 ? 'T00:00:00' : '')).toLocaleDateString('fr-BE') : '')
-const aujourdhui = () => new Date().toISOString().slice(0, 10)
+// La date du jour ICI, pas en UTC : entre minuit et deux heures du matin, toISOString() rendait la veille.
+export const aujourdhui = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 const jours = (a, b) => (a && b ? Math.max(1, Math.round((new Date(b) - new Date(a)) / 86400000)) : 1)
 /** Le lien que portent l'étiquette QR et la puce NFC. */
 export const lienMateriel = (code) => `${window.location.origin}${window.location.pathname}?materiel=${encodeURIComponent(code)}`
@@ -78,6 +82,14 @@ export default function Inventaire({ evenement, membre, peut, toutPouvoir, setMe
     if (!articles || !demande.current) return
     ouvrirCode(demande.current)
     demande.current = null
+    // L'étiquette a fait son office : on la retire de l'adresse, sinon un rechargement ou un lien
+    // copié plus tard rouvrirait cette fiche.
+    try {
+      const p = new URLSearchParams(window.location.search)
+      p.delete('materiel')
+      const reste = p.toString()
+      window.history.replaceState(window.history.state, '', window.location.pathname + (reste ? `?${reste}` : '') + window.location.hash)
+    } catch { /* adresse non modifiable */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [articles])
 
@@ -174,7 +186,7 @@ function Tableau({ colonnes, lignes, cle, vide, classeLigne, titre, impression }
   }
 
   return (
-    <div className="inv-tableau tableau-defilant">
+    <div className="inv-tableau tableau-defilant" tabIndex={0} role="region" aria-label="Inventaire, défile horizontalement">
       <div className="inv-tableau-outils">
         <span className="aide" style={{ margin: 0 }}>{visibles.length} sur {lignes.length} · clique un en-tête pour trier, tape sous un en-tête pour filtrer.</span>
         <button className="discret" onClick={imprimer} disabled={!visibles.length}>Imprimer / PDF</button>
@@ -184,7 +196,7 @@ function Tableau({ colonnes, lignes, cle, vide, classeLigne, titre, impression }
         <thead>
           <tr>
             {colonnes.map((c) => (
-              <th key={c.clef} className={`inv-th ${tri.clef === c.clef ? 'actif' : ''} ${c.numerique ? 'num' : ''}`} onClick={() => trier(c.clef)} title="Trier">
+              <th key={c.clef} className={`inv-th ${tri.clef === c.clef ? 'actif' : ''} ${c.numerique ? 'num' : ''}`} onClick={() => trier(c.clef)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), trier(c.clef))} tabIndex={0} role="columnheader" aria-sort={tri.clef === c.clef ? (tri.sens > 0 ? 'ascending' : 'descending') : 'none'} title={`Trier par ${c.libelle || 'cette colonne'}`}>
                 {c.libelle}{tri.clef === c.clef ? (tri.sens > 0 ? ' ▲' : ' ▼') : ''}
               </th>
             ))}
@@ -576,7 +588,7 @@ function ImportInventaire({ organisation, evenement, existants, setMessage, onFa
         detail: { rejets: analyse.lignes.filter((l) => l.statut === 'rejete').map((l) => ({ ligne: l.numero, erreurs: l.erreurs })) }
       })
       setBilan(resultat)
-      if (refusees) setMessage({ type: 'erreur', texte: `${refusees} ligne(s) refusée(s) : vos droits ne permettent pas de modifier l'inventaire.` })
+      if (refusees) setMessage({ type: 'erreur', texte: `${refusees} ligne(s) refusée(s) : tes droits ne permettent pas de modifier l'inventaire.` })
       setAnalyse(null)
       onFait()
     } catch (e) {

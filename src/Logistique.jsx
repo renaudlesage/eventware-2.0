@@ -1,3 +1,4 @@
+import { useRubriqueRoute } from './route'
 import { useEffect, useState } from 'react'
 import { Missions } from './Missions'
 import { Journal } from './Journal'
@@ -9,6 +10,7 @@ import Transports from './Transports'
 import Fournisseurs from './Fournisseurs'
 import DemandesPrix from './DemandesPrix'
 import Inventaire from './Inventaire'
+import Message from './Message'
 
 /**
  * (31/10, retour de Ren) Dix onglets sur une seule rangée, ça ne se lisait
@@ -62,7 +64,7 @@ function rubriqueMemorisee() {
   }
 }
 
-export default function Logistique({ evenement, membre, peut, toutPouvoir, ongletCible }) {
+export default function Logistique({ evenement, membre, peut, toutPouvoir, ongletCible, objetCible }) {
   const [onglet, setOnglet] = useState(rubriqueMemorisee)
   const [message, setMessage] = useState(null)
 
@@ -76,6 +78,7 @@ export default function Logistique({ evenement, membre, peut, toutPouvoir, ongle
   useEffect(() => {
     if (ongletCible && RUBRIQUES.includes(ongletCible)) setOnglet(ongletCible)
   }, [ongletCible])
+  useRubriqueRoute('logistique', onglet, setOnglet, null)
 
   return (
     <div className="bloc securite dom-bronze">
@@ -93,9 +96,7 @@ export default function Logistique({ evenement, membre, peut, toutPouvoir, ongle
       </label>
 
       {message && (
-        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
-          {message.texte}
-        </div>
+        <Message message={message} onFermer={() => setMessage(null)} />
       )}
 
       {onglet === 'interventions' && (

@@ -357,7 +357,7 @@ export default function BilansImplantation({ elements, evenement, onOuvrir, ongl
       {onglet === 'metre' && (
         <section>
           <div className="ligne-boutons"><button className="discret" onClick={csv} disabled={!metre.length}>Exporter en CSV</button></div>
-          <div className="tableau-defilant">
+          <div className="tableau-defilant" tabIndex={0} role="region" aria-label="Tableau, défile horizontalement">
             <table className="tableau">
               <thead><tr><th>Fournisseur</th><th>Équipement</th><th>Calque</th><th>Dimensions</th><th>Nombre</th><th>Longueur</th><th>Surface</th><th>kW</th><th>kVA</th></tr></thead>
               <tbody>

@@ -98,7 +98,7 @@ export default function Dossier({ evenement, peut, toutPouvoir, setMessage }) {
   // (161, étape 7 MVP) La décision reçue de la commune, consignée par l'organisateur.
   async function decider(statutDecision) {
     const commentaire = window.prompt(statutDecision === 'autorise'
-      ? 'Dossier autorisé par la commune. Référence de l’arrêté (facultatif) — pense à le déposer dans Partage › Documents.'
+      ? 'Dossier autorisé par la commune. Référence de l’arrêté (facultatif) — pense à le déposer dans Réglages › Partage, sous « Documents sur le lien autorité ».'
       : 'Dossier refusé par la commune. Motif (facultatif).')
     if (commentaire === null) return
     setOccupe(true)

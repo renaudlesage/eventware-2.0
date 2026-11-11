@@ -71,7 +71,7 @@
   .marque-mobile {
     display: block;
     padding: 10px 0 0;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -105,12 +105,12 @@
   /* Ce qui reste dans la barre se fait discret : c'est le nom de
      l'événement qui doit occuper la ligne. */
   .barre-haut button.sortie {
-    min-height: 32px;
+    min-height: 44px;
     padding: 5px 10px;
     font-size: 12px;
   }
 
-  .temoin { font-size: 9px; }
+  .temoin { font-size: 12px; }
 
   .plaque { border-radius: 4px; }
 
@@ -125,7 +125,9 @@
   .poste .bandeau-etat { margin: 0 -16px 12px; border-left: none; border-right: none; }
   .bandeau-etat .cadran { min-height: 46px; padding: 6px 6px 5px; gap: 3px; }
   .bandeau-etat .cadran-valeur { font-size: 17px; }
-  .bandeau-etat .cadran-libelle { font-size: 8.5px; letter-spacing: 0.04em; line-height: 1.15; }
+  /* (11/11, audit M7) Le libellé d'un cadran donne le sens du chiffre : 8,5 px en
+     capitales ne se lisait pas. En minuscules à 12 px, il tient la même largeur. */
+  .bandeau-etat .cadran-libelle { font-size: 12px; letter-spacing: 0; line-height: 1.15; text-transform: none; }
 
   /* ---------------- Bandeau d'alerte ---------------- */
 
@@ -152,7 +154,7 @@
     justify-content: flex-start;
     text-align: left;
     background: none !important;
-    opacity: 0.85;
+    font-weight: 700;
   }
 
   .bandeau-alerte .contenu { padding: 0; }
@@ -160,6 +162,21 @@
   .bandeau-alerte .msg,
   .bandeau-alerte .consigne { font-size: 12px; line-height: 1.4; }
   .bandeau-alerte .meta { color: var(--on-teinte); opacity: 0.85; }
+
+  /* (11/11, audit C2) Sur l'aplat, « Bien reçu » était rouge sur rouge : invisible.
+     Bouton plein, à la couleur du texte de l'aplat, à hauteur de pouce. */
+  .bandeau-alerte .bien-recu {
+    background: var(--on-teinte); color: var(--etat-chaud); border-color: var(--on-teinte);
+    min-height: 44px; padding: 0 18px; font-size: 14px; border-radius: var(--rayon); margin-top: 6px;
+  }
+  .bandeau-alerte.niv-information .bien-recu { color: var(--etat-info); }
+  .bandeau-alerte.niv-vigilance .bien-recu { color: var(--etat-veille); }
+  .bandeau-alerte .bien-recu.lu { background: none; color: var(--on-teinte); border-color: transparent; min-height: 0; padding: 0; }
+  .bandeau-alerte .accuses, .bandeau-alerte .accuses .sourdine, .bandeau-alerte .accuses .acquittee { color: var(--on-teinte); opacity: 0.9; font-size: 12px; }
+  .bandeau-alerte .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; opacity: 1; }
+  .bandeau-alerte .meta > span:not(.bien-recu) { opacity: 1; }
+  .bandeau-alerte .aide, .bandeau-alerte .sourdine { color: var(--on-teinte); }
+  .bandeau-perime { margin: 0; border: none; border-radius: 0; padding: 8px 16px; background: var(--surface); }
 
   .bandeau-alerte.niv-information { background: var(--etat-info); }
   .bandeau-alerte.niv-vigilance   { background: var(--etat-veille); }
@@ -194,7 +211,7 @@
     gap: 3px;
     min-height: 44px;
     color: var(--sourdine);
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 600;
     text-align: center;
   }
@@ -206,7 +223,7 @@
 
   /* ---------------- Mon poste ---------------- */
 
-  .entete-dashboard h2 { font-size: 11px; }
+  .entete-dashboard h2 { font-size: 12px; }
 
   .grille-domaines { gap: 8px; }
 
@@ -231,7 +248,7 @@
   /* Le glyphe du catalogue double le titre sans rien ajouter dès qu'on
      est en pleine largeur. */
   .colonne-icone { display: none; }
-  .colonne-titre { font-size: 10px; letter-spacing: 0.1em; }
+  .colonne-titre { font-size: 12px; letter-spacing: 0.1em; }
 
   /* Les compteurs restent — ils portent la seule donnée chiffrée de la
      carte — mais sans grille ni filets : trois nombres alignés suffisent
@@ -249,7 +266,7 @@
   }
 
   .compteur-mini-valeur { font-size: 22px; }
-  .compteur-mini-libelle { text-align: left; font-size: 9px; }
+  .compteur-mini-libelle { text-align: left; font-size: 12px; }
 
   /* « Moniteur » nommait un cadre visible ; sans le cadre, l'étiquette
      ne désigne plus rien. Le lien vers l'écran, lui, reste : c'est la
@@ -298,9 +315,9 @@
   .onglets button.module,
   .groupes-securite button {
     flex: 0 0 auto;
-    min-height: 34px;
+    min-height: 44px;
     border-radius: 6px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     padding: 6px 12px;
   }
@@ -370,11 +387,13 @@
 
   .flottant {
     justify-content: center;
-    width: 52px;
+    /* (11/11) Le mot doit se lire : la largeur suit le texte à 12 px. */
+    min-width: 52px;
+    width: auto;
     height: 52px;
-    padding: 0;
+    padding: 0 10px;
     border-radius: 14px;
-    font-size: 9px;
+    font-size: 12px;
     letter-spacing: 0.03em;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
   }
@@ -398,7 +417,7 @@
     width: 52px;
     height: 52px;
     padding: 0;
-    font-size: 9px;
+    font-size: 12px;
     background: var(--surface);
     border: 1px solid var(--dom-ardoise);
     color: var(--dom-ardoise);
@@ -413,10 +432,10 @@
   }
 
   .flottant.sos {
-    width: 56px;
+    min-width: 64px;
     height: 56px;
     border-radius: 16px;
-    font-size: 11px;
+    font-size: 14px;
     box-shadow: 0 4px 10px rgba(179, 49, 29, 0.4);
   }
 
@@ -452,8 +471,14 @@
      travers. Ce n'est pas un choix esthétique. */
   input, select, textarea { font-size: 16px; padding: 11px 12px; }
 
-  button { min-height: 40px; }
-  button.lien { min-height: 0; }
+  /* (11/11, audit M8) 44 px partout, comme l'en-tête de ce fichier l'annonce : les
+     boutons étaient à 40, et les boutons-liens (dont la croix des tiroirs) n'avaient
+     aucune hauteur minimale. Un lien dans une phrase garde sa ligne : il se touche
+     par sa zone élargie, pas par sa hauteur de texte. */
+  button { min-height: 44px; }
+  button.lien { min-height: 44px; display: inline-flex; align-items: center; font-size: 14px; }
+  p button.lien, .aide button.lien, li button.lien, .meta button.lien { min-height: 0; display: inline; padding-block: 8px; }
+  input[type="checkbox"], input[type="radio"] { width: 22px; height: 22px; }
 
   /* (31/10, audit d'ergonomie) Les champs dont une règle de bureau fixe
      une petite police échappaient aux 16 px ci-dessus — et l'iPhone

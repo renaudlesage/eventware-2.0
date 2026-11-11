@@ -18,7 +18,7 @@
   --surface:     #ffffff;
   --surface-2:   #f6f7f9;
   --encre:       #10151b;
-  --sourdine:    #5d6874;
+  --sourdine:    #515b67;
   --trait:       #ccd2d9;
   --trait-fort:  #10151b;
 
@@ -31,10 +31,10 @@
 
   /* Couleurs codées — sens fixe, jamais décoratif */
   --etat-ok:     #1f6f4f;   /* nominal, confirmé, résolu */
-  --etat-veille: #a86a00;   /* vigilance, en attente, seuil proche */
+  --etat-veille: #8a5600;   /* vigilance, en attente, seuil proche */
   --etat-chaud:  #b3311d;   /* urgence, P1, seuil franchi */
   --etat-info:   #23557f;   /* information, préparation */
-  --etat-froid:  #5d6874;   /* clos, inactif, sans suite */
+  --etat-froid:  #515b67;   /* clos, inactif, sans suite */
 
   /* Teintes de domaine — repérage et navigation uniquement.
      Aucune ne doit colorer une valeur : un chiffre coloré signifie
@@ -44,7 +44,7 @@
   --dom-sarcelle: #17796f;
   --dom-grenat:   #a8324a;
   --dom-orange:   #c25a12;
-  --dom-bronze:   #8a6212;
+  --dom-bronze:   #7d580e;
   --dom-mousse:   #3f7a2e;
   --dom-azur:     #1f6ba8;
   --dom-prune:    #8c3f7a;
@@ -68,7 +68,7 @@
     --surface:    #161c23;
     --surface-2:  #1c242d;
     --encre:      #e6eaee;
-    --sourdine:   #8d99a6;
+    --sourdine:   #9aa5b1;
     --trait:      #2b343e;
     --trait-fort: #6c7a89;
     --on-teinte:  #0d1116;
@@ -77,7 +77,7 @@
     --etat-veille: #d09122;
     --etat-chaud:  #e2543a;
     --etat-info:   #4a8ec2;
-    --etat-froid:  #8d99a6;
+    --etat-froid:  #9aa5b1;
     --ombre: none;
     --ombre-flottant: 0 3px 12px rgba(0, 0, 0, 0.55);
 
@@ -101,7 +101,7 @@
   --surface:    #161c23;
   --surface-2:  #1c242d;
   --encre:      #e6eaee;
-  --sourdine:   #8d99a6;
+  --sourdine:   #9aa5b1;
   --trait:      #2b343e;
   --trait-fort: #6c7a89;
   --on-teinte:  #0d1116;
@@ -110,7 +110,7 @@
   --etat-veille: #d09122;
   --etat-chaud:  #e2543a;
   --etat-info:   #4a8ec2;
-  --etat-froid:  #8d99a6;
+  --etat-froid:  #9aa5b1;
   --ombre: none;
   --ombre-flottant: 0 3px 12px rgba(0, 0, 0, 0.55);
 
@@ -168,7 +168,7 @@ body {
 
 .marque-suite {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--sourdine);
 }
 
@@ -255,7 +255,7 @@ body {
 
 .compte {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--sourdine);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -268,7 +268,7 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
 /* Témoin de réseau */
 .temoin {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--sourdine);
@@ -296,7 +296,7 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
 
 .plaque {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   padding: 3px 8px;
@@ -355,7 +355,7 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
 }
 
 .cadran-libelle {
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--sourdine);
@@ -484,7 +484,7 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
 @media (min-width: 940px) and (hover: none) {
   .poste > .corps:not(.rail-epingle) { grid-template-columns: 76px 1fr; gap: 20px; }
   .rail-compact .plaque-nav { flex-direction: column; padding: 8px 2px 7px; gap: 4px; }
-  .rail-compact .plaque-nav span { display: block; font-size: 9.5px; line-height: 1.1; text-align: center; letter-spacing: 0; overflow-wrap: anywhere; }
+  .rail-compact .plaque-nav span { display: block; font-size: 11px; line-height: 1.1; text-align: center; letter-spacing: 0; overflow-wrap: anywhere; }
   .rail-compact .rail-deploye { left: 76px; }
 }
 
@@ -536,7 +536,7 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
 
 .survol-note {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--sourdine);
@@ -601,7 +601,7 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
 .legende-carte {
   list-style: none; margin: 0 0 10px; padding: 0;
   display: flex; flex-wrap: wrap; gap: 4px 12px;
-  font-size: 11px; color: var(--sourdine);
+  font-size: 12px; color: var(--sourdine);
 }
 .legende-carte li { display: flex; align-items: center; gap: 5px; }
 .puce-carte { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid; flex: 0 0 auto; }
@@ -614,7 +614,7 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
 .trait-ok     { border-color: var(--etat-ok); }
 .leaflet-tooltip.etiquette-carte {
   background: var(--surface); color: var(--encre); border: 1px solid var(--trait-fort);
-  font-family: var(--mono); font-size: 10px; padding: 0 4px; box-shadow: none;
+  font-family: var(--mono); font-size: 12px; padding: 0 4px; box-shadow: none;
 }
 .leaflet-tooltip.etiquette-carte::before { display: none; }
 .a-venir .jeton { margin-left: 6px; }
@@ -633,7 +633,7 @@ button.sortie { padding: 5px 11px; font-size: 12px; white-space: nowrap; }
 .bloc { margin-bottom: 30px; }
 
 h2 {
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.13em;
   color: var(--sourdine);
@@ -666,7 +666,7 @@ h2::before {
 
 .meta {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--sourdine);
   display: flex;
   gap: 13px;
@@ -688,7 +688,7 @@ h2::before {
 
 .etiquette {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--sourdine);
@@ -711,7 +711,7 @@ h2::before {
 
 label {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--sourdine);
@@ -847,7 +847,7 @@ button.module:disabled { opacity: 0.5; }
 }
 
 .pave-titre {
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--sourdine);
@@ -869,7 +869,7 @@ button.module:disabled { opacity: 0.5; }
 
 .liste-pave { list-style: none; margin: 0; padding: 0; font-size: 13px; line-height: 1.65; }
 ol.liste-pave { list-style: decimal; padding-left: 18px; }
-.liste-pave .mono { font-size: 11px; color: var(--sourdine); }
+.liste-pave .mono { font-size: 12px; color: var(--sourdine); }
 
 .detail-metrique {
   display: flex;
@@ -885,7 +885,7 @@ ol.liste-pave { list-style: decimal; padding-left: 18px; }
 .detail-metrique.alerte-texte strong { color: var(--etat-chaud); }
 
 .repartition { margin-top: 10px; }
-.barre-ligne { display: flex; align-items: center; gap: 6px; font-size: 11px; margin-bottom: 3px; }
+.barre-ligne { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-bottom: 3px; }
 .barre-lib { flex: 0 0 74px; color: var(--sourdine); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .barre { flex: 1; height: 7px; background: var(--fond); display: block; }
 .barre > span { display: block; height: 100%; background: var(--etat-info); }
@@ -894,7 +894,7 @@ ol.liste-pave { list-style: decimal; padding-left: 18px; }
 
 .jeton {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 2px 7px;
@@ -927,7 +927,7 @@ ol.liste-pave { list-style: decimal; padding-left: 18px; }
   border-bottom: 1px solid var(--trait);
 }
 
-.chrono .heure { color: var(--sourdine); font-size: 11px; padding-top: 2px; flex: 0 0 38px; font-family: var(--mono); }
+.chrono .heure { color: var(--sourdine); font-size: 12px; padding-top: 2px; flex: 0 0 38px; font-family: var(--mono); }
 .chrono .corps { flex: 1; }
 .chrono li.src-systeme .corps { color: var(--sourdine); }
 .chrono li.imp-majeur { border-left: 2px solid var(--etat-chaud); margin-left: -2px; }
@@ -935,7 +935,7 @@ ol.liste-pave { list-style: decimal; padding-left: 18px; }
 
 .chrono .tag {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   color: var(--sourdine);
   margin-left: 8px;
@@ -963,7 +963,7 @@ ol.liste-pave { list-style: decimal; padding-left: 18px; }
 
 .profil { border: 1px solid var(--trait); background: var(--surface); padding: 12px 8px 4px; margin-bottom: 14px; }
 .svg-profil { width: 100%; height: 130px; display: block; }
-.svg-profil .axe { font-family: var(--mono); font-size: 10px; fill: var(--sourdine); }
+.svg-profil .axe { font-family: var(--mono); font-size: 12px; fill: var(--sourdine); }
 
 /* ---------------- Alertes ---------------- */
 
@@ -975,7 +975,7 @@ ol.liste-pave { list-style: decimal; padding-left: 18px; }
   flex: 0 0 92px;
   padding: 10px 8px;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--on-teinte);
@@ -1048,7 +1048,7 @@ ol.liste-pave { list-style: decimal; padding-left: 18px; }
 
 dl.fiche { margin: 8px 0 0; font-size: 13px; }
 dl.fiche dt {
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--sourdine);
@@ -1136,7 +1136,7 @@ dl.fiche dd { margin: 1px 0 0; }
 
 .planche-titre { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
 .planche-lieu { margin-top: 8px; font-size: 13px; line-height: 1.35; }
-.planche-pied { margin-top: 8px; font-size: 10px; color: #555; line-height: 1.4; }
+.planche-pied { margin-top: 8px; font-size: 12px; color: #555; line-height: 1.4; }
 .planche-pied strong { color: #b3311d; }
 
 /* ---------------- Impression ---------------- */
@@ -1192,7 +1192,7 @@ dl.fiche dd { margin: 1px 0 0; }
   font-weight: 600;
   color: var(--sourdine);
   padding: 5px 6px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .grille-capacites thead th {
@@ -1331,10 +1331,10 @@ button.grand-lien:hover .grand { text-decoration-color: currentColor; }
 .frise-ligne { position: absolute; left: 0; right: 0; top: 34px; height: 3px; background: var(--trait-fort); }
 .frise-repere { position: absolute; top: 29px; transform: translateX(-50%); text-align: center; }
 .frise-point { display: block; width: 11px; height: 11px; margin: 0 auto; background: var(--surface); border: 2px solid var(--encre); border-radius: 50%; }
-.frise-lib { display: block; font-family: var(--mono); font-size: 10px; color: var(--sourdine); margin-top: 3px; }
+.frise-lib { display: block; font-family: var(--mono); font-size: 12px; color: var(--sourdine); margin-top: 3px; }
 .frise-groupe {
   position: absolute; top: 0; transform: translateX(-50%);
-  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  font-family: var(--mono); font-size: 12px; font-weight: 700;
   padding: 1px 5px; background: var(--surface); border: 1px solid var(--etat-info); color: var(--etat-info);
 }
 .frise-groupe.sans-nouvelles { border-color: var(--etat-chaud); color: var(--etat-chaud); }
@@ -1532,7 +1532,7 @@ a.carte-lien.urgence-appel { border: 2px solid var(--etat-chaud); color: var(--e
 .rang {
   flex: 0 0 20px;
   align-self: center;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--sourdine);
   text-align: right;
 }
@@ -1562,10 +1562,10 @@ a.carte-lien.urgence-appel { border: 2px solid var(--etat-chaud); color: var(--e
 
 .sitrep-titre { font-size: 17px; font-weight: 700; }
 .sitrep-sous { font-size: 14px; color: var(--sourdine); margin-top: 2px; }
-.sitrep-ref { font-size: 11px; color: var(--sourdine); }
+.sitrep-ref { font-size: 12px; color: var(--sourdine); }
 
 .sitrep-section {
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   font-weight: 700;
@@ -1590,7 +1590,7 @@ a.carte-lien.urgence-appel { border: 2px solid var(--etat-chaud); color: var(--e
 .sitrep-journal { width: 100%; border-collapse: collapse; font-size: 12px; }
 .sitrep-journal th {
   text-align: left;
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--sourdine);
@@ -1604,17 +1604,17 @@ a.carte-lien.urgence-appel { border: 2px solid var(--etat-chaud); color: var(--e
 }
 .sitrep-journal tr.majeur td { font-weight: 600; }
 .sitrep-journal .nowrap { white-space: nowrap; }
-.sitrep-marque { color: var(--sourdine); font-size: 11px; }
+.sitrep-marque { color: var(--sourdine); font-size: 12px; }
 
 .sitrep-pied { margin-top: 22px; border-top: 1px solid var(--trait); padding-top: 12px; }
-.sitrep-pied p { font-size: 11.5px; color: var(--sourdine); line-height: 1.5; }
+.sitrep-pied p { font-size: 12px; color: var(--sourdine); line-height: 1.5; }
 
 .sitrep-signature {
   margin-top: 26px;
   border-top: 1px solid var(--trait-fort);
   width: 240px;
   padding-top: 4px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--sourdine);
 }
 
@@ -1685,7 +1685,7 @@ a.carte-lien.urgence-appel { border: 2px solid var(--etat-chaud); color: var(--e
   padding: 5px 1px;
   background: var(--surface);
   border-top: 3px solid var(--etat-ok);
-  font-size: 10px;
+  font-size: 12px;
   min-width: 0;
 }
 
@@ -1694,14 +1694,14 @@ a.carte-lien.urgence-appel { border: 2px solid var(--etat-chaud); color: var(--e
 .bande.niv-rouge  { border-top-color: var(--etat-chaud); background: var(--surface-2); }
 .bande.niv-rouge .bande-valeur { color: var(--etat-chaud); font-weight: 700; }
 
-.bande-heure { color: var(--sourdine); font-size: 8.5px; }
-.bande-valeur { font-size: 11px; font-weight: 600; }
-.bande-temp { font-size: 9.5px; color: var(--sourdine); }
+.bande-heure { color: var(--sourdine); font-size: 11px; }
+.bande-valeur { font-size: 12px; font-weight: 600; }
+.bande-temp { font-size: 11px; color: var(--sourdine); }
 
 /* Hauteur fixe même vide : une colonne sèche ne doit pas raccourcir
    sa voisine pluvieuse — les lignes du tableau restent alignées. */
 .bande-pluie {
-  font-size: 8px;
+  font-size: 11px;
   line-height: 1;
   min-height: 9px;
 }
@@ -1748,7 +1748,7 @@ button.tuile { cursor: pointer; }
 button.tuile:hover { background: var(--surface-2); }
 
 .tuile-libelle {
-  font-size: 9.5px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.09em;
   color: var(--sourdine);
@@ -1763,7 +1763,7 @@ button.tuile:hover { background: var(--surface-2); }
 }
 
 .tuile-detail {
-  font-size: 9.5px;
+  font-size: 12px;
   color: var(--sourdine);
   line-height: 1.3;
   overflow: hidden;
@@ -1813,9 +1813,9 @@ button.tuile:hover { background: var(--surface-2); }
 }
 
 .panneau .carte .titre { font-size: 12px; margin-bottom: 1px; }
-.panneau .meta { font-size: 10.5px; gap: 9px; }
-.panneau .chrono li { font-size: 11.5px; padding: 3px 0 3px 10px; }
-.panneau .chrono .heure { font-size: 10px; flex-basis: 34px; }
+.panneau .meta { font-size: 12px; gap: 9px; }
+.panneau .chrono li { font-size: 12px; padding: 3px 0 3px 10px; }
+.panneau .chrono .heure { font-size: 12px; flex-basis: 34px; }
 
 /* La météo garde ses pavés, mais réduits */
 .meteo .grand { font-size: 21px; }
@@ -1880,12 +1880,12 @@ input:disabled {
 .jour-onglet.actif * { color: var(--on-teinte); }
 
 .jour-nom {
-  font-size: 11px;
+  font-size: 12px;
   text-transform: capitalize;
   color: var(--sourdine);
 }
 .jour-date { font-size: 13px; font-weight: 600; }
-.jour-compte { font-size: 10px; color: var(--sourdine); }
+.jour-compte { font-size: 12px; color: var(--sourdine); }
 
 .timeline {
   border-left: 2px solid var(--trait);
@@ -1914,7 +1914,9 @@ input:disabled {
   border: 2px solid var(--fond);
 }
 
-.item-planning.passe { opacity: 0.4; }
+/* (11/11, audit M10) Un créneau passé se lit encore : en sourdine, sans le voiler à 40 %. */
+.item-planning.passe { opacity: 1; }
+.item-planning.passe .item-heure, .item-planning.passe .item-titre, .item-planning.passe .item-detail { color: var(--sourdine); font-weight: 400; }
 
 .item-planning.en-cours {
   background: color-mix(in srgb, var(--etat-ok) 8%, transparent);
@@ -1935,7 +1937,7 @@ input:disabled {
 
 .item-corps { flex: 1; min-width: 0; }
 .item-titre { font-size: 13.5px; font-weight: 500; }
-.item-detail { font-size: 11.5px; color: var(--sourdine); margin-top: 1px; }
+.item-detail { font-size: 12px; color: var(--sourdine); margin-top: 1px; }
 
 .en-cours-jeton {
   color: var(--etat-ok);
@@ -1956,7 +1958,7 @@ input:disabled {
 .pave-lien:hover { background: var(--surface-2); }
 
 .planning-tag {
-  font-size: 9.5px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.09em;
   color: var(--sourdine);
@@ -2011,7 +2013,7 @@ input:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--sourdine);
   text-align: center;
   padding: 4px;
@@ -2104,11 +2106,12 @@ input:disabled {
 }
 
 .colonne-titre {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--teinte);
+  /* (11/11, audit M10) La teinte du domaine, foncée d'un cran : sur son en-tête teinté, elle passait sous 4,5. */
+  color: color-mix(in srgb, var(--teinte) 78%, var(--encre));
 }
 
 .colonne-compteurs {
@@ -2137,7 +2140,7 @@ input:disabled {
 }
 
 .compteur-mini-libelle {
-  font-size: 8.5px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--sourdine);
@@ -2168,7 +2171,7 @@ input:disabled {
   justify-content: space-between;
   align-items: center;
   padding: 7px 11px;
-  font-size: 9.5px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--sourdine);
@@ -2179,7 +2182,7 @@ input:disabled {
   all: unset;
   cursor: pointer;
   color: var(--teinte);
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: none;
   letter-spacing: 0;
@@ -2195,7 +2198,7 @@ input:disabled {
 
 .moniteur-vide {
   color: var(--sourdine);
-  font-size: 11.5px;
+  font-size: 12px;
   font-style: italic;
   text-align: center;
   margin: 20px 4px;
@@ -2208,19 +2211,19 @@ input:disabled {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  font-size: 11.5px;
+  font-size: 12px;
   padding: 5px 0;
   border-bottom: 1px solid var(--trait);
 }
 
 .moniteur-ligne:last-child { border-bottom: none; }
 .moniteur-ligne strong { font-weight: 600; }
-.moniteur-ligne span { color: var(--sourdine); font-size: 10.5px; }
+.moniteur-ligne span { color: var(--sourdine); font-size: 12px; }
 .moniteur-ligne.urgent strong { color: var(--etat-chaud); }
 
 /* Agir depuis la Situation (24/09, repris du QG BFMF 2026). */
 .moniteur-ligne .moniteur-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 3px; }
-.moniteur-actions button { font-size: 11px; padding: 2px 9px; }
+.moniteur-actions button { font-size: 12px; padding: 2px 9px; }
 .moniteur-actions button.cloturer { color: var(--etat-ok); border-color: var(--etat-ok); }
 
 /* Une ligne de .chrono rendue cliquable, sans rien changer à son
@@ -2278,7 +2281,7 @@ input:disabled {
    dans la v18 : « VERT », « JAUNE », « ORANGE » ou « ROUGE » se lit
    avant même le reste du panneau. */
 .badge-vigilance {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -2356,7 +2359,7 @@ input:disabled {
 
 .ligne-parcours-label {
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 11px;
   color: var(--sourdine);
   white-space: nowrap;
 }
@@ -2371,7 +2374,7 @@ input:disabled {
   background: var(--etat-info);
   color: var(--on-teinte);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   text-align: center;
   cursor: default;
@@ -2422,7 +2425,7 @@ input:disabled {
 }
 
 .compteur-carre-libelle {
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--sourdine);
@@ -2469,7 +2472,7 @@ input:disabled {
   font-weight: 600;
 }
 
-.pastille-n { color: var(--sourdine); font-family: var(--mono); font-size: 11px; }
+.pastille-n { color: var(--sourdine); font-family: var(--mono); font-size: 12px; }
 
 /* Ligne d'actions */
 
@@ -2527,7 +2530,7 @@ input:disabled {
 
 .ligne-mission-ref {
   flex: 0 0 auto;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--sourdine);
 }
 
@@ -2575,7 +2578,7 @@ input:disabled {
 
 .position-actuelle-label {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--sourdine);
@@ -2654,7 +2657,7 @@ input:disabled {
   font-variant-numeric: tabular-nums;
 }
 .meteo-valeurs .unite {
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--sourdine);
@@ -2681,7 +2684,7 @@ input:disabled {
 .meteo-heures .heure { color: var(--sourdine); }
 .meteo-heures .pluie { color: var(--sourdine); }
 .meteo-heures .niveau {
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 700;
@@ -2744,11 +2747,11 @@ button.danger:disabled { opacity: 0.45; }
 .prc-cadrans .cadran { cursor: default; gap: 4px; }
 .prc-cadrans .cadran:hover { background: var(--surface); }
 .prc-cadrans .cadran.veille .cadran-valeur { color: var(--etat-veille); }
-.prc-aide { font-size: 11.5px; color: var(--sourdine); }
-.prc-surtitre { font-size: 11px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; }
+.prc-aide { font-size: 12px; color: var(--sourdine); }
+.prc-surtitre { font-size: 12px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; }
 .prc-surtitre.chaud, .prc-chiffre.chaud, .prc-jeton.chaud { color: var(--etat-chaud); }
 .prc-surtitre.ok { color: var(--etat-ok); }
-.prc-titre { margin: 0 0 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: var(--sourdine); }
+.prc-titre { margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: var(--sourdine); }
 .prc-titre-ligne { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .prc-titre-ligne .case-a-cocher { margin: 0 0 10px; font-size: 13px; }
 .prc-grappes { display: flex; flex-direction: column; gap: 8px; margin-bottom: 22px; }
@@ -2766,7 +2769,7 @@ button.danger:disabled { opacity: 0.45; }
 .prc-lieu.chaud { box-shadow: inset 3px 0 0 var(--etat-chaud); padding-left: 17px; }
 .prc-lieu-tete { display: flex; align-items: flex-start; gap: 8px; }
 .prc-lieu-tete h4 { margin: 0; flex-grow: 1; font-size: 15px; font-weight: 600; text-transform: none; letter-spacing: normal; color: var(--encre); }
-.prc-jeton { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sourdine); border: 1px solid var(--trait); border-radius: 4px; padding: 1px 6px; }
+.prc-jeton { font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sourdine); border: 1px solid var(--trait); border-radius: 4px; padding: 1px 6px; }
 .prc-jeton.chaud { border-color: var(--etat-chaud); }
 .prc-niveau { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .prc-grains { display: flex; gap: 4px; }
@@ -2774,16 +2777,16 @@ button.danger:disabled { opacity: 0.45; }
 .prc-grain.ok { background: var(--etat-ok); border-color: var(--etat-ok); }
 .prc-grain.veille { background: var(--etat-veille); border-color: var(--etat-veille); }
 .prc-grain.chaud { background: var(--etat-chaud); border-color: var(--etat-chaud); }
-.prc-niveau-texte { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; }
+.prc-niveau-texte { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; }
 .prc-niveau-texte.froid { color: var(--etat-froid); }
 .prc-niveau-texte.ok { color: var(--etat-ok); }
 .prc-niveau-texte.veille { color: var(--etat-veille); }
 .prc-niveau-texte.chaud { color: var(--etat-chaud); }
-.prc-capacite { font-size: 11px; color: var(--sourdine); margin-left: auto; }
+.prc-capacite { font-size: 12px; color: var(--sourdine); margin-left: auto; }
 .prc-chiffres { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.prc-chiffres dt { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sourdine); }
+.prc-chiffres dt { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sourdine); }
 .prc-chiffres dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 15px; }
-.prc-liens { border-top: 1px solid var(--trait); padding-top: 8px; display: flex; flex-direction: column; gap: 2px; font-size: 11.5px; color: var(--sourdine); }
+.prc-liens { border-top: 1px solid var(--trait); padding-top: 8px; display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--sourdine); }
 .prc-liens span { color: var(--encre); }
 .prc-liste { background: var(--surface); border: 1px solid var(--trait); border-radius: 2px; margin-bottom: 8px; }
 .prc-ligne { display: flex; gap: 12px; align-items: center; padding: 10px 12px; font-size: 13px; }
@@ -2792,7 +2795,7 @@ button.danger:disabled { opacity: 0.45; }
 .prc-ligne-texte { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; }
 .prc-ligne-droite { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .prc-ligne .sourdine, .prc-ligne .mono.sourdine { color: var(--sourdine); font-size: 12px; flex-shrink: 0; }
-.prc-poids { font-variant-numeric: tabular-nums; font-size: 11.5px; white-space: nowrap; }
+.prc-poids { font-variant-numeric: tabular-nums; font-size: 12px; white-space: nowrap; }
 .prc-poids.veille { color: var(--etat-veille); }
 .prc-poids.froid { color: var(--etat-froid); }
 .prc-majeur { font-weight: 600; }
@@ -2887,7 +2890,7 @@ body.impl-plein-corps { overflow: hidden; }
 .tableau-defilant { overflow-x: auto; }
 .tableau { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface); }
 .tableau th, .tableau td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--trait); vertical-align: top; }
-.tableau th { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sourdine); }
+.tableau th { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sourdine); }
 
 /* Impression du plan : la carte seule, pleine page, légende comprise. */
 @media print {
@@ -2960,7 +2963,7 @@ body.impl-plein-corps { overflow: hidden; }
 .exo-manques { margin-top: 10px; }
 .exo-manques ul { margin: 4px 0 0; padding-left: 18px; }
 .exo-manques li { font-size: 13px; line-height: 1.6; }
-.exo-manques li .mono { font-size: 11px; margin-left: 6px; }
+.exo-manques li .mono { font-size: 12px; margin-left: 6px; }
 .exo-impression { display: none; }
 body.impression-exercice .exo-impression { display: block; }
 .exo-bandeau-exercice { background: var(--etat-veille); color: var(--on-teinte); padding: 6px 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px; }
@@ -2975,7 +2978,7 @@ body.impression-exercice .exo-impression { display: block; }
 .exo-emetteur { font-weight: 600; }
 .exo-texte { margin: 6px 0 4px; font-size: 15px; line-height: 1.4; }
 .exo-note { margin: 2px 0; font-size: 12.5px; color: var(--sourdine); border-left: 2px solid var(--etat-info); padding-left: 8px; }
-.exo-sources { margin: 2px 0; font-size: 11.5px; color: var(--sourdine); }
+.exo-sources { margin: 2px 0; font-size: 12px; color: var(--sourdine); }
 .exo-grille { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .exo-grille li { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; border-top: 1px dashed var(--trait); }
 .exo-grille li.faite .exo-action { color: var(--etat-ok); }
@@ -2985,10 +2988,10 @@ body.impression-exercice .exo-impression { display: block; }
 .exo-coche.oui { background: var(--etat-ok); border-color: var(--etat-ok); color: var(--on-teinte); }
 .exo-coche.non { background: var(--etat-chaud); border-color: var(--etat-chaud); color: var(--on-teinte); }
 .exo-coche:disabled { cursor: default; opacity: 0.5; }
-.exo-obj { font-size: 11px; color: var(--etat-info); }
-.exo-critere { font-size: 11px; }
+.exo-obj { font-size: 12px; color: var(--etat-info); }
+.exo-critere { font-size: 12px; }
 .exo-edition { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; }
-.exo-edition label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; margin: 0; }
+.exo-edition label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; margin: 0; }
 .exo-edition input, .exo-edition textarea { margin: 0; }
 .exo-ecarts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px; }
 .exo-synthese .tableau { margin-bottom: 8px; }
@@ -3018,7 +3021,7 @@ body.carte-plein-corps { overflow: hidden; }
 
 /* Le cycle d'un signalement : reçu → pris en charge → clos, avec les
    délais et le traitant. Une ligne, en mono, sous la description. */
-.pcops .cycle { display: flex; flex-wrap: wrap; gap: 4px; font-size: 11px; color: var(--sourdine); margin-top: 4px; }
+.pcops .cycle { display: flex; flex-wrap: wrap; gap: 4px; font-size: 12px; color: var(--sourdine); margin-top: 4px; }
 .pcops .cycle strong { color: var(--encre); }
 .pcops .cycle .attente { color: var(--etat-chaud); font-weight: 700; }
 .pcops .carte.urgent { box-shadow: inset 3px 0 0 var(--etat-chaud); }
@@ -3040,10 +3043,10 @@ body.carte-plein-corps { overflow: hidden; }
 .bien-recu { all: unset; cursor: pointer; font-size: 12px; font-weight: 700; padding: 3px 10px; border: 1px solid currentColor; color: var(--etat-chaud); }
 .bien-recu:hover { background: var(--surface-2); }
 .bien-recu.lu { cursor: default; border-color: transparent; color: var(--etat-ok); padding-left: 0; }
-.accuses { font-size: 11px; color: var(--sourdine); margin-top: 5px; line-height: 1.4; }
+.accuses { font-size: 12px; color: var(--sourdine); margin-top: 5px; line-height: 1.4; }
 .accuses .acquittee { color: var(--etat-ok); }
-.bandeau-alerte .meta button.discret { margin: 0 0 0 6px; padding: 2px 8px; font-size: 11px; }
-.moniteur-actions select { width: auto; margin: 0; font-size: 11px; padding: 2px 4px; }
+.bandeau-alerte .meta button.discret { margin: 0 0 0 6px; padding: 2px 8px; font-size: 12px; }
+.moniteur-actions select { width: auto; margin: 0; font-size: 12px; padding: 2px 4px; }
 .participant .cycle-sos { margin: 2px 0 0; }
 
 /* Plan radio dans la colonne Situation (lot 2) */
@@ -3058,7 +3061,7 @@ body.carte-plein-corps { overflow: hidden; }
    reconnaisse d'un écran à l'autre. */
 .sur-trace { font-family: var(--mono); color: var(--encre); white-space: nowrap; }
 .moniteur-ligne span.sur-trace { color: var(--encre); }
-.leaflet-popup-content .sur-trace { font-size: 11px; }
+.leaflet-popup-content .sur-trace { font-size: 12px; }
 
 /* PC-OPS : la saisie d'un SOS radio, et les lieux qui reviennent. */
 .saisie-radio { border-left: 4px solid var(--etat-chaud); margin: 10px 0; }
@@ -3069,7 +3072,7 @@ body.carte-plein-corps { overflow: hidden; }
 /* Situation : engager une équipe depuis le moniteur Sécurité. */
 .moniteur-ligne.engagement input { font-size: 12px; padding: 4px 6px; margin: 0 0 4px; width: 100%; }
 .moniteur-ligne .engagee { color: var(--etat-ok); }
-.moniteur-vide button.discret { font-size: 11px; padding: 2px 9px; }
+.moniteur-vide button.discret { font-size: 12px; padding: 2px 9px; }
 
 /* Autorité : la carte vectorielle et la capacité des étapes. */
 .carte-svg {
@@ -3092,9 +3095,9 @@ body.carte-plein-corps { overflow: hidden; }
   color: var(--encre); font-weight: 400; cursor: default; z-index: 5;
 }
 .carte-reserve-tete { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-.carte-reserve .aide { margin: 4px 0 8px; font-size: 11.5px; }
+.carte-reserve .aide { margin: 4px 0 8px; font-size: 12px; }
 .carte-reserve progress { width: 100%; height: 8px; }
-.carte-reserve button.discret { font-size: 11.5px; width: 100%; text-align: left; white-space: normal; }
+.carte-reserve button.discret { font-size: 12px; width: 100%; text-align: left; white-space: normal; }
 
 /* Autorité (124) : qui appeler, où se retrouver — en tête de page. */
 .interlocuteurs { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 10px 0 14px; }
@@ -3158,18 +3161,18 @@ body.carte-plein-corps { overflow: hidden; }
 .gantt-separateur { stroke: var(--trait); stroke-width: 1; opacity: 0.6; }
 .gantt-grille { stroke: var(--trait); stroke-width: 1; opacity: 0.5; }
 .gantt-grille.semaine { opacity: 1; }
-.gantt-axe-jour { fill: var(--sourdine); font-size: 10px; font-family: var(--mono); }
+.gantt-axe-jour { fill: var(--sourdine); font-size: 11px; font-family: var(--mono); }
 .gantt-axe-mois { fill: var(--encre); font-size: 11px; font-weight: 600; }
 .gantt-bande { opacity: 0.12; }
 .gantt-bande.montage { fill: var(--dom-bronze); }
 .gantt-bande.exploitation { fill: var(--dom-azur); }
 .gantt-bande.demontage { fill: var(--dom-ardoise); }
-.gantt-bande-libelle { fill: var(--sourdine); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+.gantt-bande-libelle { fill: var(--sourdine); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
 .gantt-j { stroke: var(--encre); stroke-width: 2; }
 .gantt-j-libelle { fill: var(--encre); font-size: 11px; font-weight: 700; font-family: var(--mono); }
 .gantt-aujourdhui { stroke: var(--etat-info); stroke-width: 1.5; stroke-dasharray: 4 3; }
 .gantt-libelle { fill: var(--encre); font-size: 12px; }
-.gantt-responsable { fill: var(--sourdine); font-size: 10px; font-family: var(--mono); }
+.gantt-responsable { fill: var(--sourdine); font-size: 11px; font-family: var(--mono); }
 .gantt-barre { fill: var(--sourdine); opacity: 0.55; stroke: var(--surface); stroke-width: 1; }
 .gantt-avancement { fill: var(--sourdine); opacity: 0.9; }
 .gantt-losange { fill: var(--sourdine); stroke: var(--surface); stroke-width: 1; }
@@ -3202,7 +3205,7 @@ body.carte-plein-corps { overflow: hidden; }
 .fiche-jalon-tete { display: flex; align-items: center; gap: 8px; }
 .fiche-jalon-tete button { margin-left: auto; }
 .fiche-jalon-champs { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: flex-end; }
-.fiche-jalon-champs label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--sourdine); text-transform: uppercase; letter-spacing: 0.04em; }
+.fiche-jalon-champs label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--sourdine); text-transform: uppercase; letter-spacing: 0.04em; }
 .fiche-jalon-champs input, .fiche-jalon-champs select { margin: 0; width: auto; font-size: 13px; text-transform: none; letter-spacing: normal; }
 .fiche-jalon-avancement { display: flex; align-items: center; gap: 6px; }
 .fiche-jalon-avancement input[type="range"] { width: 120px; }
@@ -3217,14 +3220,14 @@ body.carte-plein-corps { overflow: hidden; }
 .four-carte .titre { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .four-inactif { opacity: 0.6; }
 .four-note { color: var(--etat-veille); font-size: 13px; white-space: nowrap; }
-.four-verdict { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; border: 1px solid var(--trait); }
+.four-verdict { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; border: 1px solid var(--trait); }
 .four-verdict.verdict-a_reprendre { color: var(--etat-ok); border-color: var(--etat-ok); }
 .four-verdict.verdict-sous_reserve { color: var(--etat-veille); border-color: var(--etat-veille); }
 .four-verdict.verdict-a_eviter { color: var(--etat-chaud); border-color: var(--etat-chaud); }
 .four-fiche h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--sourdine); margin: 18px 0 6px; }
 .four-fiche-tete, .dp-fiche-tete { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
 .four-grille, .dp-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 12px; }
-.four-grille label, .dp-grille label { display: flex; flex-direction: column; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sourdine); }
+.four-grille label, .dp-grille label { display: flex; flex-direction: column; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sourdine); }
 .four-grille input, .four-grille textarea, .four-grille select, .dp-grille input, .dp-grille textarea, .dp-grille select { margin-top: 2px; }
 .four-large, .dp-large { grid-column: 1 / -1; }
 .four-categories { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0 12px; margin: 6px 0; }
@@ -3239,7 +3242,7 @@ body.carte-plein-corps { overflow: hidden; }
 .dp-liste tr.dp-ligne { cursor: pointer; }
 .dp-liste tr.dp-ligne:hover td { background: var(--surface-2); }
 .dp-liste tr.selectionne td { background: var(--surface-2); }
-.dp-pastille { display: inline-block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 7px; border: 1px solid var(--trait); color: var(--sourdine); white-space: nowrap; }
+.dp-pastille { display: inline-block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 7px; border: 1px solid var(--trait); color: var(--sourdine); white-space: nowrap; }
 .dp-pastille.statut-envoyee, .dp-pastille.statut-relancee { color: var(--etat-info); border-color: var(--etat-info); }
 .dp-pastille.statut-comparaison, .dp-pastille.statut-offre_recue { color: var(--etat-veille); border-color: var(--etat-veille); }
 .dp-pastille.statut-decidee, .dp-pastille.statut-retenue { color: var(--etat-ok); border-color: var(--etat-ok); }
@@ -3286,7 +3289,7 @@ body.carte-plein-corps { overflow: hidden; }
 .inv-filtres th { padding: 2px 4px; }
 .inv-filtres input { margin: 0; padding: 2px 6px; font-size: 12px; width: 100%; min-width: 60px; }
 .inv-sorti { color: var(--etat-veille); font-weight: 600; }
-.inv-statut { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; border: 1px solid var(--trait); white-space: nowrap; }
+.inv-statut { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; padding: 1px 6px; border: 1px solid var(--trait); white-space: nowrap; }
 .inv-statut.sorti { color: var(--etat-veille); border-color: var(--etat-veille); }
 .inv-statut.en_retard { color: var(--etat-chaud); border-color: var(--etat-chaud); }
 .inv-statut.rendu { color: var(--etat-ok); border-color: var(--etat-ok); }
@@ -3297,7 +3300,7 @@ body.carte-plein-corps { overflow: hidden; }
 .inv-choix { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 12px; margin-bottom: 10px; }
 .inv-planche { display: flex; flex-wrap: wrap; gap: 10px; }
 .inv-etiquette-carte { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px; border: 1px dashed var(--trait); background: #fff; color: #000; font-size: 12px; max-width: 220px; text-align: center; }
-.inv-etiquette-nom { font-size: 11px; }
+.inv-etiquette-nom { font-size: 12px; }
 .inv-video { width: 100%; max-width: 420px; border: 1px solid var(--trait); margin: 8px 0; }
 @media print {
   .inv .onglets, .inv-etiquettes .ligne-boutons, .inv-etiquettes .aide, .inv-choix, .rail, .bandeau, .colonne-droite { display: none !important; }
@@ -3368,7 +3371,7 @@ body.carte-plein-corps { overflow: hidden; }
   .carte-conteneur.carte-autorite { height: 60vh; }
 }
 /* (29/10) Les étiquettes de la carte autorité portent le nom, pas le code : police de texte, lisible. */
-.leaflet-tooltip.etiquette-acces, .leaflet-tooltip.etiquette-repere { font-family: inherit; font-size: 11px; font-weight: 600; padding: 1px 5px; }
+.leaflet-tooltip.etiquette-acces, .leaflet-tooltip.etiquette-repere { font-family: inherit; font-size: 12px; font-weight: 600; padding: 1px 5px; }
 /* (148) Le conseil du catalogue dans la fiche d'un objet, à part de son commentaire. */
 .impl-conseil { font-style: italic; }
 /* (29/10) Une voie d'accès secours reliée : d'où elle part, où elle mène. */
@@ -3377,13 +3380,14 @@ body.carte-plein-corps { overflow: hidden; }
 
 /* (29/10) Main courante : les filtres en deux listes, sur une ligne. */
 .journal-filtres { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: flex-end; margin-bottom: 12px; }
-.journal-filtres label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--sourdine); text-transform: uppercase; letter-spacing: 0.04em; flex: 1 1 160px; max-width: 260px; }
+.journal-filtres label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--sourdine); text-transform: uppercase; letter-spacing: 0.04em; flex: 1 1 160px; max-width: 260px; }
 .journal-filtres select { margin: 0; width: 100%; font-size: 14px; text-transform: none; letter-spacing: normal; }
 .journal-filtres .journal-compte { margin: 0 0 8px; }
 
 /* (29/10) Demande : le lieu se cherche par son nom, la liste se réduit en tapant. */
 .choix-lieu { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
-.choix-lieu input { margin: 0; }
+/* (11/11) Dans une ligne de saisie, la base de 200 px devenait une hauteur : la colonne du choix de lieu étirait son champ. */
+.choix-lieu input, .saisie-rapide .choix-lieu input { margin: 0; flex: 0 0 auto; width: 100%; }
 .choix-lieu-liste { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .choix-lieu-option { all: unset; cursor: pointer; padding: 5px 10px; border: 1px solid var(--trait-fort); border-radius: 999px; font-size: 13px; color: var(--encre); background: var(--surface); }
 .choix-lieu-option:hover, .choix-lieu-option:focus-visible { border-color: var(--encre); background: var(--surface-2); }
@@ -3391,12 +3395,12 @@ body.carte-plein-corps { overflow: hidden; }
 .choix-lieu-choisi .jeton { font-size: 14px; text-transform: none; letter-spacing: normal; }
 
 /* (31/10) Logistique : une liste déroulante de rubriques au lieu de deux rangées de boutons. */
-.rubrique-logistique { display: flex; flex-direction: column; gap: 2px; max-width: 360px; margin-bottom: 14px; font-size: 11px; color: var(--sourdine); text-transform: uppercase; letter-spacing: 0.04em; }
+.rubrique-logistique { display: flex; flex-direction: column; gap: 2px; max-width: 360px; margin-bottom: 14px; font-size: 12px; color: var(--sourdine); text-transform: uppercase; letter-spacing: 0.04em; }
 .rubrique-logistique select { margin: 0; font-size: 16px; font-weight: 600; text-transform: none; letter-spacing: normal; }
 
 /* (31/10, audit d'ergonomie) Le nom d'abord ; le code, quand il sert
    (jalon, objet du plan, référence radio), en petit gris après. */
-.code-discret { font-family: var(--mono); font-size: 11px; font-weight: 400; color: var(--sourdine); margin-left: 8px; letter-spacing: 0.02em; white-space: nowrap; }
+.code-discret { font-family: var(--mono); font-size: 12px; font-weight: 400; color: var(--sourdine); margin-left: 8px; letter-spacing: 0.02em; white-space: nowrap; }
 
 /* (31/10) Page autorité : la liste des rubriques reste collée en haut, comme les onglets qu'elle remplace. */
 .rubrique-autorite { position: sticky; top: 0; z-index: 5; background: var(--fond); padding: 8px 0; margin: 6px 0 14px; max-width: none; }
@@ -3427,7 +3431,7 @@ body.qg-actif { overflow: hidden; }
 .qg-chiffre.chaud { box-shadow: inset 0 -3px 0 var(--etat-chaud); }
 .qg-chiffre.chaud .qg-chiffre-valeur { color: var(--etat-chaud); }
 .qg-chiffre-valeur { font-size: 24px; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; }
-.qg-chiffre-libelle { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--sourdine); white-space: nowrap; }
+.qg-chiffre-libelle { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--sourdine); white-space: nowrap; }
 .qg-boutons { display: flex; gap: 6px; flex: 0 0 auto; }
 .qg-etat { font-size: 12px; padding: 6px 10px; background: var(--surface); color: var(--sourdine); border-color: var(--trait); }
 .qg-etat.actif { color: var(--encre); border-color: var(--encre); }
@@ -3441,12 +3445,12 @@ body.qg-actif { overflow: hidden; }
 .qg-file { grid-area: file; }
 .qg-fil { grid-area: fil; }
 .qg-avenir { grid-area: avenir; }
-.mode-qg h3 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--sourdine); display: flex; justify-content: space-between; }
+.mode-qg h3 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--sourdine); display: flex; justify-content: space-between; }
 .qg-liste { list-style: none; margin: 0; padding: 0; }
 .qg-item { padding: 8px 0 8px 10px; border-bottom: 1px solid var(--trait); border-left: 3px solid var(--trait); margin-bottom: 2px; }
 .qg-item.chaud { border-left-color: var(--etat-chaud); }
 .qg-item.genre-demande:not(.chaud) { border-left-color: var(--etat-veille); }
-.qg-item-tete { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sourdine); }
+.qg-item-tete { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sourdine); }
 .qg-item.chaud .qg-nature { color: var(--etat-chaud); font-weight: 700; }
 .qg-item-titre { font-size: 16px; font-weight: 600; margin: 2px 0; line-height: 1.25; }
 .qg-item-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--sourdine); }
@@ -3547,7 +3551,7 @@ body.qg-actif { overflow: hidden; }
 .prima-message.chaud { color: var(--etat-chaud); }
 .prima-message.veille { color: var(--etat-veille); }
 .prima-composition { margin: 2px 0 8px; }
-.prima-entrees tr.prima-section th { padding-top: 10px; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--sourdine); text-align: left; }
+.prima-entrees tr.prima-section th { padding-top: 10px; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--sourdine); text-align: left; }
 .prima-entrees td:first-child { width: 38%; }
 .prima-entrees tr.manquante td:first-child { color: var(--etat-veille); font-weight: 600; }
 .prima-entrees select, .prima-nombre { margin: 0; max-width: 100%; }
@@ -3587,7 +3591,7 @@ body.qg-actif { overflow: hidden; }
 .formulaire-section { border-top: 1px solid var(--trait); }
 .formulaire-section-titre { display: block; width: 100%; text-align: left; padding: 8px 0; font-weight: 600; }
 .formulaire-questions { margin-bottom: 8px; }
-.formulaire-questions tr.formulaire-sous-section th { padding-top: 10px; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--sourdine); }
+.formulaire-questions tr.formulaire-sous-section th { padding-top: 10px; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--sourdine); }
 .formulaire-questions tr.manquante td.formulaire-code { color: var(--etat-veille); font-weight: 600; }
 .formulaire-code { width: 48px; font-family: var(--mono); font-size: 12px; white-space: nowrap; }
 .formulaire-libelle { width: 40%; }
@@ -3614,8 +3618,8 @@ body.qg-actif { overflow: hidden; }
 .flottant.parler.enregistre { background: var(--etat-chaud); animation: talkie-pulse 1s ease-in-out infinite; }
 .flottant.parler.annule { background: var(--sourdine); }
 @keyframes talkie-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--etat-chaud) 55%, transparent); } 50% { box-shadow: 0 0 0 10px transparent; } }
-.talkie-112 { font-size: 11px; color: var(--sourdine); background: var(--surface); padding: 1px 6px; border-radius: 4px; }
-.talkie-erreur { font-size: 11px; color: var(--etat-chaud); background: var(--surface); padding: 1px 6px; border-radius: 4px; max-width: 220px; }
+.talkie-112 { font-size: 12px; color: var(--sourdine); background: var(--surface); padding: 1px 6px; border-radius: 4px; }
+.talkie-erreur { font-size: 12px; color: var(--etat-chaud); background: var(--surface); padding: 1px 6px; border-radius: 4px; max-width: 220px; }
 .flottant.vocaux { background: var(--dom-ardoise); padding: 10px 15px; font-size: 13px; }
 .talkie-info p { margin: 6px 0; }
 .mes-messages { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
@@ -3687,3 +3691,172 @@ body.qg-actif { overflow: hidden; }
 .qr-postes-table select { margin-bottom: 0; width: auto; max-width: 200px; }
 .qr-postes-table tr.inactif td { opacity: 0.55; }
 @media print { .qr-postes h2, .qr-postes .aide, .qr-postes label, .qr-postes .saisie-rapide, .qr-postes-table, .qr-postes .ligne-boutons, .qr-postes .message { display: none; } }
+
+/* (11/11, audit C2-C3) L'accusé de lecture sur un aplat d'alerte, et la mention « hors réseau ». */
+.bandeau-perime { font-size: 12px; font-weight: 600; padding: 6px 10px; border: 1px dashed var(--etat-veille); color: var(--encre); background: var(--surface); margin-bottom: 6px; }
+.bien-recu { display: inline-flex; align-items: center; min-height: 32px; padding: 3px 12px; font-size: 13px; }
+.bien-recu:focus-visible { outline: 2px solid var(--encre); outline-offset: 2px; }
+.chrono-jour { display: block; flex-basis: 100%; font-size: 12px; font-weight: 700; color: var(--sourdine); text-transform: capitalize; margin: 8px 0 2px; }
+.journal-filtres input[type="search"] { width: auto; min-width: 160px; margin-bottom: 0; }
+.chrono li { flex-wrap: wrap; }
+
+/* (11/11, audit C3) Hors réseau : ce qu'on montre est une copie, et on le dit. */
+.message.hors-reseau { border-left-color: var(--etat-veille); background: var(--surface); }
+.bandeau-etat.perime .cadran-valeur { opacity: 0.55; }
+.etat-perime { grid-column: 1 / -1; flex-basis: 100%; font-size: 12px; font-weight: 600; color: var(--etat-veille); padding: 2px 8px; }
+
+/* ------------------------------------------------------------------ */
+/* (11/11, audit M17) Le focus au clavier, partout.                     */
+/* Les classes remises à zéro par `all: unset` (navigation, cadrans,    */
+/* boutons-liens, pavés) perdaient l'anneau : on le rend, en dernier.    */
+button:focus-visible, a:focus-visible, summary:focus-visible, [role="button"]:focus-visible, [tabindex]:focus-visible,
+.plaque-nav:focus-visible, .cadran:focus-visible, button.lien:focus-visible, .onglet-bas:focus-visible, .moniteur-lien:focus-visible,
+.pave-lien:focus-visible, .tuile:focus-visible, .pastille:focus-visible, .jour-onglet:focus-visible, .exo-item:focus-visible, .impl-fiche:focus-visible,
+.ligne-mission-resume:focus-visible, .carte-plein-bouton:focus-visible, .colonne-tete:focus-visible {
+  outline: 2px solid var(--etat-info);
+  outline-offset: 2px;
+}
+.plaque-nav.actif:focus-visible, .onglet-bas:focus-visible { outline-offset: -2px; }
+
+/* (11/11, audit M8) Au doigt, quelle que soit la largeur : une tablette en portrait
+   (820 px) gardait les contrôles de bureau, 81 % sous 44 px. */
+@media (pointer: coarse) {
+  button, select, a.bouton, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), .plaque-nav { min-height: 44px; }
+  button.lien { min-height: 44px; display: inline-flex; align-items: center; }
+  p button.lien, .aide button.lien, li button.lien, .meta button.lien, td button.lien { min-height: 0; display: inline; padding-block: 8px; }
+  input[type="checkbox"], input[type="radio"] { width: 22px; height: 22px; }
+  .onglets button.module { min-height: 44px; }
+  .leaflet-bar a { width: 40px; height: 40px; line-height: 40px; }
+}
+
+/* Lecteurs d'écran : un texte présent pour eux seuls. */
+.sr-seul { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.sourdine-texte, .sourdine-texte * { color: var(--sourdine); font-weight: 400; }
+.titre-bouton { all: unset; display: block; width: 100%; cursor: pointer; font: inherit; font-weight: 600; box-sizing: border-box; }
+.titre-bouton:focus-visible { outline: 2px solid var(--etat-info); outline-offset: 2px; }
+
+/* (169) La demande du bénévole. */
+.demande-terrain { display: flex; flex-direction: column; gap: 8px; }
+.demande-terrain label { margin-top: 4px; }
+.demande-familles { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.demande-familles button.module { min-height: 40px; padding: 6px 12px; border-radius: 999px; }
+.demande-ouvrir { padding: 12px; font-size: 15px; margin: 0 0 12px; width: auto; min-width: 280px; }
+@media (max-width: 700px) { .demande-ouvrir { width: 100%; } }
+
+/* (169) La clôture guidée et son rappel. */
+.cloture-guidee { margin-top: 12px; padding: 12px 14px; border: 2px solid var(--trait-fort); background: var(--surface); display: flex; flex-direction: column; gap: 10px; }
+.cloture-guidee h3 { margin: 0; font-size: 15px; }
+.cloture-groupe ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cloture-groupe li { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; padding: 6px 8px; border-left: 3px solid var(--trait); background: var(--surface-2); }
+.cloture-groupe li > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cloture-groupe li .aide { margin: 0; }
+.cloture-bloquant li { border-left-color: var(--etat-chaud); }
+.cloture-alerte li { border-left-color: var(--etat-veille); }
+.cloture-info li { border-left-color: var(--etat-info); }
+.message.rappel-cloture { border-left-color: var(--etat-veille); }
+
+/* (169) L'arbitrage des constats en lot. */
+.rex-lot-barre { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.rex-filtres { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; }
+.rex-filtres label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--sourdine); flex: 1 1 150px; }
+.rex-filtres select, .rex-filtres input { margin: 0; width: 100%; }
+.rex-lot-actions { position: sticky; top: 0; z-index: 5; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; margin-bottom: 10px; background: var(--surface); border: 2px solid var(--trait-fort); }
+.rex-lot-actions .saisie-rapide { margin-bottom: 0; align-items: center; }
+.rex-doublons { margin-bottom: 12px; }
+.rex-doublons ul { margin: 0 0 8px; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.rex-titre { display: flex; gap: 10px; align-items: flex-start; }
+.rex-case { display: inline-flex; margin: 0; padding-top: 2px; }
+.rex-case input { margin: 0; }
+
+/* ------------------------------------------------------------------ */
+/* Recherche globale et liens directs (11/11)                          */
+/* ------------------------------------------------------------------ */
+.recherche-bouton { display: inline-flex; align-items: center; gap: 6px; }
+.recherche-voile { position: fixed; inset: 0; z-index: 400; background: rgba(0, 0, 0, 0.45); display: flex; justify-content: center; align-items: flex-start; padding: 8vh 16px 16px; }
+.recherche { width: min(680px, 100%); max-height: 80vh; display: flex; flex-direction: column; background: var(--surface); color: var(--texte); border: 2px solid var(--trait-fort); }
+.recherche-champ { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--trait); }
+.recherche-champ input { flex: 1 1 auto; min-width: 0; font-size: 16px; border: 0; background: transparent; color: inherit; padding: 8px 0; }
+.recherche-champ input:focus { outline: none; }
+.recherche-champ:focus-within { box-shadow: inset 0 -2px 0 var(--accent); }
+.recherche-resultats { overflow-y: auto; padding: 8px 12px 12px; }
+.recherche-groupe h3 { margin: 12px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sourdine); }
+.recherche-ligne { display: flex; align-items: center; gap: 8px; padding: 8px; min-height: 44px; cursor: pointer; border-left: 3px solid transparent; }
+.recherche-ligne.actif { background: var(--fond); border-left-color: var(--accent); }
+.recherche-texte { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.recherche-titre { display: flex; gap: 8px; align-items: baseline; font-weight: 600; overflow-wrap: anywhere; }
+.recherche-detail { font-size: 13px; color: var(--sourdine); overflow-wrap: anywhere; }
+.recherche-lien { flex: 0 0 auto; min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
+/* La ligne qu'un lien direct ou la recherche vient d'ouvrir : soulignée un instant. */
+.objet-vise { outline: 3px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 700px) {
+  .recherche-voile { padding: 0; }
+  .recherche { width: 100%; max-height: 100dvh; height: 100dvh; border: 0; }
+  .recherche-bouton-texte { display: none; }
+}
+
+/* Notifications sur cet appareil (Mon compte, 11/11) */
+.notifs-appareil { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--trait); display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.notifs-appareil h3 { margin: 0; font-size: 15px; }
+.notifs-choix { border: 1px solid var(--trait); padding: 8px 12px; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.notifs-choix legend { font-size: 12px; color: var(--sourdine); padding: 0 4px; }
+.notifs-choix label.case-a-cocher { margin: 0; min-height: 32px; }
+@media (pointer: coarse) { .notifs-choix label.case-a-cocher { min-height: 44px; } }
+
+/* Le message d'un écran : fermable, et qui s'efface seul quand ce n'est pas une erreur (11/11) */
+.message.fermable { display: flex; align-items: flex-start; gap: 10px; }
+.message.fermable .message-texte { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.message-fermer { flex: 0 0 auto; min-width: 32px; min-height: 32px; margin: -4px -6px -4px 0; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 0; color: inherit; cursor: pointer; }
+.message-fermer:hover { background: rgba(127, 127, 127, 0.18); }
+@media (pointer: coarse) { .message-fermer { min-width: 44px; min-height: 44px; margin: -10px -10px -10px 0; } }
+
+/* Le témoin « Enregistré ✓ » (11/11) : en bas à gauche, hors des boutons d'urgence (en bas à droite). */
+.temoin-ecrit { position: fixed; left: 16px; bottom: 16px; z-index: 350; padding: 8px 14px; background: var(--etat-ok); color: #fff; font-weight: 600; font-size: 14px; opacity: 0; transform: translateY(8px); transition: opacity 0.15s, transform 0.15s; pointer-events: none; }
+.temoin-ecrit.visible { opacity: 1; transform: none; }
+@media (max-width: 700px) { .temoin-ecrit { left: 12px; bottom: calc(72px + env(safe-area-inset-bottom, 0px)); } }
+@media (prefers-reduced-motion: reduce) { .temoin-ecrit { transition: none; } }
+@media print { .temoin-ecrit { display: none; } }
+
+/* Entre une navigation et le retour de ses requêtes : « Chargement… » à la place des états vides (chargement.js) */
+html[data-charge] .vide { font-size: 0; }
+html[data-charge] .vide::before { content: 'Chargement…'; font-size: 14px; }
+html[data-charge] .vide > * { display: none; }
+
+/* « Une nouvelle version est prête » (11/11) */
+.mise-a-jour { position: fixed; top: 0; left: 0; right: 0; z-index: 500; display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 10px 16px; background: var(--encre); color: var(--fond); font-size: 14px; }
+.mise-a-jour button { background: var(--fond); color: var(--encre); border-color: var(--fond); }
+@media print { .mise-a-jour { display: none; } }
+
+/* Impression : toujours en clair (11/11). Le thème sombre choisi à l'écran l'emportait sur la règle
+   d'impression (sélecteur plus précis) : fond noir, encre claire, cartouches vidées. */
+@media print {
+  :root[data-theme="sombre"], :root:not([data-theme="clair"]) {
+    --surface-2: #f6f7f9;
+    --trait-fort: #10151b;
+    --on-teinte: #ffffff;
+    --etat-ok: #1f6f4f;
+    --etat-veille: #8a5600;
+    --etat-chaud: #b3311d;
+    --etat-info: #23557f;
+    --etat-froid: #515b67;
+    --ombre: 0 1px 0 rgba(16, 21, 27, 0.06);
+    --ombre-flottant: 0 3px 12px rgba(16, 21, 27, 0.22);
+    --dom-indigo: #4c5bb8;
+    --dom-violet: #7a4fb0;
+    --dom-sarcelle: #17796f;
+    --dom-grenat: #a8324a;
+    --dom-orange: #c25a12;
+    --dom-bronze: #7d580e;
+    --dom-mousse: #3f7a2e;
+    --dom-azur: #1f6ba8;
+    --dom-prune: #8c3f7a;
+    --dom-ardoise: #4a6572;
+    --dom-tilleul: #6d7a1c;
+    --dom-gris: #5d6874;
+    --fond: #fff;
+    --surface: #fff;
+    --encre: #000;
+    --trait: #999;
+    --sourdine: #444;
+    color-scheme: light;
+  }
+}

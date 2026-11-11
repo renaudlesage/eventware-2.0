@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { objetVise } from './objetVise'
+import { pousser } from './push'
 import { supabase } from './supabaseClient'
 import { ecrireOuEmpiler } from './fileEcritures'
+import { nouvelleCle } from './reessai'
 import { libelleStatut } from './libelles'
 import { texteErreur } from './erreurs'
 import SuggestionsDemande from './SuggestionsDemande'
@@ -57,6 +60,16 @@ export function Missions({ evenement, membre, peut, toutPouvoir, setMessage, mod
   const [membres, setMembres] = useState([])
   const [filtre, setFiltre] = useState('tout')
   const [ouvert, setOuvert] = useState(null)
+  // Un lien direct (#securite/missions/SEC-014) ou un résultat de recherche déplie la demande visée, une fois.
+  const vise = useRef(objetVise())
+  useEffect(() => {
+    if (!vise.current) return
+    const m = missions.find((x) => x.reference === vise.current)
+    if (!m) return
+    vise.current = null
+    setFiltre('tout')
+    setOuvert(m.id)
+  }, [missions])
   const [creer, setCreer] = useState(null) // null | 'normal' | 'urgent'
 
   async function charger() {
@@ -121,6 +134,10 @@ export function Missions({ evenement, membre, peut, toutPouvoir, setMessage, mod
         const cible = MODULES_SAISIE.find(([v]) => v === champs.module)?.[1] ?? champs.module
         setMessage({ type: 'info', texte: `Demande déplacée vers ${cible} — elle n'apparaît plus ici.` })
       }
+      // (170) Les téléphones en poche : la personne ou l'équipe à qui la demande vient d'être
+      // attribuée, puis celui qui l'a posée (« ta demande est prise en charge »).
+      if (champs.membre_id || champs.equipe_id) pousser('mission', id)
+      if (champs.statut || champs.membre_id || champs.equipe_id) pousser('demande_statut', id)
       charger()
     }
   }
@@ -212,12 +229,16 @@ export function Missions({ evenement, membre, peut, toutPouvoir, setMessage, mod
       )}
 
       {visibles.length === 0 ? (
-        <p className="vide">Rien ici.</p>
+        <p className="vide">
+          {missions.length === 0
+            ? `Aucune demande pour l'instant.${peutEncadrer ? ' « + Nouvelle demande » en crée une ; les bénévoles peuvent aussi en poser depuis leur téléphone.' : ''}`
+            : `Aucune demande « ${FILTRES.find(([v]) => v === filtre)?.[1] ?? filtre} ». Le filtre « Tous » montre les ${missions.length} autres.`}
+        </p>
       ) : (
         visibles.map((m) => {
           const deplie = ouvert === m.id
           return (
-            <div className="ligne-mission" key={m.id}>
+            <div className="ligne-mission" key={m.id} data-objet={m.reference}>
               <button
                 className="ligne-mission-resume"
                 onClick={() => setOuvert(deplie ? null : m.id)}
@@ -383,7 +404,7 @@ export function ligneMemoire(m) {
   return `${m.editions > 1 ? `${m.editions} éditions précédentes` : 'Édition précédente'} : ${morceaux.join(' ; ')}.`
 }
 
-function ChoixLieu({ id, lieux, valeur, onChoisir }) {
+export function ChoixLieu({ id, lieux, valeur, onChoisir }) {
   const [recherche, setRecherche] = useState('')
   const choisi = lieux.find((l) => l.id === valeur)
   const normaliser = (t) => (t ?? '').toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -501,16 +522,16 @@ export function FormDemande({ mode, evenement, membre, module, libelle, lieux, s
     const texte = urgent ? descriptif.trim() : precision.trim()
     if (!texte) return
     setOccupe(true)
-    const { error } = await supabase.from('mission_commentaires').insert({
-      evenement_id: evenement.id,
-      mission_id: missionId,
-      auteur_id: membre.user_id,
-      texte
+    const r = await ecrireOuEmpiler({
+      nature: 'insert',
+      table: 'mission_commentaires',
+      libelle: 'Commentaire sur une demande',
+      champs: { id: nouvelleCle(), evenement_id: evenement.id, mission_id: missionId, auteur_id: membre.user_id, texte }
     })
     setOccupe(false)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    if (r.statut === 'refus') setMessage({ type: 'erreur', texte: r.message })
     else {
-      setMessage({ type: 'ok', texte: 'Ajouté en commentaire de la demande existante.' })
+      setMessage({ type: 'ok', texte: r.statut === 'enfile' ? 'Hors réseau : le commentaire est gardé sur cet appareil et partira au retour du signal.' : 'Ajouté en commentaire de la demande existante.' })
       onSuivre(missionId)
     }
   }
@@ -518,28 +539,40 @@ export function FormDemande({ mode, evenement, membre, module, libelle, lieux, s
   async function creer() {
     setOccupe(true)
     const titre = titreSaisi
-    const { data: creee, error } = await supabase.from('missions').insert({
+    // (11/11, audit C4) Par la file : la demande porte son identifiant, donc elle
+    // peut partir plus tard sans se doubler, et l'écran avance tout de suite.
+    const id = nouvelleCle()
+    const r = await ecrireOuEmpiler({
+      nature: 'insert',
+      table: 'missions',
+      libelle: `Demande : ${titre}`,
+      champs: {
+        id,
       evenement_id: evenement.id,
-      module,
-      phase: evenement.phase,
-      titre,
-      // La catégorie « sécurité » impose sa priorité — ce n'est pas
-      // une suggestion qu'on pourrait rétrograder au clic suivant.
-      // C'est exactement le flag qui manquait au REX : sans lui, P1
-      // ne voulait plus rien dire (35 % des missions classées P1,
-      // aucun écart de délai mesurable avec P2).
-      priorite: urgent ? 'P1' : typeChoisi.priorite,
-      type_id: urgent ? null : typeId,
-      lieu_id: lieuId || null,
-      latitude: urgent ? position?.lat ?? null : null,
-      longitude: urgent ? position?.lon ?? null : null,
-      qui_concerne: urgent ? quiConcerne.trim() || null : null,
-      description: urgent ? descriptif.trim() : null,
-      bloquant: urgent ? false : bloquant,
-      echeance: urgent ? null : echeanceDepuisDelai(delaiSouhaite)
-    }).select('id').single()
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
-    else onFait(creee?.id)
+        module,
+        phase: evenement.phase,
+        titre,
+        // La catégorie « sécurité » impose sa priorité — ce n'est pas
+        // une suggestion qu'on pourrait rétrograder au clic suivant.
+        // C'est exactement le flag qui manquait au REX : sans lui, P1
+        // ne voulait plus rien dire (35 % des missions classées P1,
+        // aucun écart de délai mesurable avec P2).
+        priorite: urgent ? 'P1' : typeChoisi.priorite,
+        type_id: urgent ? null : typeId,
+        lieu_id: lieuId || null,
+        latitude: urgent ? position?.lat ?? null : null,
+        longitude: urgent ? position?.lon ?? null : null,
+        qui_concerne: urgent ? quiConcerne.trim() || null : null,
+        description: urgent ? descriptif.trim() : null,
+        bloquant: urgent ? false : bloquant,
+        echeance: urgent ? null : echeanceDepuisDelai(delaiSouhaite)
+      }
+    })
+    if (r.statut === 'refus') setMessage({ type: 'erreur', texte: r.message })
+    else {
+      if (r.statut === 'enfile') setMessage({ type: 'info', texte: 'Hors réseau : la demande est gardée sur cet appareil et partira au retour du signal.' })
+      onFait(id)
+    }
     setOccupe(false)
   }
 
@@ -555,7 +588,7 @@ export function FormDemande({ mode, evenement, membre, module, libelle, lieux, s
             QG. Pour une <strong>urgence vitale</strong>, utilisez le bouton SOS ou le 112.
           </p>
 
-          <label htmlFor="nature-urgente">Nature de l'alerte *</label>
+          <label htmlFor="nature-urgente">Nature de l'urgence *</label>
           <select id="nature-urgente" value={natureUrgente} onChange={(e) => setNatureUrgente(e.target.value)}>
             {NATURES_URGENTES.map(([v, l]) => (
               <option key={v} value={v}>{l}</option>
@@ -602,7 +635,7 @@ export function FormDemande({ mode, evenement, membre, module, libelle, lieux, s
             Envoyer la demande
           </button>
           <p className="aide">
-            Visible immédiatement au QG et sur l'app Volante. Doubler à la radio (PMR4.1, PMR333
+            Visible immédiatement au QG et dans « Mes missions » de l'équipe concernée. Doubler à la radio (PMR4.1, PMR333
             si vital).
           </p>
         </>
@@ -618,7 +651,7 @@ export function FormDemande({ mode, evenement, membre, module, libelle, lieux, s
           {types.length === 0 && (
             <p className="aide alerte-texte" style={{ marginTop: -6 }}>
               Cet événement n'a aucune catégorie de demande : rien ne peut être injecté. Les sept catégories standard
-              sont semées à la création de l'événement (151) ; sinon, importe-les depuis Réglages › Référentiels.
+              sont semées à la création de l'événement (151) ; sinon, importe-les depuis Réglages › Données › Référentiels.
             </p>
           )}
           {typeChoisi && (
@@ -679,7 +712,7 @@ export function FormDemande({ mode, evenement, membre, module, libelle, lieux, s
           />
 
           <button disabled={occupe || !pret} onClick={creer} style={{ marginTop: 8 }}>
-            Injecter la demande
+            Envoyer la demande
           </button>
         </>
       )}

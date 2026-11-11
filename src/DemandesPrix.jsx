@@ -124,7 +124,7 @@ export default function DemandesPrix({ evenement, membre, peut, toutPouvoir, set
       ) : (
         // (31/10, audit d'ergonomie) Huit colonnes ne tiennent pas sur un téléphone : le tableau défile seul,
         // au lieu de faire glisser toute la page de côté.
-        <div className="tableau-defilant">
+        <div className="tableau-defilant" tabIndex={0} role="region" aria-label="Tableau, défile horizontalement">
         <table className="tableau dp-liste">
           <thead>
             <tr><th>Réf.</th><th>Objet</th><th>Catégorie</th><th>Statut</th><th>Date limite</th><th>Offres</th><th>Meilleure</th><th>Retenu</th></tr>
@@ -337,6 +337,8 @@ function FicheDemande({ demande, evenement, membre, peutModifier, peutSaisirOffr
     else chargerTout()
   }
   async function retirerLigne(l) {
+    // (audit C5) Une ligne part pour de bon, avec les prix déjà reçus pour elle.
+    if (!window.confirm(`Supprimer la ligne « ${l.designation ?? 'sans désignation'} » ?\n\nElle disparaît pour de bon, avec les prix déjà saisis pour elle.`)) return
     const { error, count } = await supabase.from('demande_prix_lignes').delete({ count: 'exact' }).eq('id', l.id)
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) setMessage({ type: 'erreur', texte: 'Suppression refusée : droits insuffisants.' })
@@ -704,7 +706,7 @@ function Comparaison({ lignes, offres, retenue, peutRetenir, onRetenir }) {
   }))
   const meilleurTotal = Math.min(...offres.map((o) => Number(o.montant_ht)))
   return (
-    <div className="tableau-defilant">
+    <div className="tableau-defilant" tabIndex={0} role="region" aria-label="Tableau, défile horizontalement">
       <table className="tableau dp-comparaison">
         <thead>
           <tr>

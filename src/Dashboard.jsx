@@ -69,7 +69,7 @@ export default function Dashboard({
                 key={k}
                 className={`module ${actifs.includes(k) ? 'actif' : ''}`}
                 disabled={fige}
-                title={fige ? 'Imposé par votre rôle' : undefined}
+                title={fige ? 'Imposé par ton rôle' : undefined}
                 onClick={() => basculer(k)}
               >
                 {PAVES[k].libelle}
@@ -79,10 +79,10 @@ export default function Dashboard({
           })}
           <p className="aide">
             {obligatoires.length
-              ? "Les blocs marqués d'un point sont imposés par votre rôle et ne peuvent pas être retirés. Les autres sont libres."
+              ? "Les blocs marqués d'un point sont imposés par ton rôle et ne peuvent pas être retirés. Les autres sont libres."
               : phase !== 'exploitation'
-                ? "Hors exploitation, aucun bloc n'est imposé : vous pouvez tout retirer. Ceux que votre rôle exige redeviendront obligatoires au passage en exploitation."
-                : "Aucun bloc n'est imposé par votre rôle : tous sont libres."}
+                ? "Hors exploitation, aucun bloc n'est imposé : tu peux tout retirer. Ceux que ton rôle exige redeviendront obligatoires au passage en exploitation."
+                : "Aucun bloc n'est imposé par ton rôle : tous sont libres."}
           </p>
           {!actifs.length && (
             <button className="lien" onClick={() => enregistrer(null)}>
@@ -90,6 +90,13 @@ export default function Dashboard({
             </button>
           )}
         </div>
+      )}
+
+      {/* (169) Le geste le plus demandé du terrain, sans avoir à déplier un pavé. */}
+      {!reglage && !!evenement.modules?.logistique && evenement.phase !== 'cloture' && (
+        <button className="bouton-terrain demande-ouvrir" onClick={() => window.dispatchEvent(new Event('eventware:demande'))}>
+          + Demander quelque chose au QG
+        </button>
       )}
 
       {actifs.length ? (
@@ -265,7 +272,7 @@ function PaveSos({ evenement, onAller }) {
       compteurs={[{ libelle: 'ouverts', valeur: n, etat: n ? 'urgent' : 'ok' }]}
     >
       <p className={n ? 'moniteur-vide' : 'moniteur-vide'}>
-        {n === null ? '…' : n === 0 ? 'Aucun signalement ouvert.' : 'En attente de traitement — ouvrir l\u2019app.'}
+        {n === null ? '…' : n === 0 ? 'Aucun signalement ouvert.' : 'En attente de traitement : ouvre Sécurité › Signalements.'}
       </p>
     </Bloc>
   )
@@ -324,21 +331,32 @@ function PaveMesDemandes({ evenement, membre, onAller }) {
 
   useEffect(() => {
     let vivant = true
-    supabase
-      .from('missions')
-      .select('id, reference, titre, statut, module, priorite')
-      .eq('evenement_id', evenement.id)
-      .eq('created_by', membre.user_id)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-      .limit(8)
-      .then(({ data }) => {
-        if (vivant) setDemandes(data ?? [])
-      })
+    // (169) `mes_demandes` rend mes demandes même à qui n'a pas « missions : lire » ;
+    // tant que la migration n'est pas appliquée, on lit la table comme avant.
+    async function lire() {
+      const r = await supabase.rpc('mes_demandes', { p_evenement: evenement.id })
+      if (!r.error) return vivant && setDemandes((r.data ?? []).slice(0, 8))
+      const { data } = await supabase
+        .from('missions')
+        .select('id, reference, titre, statut, module, priorite')
+        .eq('evenement_id', evenement.id)
+        .eq('created_by', membre.user_id)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(8)
+      if (vivant) setDemandes(data ?? [])
+    }
+    lire()
+    window.addEventListener('eventware:demandes', lire)
+    const t = setInterval(lire, 30000)
     return () => {
       vivant = false
+      window.removeEventListener('eventware:demandes', lire)
+      clearInterval(t)
     }
   }, [evenement.id, membre.user_id])
+
+  const peutDemander = !!evenement.modules?.logistique && evenement.phase !== 'cloture'
 
   const enCours = demandes?.filter((d) => !['resolue', 'annulee'].includes(d.statut)).length ?? null
 
@@ -354,7 +372,7 @@ function PaveMesDemandes({ evenement, membre, onAller }) {
       {demandes === null ? (
         <p className="moniteur-vide">…</p>
       ) : demandes.length === 0 ? (
-        <p className="moniteur-vide">Aucune demande envoyée pour l'instant.</p>
+        <p className="moniteur-vide">{peutDemander ? 'Aucune demande envoyée. Il te manque quelque chose à ton poste ? « Demander quelque chose au QG », en haut de cet écran.' : 'Aucune demande envoyée pour l’instant.'}</p>
       ) : (
         demandes.map((d) => {
           const ecran = ECRAN_PAR_MODULE[d.module]
@@ -372,7 +390,7 @@ function PaveMesDemandes({ evenement, membre, onAller }) {
             <button
               className="moniteur-ligne pave-lien-ligne"
               key={d.id}
-              onClick={() => onAller?.(ecran)}
+              onClick={() => onAller?.(ecran, ecran === 'logistique' ? 'interventions' : ecran === 'securite' ? 'missions' : undefined, d.reference)}
             >
               {ligne}
             </button>
@@ -543,7 +561,7 @@ function PavePlanning({ evenement, onAller }) {
           const passe = i.heure.getTime() <= maintenant
           return (
             <div className={`moniteur-ligne ${i.critique ? 'urgent' : ''}`} key={idx}>
-              <strong style={passe ? { opacity: 0.6 } : undefined}>
+              <strong className={passe ? 'sourdine-texte' : undefined}>
                 <span className="mono">{heure(i.heure)}</span> {i.titre}
               </strong>
               {i.detail && <span>{i.detail}</span>}

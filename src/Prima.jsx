@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
+import { useSaisieDifferee } from './saisieDifferee'
 
 /**
  * GRILLE PRIMA DE LA CoAMU (164).
@@ -51,7 +52,7 @@ export function Prima({ evenement, peut, toutPouvoir, setMessage, onChange, onLi
   const [erreur, setErreur] = useState(null)
   const [detail, setDetail] = useState(false)
   const [brouillons, setBrouillons] = useState({})
-  const minuteries = useRef({})
+  const { planifier } = useSaisieDifferee()
   const peutSaisir = toutPouvoir || peut?.('referentiels', 'creer')
 
   async function charger() {
@@ -64,7 +65,6 @@ export function Prima({ evenement, peut, toutPouvoir, setMessage, onChange, onLi
     supabase.from('prima_referentiel').select('famille, code, libelle, groupe, coefficient, scoring').order('famille').order('code').then(({ data }) => setReferentiel(data ?? []))
     charger()
   }, [evenement.id])
-  useEffect(() => () => Object.values(minuteries.current).forEach(clearTimeout), [])
 
   async function enregistrer(champs) {
     const { error } = await supabase.from('prima_saisies').upsert({ evenement_id: evenement.id, ...champs }, { onConflict: 'evenement_id' })
@@ -76,8 +76,7 @@ export function Prima({ evenement, peut, toutPouvoir, setMessage, onChange, onLi
   // Les nombres attendent une seconde de silence ; les choix partent tout de suite.
   function changer(champ, valeur, differe = false) {
     setBrouillons((b) => ({ ...b, [champ]: valeur }))
-    clearTimeout(minuteries.current[champ])
-    minuteries.current[champ] = setTimeout(() => enregistrer({ [champ]: valeur }), differe ? 900 : 0)
+    planifier(champ, () => enregistrer({ [champ]: valeur }), differe ? 900 : 0)
   }
 
   if (erreur) return <p className="aide">Grille PRIMA : {erreur}</p>

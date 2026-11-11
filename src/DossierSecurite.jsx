@@ -218,7 +218,7 @@ async function construireDocument(evenement) {
   enfants.push(titre('5. Fréquentation et encadrement'))
   enfants.push(sousTitre('5.1 Fréquentation'))
   if (evenement.frequentation_min == null && evenement.frequentation_max == null) {
-    enfants.push(aCompleter('fréquentation attendue non renseignée — Plan → Effectifs.'))
+    enfants.push(aCompleter('fréquentation attendue non renseignée — Sécurité › Effectifs.'))
   } else {
     enfants.push(texte(`Site principal : ${evenement.frequentation_min ?? '?'} à ${evenement.frequentation_max ?? '?'} personnes.`))
   }
@@ -280,7 +280,7 @@ async function construireDocument(evenement) {
   // §10 Moyens de première intervention
   enfants.push(titre('9. Moyens de première intervention'))
   if (!moyens?.length) {
-    enfants.push(aCompleter('aucun moyen dénombré dans Plan → Effectifs.'))
+    enfants.push(aCompleter('aucun moyen dénombré dans Sécurité › Effectifs.'))
   } else {
     // (27/10) Et ce que le plan d'implantation localise lui-même.
     const surPlan = compterSurPlan(elementsPlan)

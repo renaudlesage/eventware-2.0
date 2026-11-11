@@ -138,7 +138,7 @@ export default function Vitrine({ jeton, codeLieu, onContenu }) {
             horaire.map((x, i) =>
               x.type === 'jalon' ? (
                 <div className="carte" key={i}>
-                  <div className="titre" style={x.fait ? { opacity: 0.6 } : undefined}>
+                  <div className={`titre ${x.fait ? 'sourdine-texte' : ''}`}>
                     <span className="mono">{x.quand ? heure(x.quand) : '—'}</span> {x.libelle}
                   </div>
                   <div className="meta">

@@ -366,7 +366,7 @@ export default function Radio({ evenement, setMessage, peut, toutPouvoir }) {
           </div>
 
           <p className="aide">
-            Feuille à afficher au PC et à remettre avec les postes. Elle contient tout ce
+            Feuille à afficher au QG et à remettre avec les postes. Elle contient tout ce
             qu'il faut pour reprogrammer un appareil perdu ou remplacé.
           </p>
         </>

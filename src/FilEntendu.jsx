@@ -1,9 +1,11 @@
+import { useTiroir } from './tiroir'
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { FormDemande } from './Missions'
 import { motifReconnaissance } from './Talkie'
 import { transcrireVocal } from './transcrireVocal'
+import { pousser } from './push'
 import { useMessagesVocaux, INTENTIONS, heureVocal as heure, urgentVocal as urgent } from './messagesVocaux'
 
 /**
@@ -24,6 +26,7 @@ export default function FilEntendu({ evenement, membre, peut, toutPouvoir, setMe
   const { messages, membres, lieux, audio, lire, maj, journal, qui, entendre, classer, ecouter } = useMessagesVocaux({ evenement, membre, setMessage })
   const [reponse, setReponse] = useState({}) // id → brouillon
   const [demande, setDemande] = useState(null) // message → formulaire
+  const tiroir = useTiroir(!!demande, () => setDemande(null))
   const [tout, setTout] = useState(false)
   const [tic, setTic] = useState(0)
   useEffect(() => { const t = setInterval(() => setTic((x) => x + 1), 30000); return () => clearInterval(t) }, [])
@@ -46,7 +49,7 @@ export default function FilEntendu({ evenement, membre, peut, toutPouvoir, setMe
     if (!texte) return
     const champs = { reponse: texte, reponse_le: new Date().toISOString(), reponse_source: 'qg' }
     if (m.statut === 'nouveau') Object.assign(champs, { statut: 'entendu', entendu_le: new Date().toISOString(), entendu_par: membre?.user_id ?? null })
-    if (await maj(m, champs)) { setReponse({ ...reponse, [m.id]: '' }); journal('reponse', m, `Réponse du QG à ${qui(m)} : ${texte}`) }
+    if (await maj(m, champs)) { setReponse({ ...reponse, [m.id]: '' }); journal('reponse', m, `Réponse du QG à ${qui(m)} : ${texte}`); pousser('reponse_vocal', m.id) }
   }
   async function lier(m, missionId) {
     if (!missionId) { setDemande(null); return }
@@ -101,6 +104,7 @@ export default function FilEntendu({ evenement, membre, peut, toutPouvoir, setMe
               {peutGerer ? (
                 <input
                   className="vocal-transcription"
+                  aria-label={`Transcription du message de ${qui(m)}`}
                   defaultValue={m.transcription_corrigee ?? m.transcription ?? ''}
                   placeholder={m.transcription ? '' : 'Pas de transcription : écrire ce qui a été dit (les mots-clés seront reconnus)'}
                   onBlur={(e) => { const v = e.target.value.trim(); if (v !== (m.transcription_corrigee ?? m.transcription ?? '')) maj(m, { transcription_corrigee: v || null }) }}
@@ -109,7 +113,7 @@ export default function FilEntendu({ evenement, membre, peut, toutPouvoir, setMe
               {!m.transcription && !m.transcription_corrigee && m.reconnaissance && m.reconnaissance !== 'ok' && (
                 <span className="aide vocal-motif">{motifReconnaissance(m.reconnaissance)}</span>
               )}
-              {m.reconnaissance === 'serveur' && <span className="prc-jeton veille" title="texte produit par le service de transcription">transcrit par le serveur</span>}
+              {m.reconnaissance === 'serveur' && <span className="prc-jeton auto" title="texte produit par le service de transcription">transcrit par le serveur</span>}
               {transcriptionServeur && peutGerer && m.chemin_audio && !m.transcription_corrigee && (
                 <button className="discret" disabled={!!transcriptionEnCours[m.id]} onClick={() => transcrire(m)}>
                   {transcriptionEnCours[m.id] ? 'Transcription…' : m.transcription ? 'Retranscrire' : 'Transcrire'}
@@ -146,7 +150,7 @@ export default function FilEntendu({ evenement, membre, peut, toutPouvoir, setMe
       })}
       {demande && (
         <div className="voile" onClick={() => setDemande(null)}>
-          <div className="tiroir" onClick={(e) => e.stopPropagation()}>
+          <div className="tiroir" {...tiroir} aria-label="Créer une demande depuis ce message" onClick={(e) => e.stopPropagation()}>
             <div className="tiroir-tete"><strong>Demande depuis le message de {qui(demande)}</strong><button className="lien" onClick={() => setDemande(null)}>Fermer</button></div>
             <FormDemande
               mode={urgent(demande) ? 'urgent' : 'normal'}

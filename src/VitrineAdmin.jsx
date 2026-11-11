@@ -53,7 +53,7 @@ export default function Vitrine({ evenement, setMessage }) {
             detail={(l) => l.type}
             ordre="code"
             avertissement="Les lieux opérationnels — PC Ops, PRV, voies de secours, zones techniques — n'ont rien à faire ici. Ne publie que ce qu'un participant doit pouvoir trouver."
-            vide="Aucun lieu dans le référentiel (Données › Référentiel)."
+            vide="Aucun lieu dans le référentiel. Importe-les dans Réglages › Données › Référentiels."
           />
           {/* (136) Les objets posés sur la carte de conception : chapiteaux, bars, parkings… publiés à la position de leur centre. */}
           <h3 style={{ marginTop: 18 }}>Objets du plan d'implantation</h3>
@@ -195,6 +195,8 @@ function Communications({ evenement, setMessage }) {
   }
 
   async function publier(id, publie) {
+    // (audit C5) Publier rend le texte visible sans compte : on le dit avant.
+    if (publie && !window.confirm('Publier cette communication ?\n\nElle devient visible de toute personne qui ouvre le lien participant, sans compte.')) return
     const refus = await modifierOuRefuser(
       'communications',
       { publie_le: publie ? new Date().toISOString() : null },

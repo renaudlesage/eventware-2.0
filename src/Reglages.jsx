@@ -1,3 +1,5 @@
+import ClotureGuidee from './ClotureGuidee'
+import { useRubriqueRoute } from './route'
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import QrCodes from './QrCodes'
@@ -23,6 +25,7 @@ import { texteErreur } from './erreurs'
 import { slugDe } from './slug'
 import { modifierOuRefuser } from './ecriture'
 import { useDrapeau } from './useDrapeau'
+import Message from './Message'
 
 /* ================================================================== */
 /* Réglages                                                            */
@@ -54,8 +57,9 @@ const PANNEAUX = [
   ['compte', 'Mon compte']
 ]
 
-export default function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, onRecharger, setMessage }) {
+export default function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, onRecharger, setMessage, ongletCible, onAller }) {
   const [panneau, setPanneau] = useState('dispositif')
+  useRubriqueRoute('reglages', panneau, setPanneau, ongletCible, PANNEAUX.map(([k]) => k))
   const [occupe, setOccupe] = useState(false)
   const [compteur, setCompteur] = useState(0)
 
@@ -68,7 +72,38 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
     setOccupe(false)
   }
 
+  // (11/11, audit C5) Un changement de phase ouvre et ferme des droits pour tout le
+  // monde, et la clôture efface les audios du talkie : on le dit avant, et un double
+  // clic ne lance pas deux fois la suite (purge, constats).
+  const [phaseOccupee, setPhaseOccupee] = useState(false)
+  // (169) La clôture passe par sa liste de contrôle, pas par une simple confirmation.
+  const [clotureOuverte, setClotureOuverte] = useState(false)
+  async function cloturer() {
+    setPhaseOccupee(true)
+    try {
+      await appliquerPhase('cloture')
+      setClotureOuverte(false)
+    } finally {
+      setPhaseOccupee(false)
+    }
+  }
   async function changerPhase(phase) {
+    if (phase === evenement.phase || phaseOccupee) return
+    if (phase === 'cloture') return setClotureOuverte(true)
+    setClotureOuverte(false)
+    const texte = phase === 'cloture'
+      ? `Clôturer « ${evenement.nom} » ?\n\nLes écritures de terrain se ferment pour tous les membres.${evenement.modules?.talkie ? '\nLes enregistrements audio du talkie sont effacés pour de bon ; les transcriptions restent.' : ''}\nEventware relit l’événement et propose ses constats au REX.`
+      : `Passer « ${evenement.nom} » en ${LIBELLE_PHASE[phase].toLowerCase()} ?\n\nLa phase ouvre et ferme des droits d’écriture pour tous les membres.${phase === 'exploitation' ? '\nLes blocs de terrain redeviennent obligatoires sur le « Mon poste » de chacun.' : ''}`
+    if (!window.confirm(texte)) return
+    setPhaseOccupee(true)
+    try {
+      await appliquerPhase(phase)
+    } finally {
+      setPhaseOccupee(false)
+    }
+  }
+
+  async function appliquerPhase(phase) {
     const avant = evenement.phase
     const { error, count } = await supabase
       .from('evenements')
@@ -131,18 +166,7 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
 
       {panneau === 'dispositif' && (
         <>
-          <IdentiteEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
-
-          <LogoEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
-
-          <LienParticipants evenement={evenement} />
-
-          <Point0 evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
-
-          <Completude evenement={evenement} />
-
-          <DatesEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
-
+          {/* (11/11, audit M6) La phase d'abord : c'est le réglage qu'on vient chercher le plus souvent. */}
           <section className="bloc">
             <h2>Phase</h2>
             <div className="plaques">
@@ -150,12 +174,17 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
                 <button
                   key={p}
                   className={`plaque-nav ${evenement.phase === p ? 'actif' : ''}`}
+                  aria-pressed={evenement.phase === p}
+                  disabled={phaseOccupee}
                   onClick={() => changerPhase(p)}
                 >
-                  {p}
+                  {LIBELLE_PHASE[p]}
                 </button>
               ))}
             </div>
+            {clotureOuverte && evenement.phase !== 'cloture' && (
+              <ClotureGuidee evenement={evenement} occupe={phaseOccupee} onCloturer={cloturer} onAnnuler={() => setClotureOuverte(false)} onAller={onAller} />
+            )}
             {/* (152) Ce que les dates de l'événement suggèrent ; le passage reste
                 un geste, puisqu'il ouvre des droits. */}
             {(() => {
@@ -172,12 +201,26 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
             })()}
             <p className="aide">
               La phase ouvre et ferme des droits d&rsquo;écriture. Elle est réversible : on
-              repasse en montage le vendredi soir sans que ce soit un incident.
+              repasse en montage le vendredi soir sans que ce soit un incident. Une seule
+              exception : la clôture efface les enregistrements audio du talkie, et eux ne
+              reviennent pas.
               <br />
               L&rsquo;exploitation a un effet de plus : elle rend obligatoires, pour tout le
               monde, les blocs de terrain de « Mon poste ».
             </p>
           </section>
+
+          <IdentiteEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
+
+          <LogoEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
+
+          <LienParticipants evenement={evenement} />
+
+          <Point0 evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
+
+          <Completude evenement={evenement} />
+
+          <DatesEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
 
           <section className="bloc">
             <h2>Modules</h2>
@@ -208,7 +251,7 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
               <label className="case">
                 <input
                   type="checkbox"
-                  checked={evenement.modules?.talkie_reponses_auto !== false}
+                  checked={evenement.modules?.talkie_reponses_auto === true}
                   disabled={occupe}
                   onChange={async (e) => {
                     setOccupe(true)
@@ -248,8 +291,8 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
         <>
           <p className="aide" style={{ marginTop: 0 }}>
             Ici se composent les rôles — ce que chacun peut lire et écrire, phase par phase.
-            Inviter quelqu&rsquo;un, lui donner un rôle ou le retirer se fait dans
-            Bénévoles › Membres.
+            Inviter quelqu&rsquo;un se fait dans Bénévoles › Invitations ; lui donner un rôle
+            ou le retirer, dans Bénévoles › Membres.
           </p>
           <Roles evenement={evenement} setMessage={setMessage} />
         </>
@@ -404,7 +447,7 @@ function Completude({ evenement }) {
       absent: evenement.frequentation_max == null,
       quoi: 'Fréquentation attendue',
       bloque: 'le dossier de sécurité laisse en blanc le chiffre dont dépend le dimensionnement des secours.',
-      ou: 'Plan → Effectifs'
+      ou: 'Sécurité › Effectifs'
     }
   ].filter((m) => m.absent)
 
@@ -767,9 +810,7 @@ function Reconduire({ evenement, onFait }) {
     <section className="bloc">
       <h2>Reconduire</h2>
       {message && (
-        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
-          {message.texte}
-        </div>
+        <Message message={message} onFermer={() => setMessage(null)} />
       )}
       {!ouvert ? (
         <>

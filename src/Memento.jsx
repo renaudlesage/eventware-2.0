@@ -1,14 +1,16 @@
+import { useRubriqueRoute } from './route'
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { lireCache, ecrireCache, ageCache } from './horsLigne'
 import { surRetourReseau } from './reessai'
 
-export default function Memento({ evenement }) {
+export default function Memento({ evenement, ongletCible }) {
   const [donnees, setDonnees] = useState(() => lireCache(evenement.id))
   const [depuisCache, setDepuisCache] = useState(!!lireCache(evenement.id))
   const [enLigne, setEnLigne] = useState(navigator.onLine)
   const [ouverte, setOuverte] = useState(null)
   const [section, setSection] = useState('fiches')
+  useRubriqueRoute('memento', section, setSection, ongletCible, ['fiches', 'coupures', 'contacts'])
 
   async function rafraichir() {
     const [f, c, r, p, o] = await Promise.all([
@@ -126,14 +128,15 @@ export default function Memento({ evenement }) {
           <p className="vide">Aucune fiche. Installe le pack standard depuis Sécurité.</p>
         ) : (
           donnees.fiches.map((fi) => (
-            <div className="carte" key={fi.id}>
-              <div
-                className="titre"
-                style={{ cursor: 'pointer' }}
+            <div className="carte" key={fi.id} data-objet={fi.code}>
+              <button
+                type="button"
+                className="titre titre-bouton"
+                aria-expanded={ouverte === fi.id}
                 onClick={() => setOuverte(ouverte === fi.id ? null : fi.id)}
               >
                 <span className="mono">{fi.code}</span> — {fi.titre}
-              </div>
+              </button>
               {fi.declencheur && (
                 <div className="meta">
                   <span>{fi.declencheur}</span>
@@ -209,10 +212,8 @@ export default function Memento({ evenement }) {
           ))
         ))}
 
-      {section === 'contacts' &&
-        (donnees.contacts.length === 0 ? (
-          <p className="vide">Aucun contact encodé.</p>
-        ) : (
+      {/* (11/11) Le 112 et le 101 ne dépendent pas de l'annuaire : ils s'affichent même sans contact encodé. */}
+      {section === 'contacts' && (
           <>
             <div className="carte urgent">
               <div className="titre">Urgences</div>
@@ -226,7 +227,7 @@ export default function Memento({ evenement }) {
               </div>
             </div>
             {donnees.contacts.map((c) => (
-              <div className="carte" key={c.id}>
+              <div className="carte" key={c.id} data-objet={c.nom}>
                 <div className="titre">{c.nom}</div>
                 <div className="meta">
                   {c.organisation && <span>{c.organisation}</span>}
@@ -246,8 +247,9 @@ export default function Memento({ evenement }) {
                 )}
               </div>
             ))}
+            {donnees.contacts.length === 0 && <p className="vide">Aucun contact encodé.</p>}
           </>
-        ))}
+        )}
     </div>
   )
 }

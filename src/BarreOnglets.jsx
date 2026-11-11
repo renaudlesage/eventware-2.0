@@ -1,5 +1,6 @@
+import { useTiroir } from './tiroir'
 import { useState } from 'react'
-import { MoreHorizontal, X, MessageSquareWarning } from 'lucide-react'
+import { MoreHorizontal, X, MessageSquareWarning, PackagePlus, Search } from 'lucide-react'
 import { Icone, DOMAINES } from './icones'
 
 /**
@@ -22,11 +23,16 @@ import { Icone, DOMAINES } from './icones'
  * passent par « Plus » : ce sont des écrans de PC, tenus assis devant
  * un grand écran, pas des écrans de terrain.
  */
-export default function BarreOnglets({ ecrans, ecran, onAller, rex = false }) {
+export default function BarreOnglets({ ecrans, ecran, onAller, rex = false, demande = false }) {
   const [ouvert, setOuvert] = useState(false)
+  const tiroir = useTiroir(ouvert, () => setOuvert(false))
 
   const dispo = (clef) => ecrans.some((e) => e.clef === clef)
-  const clefsBarre = ['accueil', dispo('securite') ? 'securite' : 'memento', 'planning']
+  // (11/11, audit M4) L'encadrant s'ouvre sur la Situation : elle a son onglet, en
+  // premier. Sans elle (bénévole), on garde Mon poste, Sécurité ou Mémento, Planning.
+  const clefsBarre = dispo('situation')
+    ? ['situation', 'accueil', dispo('securite') ? 'securite' : 'memento']
+    : ['accueil', dispo('securite') ? 'securite' : 'memento', 'planning']
 
   const barre = clefsBarre.filter(dispo).map((clef) => ecrans.find((e) => e.clef === clef))
   const autres = ecrans.filter((e) => !clefsBarre.includes(e.clef))
@@ -70,7 +76,7 @@ export default function BarreOnglets({ ecrans, ecran, onAller, rex = false }) {
 
       {ouvert && (
         <div className="voile" onClick={() => setOuvert(false)}>
-          <div className="tiroir tiroir-plus" onClick={(e) => e.stopPropagation()}>
+          <div className="tiroir tiroir-plus" {...tiroir} aria-label="Autres écrans" onClick={(e) => e.stopPropagation()}>
             <div className="tiroir-tete">
               <strong>Autres écrans</strong>
               <button className="lien" onClick={() => setOuvert(false)} aria-label="Fermer">
@@ -80,6 +86,18 @@ export default function BarreOnglets({ ecrans, ecran, onAller, rex = false }) {
 
             {/* (31/10) REX vit ici au téléphone : un constat à chaud n'est pas
                 une urgence, il n'a pas à recouvrir l'écran en permanence. */}
+            {/* (169) La recherche : sur téléphone l'en-tête défile avec la page, et il n'y a pas de Ctrl+K. */}
+            <button className="plaque-nav dom-ardoise rex-plus" onClick={() => { setOuvert(false); setTimeout(() => window.dispatchEvent(new Event('eventware:recherche')), 0) }}>
+              <Search size={20} strokeWidth={1.9} aria-hidden="true" />
+              <span>Rechercher</span>
+            </button>
+            {/* (169) La demande du bénévole : « il me faut quelque chose », sans passer par la radio. */}
+            {demande && (
+              <button className="plaque-nav dom-bronze rex-plus" onClick={() => { setOuvert(false); window.dispatchEvent(new Event('eventware:demande')) }}>
+                <PackagePlus size={20} strokeWidth={1.9} aria-hidden="true" />
+                <span>Demander quelque chose au QG</span>
+              </button>
+            )}
             {rex && (
               <button className="plaque-nav dom-ardoise rex-plus" onClick={() => { setOuvert(false); window.dispatchEvent(new Event('eventware:rex')) }}>
                 <MessageSquareWarning size={20} strokeWidth={1.9} aria-hidden="true" />

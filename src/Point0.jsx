@@ -310,6 +310,8 @@ function CartePoint0({ lat, lon, onChoix }) {
           <Marker
             position={[la, lo]}
             icon={ICONE_POINT_0}
+            title="Point 0 : glisse-le pour le déplacer"
+            alt="Point 0"
             draggable
             eventHandlers={{ dragend: (e) => { const p = e.target.getLatLng(); onChoix(p.lat, p.lng) } }}
           />

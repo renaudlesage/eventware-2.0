@@ -1,7 +1,9 @@
+import { useRubriqueRoute } from './route'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { ecrireOuEmpiler } from './fileEcritures'
 import { texteErreur } from './erreurs'
+import Message from './Message'
 
 /**
  * Précurseur — la charge des lieux (migration 114, maquette de Ren du
@@ -40,8 +42,9 @@ function depuis(t) {
   return `il y a ${h} h ${String(min % 60).padStart(2, '0')}`
 }
 
-export default function Precurseur({ evenement, peut, toutPouvoir }) {
+export default function Precurseur({ evenement, peut, toutPouvoir, ongletCible }) {
   const [onglet, setOnglet] = useState('charge')
+  useRubriqueRoute('precurseur', onglet, setOnglet, ongletCible, ['charge', 'dependances'])
   const [donnees, setDonnees] = useState(null)
   const [erreur, setErreur] = useState(null)
   const [retour, setRetour] = useState(null)
@@ -142,7 +145,7 @@ export default function Precurseur({ evenement, peut, toutPouvoir }) {
       </div>
 
       {erreur && <div className="message erreur">{erreur}</div>}
-      {retour && <div className={`message ${retour.type === 'erreur' ? 'erreur' : ''}`}>{retour.texte}</div>}
+      {retour && <Message message={retour} onFermer={() => setRetour(null)} />}
       {!donnees && !erreur && <p className="aide">Calcul en cours…</p>}
 
       {donnees && onglet === 'charge' && (

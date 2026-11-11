@@ -25,8 +25,26 @@ export function useCapacites(evenementId, phase) {
       supabase.rpc('a_tout_pouvoir', { p_evenement: evenementId })
     ]).then(([c, t]) => {
       if (!vivant) return
-      setCapacites(new Set((c.data ?? []).map((x) => `${x.ressource}:${x.action}`)))
+      // (11/11, audit C3) Hors réseau, on reprend les droits connus de cet appareil
+      // pour cet événement et cette phase : sans eux, l'application démarrait vide.
+      const clef = `eventware.capacites.${evenementId}.${phase ?? ''}`
+      if (c.error || t.error) {
+        try {
+          const garde = JSON.parse(localStorage.getItem(clef) ?? 'null')
+          if (garde) {
+            setCapacites(new Set(garde.capacites))
+            setToutPouvoir(garde.toutPouvoir === true)
+            return
+          }
+        } catch { /* rien de gardé */ }
+        setCapacites(new Set())
+        setToutPouvoir(false)
+        return
+      }
+      const liste = (c.data ?? []).map((x) => `${x.ressource}:${x.action}`)
+      setCapacites(new Set(liste))
       setToutPouvoir(t.data === true)
+      try { localStorage.setItem(clef, JSON.stringify({ capacites: liste, toutPouvoir: t.data === true })) } catch { /* stockage plein */ }
     })
 
     return () => {

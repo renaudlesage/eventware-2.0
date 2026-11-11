@@ -1,3 +1,4 @@
+import { useRubriqueRoute } from './route'
 import { useEffect, useState } from 'react'
 import Sitrep from './Sitrep'
 import Maydays from './Maydays'
@@ -8,6 +9,7 @@ import { Journal } from './Journal'
 import { Missions } from './Missions'
 import Recherches from './Recherches'
 import Fiches from './FichesReflexe'
+import Message from './Message'
 
 /*
  * Deux familles distinctes, pas huit onglets à plat :
@@ -52,7 +54,7 @@ function groupesPour(modules) {
   }
 }
 
-export default function Securite({ evenement, membre, session, peut, toutPouvoir, ongletCible }) {
+export default function Securite({ evenement, membre, session, peut, toutPouvoir, ongletCible, objetCible }) {
   const GROUPES = groupesPour(evenement.modules)
   const [onglet, setOnglet] = useState(
     evenement.modules?.sos_participants ? 'signalements' : 'journal'
@@ -69,6 +71,7 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
     if (Object.values(GROUPES).some(({ onglets }) => onglets.some(([k]) => k === ongletCible))) setOnglet(ongletCible)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ongletCible])
+  useRubriqueRoute('securite', onglet, setOnglet, null)
 
   return (
     <div className="bloc securite dom-grenat">
@@ -101,9 +104,7 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
       )}
 
       {message && (
-        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
-          {message.texte}
-        </div>
+        <Message message={message} onFermer={() => setMessage(null)} />
       )}
 
       {onglet === 'signalements' && <PcOps evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} />}

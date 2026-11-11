@@ -1,3 +1,4 @@
+import { useTiroir } from './tiroir'
 import { useEffect, useRef, useState } from 'react'
 import { Mic } from 'lucide-react'
 import { supabase } from './supabaseClient'
@@ -30,9 +31,10 @@ const heure = (iso) => (iso ? new Date(iso).toLocaleTimeString('fr-BE', { hour: 
 
 /** L'écran d'information de la première fois — il vaut consentement. */
 export function InfoTalkie({ onAccepter, onRefuser }) {
+  const tiroir = useTiroir(true, onRefuser)
   return (
     <div className="voile" onClick={onRefuser}>
-      <div className="tiroir talkie-info" onClick={(e) => e.stopPropagation()}>
+      <div className="tiroir talkie-info" {...tiroir} aria-label="Parler au QG : ce qu’il faut savoir" onClick={(e) => e.stopPropagation()}>
         <div className="tiroir-tete"><strong>Parler au QG</strong></div>
         <p>Ton message vocal est enregistré, écouté par le QG, et l'audio est effacé à la clôture de l'événement. La transcription, si ton téléphone en fait une, reste.</p>
         <p>Pour quelques questions simples (ton canal, l'heure de la nuit, le DEA le plus proche, où en est ta demande), Eventware répond lui-même. Un humain lit tout le reste.</p>

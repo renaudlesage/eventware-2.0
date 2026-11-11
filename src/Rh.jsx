@@ -1,10 +1,14 @@
+import { useRubriqueRoute } from './route'
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { pousser } from './push'
+import { objetVise } from './objetVise'
 import { libelleStatut, heure } from './libelles'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import Membres from './Membres'
 import Invitations from './Invitations'
+import Message from './Message'
 
 /*
  * Bénévoles — tout ce qui concerne les personnes, à un seul endroit.
@@ -25,8 +29,9 @@ function ongletsPour(peut, toutPouvoir) {
   ]
 }
 
-export default function Rh({ evenement, membre, peut, toutPouvoir, onRecharger }) {
+export default function Rh({ evenement, membre, peut, toutPouvoir, onRecharger, ongletCible }) {
   const [onglet, setOnglet] = useState('couverture')
+  useRubriqueRoute('rh', onglet, setOnglet, ongletCible, ongletsPour(peut, toutPouvoir).map(([k]) => k))
   const [message, setMessage] = useState(null)
 
   return (
@@ -43,9 +48,7 @@ export default function Rh({ evenement, membre, peut, toutPouvoir, onRecharger }
       </label>
 
       {message && (
-        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
-          {message.texte}
-        </div>
+        <Message message={message} onFermer={() => setMessage(null)} />
       )}
 
       {onglet === 'couverture' && (
@@ -89,7 +92,8 @@ function Couverture({ evenement, peut, toutPouvoir, setMessage }) {
   const [lignes, setLignes] = useState([])
   const [detail, setDetail] = useState(null)
   const [membres, setMembres] = useState([])
-  const [aVenir, setAVenir] = useState(true)
+  // Un lien direct vers un créneau passé doit le montrer.
+  const [aVenir, setAVenir] = useState(() => !objetVise())
   const [f, setF] = useState({ code: '', poste: '', besoin: 2, debut: '', fin: '' })
   const [ouvrir, setOuvrir] = useState(false)
   const [rappelPour, setRappelPour] = useState(null)
@@ -154,9 +158,10 @@ function Couverture({ evenement, peut, toutPouvoir, setMessage }) {
    * ses affectés le voient — pas d'envoi personne par personne, qui
    * garantirait surtout d'en oublier un.
    *
-   * Livraison : dans l'application. Celui qui ne l'ouvre pas ne le voit
-   * pas — c'est la limite honnête de ce qui existe aujourd'hui, il n'y
-   * a ni SMS ni notification poussée dans le projet.
+   * Livraison : dans l'application, et (11/11) en notification poussée
+   * sur les appareils qui s'y sont abonnés depuis « Mon compte ». Celui
+   * qui n'a ni ouvert l'application ni activé les notifications ne le
+   * voit pas — il n'y a pas de SMS dans le projet.
    */
   async function envoyerRappel(creneauId, texte) {
     const { error, count } = await supabase
@@ -169,6 +174,8 @@ function Couverture({ evenement, peut, toutPouvoir, setMessage }) {
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) setMessage({ type: 'erreur', texte: 'Envoi refusé : droits insuffisants.' })
     else {
+      // Le rappel s'affiche dans l'application ; les appareils abonnés le reçoivent aussi en notification.
+      if (texte.trim()) pousser('rappel_creneau', creneauId)
       setRappelPour(null)
       charger()
     }
@@ -262,7 +269,7 @@ function Couverture({ evenement, peut, toutPouvoir, setMessage }) {
         <p className="vide">Aucun créneau.</p>
       ) : (
         lignes.map((l) => (
-          <div className={`carte ${l.manque > 0 ? 'urgent' : ''}`} key={l.creneau_id}>
+          <div className={`carte ${l.manque > 0 ? 'urgent' : ''}`} key={l.creneau_id} data-objet={l.code}>
             <div className="titre">
               <span className="mono">{l.code}</span> — {l.poste}
             </div>
@@ -286,7 +293,7 @@ function Couverture({ evenement, peut, toutPouvoir, setMessage }) {
               {/* Pour qui ne peut pas modifier, ces deux faits n'ont
                   pas d'autre endroit où se lire. */}
               {!peutModifier && l.fiche_intitule && <span>fiche : {l.fiche_intitule}</span>}
-              {!peutModifier && l.rappel_envoye_le && <span>rappel envoyé ✓</span>}
+              {!peutModifier && l.rappel_envoye_le && <span>rappel publié ✓</span>}
             </div>
             {(peutCreer || peutModifier) && (
               <div className="ligne-boutons" style={{ marginTop: 10 }}>
@@ -301,7 +308,7 @@ function Couverture({ evenement, peut, toutPouvoir, setMessage }) {
                     className="discret"
                     onClick={() => setRappelPour(rappelPour === l.creneau_id ? null : l.creneau_id)}
                   >
-                    {l.rappel_envoye_le ? 'Rappel envoyé ✓' : 'Rappel'}
+                    {l.rappel_envoye_le ? 'Rappel publié ✓' : 'Rappel'}
                   </button>
                 )}
               </div>
@@ -376,9 +383,13 @@ function FormRappel({ valeurInitiale, envoyeLe, onEnvoyer, onAnnuler }) {
         onChange={(e) => setTexte(e.target.value)}
         placeholder="Ex : rendez-vous à l'entrée technique, prends une frontale."
       />
+      <p className="aide">
+        Le rappel s'affiche dans l'application de chaque personne affectée, et arrive en notification
+        sur les appareils où elle les a activées (Mon compte). Il n'y a pas d'envoi par SMS ni par e-mail.
+      </p>
       <div className="ligne-boutons">
         <button disabled={!texte.trim()} onClick={() => onEnvoyer(texte)}>
-          {envoyeLe ? 'Mettre à jour le rappel' : 'Envoyer aux affectés'}
+          {envoyeLe ? 'Mettre à jour le rappel' : 'Publier pour les affectés'}
         </button>
         {envoyeLe && (
           <button className="discret" onClick={() => onEnvoyer('')}>

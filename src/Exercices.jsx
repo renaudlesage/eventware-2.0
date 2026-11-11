@@ -1,3 +1,4 @@
+import { useRubriqueRoute } from './route'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
@@ -28,8 +29,9 @@ const CANAUX = { radio: 'Radio', telephone: 'Téléphone', temoin: 'Témoin', me
 const fr = (d) => (d ? new Date(d).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 const mm = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
-export default function Exercices({ evenement, membre, peut, toutPouvoir, setMessage }) {
+export default function Exercices({ evenement, membre, peut, toutPouvoir, setMessage, ongletCible }) {
   const [onglet, setOnglet] = useState('exercices')
+  useRubriqueRoute('exercices', onglet, setOnglet, ongletCible, ['exercices', 'avantvol'])
   const [ecarts, setEcarts] = useState(null)
   const [liste, setListe] = useState([])
   const [ouvert, setOuvert] = useState(null)

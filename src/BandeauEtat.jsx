@@ -25,6 +25,8 @@ import { phaseDeJalon, phasesDatees, LIBELLE_PHASE } from './phases'
  */
 export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAller, palier }) {
   const [s, setS] = useState(null)
+  const [perime, setPerime] = useState(false)
+  const [releve, setReleve] = useState(null)
   const [terrain, setTerrain] = useState([])
   const [creneau, setCreneau] = useState(null)
   const [retards, setRetards] = useState(null)
@@ -149,13 +151,19 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
         setPhase(info)
       }
       const [sit, jal] = r
-      if (!sit.error) setS(sit.data)
-      setRetards(sit.data?.jalons_en_retard ?? jal.count ?? 0)
+      // (11/11, audit C3) Un relevé raté ne remet pas les cadrans à zéro : « 0 mission »
+      // se lisait « rien à faire ». On garde les chiffres connus et on dit leur heure.
+      if (!sit.error) {
+        setS(sit.data)
+        setRetards(sit.data?.jalons_en_retard ?? jal.count ?? 0)
+        setReleve(new Date())
+        setPerime(false)
+      } else setPerime(true)
       let i = 2
       if (!encadre) {
         const [ter, aff] = [r[i], r[i + 1]]
         i += 2
-        setTerrain(ter.data ?? [])
+        if (!ter.error) setTerrain(ter.data ?? [])
         // Le créneau en cours, sinon le prochain : c'est sa fin qu'on
         // veut, « je tiens jusqu'à 16 h ».
         const now = Date.now()
@@ -163,7 +171,7 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
           .map((a) => a.creneaux)
           .filter((c) => c && new Date(c.fin).getTime() > now)
           .sort((a, b) => new Date(a.debut) - new Date(b.debut))
-        setCreneau(cren[0] ?? null)
+        if (!aff.error) setCreneau(cren[0] ?? null)
       }
       if (auMur) {
         const [couv, rad] = [r[i], r[i + 1]]
@@ -189,6 +197,7 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
     }
   }, [evenement.id, membre.id, encadre, auMur, phaseEv, precurseur])
 
+  const heureReleve = releve ? releve.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }) : null
   const sosOuverts = s?.signalements?.ouverts ?? null
   const sosATraiter = s?.signalements?.non_pris_en_charge ?? 0
   const enCours = (s?.missions?.par_statut?.en_cours ?? 0) + (s?.missions?.par_statut?.attribuee ?? 0)
@@ -221,7 +230,7 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
         ? 'Présents · ≥ 90 % de la capacité'
         : 'Présents',
     chaud: evenement.frequentation_max > 0 && s?.logistique?.jauge >= 0.9 * evenement.frequentation_max,
-    aller: ['logistique']
+    aller: ['logistique', 'jauge']
   }
   const cJalons7 = phasesDatees(evenement)
     ? { valeur: phase.jalonsPhase ?? null, libelle: `Jalons de la phase · ${LIBELLE_PHASE[phaseEv] ?? phaseEv}`, aller: ['planning'] }
@@ -280,10 +289,10 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
           valeur: mur.postes == null ? null : `${mur.tenus} / ${mur.postes}`,
           libelle: mur.postes != null && mur.tenus < mur.postes ? 'Postes tenus · découverts' : 'Postes tenus',
           chaud: mur.postes != null && mur.tenus < mur.postes,
-          aller: ['rh']
+          aller: ['rh', 'couverture']
         },
-        { valeur: mur.radios, libelle: 'Radios en main', aller: ['logistique'] },
-        { valeur: s?.logistique?.transports_ouverts ?? null, libelle: 'Transports en cours', aller: ['logistique'] },
+        { valeur: mur.radios, libelle: 'Radios en main', aller: ['logistique', 'attributions'] },
+        { valeur: s?.logistique?.transports_ouverts ?? null, libelle: 'Transports en cours', aller: ['logistique', 'transports'] },
         {
           valeur: attente,
           libelle: attente ? 'Écritures en attente · hors réseau' : 'Écritures en attente',
@@ -316,7 +325,8 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
               ? new Date(creneau.fin).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
               : '—',
             libelle: creneau ? `Fin de mon créneau · ${creneau.poste}` : 'Aucun créneau à venir',
-            aller: ['rh']
+            // « Mes créneaux » est un pavé de Mon poste ; Bénévoles › Couverture montre ceux de tout le monde.
+            aller: ['accueil']
           },
       horsTerrain
         ? { valeur: retards, libelle: retards ? 'Retards jalon · en retard' : 'Retards jalon', chaud: retards > 0, aller: ['planning'] }
@@ -324,13 +334,14 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
             valeur: sosOuverts,
             libelle: sosATraiter ? 'Signalements ouverts · à traiter' : 'Signalements ouverts',
             chaud: sosATraiter > 0,
-            aller: ['securite']
+            aller: ['securite', evenement.modules?.sos_participants ? 'signalements' : 'journal']
           }
     ]
   }
 
   return (
-    <div className={`etat bandeau-etat ${cadrans.length > 4 ? 'etat-mur' : ''}`} role="group" aria-label="État de l'événement">
+    <div className={`etat bandeau-etat ${cadrans.length > 4 ? 'etat-mur' : ''} ${perime ? 'perime' : ''}`} role="region" aria-label="État de l'événement">
+      {perime && <span className="etat-perime" role="status">Hors réseau{heureReleve ? ` · chiffres de ${heureReleve}` : ''}</span>}
       {cadrans.map((c) => (
         <button
           key={c.libelle}

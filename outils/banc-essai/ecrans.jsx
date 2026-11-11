@@ -1,5 +1,9 @@
 import { createRoot } from 'react-dom/client'
 import Securite from '../../src/Securite.jsx'
+import { useState } from 'react'
+import Recherche, { BoutonRecherche } from '../../src/Recherche.jsx'
+import { useObjetVise } from '../../src/objetVise.js'
+import { ecrireRoute } from '../../src/route.js'
 import Situation from '../../src/Situation.jsx'
 import Terrain from '../../src/Terrain.jsx'
 import Autorite from '../../src/Autorite.jsx'
@@ -33,6 +37,27 @@ const membre = { id: 'mb1', nom_affiche: 'Ren', user_id: 'u1' }
 const session = { user: { id: 'u1' } }
 const peut = () => true
 
+// (169) La recherche, montée comme dans le poste : un résultat écrit l'adresse, remonte l'écran et amène la ligne.
+function EssaiRecherche() {
+  const [vise, setVise] = useState({ n: 0, rubrique: null, objet: null })
+  useObjetVise(vise.objet, vise.n)
+  return (
+    <>
+      <BoutonRecherche onOuvrir={() => window.dispatchEvent(new Event('eventware:recherche'))} />
+      <Recherche
+        evenement={evenement}
+        ecransPermis={['securite', 'memento']}
+        onAller={(ecran, rubrique, objet) => {
+          window.__aller = [ecran, rubrique, objet]
+          ecrireRoute({ ecran, rubrique, objet })
+          setVise((v) => ({ n: v.n + 1, rubrique, objet }))
+        }}
+      />
+      <Securite key={vise.n} evenement={evenement} membre={membre} session={session} peut={peut} toutPouvoir ongletCible={vise.rubrique} />
+    </>
+  )
+}
+
 export const ECRANS = {
   // (31/10) La coquille au téléphone : le bandeau d'état compact, et REX dans le tiroir « Plus ».
   coquille: () => (
@@ -57,7 +82,7 @@ export const ECRANS = {
   reglages: () => <Reglages membre={membre} evenement={{ ...evenement, phase: 'preparation', organisation_id: 'org1', date_debut: '2026-11-11', date_fin: '2026-11-11', date_montage: '2026-11-09', date_demontage: '2026-11-13' }} session={session} exploitant={false} peut={peut} toutPouvoir onRecharger={() => {}} setMessage={() => {}} />,
   rh: () => <Rh evenement={evenement} membre={membre} peut={peut} toutPouvoir onRecharger={() => {}} />,
   parcours: () => <Parcours evenement={evenement} membre={membre} peut={peut} toutPouvoir />,
-  analyse: () => <Analyse evenement={{ ...evenement, modules: { ...evenement.modules, analyse: true } }} membre={membre} peut={peut} toutPouvoir />,
+  analyse: () => <Analyse evenement={{ ...evenement, organisation_id: 'org1', modules: { ...evenement.modules, analyse: true } }} membre={membre} peut={peut} toutPouvoir />,
   // (2/11) Avec l'organisation : les responsables du profil de sécurité comptent parmi les contacts.
   memento: () => <Memento evenement={{ ...evenement, organisation_id: 'org1' }} />,
   securite: () => <Securite evenement={evenement} membre={membre} session={session} peut={peut} toutPouvoir />,
@@ -67,6 +92,15 @@ export const ECRANS = {
   // (159) La page d'avis d'une discipline sur le dossier déposé, par lien.
   avis: () => <AvisAutorite jeton="jeton-avis" />,
   participant: () => <Participant jeton="jeton-essai" codeLieu={null} />,
+  // (169) La demande du bénévole : le pavé « Mes demandes » ouvre le tiroir porté par les boutons flottants.
+  demande: () => (
+    <>
+      <Dashboard evenement={evenement} membre={membre} session={session} peut={(r, a) => a === 'lire'} toutPouvoir={false} onFait={() => {}} onAller={() => {}} setMessage={() => {}} />
+      <BoutonsFlottants evenement={evenement} membre={membre} peut={(r, a) => a === 'lire'} toutPouvoir={false} />
+    </>
+  ),
+  // (169) La recherche globale : le champ, les résultats, puis l'ouverture de la demande trouvée dans l'écran Sécurité.
+  recherche: () => <EssaiRecherche />,
   // (168) La page publique du poste, par QR.
   'poste-public': () => <PagePoste jeton="jeton-poste-1" />,
   colonne: () => <ColonneSituation evenement={evenement} palier="large" onAller={() => {}} />,

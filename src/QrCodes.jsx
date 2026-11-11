@@ -4,6 +4,7 @@ import { supabase } from './supabaseClient'
 import { useDrapeau } from './useDrapeau'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
+import Message from './Message'
 
 /**
  * Le lien participant, et ses QR codes.
@@ -178,7 +179,10 @@ function QrPostes({ evenement, taille }) {
   const [fiches, setFiches] = useState([])
   const [lieux, setLieux] = useState([])
   const [choisis, setChoisis] = useState([])
+  // (11/11) Le numéro est relu en base à l'ouverture : la coquille ne le chargeait
+  // pas, et le champ réapparaissait vide alors que le numéro était bien gardé.
   const [telephoneQg, setTelephoneQg] = useState(evenement.telephone_qg ?? '')
+  const [telephoneGarde, setTelephoneGarde] = useState(evenement.telephone_qg ?? null)
   const [occupe, setOccupe] = useState(false)
   const [message, setMessage] = useState(null)
 
@@ -192,6 +196,13 @@ function QrPostes({ evenement, taille }) {
     setFiches(f.data ?? [])
     setLieux(l.data ?? [])
   }
+  useEffect(() => {
+    supabase.from('evenements').select('telephone_qg').eq('id', evenement.id).maybeSingle().then(({ data }) => {
+      if (!data) return
+      setTelephoneGarde(data.telephone_qg ?? null)
+      setTelephoneQg(data.telephone_qg ?? '')
+    })
+  }, [evenement.id])
   useEffect(() => {
     charger()
   }, [evenement.id])
@@ -212,10 +223,11 @@ function QrPostes({ evenement, taille }) {
   }
   async function enregistrerTelephone() {
     const v = telephoneQg.trim() || null
-    if (v === (evenement.telephone_qg ?? null)) return
+    if (v === telephoneGarde) return
     const refus = await modifierOuRefuser('evenements', { telephone_qg: v }, { id: evenement.id })
     if (refus) setMessage({ type: 'erreur', texte: refus })
-    else setMessage({ type: 'succes', texte: v ? `Numéro du QG affiché sur les pages de poste : ${v}.` : 'Plus aucun numéro sur les pages de poste.' })
+    else setTelephoneGarde(v)
+    if (!refus) setMessage({ type: 'succes', texte: v ? `Numéro du QG affiché sur les pages de poste : ${v}.` : 'Plus aucun numéro sur les pages de poste.' })
   }
 
   const base = `${window.location.origin}${window.location.pathname}?poste=`
@@ -230,11 +242,11 @@ function QrPostes({ evenement, taille }) {
         le DEA et la sortie de secours les plus proches, les fiches réflexe et le numéro du QG. Sans compte.
         La page ne montre jamais un nom ni un numéro personnel.
       </p>
-      {message && <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>{message.texte}</div>}
+      {message && <Message message={message} onFermer={() => setMessage(null)} />}
 
       <label htmlFor="telephone-qg">Numéro du QG affiché sur la page (le seul)</label>
       <div className="saisie-rapide">
-        <input id="telephone-qg" value={telephoneQg} placeholder="0470 00 00 00" onChange={(e) => setTelephoneQg(e.target.value)} onBlur={enregistrerTelephone} style={{ maxWidth: 220 }} />
+        <input id="telephone-qg" type="tel" inputMode="tel" autoComplete="off" value={telephoneQg} placeholder="0470 00 00 00" onChange={(e) => setTelephoneQg(e.target.value)} onBlur={enregistrerTelephone} style={{ maxWidth: 220 }} />
         <button className="discret" disabled={occupe} onClick={generer}>{occupe ? 'Génération…' : 'Générer les QR depuis les créneaux'}</button>
       </div>
 

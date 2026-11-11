@@ -1,3 +1,4 @@
+import { useRubriqueRoute } from './route'
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import Trace from './Trace'
@@ -6,6 +7,7 @@ import { libelleStatut } from './libelles'
 import LigneParcours from './LigneParcours'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
+import Message from './Message'
 
 const STATUTS = [
   ['inscrit', 'Inscrit'],
@@ -15,13 +17,14 @@ const STATUTS = [
   ['abandon', 'Abandon']
 ]
 
-export default function Parcours({ evenement, membre, peut, toutPouvoir }) {
+export default function Parcours({ evenement, membre, peut, toutPouvoir, ongletCible }) {
   // Deux modes : des groupes encadrés qu'on suit nommément, ou des
   // individus isolés qu'on ne peut que compter aux bornes. Le mode
   // choisit la vue d'entrée ; les deux jeux de données coexistent,
   // pour qu'un événement hybride reste possible.
   const individuels = evenement.mode_parcours === 'individuels'
   const [vue, setVue] = useState(individuels ? 'flux' : 'qg')
+  useRubriqueRoute('parcours', vue, setVue, ongletCible, [...(individuels ? ['flux'] : []), 'qg', 'terrain', 'trace', 'segments'])
   const [message, setMessage] = useState(null)
 
   return (
@@ -42,9 +45,7 @@ export default function Parcours({ evenement, membre, peut, toutPouvoir }) {
       </label>
 
       {message && (
-        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
-          {message.texte}
-        </div>
+        <Message message={message} onFermer={() => setMessage(null)} />
       )}
 
       {vue === 'qg' && (

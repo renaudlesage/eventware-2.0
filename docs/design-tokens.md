@@ -20,7 +20,7 @@ un fond sombre est illisible.
 | `--surface` | `#ffffff` | `#161c23` | panneaux, cartes |
 | `--surface-2` | `#f6f7f9` | `#1c242d` | plaque active, zébrage |
 | `--encre` | `#10151b` | `#e6eaee` | texte |
-| `--sourdine` | `#5d6874` | `#8d99a6` | texte secondaire |
+| `--sourdine` | `#515b67` | `#9aa5b1` | texte secondaire |
 | `--trait` | `#ccd2d9` | `#2b343e` | bordures |
 | `--trait-fort` | `#10151b` | `#6c7a89` | bordure appuyée |
 | `--on-teinte` | `#ffffff` | `#0d1116` | encre posée sur un aplat de teinte ou d'état (plaque active, bouton plein, bandeau de niveau, bouton flottant). Jamais `#fff` en dur sur une teinte : de nuit, les teintes sont éclaircies et le blanc n'y tient plus. |
@@ -32,10 +32,10 @@ Sens fixe, jamais décoratives.
 | Token | Jour | Nuit | Sens |
 |---|---|---|---|
 | `--etat-ok` | `#1f6f4f` | `#3d9c74` | nominal, confirmé, résolu |
-| `--etat-veille` | `#a86a00` | `#d09122` | vigilance, en attente, seuil proche |
+| `--etat-veille` | `#8a5600` | `#d09122` | vigilance, en attente, seuil proche |
 | `--etat-chaud` | `#b3311d` | `#e2543a` | urgence, P1, seuil franchi |
 | `--etat-info` | `#23557f` | `#4a8ec2` | information, préparation, focus clavier |
-| `--etat-froid` | `#5d6874` | `#8d99a6` | clos, inactif, sans suite |
+| `--etat-froid` | `#515b67` | `#9aa5b1` | clos, inactif, sans suite |
 
 ## Teintes de domaine
 
@@ -49,7 +49,7 @@ chiffre coloré signifie toujours un état, jamais une appartenance.
 | `--dom-sarcelle` | `#17796f` | `#4bb8ab` |
 | `--dom-grenat` | `#a8324a` | `#e0798c` |
 | `--dom-orange` | `#c25a12` | `#ef9450` |
-| `--dom-bronze` | `#8a6212` | `#cfa242` |
+| `--dom-bronze` | `#7d580e` | `#cfa242` |
 | `--dom-mousse` | `#3f7a2e` | `#7fbd6a` |
 | `--dom-azur` | `#1f6ba8` | `#5ea8e0` |
 | `--dom-prune` | `#8c3f7a` | `#d07cba` |

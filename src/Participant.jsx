@@ -50,16 +50,31 @@ export default function Participant({ jeton, codeLieu }) {
       ? libelleSurTrace(situerSurTrace(contenu.traces, contenu.lieux, position.latitude, position.longitude))
       : ''
 
+  // (11/11, audit C3) Si la première requête échoue, la page restait sans formulaire
+  // et ne réessayait jamais. On reprend ce que ce téléphone savait de l'événement,
+  // et on retente au retour du signal : le signalement, lui, a déjà sa file.
   useEffect(() => {
-    supabase
-      .rpc('evenement_public', { p_jeton: jeton })
-      .then(({ data }) => {
-        const e = Array.isArray(data) ? data[0] : data
-        if (e) {
-          setEvt(e)
-          appliquerIconeEvenement(e.nom, e.logo_url)
-        }
-      })
+    const clef = `eventware.public.${jeton}`
+    let vivant = true
+    try {
+      const garde = JSON.parse(localStorage.getItem(clef) ?? 'null')
+      if (garde) setEvt(garde)
+    } catch { /* rien de gardé */ }
+    async function lire() {
+      const { data, error } = await supabase.rpc('evenement_public', { p_jeton: jeton })
+      if (!vivant || error) return false
+      const e = Array.isArray(data) ? data[0] : data
+      if (e) {
+        setEvt(e)
+        appliquerIconeEvenement(e.nom, e.logo_url)
+        try { localStorage.setItem(clef, JSON.stringify(e)) } catch { /* stockage plein */ }
+      }
+      return true
+    }
+    let fait = false
+    const tenter = async () => { if (!fait) fait = await lire() }
+    const arreter = surRetourReseau(tenter, 15000)
+    return () => { vivant = false; arreter() }
   }, [jeton])
 
   /* --- Position --- */

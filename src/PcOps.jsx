@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { objetVise } from './objetVise'
+import { pousser } from './push'
 import { CarteTactique, useTactique } from './ColonneSituation'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import { jouerAlarme } from './alarme'
 import { situerSurTrace, libelleSurTrace } from './geometrie'
 import { nouvelleCle } from './reessai'
+import Message from './Message'
 
 /**
  * PC-OPS — les signalements des participants, sur carte et en liste.
@@ -31,8 +34,8 @@ export const TYPES = {
   malaise: 'Malaise',
   blessure: 'Blessure',
   danger: 'Danger',
-  materiel: 'Matériel',
-  egare: 'Égaré',
+  materiel: 'Problème matériel',
+  egare: 'Personne égarée',
   autre: 'Autre'
 }
 
@@ -66,7 +69,8 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
   const [equipes, setEquipes] = useState([])
   const [erreur, setErreur] = useState(null)
   const [retour, setRetour] = useState(null)
-  const [masquerClos, setMasquerClos] = useState(true)
+  // Un lien direct vers un signalement clos doit le montrer : le filtre se lève.
+  const [masquerClos, setMasquerClos] = useState(() => !objetVise())
   const [maj, setMaj] = useState(null)
   const [maintenant, setMaintenant] = useState(() => Date.now())
   const [sonActif, setSonActif] = useState(false)
@@ -181,6 +185,8 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
       setRetour({ type: 'erreur', texte: `${s.reference} : ${texteErreur(error)}` })
       return
     }
+    // (170) L'équipe à qui la demande part d'emblée est prévenue sur ses téléphones.
+    if (equipe && data?.id) pousser('mission', data.id)
     setConversion(null)
     setRetour({
       type: 'ok',
@@ -261,14 +267,7 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
       </div>
 
       {erreur && <div className="message erreur">{erreur}</div>}
-      {retour && (
-        <div className={`message ${retour.type === 'erreur' ? 'erreur' : ''}`} role="status">
-          {retour.texte}
-          <button className="lien" style={{ marginLeft: 10 }} onClick={() => setRetour(null)}>
-            OK
-          </button>
-        </div>
-      )}
+      <Message message={retour} onFermer={() => setRetour(null)} />
 
       {/* (31/10, audit d'ergonomie) Un réglage préparé avant, pas une donnée
           d'exploitation : replié ici, en clair dans Réglages › Lien des
@@ -331,7 +330,7 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
           const demande = demandes[s.id]
           const enConversion = conversion?.signalement.id === s.id
           return (
-            <div className={`carte ${s.statut === 'recu' ? 'urgent' : ''}`} key={s.id}>
+            <div className={`carte ${s.statut === 'recu' ? 'urgent' : ''}`} key={s.id} data-objet={s.reference}>
               <div className="titre">
                 <span className="mono">{s.reference}</span> — {TYPES[s.type] ?? s.type}
                 {s.gravite && <span className={`jeton grav-${s.gravite}`}>{libelleGravite(s.gravite)}</span>}

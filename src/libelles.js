@@ -144,3 +144,29 @@ export function libelleAgentExtinction(code) {
 export function uniteExtinction(agent) {
   return agent === 'poudre_abc' || agent === 'poudre_bc' || agent === 'co2' ? 'kg' : 'L'
 }
+
+/**
+ * (11/11, audit M5) Les natures d'un constat et celles d'un signalement,
+ * dites de la même façon partout. Le bouton flottant, l'Analyse, la page
+ * du participant et l'écran des signalements avaient chacun leurs mots.
+ */
+export const NATURES_REX = [
+  ['dysfonctionnement', 'Ça coince'],
+  ['reussite', 'Ça marche bien'],
+  ['suggestion', 'Suggestion'],
+  ['risque', 'Risque repéré']
+]
+export const IMPACTS_REX = [
+  ['mineur', 'Mineur'],
+  ['gene', 'Gêne'],
+  ['bloquant', 'Bloquant'],
+  ['dangereux', 'Dangereux']
+]
+export const NATURES_SIGNALEMENT = [
+  ['malaise', 'Malaise'],
+  ['blessure', 'Blessure'],
+  ['danger', 'Danger'],
+  ['materiel', 'Problème matériel'],
+  ['egare', 'Personne égarée'],
+  ['autre', 'Autre']
+]

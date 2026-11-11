@@ -1,3 +1,4 @@
+import { useRubriqueRoute } from './route'
 import { useEffect, useMemo, useState } from 'react'
 import { Footprints, Mic2, PartyPopper, Flag, Wrench, Car } from 'lucide-react'
 import { supabase } from './supabaseClient'
@@ -7,6 +8,7 @@ import { modifierOuRefuser } from './ecriture'
 import VisibiliteJalon from './VisibiliteJalon'
 import { STATUTS_JALON, libelleStatutJalon, jalonEnRetard, supprimerJalon } from './jalons'
 import Gantt from './Gantt'
+import Message from './Message'
 
 /**
  * Planning.
@@ -46,7 +48,7 @@ const ICONES = {
   transport: Car
 }
 
-export default function Planning({ evenement, peut, toutPouvoir, onAller }) {
+export default function Planning({ evenement, peut, toutPouvoir, onAller, ongletCible, objetCible }) {
   const [programme, setProgramme] = useState([])
   const [jalons, setJalons] = useState([])
   const [transports, setTransports] = useState([])
@@ -55,6 +57,7 @@ export default function Planning({ evenement, peut, toutPouvoir, onAller }) {
   // (129) Avant le jour J, c'est le Gantt qu'on vient voir ; le jour J,
   // la frise. L'onglet par défaut suit la phase.
   const [onglet, setOnglet] = useState(() => (evenement.phase === 'exploitation' ? 'frise' : 'gantt'))
+  useRubriqueRoute('planning', onglet, setOnglet, ongletCible, ['gantt', 'frise', 'jalons'])
   const [ouvrir, setOuvrir] = useState(false)
   const [message, setMessage] = useState(null)
 
@@ -167,8 +170,8 @@ export default function Planning({ evenement, peut, toutPouvoir, onAller }) {
       {/* (31/10, audit d'ergonomie) Une liste, comme les autres écrans,
           au lieu d'une rangée de boutons. */}
       <label className="rubrique-logistique rubrique-planning">
-        Vue
-        <select value={onglet} onChange={(e) => setOnglet(e.target.value)} aria-label="Vue du planning">
+        Rubrique
+        <select value={onglet} onChange={(e) => setOnglet(e.target.value)} aria-label="Rubrique du planning">
           <option value="gantt">Avant / après (jalons sur le temps)</option>
           <option value="frise">Jour J (créneaux)</option>
           <option value="jalons">Jalons (liste)</option>
@@ -176,9 +179,7 @@ export default function Planning({ evenement, peut, toutPouvoir, onAller }) {
       </label>
 
       {message && (
-        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
-          {message.texte}
-        </div>
+        <Message message={message} onFermer={() => setMessage(null)} />
       )}
 
       {onglet === 'gantt' && (
@@ -389,12 +390,12 @@ function Jalons({ evenement, peutCreer, peutGerer, toutPouvoir, setMessage }) {
       )}
 
       {lignes.length === 0 ? (
-        <p className="vide">Aucun jalon.</p>
+        <p className="vide">Aucun jalon.{peutCreer ? ' Ajoute le premier avec le formulaire ci-dessus : une échéance, un responsable, et il apparaît aussi dans le Gantt.' : ''}</p>
       ) : (
         lignes.map((j) => {
           const depasse = jalonEnRetard(j, maintenant)
           return (
-            <div className={`carte ${depasse || j.statut === 'rate' ? 'urgent' : ''}`} key={j.id}>
+            <div className={`carte ${depasse || j.statut === 'rate' ? 'urgent' : ''}`} key={j.id} data-objet={j.code}>
               <div className="titre">
                 {j.libelle}<span className="code-discret">{j.code}</span>
                 {j.critique && <span className="jeton alerte-texte"> critique</span>}
