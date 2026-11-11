@@ -2,26 +2,16 @@ import { joursDepuisFin } from './ClotureGuidee'
 import { LIBELLE_PHASE } from './phases'
 import { lireRoute, ecrireRoute, surRoute } from './route'
 import Recherche, { BoutonRecherche } from './Recherche'
+import TemoinEnregistre from './TemoinEnregistre'
 import { useObjetVise } from './objetVise'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Component, Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { aParcours } from './libelles'
 import { supabase } from './supabaseClient'
 import Dashboard from './Dashboard'
 import Memento from './Memento'
 import Securite from './Securite'
-import Logistique from './Logistique'
-import Parcours from './Parcours'
-import Rh from './Rh'
-import Analyse from './Analyse'
-import Precurseur from './Precurseur'
-import Exercices from './Exercices'
-import PlanImplantation from './PlanImplantation'
 import Bandeau from './Bandeau'
 import Situation from './Situation'
-import Plateforme from './Plateforme'
-import Planning from './Planning'
-import Preparation from './Preparation'
-import Reglages from './Reglages'
 import MonCompte from './MonCompte'
 import { RejoindreParCode } from './Invitations'
 import { NomManquant, PremierEvenement, RejoindreEvenement } from './Evenements'
@@ -38,6 +28,60 @@ import { demarrer, surChangement, enAttente, refusees, rejouer, retirer } from '
 import { useCapacites } from './capacites'
 import { usePalier } from './largeur'
 import { texteErreur } from './erreurs'
+import Message from './Message'
+
+/*
+ * (11/11, audit) Les écrans d'encadrement se chargent à la demande : le téléphone d'un bénévole
+ * n'a pas à télécharger les Réglages, le plan d'implantation ou l'analyse pour ouvrir « Mon poste ».
+ * Ils sont ensuite préchargés en tâche de fond (voir `prechaufferEcrans`), pour rester disponibles
+ * hors réseau comme avant.
+ */
+const CHARGEURS = {
+  Logistique: () => import('./Logistique'),
+  Parcours: () => import('./Parcours'),
+  Rh: () => import('./Rh'),
+  Analyse: () => import('./Analyse'),
+  Precurseur: () => import('./Precurseur'),
+  Exercices: () => import('./Exercices'),
+  PlanImplantation: () => import('./PlanImplantation'),
+  Plateforme: () => import('./Plateforme'),
+  Planning: () => import('./Planning'),
+  Preparation: () => import('./Preparation'),
+  Reglages: () => import('./Reglages')
+}
+const Logistique = lazy(CHARGEURS.Logistique)
+const Parcours = lazy(CHARGEURS.Parcours)
+const Rh = lazy(CHARGEURS.Rh)
+const Analyse = lazy(CHARGEURS.Analyse)
+const Precurseur = lazy(CHARGEURS.Precurseur)
+const Exercices = lazy(CHARGEURS.Exercices)
+const PlanImplantation = lazy(CHARGEURS.PlanImplantation)
+const Plateforme = lazy(CHARGEURS.Plateforme)
+const Planning = lazy(CHARGEURS.Planning)
+const Preparation = lazy(CHARGEURS.Preparation)
+const Reglages = lazy(CHARGEURS.Reglages)
+
+function prechaufferEcrans() {
+  if (navigator.onLine === false) return
+  for (const charger of Object.values(CHARGEURS)) charger().catch(() => {})
+}
+
+/** Un écran dont le code n'a pas pu être chargé (réseau coupé, version remplacée) : on le dit, on propose de réessayer. */
+class GardeEcran extends Component {
+  state = { rate: false }
+  static getDerivedStateFromError() {
+    return { rate: true }
+  }
+  render() {
+    if (!this.state.rate) return this.props.children
+    return (
+      <div className="message erreur" role="alert">
+        Cet écran n'a pas pu s'ouvrir : le réseau est coupé, ou l'application vient d'être mise à jour.{' '}
+        <button className="lien" onClick={() => window.location.reload()}>Recharger l'application</button>
+      </div>
+    )
+  }
+}
 
 /*
  * Navigation.
@@ -120,6 +164,12 @@ export default function Poste({ session, theme, setTheme }) {
     }
     return localStorage.getItem('eventware.evenement') ?? null
   })
+  // Les écrans chargés à la demande sont préchargés peu après l'ouverture : ils restent ouvrables hors réseau.
+  useEffect(() => {
+    const t = setTimeout(prechaufferEcrans, 2500)
+    window.addEventListener('online', prechaufferEcrans)
+    return () => { clearTimeout(t); window.removeEventListener('online', prechaufferEcrans) }
+  }, [])
   // Un clic sur une notification, application ouverte sur un autre événement.
   useEffect(() => {
     const changer = (e) => { if (e.detail) setCourantId(e.detail) }
@@ -172,13 +222,6 @@ export default function Poste({ session, theme, setTheme }) {
   // (27/10) Sur un téléphone, le message vit en haut de la page et un
   // formulaire en bas : une erreur arrivait hors de vue, et « Ajouter »
   // semblait ne rien faire. Une erreur invisible se fait voir.
-  const messageRef = useRef(null)
-  useEffect(() => {
-    const el = messageRef.current
-    if (!el || message?.type !== 'erreur') return
-    const r = el.getBoundingClientRect()
-    if (r.bottom < 0 || r.top > window.innerHeight) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [message])
   // Le rail déplié en permanence est un réglage de la personne, rangé
   // comme le thème : dans le stockage local, pas dans l'événement.
   const [railEpingle, setRailEpingle] = useState(
@@ -414,9 +457,7 @@ export default function Poste({ session, theme, setTheme }) {
       )}
 
       {message && (
-        <div ref={messageRef} role={message.type === 'erreur' ? 'alert' : 'status'} className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
-          {message.texte}
-        </div>
+        <Message message={message} onFermer={() => setMessage(null)} />
       )}
 
       {/* Le compte s'ouvre par-dessus le contenu plutôt que dans un
@@ -523,6 +564,8 @@ export default function Poste({ session, theme, setTheme }) {
             <main className="travail">
               {/* (11/11, audit M18) Le titre de la page, pour les lecteurs d'écran et l'onglet du navigateur. */}
               <h1 className="sr-seul">{visibles.find((e) => e.clef === ecran)?.libelle ?? 'Eventware'} — {courant.nom}</h1>
+              <GardeEcran key={ecran}>
+              <Suspense fallback={<p className="vide" role="status">Chargement de l'écran…</p>}>
               <Ecran
                 key={`${ecran}:${visee}`}
                 exploitant={exploitant}
@@ -545,6 +588,8 @@ export default function Poste({ session, theme, setTheme }) {
                 onRecharger={charger}
                 setMessage={setMessage}
               />
+              </Suspense>
+              </GardeEcran>
             </main>
 
             {palier === 'mur' && encadre && !pleinTravail && (
@@ -588,6 +633,7 @@ export default function Poste({ session, theme, setTheme }) {
       {/* Même liste d'écrans que la navigation par plaques, même filtre
           de capacités : la barre du bas n'ouvre rien de plus que ce à
           quoi la personne a droit. Elle n'apparaît que sous 700 px. */}
+      <TemoinEnregistre />
       {courant && moi && pret && (
         <Recherche evenement={courant} ecransPermis={ecransPermis} onAller={aller} />
       )}

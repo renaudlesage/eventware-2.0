@@ -125,7 +125,7 @@ export default function Transports({ evenement, peut, toutPouvoir, setMessage })
       )}
 
       {visibles.length === 0 ? (
-        <p className="vide">Aucune course.</p>
+        <p className="vide">{masquerClos ? 'Aucune course en cours. « Afficher les terminés » montre les courses passées.' : 'Aucune course.'}</p>
       ) : (
         visibles.map((l) => (
           <div className="carte" key={l.id} data-objet={l.reference}>

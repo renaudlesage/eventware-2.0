@@ -10,6 +10,7 @@ import Transports from './Transports'
 import Fournisseurs from './Fournisseurs'
 import DemandesPrix from './DemandesPrix'
 import Inventaire from './Inventaire'
+import Message from './Message'
 
 /**
  * (31/10, retour de Ren) Dix onglets sur une seule rangée, ça ne se lisait
@@ -95,9 +96,7 @@ export default function Logistique({ evenement, membre, peut, toutPouvoir, ongle
       </label>
 
       {message && (
-        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
-          {message.texte}
-        </div>
+        <Message message={message} onFermer={() => setMessage(null)} />
       )}
 
       {onglet === 'interventions' && (

@@ -16,6 +16,7 @@ import ModeQG from './ModeQG'
 import EnSouffrance from './EnSouffrance'
 import MessagesCommune from './MessagesCommune'
 import FilEntendu from './FilEntendu'
+import Message from './Message'
 
 /**
  * Tableau de bord général — la vue QG.
@@ -486,14 +487,7 @@ export default function Situation({ evenement, membre, peut, toutPouvoir, onAlle
 
       {/* --- 1. Ce qui exige une décision --- */}
 
-      {retour && (
-        <div className={`message ${retour.type === 'erreur' ? 'erreur' : ''}`} role="status">
-          {retour.texte}
-          <button className="lien" style={{ marginLeft: 10 }} onClick={() => setRetour(null)}>
-            OK
-          </button>
-        </div>
-      )}
+      <Message message={retour} onFermer={() => setRetour(null)} />
 
       <Maydays evenement={evenement} compact />
 

@@ -69,7 +69,7 @@ export default function Dashboard({
                 key={k}
                 className={`module ${actifs.includes(k) ? 'actif' : ''}`}
                 disabled={fige}
-                title={fige ? 'Imposé par votre rôle' : undefined}
+                title={fige ? 'Imposé par ton rôle' : undefined}
                 onClick={() => basculer(k)}
               >
                 {PAVES[k].libelle}
@@ -79,10 +79,10 @@ export default function Dashboard({
           })}
           <p className="aide">
             {obligatoires.length
-              ? "Les blocs marqués d'un point sont imposés par votre rôle et ne peuvent pas être retirés. Les autres sont libres."
+              ? "Les blocs marqués d'un point sont imposés par ton rôle et ne peuvent pas être retirés. Les autres sont libres."
               : phase !== 'exploitation'
-                ? "Hors exploitation, aucun bloc n'est imposé : vous pouvez tout retirer. Ceux que votre rôle exige redeviendront obligatoires au passage en exploitation."
-                : "Aucun bloc n'est imposé par votre rôle : tous sont libres."}
+                ? "Hors exploitation, aucun bloc n'est imposé : tu peux tout retirer. Ceux que ton rôle exige redeviendront obligatoires au passage en exploitation."
+                : "Aucun bloc n'est imposé par ton rôle : tous sont libres."}
           </p>
           {!actifs.length && (
             <button className="lien" onClick={() => enregistrer(null)}>

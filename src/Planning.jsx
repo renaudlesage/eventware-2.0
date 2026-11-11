@@ -8,6 +8,7 @@ import { modifierOuRefuser } from './ecriture'
 import VisibiliteJalon from './VisibiliteJalon'
 import { STATUTS_JALON, libelleStatutJalon, jalonEnRetard, supprimerJalon } from './jalons'
 import Gantt from './Gantt'
+import Message from './Message'
 
 /**
  * Planning.
@@ -178,9 +179,7 @@ export default function Planning({ evenement, peut, toutPouvoir, onAller, onglet
       </label>
 
       {message && (
-        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
-          {message.texte}
-        </div>
+        <Message message={message} onFermer={() => setMessage(null)} />
       )}
 
       {onglet === 'gantt' && (
@@ -391,7 +390,7 @@ function Jalons({ evenement, peutCreer, peutGerer, toutPouvoir, setMessage }) {
       )}
 
       {lignes.length === 0 ? (
-        <p className="vide">Aucun jalon.</p>
+        <p className="vide">Aucun jalon.{peutCreer ? ' Ajoute le premier avec le formulaire ci-dessus : une échéance, un responsable, et il apparaît aussi dans le Gantt.' : ''}</p>
       ) : (
         lignes.map((j) => {
           const depasse = jalonEnRetard(j, maintenant)

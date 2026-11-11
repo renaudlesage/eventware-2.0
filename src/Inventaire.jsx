@@ -27,7 +27,11 @@ import { COLONNES_INVENTAIRE, modeleCsvInventaire, exempleCsvInventaire, normali
 const NATURES = [['pret', 'Prêt'], ['location', 'Location']]
 const STATUTS = { sorti: 'sorti', en_retard: 'en retard', rendu: 'rendu' }
 const dateFr = (d) => (d ? new Date(d + (d.length === 10 ? 'T00:00:00' : '')).toLocaleDateString('fr-BE') : '')
-const aujourdhui = () => new Date().toISOString().slice(0, 10)
+// La date du jour ICI, pas en UTC : entre minuit et deux heures du matin, toISOString() rendait la veille.
+export const aujourdhui = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 const jours = (a, b) => (a && b ? Math.max(1, Math.round((new Date(b) - new Date(a)) / 86400000)) : 1)
 /** Le lien que portent l'étiquette QR et la puce NFC. */
 export const lienMateriel = (code) => `${window.location.origin}${window.location.pathname}?materiel=${encodeURIComponent(code)}`
@@ -78,6 +82,14 @@ export default function Inventaire({ evenement, membre, peut, toutPouvoir, setMe
     if (!articles || !demande.current) return
     ouvrirCode(demande.current)
     demande.current = null
+    // L'étiquette a fait son office : on la retire de l'adresse, sinon un rechargement ou un lien
+    // copié plus tard rouvrirait cette fiche.
+    try {
+      const p = new URLSearchParams(window.location.search)
+      p.delete('materiel')
+      const reste = p.toString()
+      window.history.replaceState(window.history.state, '', window.location.pathname + (reste ? `?${reste}` : '') + window.location.hash)
+    } catch { /* adresse non modifiable */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [articles])
 
@@ -576,7 +588,7 @@ function ImportInventaire({ organisation, evenement, existants, setMessage, onFa
         detail: { rejets: analyse.lignes.filter((l) => l.statut === 'rejete').map((l) => ({ ligne: l.numero, erreurs: l.erreurs })) }
       })
       setBilan(resultat)
-      if (refusees) setMessage({ type: 'erreur', texte: `${refusees} ligne(s) refusée(s) : vos droits ne permettent pas de modifier l'inventaire.` })
+      if (refusees) setMessage({ type: 'erreur', texte: `${refusees} ligne(s) refusée(s) : tes droits ne permettent pas de modifier l'inventaire.` })
       setAnalyse(null)
       onFait()
     } catch (e) {

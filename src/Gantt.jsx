@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import { texteErreur, estDoublon } from './erreurs'
 import { libelleStatutJalon } from './jalons'
 import FicheJalon from './FicheJalon'
+import Message from './Message'
 
 /**
  * Gantt de l'avant / après-événement (129, briefing du 26/10).
@@ -588,7 +589,7 @@ export default function Gantt({ evenement, peut, toutPouvoir, onAller }) {
       </div>
 
       {message && (
-        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>{message.texte}</div>
+        <Message message={message} onFermer={() => setMessage(null)} />
       )}
 
       {ajout && peutCreer && (

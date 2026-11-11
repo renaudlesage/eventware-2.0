@@ -7,6 +7,7 @@ import { libelleStatut } from './libelles'
 import LigneParcours from './LigneParcours'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
+import Message from './Message'
 
 const STATUTS = [
   ['inscrit', 'Inscrit'],
@@ -44,9 +45,7 @@ export default function Parcours({ evenement, membre, peut, toutPouvoir, ongletC
       </label>
 
       {message && (
-        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
-          {message.texte}
-        </div>
+        <Message message={message} onFermer={() => setMessage(null)} />
       )}
 
       {vue === 'qg' && (

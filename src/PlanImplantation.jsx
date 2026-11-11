@@ -11,6 +11,7 @@ import { CATEGORIES_PLAN as CATEGORIES } from './referentielsProduit'
 import { useDrapeau } from './useDrapeau'
 import Implantation from './Implantation'
 import BilansImplantation from './BilansImplantation'
+import Message from './Message'
 
 
 const libelleCat = (c) => CATEGORIES.find((x) => x[0] === c)?.[1] ?? c
@@ -143,9 +144,7 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir,
       </label>
 
       {message && (
-        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
-          {message.texte}
-        </div>
+        <Message message={message} onFermer={() => setMessage(null)} />
       )}
 
       {vue === 'conception' && (

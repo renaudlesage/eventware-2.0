@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import { useDrapeau } from './useDrapeau'
+import { aujourdhui } from './Inventaire'
 
 /*
  * Conformité et contrôles préalables.
@@ -1007,7 +1008,7 @@ function DetailReferentiel({ referentiel, exploitant, onFermer, setMessage }) {
     setOccupePromotion(true)
     const refus = await modifierOuRefuser(
       'referentiels',
-      { organisation_id: null, derniere_verification: new Date().toISOString().slice(0, 10) },
+      { organisation_id: null, derniere_verification: aujourdhui() },
       { id: referentiel.id }
     )
     if (refus) setMessage({ type: 'erreur', texte: refus })

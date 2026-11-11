@@ -209,7 +209,7 @@ export default function ImportCsv({ evenementId, phase, peut, toutPouvoir, onFai
       setBilan(resultat)
       if (refusees) {
         setErreur(
-          `${refusees} ligne(s) refusée(s) : vos droits ne permettent pas de modifier ce référentiel en phase ${phase ?? 'courante'}.`
+          `${refusees} ligne(s) refusée(s) : tes droits ne permettent pas de modifier ce référentiel en phase ${phase ?? 'courante'}.`
         )
       }
       setAnalyse(null)
@@ -238,7 +238,7 @@ export default function ImportCsv({ evenementId, phase, peut, toutPouvoir, onFai
 
       {lectureSeule && (
         <div className="message">
-          En phase {phase ?? 'courante'}, ce référentiel est en lecture seule pour vous.
+          En phase {phase ?? 'courante'}, ce référentiel est en lecture seule pour toi.
           La simulation reste possible : elle vérifie le fichier sans rien écrire.
         </div>
       )}

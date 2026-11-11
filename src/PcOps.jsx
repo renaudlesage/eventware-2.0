@@ -8,6 +8,7 @@ import { modifierOuRefuser } from './ecriture'
 import { jouerAlarme } from './alarme'
 import { situerSurTrace, libelleSurTrace } from './geometrie'
 import { nouvelleCle } from './reessai'
+import Message from './Message'
 
 /**
  * PC-OPS — les signalements des participants, sur carte et en liste.
@@ -266,14 +267,7 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
       </div>
 
       {erreur && <div className="message erreur">{erreur}</div>}
-      {retour && (
-        <div className={`message ${retour.type === 'erreur' ? 'erreur' : ''}`} role="status">
-          {retour.texte}
-          <button className="lien" style={{ marginLeft: 10 }} onClick={() => setRetour(null)}>
-            OK
-          </button>
-        </div>
-      )}
+      <Message message={retour} onFermer={() => setRetour(null)} />
 
       {/* (31/10, audit d'ergonomie) Un réglage préparé avant, pas une donnée
           d'exploitation : replié ici, en clair dans Réglages › Lien des

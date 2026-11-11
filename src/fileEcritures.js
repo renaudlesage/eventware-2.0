@@ -197,7 +197,7 @@ async function envoyer(op) {
 
       if (data && data.updated_at >= op.cree_le) {
         throw Object.assign(
-          new Error('Quelqu’un a modifié cette ligne entre-temps — votre version n’a pas été appliquée.'),
+          new Error('Quelqu’un a modifié cette ligne entre-temps — ta version n’a pas été appliquée.'),
           { definitif: true, conflit: true }
         )
       }

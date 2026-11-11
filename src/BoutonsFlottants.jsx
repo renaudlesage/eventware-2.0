@@ -175,13 +175,27 @@ function FormSos({ evenement, membre, onFini }) {
 
   const [enfile, setEnfile] = useState(false)
 
+  // (11/11, audit) Si la position est déjà autorisée sur cet appareil, on la joint sans rien
+  // demander : quand ça presse, un SOS doit pouvoir partir d'un seul appui, sans phrase.
+  useEffect(() => {
+    navigator.permissions?.query({ name: 'geolocation' }).then((p) => {
+      if (p.state !== 'granted') return
+      navigator.geolocation?.getCurrentPosition(
+        (g) => setPosition((deja) => deja ?? { latitude: g.coords.latitude, longitude: g.coords.longitude, precision_m: g.coords.accuracy }),
+        () => {},
+        { enableHighAccuracy: true, timeout: 12000 }
+      )
+    }).catch(() => {})
+  }, [])
+
   // (123) Même file hors réseau que les gestes de terrain : le SOS
   // d'un membre sous les arbres partait en erreur « Failed to fetch »
   // et c'était tout — le participant, lui, avait sa file depuis la
   // 007. Il est écrit dans le téléphone d'abord, envoyé ensuite ; la
   // barre du haut dit ce qui reste à partir.
   async function envoyer() {
-    if (!description.trim()) return
+    // La phrase n'est plus exigée : le QG sait qui signale, et rappelle. Sans elle, la nature tient lieu de texte.
+    const texte = description.trim() || `${TYPES_SOS.find(([v]) => v === type)?.[1] ?? 'Incident'} — sans précision, rappeler`
     setOccupe(true)
     setErreur(null)
     const reference =
@@ -199,11 +213,11 @@ function FormSos({ evenement, membre, onFini }) {
         // le compte comme arrivé.
         cle_client: cle,
         type,
-        description: description.trim(),
+        description: texte,
         emis_le: new Date().toISOString(),
         ...(position ?? {})
       },
-      libelle: `SOS ${reference} — ${description.trim().slice(0, 40)}`
+      libelle: `SOS ${reference} — ${texte.slice(0, 40)}`
     })
     if (r.statut === 'refus') setErreur(r.message)
     else if (r.statut === 'enfile') setEnfile(true)
@@ -239,7 +253,7 @@ function FormSos({ evenement, membre, onFini }) {
         ))}
       </select>
 
-      <label htmlFor="sos-desc">Ce que tu constates</label>
+      <label htmlFor="sos-desc">Ce que tu constates <span className="aide">(si tu as le temps)</span></label>
       <input
         id="sos-desc"
         autoFocus
@@ -258,10 +272,10 @@ function FormSos({ evenement, membre, onFini }) {
 
       <button
         className="bouton-terrain"
-        disabled={occupe || !description.trim()}
+        disabled={occupe}
         onClick={envoyer}
       >
-        Envoyer au QG
+        {occupe ? 'Envoi…' : 'Envoyer au QG'}
       </button>
       <p className="aide">
         En cas d'urgence vitale, appelle le 112 d'abord. Ce signalement prévient le QG, il

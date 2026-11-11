@@ -229,7 +229,11 @@ export function Missions({ evenement, membre, peut, toutPouvoir, setMessage, mod
       )}
 
       {visibles.length === 0 ? (
-        <p className="vide">Rien ici.</p>
+        <p className="vide">
+          {missions.length === 0
+            ? `Aucune demande pour l'instant.${peutEncadrer ? ' « + Nouvelle demande » en crée une ; les bénévoles peuvent aussi en poser depuis leur téléphone.' : ''}`
+            : `Aucune demande « ${FILTRES.find(([v]) => v === filtre)?.[1] ?? filtre} ». Le filtre « Tous » montre les ${missions.length} autres.`}
+        </p>
       ) : (
         visibles.map((m) => {
           const deplie = ouvert === m.id

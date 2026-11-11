@@ -212,10 +212,8 @@ export default function Memento({ evenement, ongletCible }) {
           ))
         ))}
 
-      {section === 'contacts' &&
-        (donnees.contacts.length === 0 ? (
-          <p className="vide">Aucun contact encodé.</p>
-        ) : (
+      {/* (11/11) Le 112 et le 101 ne dépendent pas de l'annuaire : ils s'affichent même sans contact encodé. */}
+      {section === 'contacts' && (
           <>
             <div className="carte urgent">
               <div className="titre">Urgences</div>
@@ -249,8 +247,9 @@ export default function Memento({ evenement, ongletCible }) {
                 )}
               </div>
             ))}
+            {donnees.contacts.length === 0 && <p className="vide">Aucun contact encodé.</p>}
           </>
-        ))}
+        )}
     </div>
   )
 }

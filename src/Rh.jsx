@@ -8,6 +8,7 @@ import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import Membres from './Membres'
 import Invitations from './Invitations'
+import Message from './Message'
 
 /*
  * Bénévoles — tout ce qui concerne les personnes, à un seul endroit.
@@ -47,9 +48,7 @@ export default function Rh({ evenement, membre, peut, toutPouvoir, onRecharger, 
       </label>
 
       {message && (
-        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
-          {message.texte}
-        </div>
+        <Message message={message} onFermer={() => setMessage(null)} />
       )}
 
       {onglet === 'couverture' && (
@@ -294,7 +293,7 @@ function Couverture({ evenement, peut, toutPouvoir, setMessage }) {
               {/* Pour qui ne peut pas modifier, ces deux faits n'ont
                   pas d'autre endroit où se lire. */}
               {!peutModifier && l.fiche_intitule && <span>fiche : {l.fiche_intitule}</span>}
-              {!peutModifier && l.rappel_envoye_le && <span>rappel envoyé ✓</span>}
+              {!peutModifier && l.rappel_envoye_le && <span>rappel publié ✓</span>}
             </div>
             {(peutCreer || peutModifier) && (
               <div className="ligne-boutons" style={{ marginTop: 10 }}>
@@ -309,7 +308,7 @@ function Couverture({ evenement, peut, toutPouvoir, setMessage }) {
                     className="discret"
                     onClick={() => setRappelPour(rappelPour === l.creneau_id ? null : l.creneau_id)}
                   >
-                    {l.rappel_envoye_le ? 'Rappel envoyé ✓' : 'Rappel'}
+                    {l.rappel_envoye_le ? 'Rappel publié ✓' : 'Rappel'}
                   </button>
                 )}
               </div>
@@ -384,9 +383,13 @@ function FormRappel({ valeurInitiale, envoyeLe, onEnvoyer, onAnnuler }) {
         onChange={(e) => setTexte(e.target.value)}
         placeholder="Ex : rendez-vous à l'entrée technique, prends une frontale."
       />
+      <p className="aide">
+        Le rappel s'affiche dans l'application de chaque personne affectée, et arrive en notification
+        sur les appareils où elle les a activées (Mon compte). Il n'y a pas d'envoi par SMS ni par e-mail.
+      </p>
       <div className="ligne-boutons">
         <button disabled={!texte.trim()} onClick={() => onEnvoyer(texte)}>
-          {envoyeLe ? 'Mettre à jour le rappel' : 'Envoyer aux affectés'}
+          {envoyeLe ? 'Mettre à jour le rappel' : 'Publier pour les affectés'}
         </button>
         {envoyeLe && (
           <button className="discret" onClick={() => onEnvoyer('')}>

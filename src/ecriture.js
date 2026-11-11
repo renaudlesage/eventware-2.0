@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
+import { signalerEcriture } from './temoinEcriture'
 
 /**
  * Écrire, ou savoir qu'on n'a pas écrit.
@@ -28,7 +29,7 @@ import { texteErreur } from './erreurs'
  */
 
 export const REFUS_SANS_ERREUR =
-  'Modification refusée : vos droits ne le permettent pas dans cette phase, ou la ligne a disparu.'
+  'Modification refusée : tes droits ne le permettent pas dans cette phase, ou la ligne a disparu.'
 
 /**
  * @param {string} table
@@ -61,5 +62,6 @@ export async function supprimerOuRefuser(table, id) {
   })
   if (error) return texteErreur(error)
   if (data === false) return 'Introuvable, ou déjà supprimé.'
+  signalerEcriture()
   return null
 }

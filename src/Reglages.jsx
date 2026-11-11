@@ -25,6 +25,7 @@ import { texteErreur } from './erreurs'
 import { slugDe } from './slug'
 import { modifierOuRefuser } from './ecriture'
 import { useDrapeau } from './useDrapeau'
+import Message from './Message'
 
 /* ================================================================== */
 /* Réglages                                                            */
@@ -809,9 +810,7 @@ function Reconduire({ evenement, onFait }) {
     <section className="bloc">
       <h2>Reconduire</h2>
       {message && (
-        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
-          {message.texte}
-        </div>
+        <Message message={message} onFermer={() => setMessage(null)} />
       )}
       {!ouvert ? (
         <>

@@ -3801,3 +3801,62 @@ button:focus-visible, a:focus-visible, summary:focus-visible, [role="button"]:fo
 .notifs-choix legend { font-size: 12px; color: var(--sourdine); padding: 0 4px; }
 .notifs-choix label.case-a-cocher { margin: 0; min-height: 32px; }
 @media (pointer: coarse) { .notifs-choix label.case-a-cocher { min-height: 44px; } }
+
+/* Le message d'un écran : fermable, et qui s'efface seul quand ce n'est pas une erreur (11/11) */
+.message.fermable { display: flex; align-items: flex-start; gap: 10px; }
+.message.fermable .message-texte { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.message-fermer { flex: 0 0 auto; min-width: 32px; min-height: 32px; margin: -4px -6px -4px 0; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 0; color: inherit; cursor: pointer; }
+.message-fermer:hover { background: rgba(127, 127, 127, 0.18); }
+@media (pointer: coarse) { .message-fermer { min-width: 44px; min-height: 44px; margin: -10px -10px -10px 0; } }
+
+/* Le témoin « Enregistré ✓ » (11/11) : en bas à gauche, hors des boutons d'urgence (en bas à droite). */
+.temoin-ecrit { position: fixed; left: 16px; bottom: 16px; z-index: 350; padding: 8px 14px; background: var(--etat-ok); color: #fff; font-weight: 600; font-size: 14px; opacity: 0; transform: translateY(8px); transition: opacity 0.15s, transform 0.15s; pointer-events: none; }
+.temoin-ecrit.visible { opacity: 1; transform: none; }
+@media (max-width: 700px) { .temoin-ecrit { left: 12px; bottom: calc(72px + env(safe-area-inset-bottom, 0px)); } }
+@media (prefers-reduced-motion: reduce) { .temoin-ecrit { transition: none; } }
+@media print { .temoin-ecrit { display: none; } }
+
+/* Entre une navigation et le retour de ses requêtes : « Chargement… » à la place des états vides (chargement.js) */
+html[data-charge] .vide { font-size: 0; }
+html[data-charge] .vide::before { content: 'Chargement…'; font-size: 14px; }
+html[data-charge] .vide > * { display: none; }
+
+/* « Une nouvelle version est prête » (11/11) */
+.mise-a-jour { position: fixed; top: 0; left: 0; right: 0; z-index: 500; display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 10px 16px; background: var(--encre); color: var(--fond); font-size: 14px; }
+.mise-a-jour button { background: var(--fond); color: var(--encre); border-color: var(--fond); }
+@media print { .mise-a-jour { display: none; } }
+
+/* Impression : toujours en clair (11/11). Le thème sombre choisi à l'écran l'emportait sur la règle
+   d'impression (sélecteur plus précis) : fond noir, encre claire, cartouches vidées. */
+@media print {
+  :root[data-theme="sombre"], :root:not([data-theme="clair"]) {
+    --surface-2: #f6f7f9;
+    --trait-fort: #10151b;
+    --on-teinte: #ffffff;
+    --etat-ok: #1f6f4f;
+    --etat-veille: #8a5600;
+    --etat-chaud: #b3311d;
+    --etat-info: #23557f;
+    --etat-froid: #515b67;
+    --ombre: 0 1px 0 rgba(16, 21, 27, 0.06);
+    --ombre-flottant: 0 3px 12px rgba(16, 21, 27, 0.22);
+    --dom-indigo: #4c5bb8;
+    --dom-violet: #7a4fb0;
+    --dom-sarcelle: #17796f;
+    --dom-grenat: #a8324a;
+    --dom-orange: #c25a12;
+    --dom-bronze: #7d580e;
+    --dom-mousse: #3f7a2e;
+    --dom-azur: #1f6ba8;
+    --dom-prune: #8c3f7a;
+    --dom-ardoise: #4a6572;
+    --dom-tilleul: #6d7a1c;
+    --dom-gris: #5d6874;
+    --fond: #fff;
+    --surface: #fff;
+    --encre: #000;
+    --trait: #999;
+    --sourdine: #444;
+    color-scheme: light;
+  }
+}

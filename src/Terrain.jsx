@@ -5,6 +5,7 @@ import { texteErreur, estReseau } from './erreurs'
 import { ecrireOuEmpiler } from './fileEcritures'
 import { situerSurTrace, libelleSurTrace } from './geometrie'
 import { pousser } from './push'
+import Message from './Message'
 
 /**
  * Mes missions.
@@ -159,9 +160,7 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
       {!embarque && <h2>Mes missions</h2>}
 
       {message && (
-        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
-          {message.texte}
-        </div>
+        <Message message={message} onFermer={() => setMessage(null)} />
       )}
 
       {!embarque && (

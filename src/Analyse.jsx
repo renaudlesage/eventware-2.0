@@ -7,6 +7,7 @@ import { DOMAINES, NATURES_REX, IMPACTS_REX } from './libelles'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import EvaluationsFournisseurs from './EvaluationsFournisseurs'
+import Message from './Message'
 
 // (11/11, audit M5) Natures et impacts partagés avec le bouton flottant : les mêmes mots partout.
 const NATURES = NATURES_REX
@@ -44,9 +45,7 @@ export default function Analyse({ evenement, membre, peut, toutPouvoir, ongletCi
       </div>
 
       {message && (
-        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
-          {message.texte}
-        </div>
+        <Message message={message} onFermer={() => setMessage(null)} />
       )}
 
       {onglet === 'synthese' ? (

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { ecrireOuEmpiler } from './fileEcritures'
 import { texteErreur } from './erreurs'
+import Message from './Message'
 
 /**
  * Précurseur — la charge des lieux (migration 114, maquette de Ren du
@@ -144,7 +145,7 @@ export default function Precurseur({ evenement, peut, toutPouvoir, ongletCible }
       </div>
 
       {erreur && <div className="message erreur">{erreur}</div>}
-      {retour && <div className={`message ${retour.type === 'erreur' ? 'erreur' : ''}`}>{retour.texte}</div>}
+      {retour && <Message message={retour} onFermer={() => setRetour(null)} />}
       {!donnees && !erreur && <p className="aide">Calcul en cours…</p>}
 
       {donnees && onglet === 'charge' && (

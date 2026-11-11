@@ -4,6 +4,7 @@ import { supabase } from './supabaseClient'
 import { useDrapeau } from './useDrapeau'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
+import Message from './Message'
 
 /**
  * Le lien participant, et ses QR codes.
@@ -241,7 +242,7 @@ function QrPostes({ evenement, taille }) {
         le DEA et la sortie de secours les plus proches, les fiches réflexe et le numéro du QG. Sans compte.
         La page ne montre jamais un nom ni un numéro personnel.
       </p>
-      {message && <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>{message.texte}</div>}
+      {message && <Message message={message} onFermer={() => setMessage(null)} />}
 
       <label htmlFor="telephone-qg">Numéro du QG affiché sur la page (le seul)</label>
       <div className="saisie-rapide">

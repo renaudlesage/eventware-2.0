@@ -74,10 +74,10 @@ export function texteErreur(e) {
   // Les droits avant la session : un refus RLS cite le nom d'une table,
   // qui peut contenir n'importe quel mot.
   if (contient(brut, DROITS)) {
-    return 'Action refusée : vos droits ne le permettent pas dans cette phase.'
+    return 'Action refusée : tes droits ne le permettent pas dans cette phase.'
   }
   if (contient(brut, SESSION)) {
-    return 'Session expirée — reconnectez-vous.'
+    return 'Session expirée — reconnecte-toi.'
   }
   // Un doublon (26/10) : « duplicate key value violates unique
   // constraint "evenements_slug_key" » ne dit à personne que le nom

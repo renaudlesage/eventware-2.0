@@ -9,6 +9,7 @@ import { Journal } from './Journal'
 import { Missions } from './Missions'
 import Recherches from './Recherches'
 import Fiches from './FichesReflexe'
+import Message from './Message'
 
 /*
  * Deux familles distinctes, pas huit onglets à plat :
@@ -103,9 +104,7 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
       )}
 
       {message && (
-        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
-          {message.texte}
-        </div>
+        <Message message={message} onFermer={() => setMessage(null)} />
       )}
 
       {onglet === 'signalements' && <PcOps evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} />}

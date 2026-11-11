@@ -218,8 +218,8 @@ export function FicheFournisseur({ organisation, evenement, fournisseur, peutGer
       <div className="grille-champs four-grille">
         <label>Nom<input value={v.nom} onChange={champ('nom')} disabled={lecture} /></label>
         <label>N° TVA<input value={v.tva ?? ''} onChange={champ('tva')} disabled={lecture} placeholder="BE 0123.456.789" /></label>
-        <label>Téléphone<input value={v.telephone ?? ''} onChange={champ('telephone')} disabled={lecture} /></label>
-        <label>Courriel<input value={v.email ?? ''} onChange={champ('email')} disabled={lecture} /></label>
+        <label>Téléphone<input type="tel" inputMode="tel" autoComplete="tel" value={v.telephone ?? ''} onChange={champ('telephone')} disabled={lecture} /></label>
+        <label>Courriel<input type="email" inputMode="email" autoComplete="email" value={v.email ?? ''} onChange={champ('email')} disabled={lecture} /></label>
         <label>Site<input value={v.site ?? ''} onChange={champ('site')} disabled={lecture} /></label>
         <label>Zone d'action<input value={v.zone ?? ''} onChange={champ('zone')} disabled={lecture} placeholder="province de Liège, toute la Belgique…" /></label>
         <label className="four-large">Adresse<input value={v.adresse ?? ''} onChange={champ('adresse')} disabled={lecture} /></label>
@@ -402,7 +402,7 @@ function ImportFournisseurs({ organisation, evenement, existants, setMessage, on
         detail: { rejets: analyse.lignes.filter((l) => l.statut === 'rejete').map((l) => ({ ligne: l.numero, erreurs: l.erreurs })) }
       })
       setBilan(resultat)
-      if (refusees) setMessage({ type: 'erreur', texte: `${refusees} ligne(s) refusée(s) : vos droits ne permettent pas de modifier l'annuaire.` })
+      if (refusees) setMessage({ type: 'erreur', texte: `${refusees} ligne(s) refusée(s) : tes droits ne permettent pas de modifier l'annuaire.` })
       setAnalyse(null)
       onFait()
     } catch (e) {

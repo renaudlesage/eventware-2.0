@@ -5,6 +5,7 @@ import { modifierOuRefuser } from './ecriture'
 import MoniteurIrm from './MoniteurIrm'
 import { diffuserAlerte } from './diffuserAlerte'
 import { pousser } from './push'
+import Message from './Message'
 
 /**
  * Veille météo.
@@ -630,9 +631,7 @@ function ReglageSeuils({ seuils, evenementId, onFait }) {
   return (
     <div className="formulaire">
       {message && (
-        <div className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
-          {message.texte}
-        </div>
+        <Message message={message} onFermer={() => setMessage(null)} />
       )}
       <div className="pave-titre">Vent</div>
       {nombre('rafale_vigilance_kmh', "Alerte à partir de", 'km/h')}
