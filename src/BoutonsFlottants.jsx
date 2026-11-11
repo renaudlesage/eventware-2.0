@@ -455,16 +455,23 @@ function FormRex({ evenement, membre, onFini }) {
   async function envoyer() {
     if (!constat.trim()) return
     setOccupe(true)
-    const { error } = await supabase.from('rex_entrees').insert({
-      evenement_id: evenement.id,
-      nature,
-      module: domaine,
-      impact: 'gene',
-      constat: constat.trim(),
-      phase: evenement.phase,
-      membre_id: membre.id
+    // (11/11, audit C4) Par la file : un constat noté hors réseau part au retour du signal.
+    const r = await ecrireOuEmpiler({
+      nature: 'insert',
+      table: 'rex_entrees',
+      libelle: `Constat : ${constat.trim().slice(0, 40)}`,
+      champs: {
+        id: nouvelleCle(),
+        evenement_id: evenement.id,
+        nature,
+        module: domaine,
+        impact: 'gene',
+        constat: constat.trim(),
+        phase: evenement.phase,
+        membre_id: membre.id
+      }
     })
-    if (error) setErreur(texteErreur(error))
+    if (r.statut === 'refus') setErreur(r.message)
     else onFini()
     setOccupe(false)
   }

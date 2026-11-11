@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { ecrireOuEmpiler } from './fileEcritures'
+import { nouvelleCle } from './reessai'
 import { libelleStatut } from './libelles'
 import { texteErreur } from './erreurs'
 import SuggestionsDemande from './SuggestionsDemande'
@@ -501,16 +502,16 @@ export function FormDemande({ mode, evenement, membre, module, libelle, lieux, s
     const texte = urgent ? descriptif.trim() : precision.trim()
     if (!texte) return
     setOccupe(true)
-    const { error } = await supabase.from('mission_commentaires').insert({
-      evenement_id: evenement.id,
-      mission_id: missionId,
-      auteur_id: membre.user_id,
-      texte
+    const r = await ecrireOuEmpiler({
+      nature: 'insert',
+      table: 'mission_commentaires',
+      libelle: 'Commentaire sur une demande',
+      champs: { id: nouvelleCle(), evenement_id: evenement.id, mission_id: missionId, auteur_id: membre.user_id, texte }
     })
     setOccupe(false)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
+    if (r.statut === 'refus') setMessage({ type: 'erreur', texte: r.message })
     else {
-      setMessage({ type: 'ok', texte: 'Ajouté en commentaire de la demande existante.' })
+      setMessage({ type: 'ok', texte: r.statut === 'enfile' ? 'Hors réseau : le commentaire est gardé sur cet appareil et partira au retour du signal.' : 'Ajouté en commentaire de la demande existante.' })
       onSuivre(missionId)
     }
   }
@@ -518,28 +519,40 @@ export function FormDemande({ mode, evenement, membre, module, libelle, lieux, s
   async function creer() {
     setOccupe(true)
     const titre = titreSaisi
-    const { data: creee, error } = await supabase.from('missions').insert({
+    // (11/11, audit C4) Par la file : la demande porte son identifiant, donc elle
+    // peut partir plus tard sans se doubler, et l'écran avance tout de suite.
+    const id = nouvelleCle()
+    const r = await ecrireOuEmpiler({
+      nature: 'insert',
+      table: 'missions',
+      libelle: `Demande : ${titre}`,
+      champs: {
+        id,
       evenement_id: evenement.id,
-      module,
-      phase: evenement.phase,
-      titre,
-      // La catégorie « sécurité » impose sa priorité — ce n'est pas
-      // une suggestion qu'on pourrait rétrograder au clic suivant.
-      // C'est exactement le flag qui manquait au REX : sans lui, P1
-      // ne voulait plus rien dire (35 % des missions classées P1,
-      // aucun écart de délai mesurable avec P2).
-      priorite: urgent ? 'P1' : typeChoisi.priorite,
-      type_id: urgent ? null : typeId,
-      lieu_id: lieuId || null,
-      latitude: urgent ? position?.lat ?? null : null,
-      longitude: urgent ? position?.lon ?? null : null,
-      qui_concerne: urgent ? quiConcerne.trim() || null : null,
-      description: urgent ? descriptif.trim() : null,
-      bloquant: urgent ? false : bloquant,
-      echeance: urgent ? null : echeanceDepuisDelai(delaiSouhaite)
-    }).select('id').single()
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
-    else onFait(creee?.id)
+        module,
+        phase: evenement.phase,
+        titre,
+        // La catégorie « sécurité » impose sa priorité — ce n'est pas
+        // une suggestion qu'on pourrait rétrograder au clic suivant.
+        // C'est exactement le flag qui manquait au REX : sans lui, P1
+        // ne voulait plus rien dire (35 % des missions classées P1,
+        // aucun écart de délai mesurable avec P2).
+        priorite: urgent ? 'P1' : typeChoisi.priorite,
+        type_id: urgent ? null : typeId,
+        lieu_id: lieuId || null,
+        latitude: urgent ? position?.lat ?? null : null,
+        longitude: urgent ? position?.lon ?? null : null,
+        qui_concerne: urgent ? quiConcerne.trim() || null : null,
+        description: urgent ? descriptif.trim() : null,
+        bloquant: urgent ? false : bloquant,
+        echeance: urgent ? null : echeanceDepuisDelai(delaiSouhaite)
+      }
+    })
+    if (r.statut === 'refus') setMessage({ type: 'erreur', texte: r.message })
+    else {
+      if (r.statut === 'enfile') setMessage({ type: 'info', texte: 'Hors réseau : la demande est gardée sur cet appareil et partira au retour du signal.' })
+      onFait(id)
+    }
     setOccupe(false)
   }
 

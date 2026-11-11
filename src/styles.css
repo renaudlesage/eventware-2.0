@@ -3695,3 +3695,8 @@ body.qg-actif { overflow: hidden; }
 .chrono-jour { display: block; flex-basis: 100%; font-size: 12px; font-weight: 700; color: var(--sourdine); text-transform: capitalize; margin: 8px 0 2px; }
 .journal-filtres input[type="search"] { width: auto; min-width: 160px; margin-bottom: 0; }
 .chrono li { flex-wrap: wrap; }
+
+/* (11/11, audit C3) Hors réseau : ce qu'on montre est une copie, et on le dit. */
+.message.hors-reseau { border-left-color: var(--etat-veille); background: var(--surface); }
+.bandeau-etat.perime .cadran-valeur { opacity: 0.55; }
+.etat-perime { grid-column: 1 / -1; flex-basis: 100%; font-size: 12px; font-weight: 600; color: var(--etat-veille); padding: 2px 8px; }

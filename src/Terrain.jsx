@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { libelleStatut, ETAPES_TRANSPORT, libelleEtapeTransport } from './libelles'
-import { texteErreur } from './erreurs'
+import { texteErreur, estReseau } from './erreurs'
+import { ecrireOuEmpiler } from './fileEcritures'
 import { situerSurTrace, libelleSurTrace } from './geometrie'
 
 /**
@@ -16,6 +17,9 @@ import { situerSurTrace, libelleSurTrace } from './geometrie'
  */
 export default function Terrain({ evenement, membre, embarque = false, onCompteurs }) {
   const [lignes, setLignes] = useState([])
+  // Heure de la copie locale quand le serveur ne répond pas (null : liste fraîche).
+  const [copie, setCopie] = useState(null)
+  const [charge, setCharge] = useState(false)
   const [message, setMessage] = useState(null)
   const [filtre, setFiltre] = useState('tout')
   // (123) La trace et les repères, pour dire « km 3,2 · entre E2 et
@@ -50,10 +54,23 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
     const { data, error } = await supabase.rpc('mon_terrain', {
       p_evenement: evenement.id
     })
+    const clef = `eventware.terrain.${evenement.id}.${membre?.id ?? ''}`
     if (error) {
-      setMessage({ type: 'erreur', texte: texteErreur(error) })
+      // Hors réseau, la liste reste telle qu'on la connaissait — y compris au
+      // démarrage, depuis la copie gardée sur cet appareil.
+      if (!estReseau(error)) setMessage({ type: 'erreur', texte: texteErreur(error) })
+      else {
+        try {
+          const garde = JSON.parse(localStorage.getItem(clef) ?? 'null')
+          if (garde) { setLignes((ls) => (ls.length ? ls : garde.lignes)); setCopie(garde.quand) }
+        } catch { /* rien de gardé */ }
+      }
+      setCharge(true)
       return
     }
+    setCopie(null)
+    setCharge(true)
+    try { localStorage.setItem(clef, JSON.stringify({ quand: new Date().toISOString(), lignes: data ?? [] })) } catch { /* stockage plein */ }
     setLignes(data ?? [])
     const ids = (data ?? []).filter((l) => l.genre === 'transport').map((l) => l.id)
     if (ids.length) {
@@ -69,14 +86,25 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
   // mot à la radio devient un fait horodaté au PC. Partir met aussi la
   // course « en cours » si elle était seulement attribuée — on ne
   // demande pas deux gestes pour dire qu'on démarre.
+  // (11/11, audit C4) Les gestes de Mes missions passent par la file d'écritures :
+  // « Je prends », « Terminé » et les étapes d'une course se font en marchant, là
+  // où le réseau tombe. Hors réseau, la ligne avance à l'écran et l'envoi suit.
+  async function ecrire(l, table, champs, libelle) {
+    const r = await ecrireOuEmpiler({ nature: 'update', table, id: l.id, champs, libelle })
+    if (r.statut === 'refus') return setMessage({ type: 'erreur', texte: r.message === 'Écriture refusée' ? 'Modification refusée : droits insuffisants.' : r.message })
+    if (r.statut === 'enfile') {
+      setLignes((ls) => ls.map((x) => (x.id === l.id ? { ...x, ...(champs.statut ? { statut: champs.statut } : {}), pour_moi: true } : x)))
+      if (champs.etape) setCourses((c) => ({ ...c, [l.id]: { ...(c[l.id] ?? {}), etape: champs.etape } }))
+      return setMessage({ type: 'info', texte: 'Hors réseau : c’est noté sur cet appareil et partira au retour du signal.' })
+    }
+    charger()
+  }
+
   async function etape(l, valeur) {
     const champs = { etape: valeur }
     if (l.statut === 'attribuee' || l.statut === 'a_traiter') champs.statut = 'en_cours'
     if (!l.pour_moi) champs.chauffeur_id = membre.id
-    const { error, count } = await supabase.from('transports').update(champs, { count: 'exact' }).eq('id', l.id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
-    else if (count === 0) setMessage({ type: 'erreur', texte: 'Modification refusée : droits insuffisants.' })
-    else charger()
+    await ecrire(l, 'transports', champs, `${l.reference ?? 'Course'} : ${valeur}`)
   }
 
   useEffect(() => {
@@ -92,15 +120,7 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
     // n'existe pas dans son énumération.
     if (l.genre === 'jalon') {
       const cible = statut === 'resolue' ? 'fait' : 'en_cours'
-      const { error, count } = await supabase
-        .from('jalons')
-        .update({ statut: cible }, { count: 'exact' })
-        .eq('id', l.id)
-      if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
-      else if (count === 0)
-        setMessage({ type: 'erreur', texte: 'Modification refusée : droits insuffisants.' })
-      else charger()
-      return
+      return ecrire(l, 'jalons', { statut: cible }, `${l.reference ?? 'Jalon'} : ${cible}`)
     }
 
     const table = l.genre === 'transport' ? 'transports' : 'missions'
@@ -115,14 +135,7 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
     if (!l.pour_moi) {
       champs[l.genre === 'transport' ? 'chauffeur_id' : 'membre_id'] = membre.id
     }
-    const { error, count } = await supabase
-      .from(table)
-      .update(champs, { count: 'exact' })
-      .eq('id', l.id)
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
-    else if (count === 0)
-      setMessage({ type: 'erreur', texte: 'Modification refusée : droits insuffisants.' })
-    else charger()
+    await ecrire(l, table, champs, `${l.reference ?? 'Mission'} : ${statut}`)
   }
 
   const visibles = filtre === 'moi' ? lignes.filter((l) => l.pour_moi) : lignes
@@ -180,8 +193,13 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
         </button>
       </div>
 
+      {copie && (
+        <p className="aide alerte-texte" role="status">
+          Hors réseau : liste telle qu’elle était à {new Date(copie).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}. Tes gestes sont gardés et partiront au retour du signal.
+        </p>
+      )}
       {visibles.length === 0 ? (
-        <p className="vide">Rien ne t'attend pour le moment.</p>
+        <p className="vide">{charge || lignes.length ? 'Rien ne t’attend pour le moment.' : 'Chargement…'}</p>
       ) : (
         visibles.map((l) => (
           <div

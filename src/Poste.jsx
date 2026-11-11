@@ -50,6 +50,8 @@ import { texteErreur } from './erreurs'
  *
  * `besoin: null` = ouvert à tout membre.
  */
+const CLEF_EVENEMENTS = 'eventware.evenements.copie'
+
 const ECRANS = [
   // « Situation » est la vue d'ensemble du PC : elle suppose de pouvoir
   // agir sur l'ensemble, pas seulement de lire.
@@ -138,6 +140,9 @@ export default function Poste({ session, theme, setTheme }) {
   }, [railEpingle])
   const palier = usePalier()
   const [chargement, setChargement] = useState(true)
+  // Heure de la copie locale quand le serveur ne répond pas (null : données fraîches).
+  const [depuis, setDepuis] = useState(null)
+  const [echec, setEchec] = useState(false)
   const [exploitant, setExploitant] = useState(false)
 
   useEffect(() => {
@@ -156,10 +161,39 @@ export default function Poste({ session, theme, setTheme }) {
         'id, nom, slug, geometrie, phase, jeton_public, point_0_lat, point_0_lon, province, commune, organisation_id, mode_parcours, modules, logo_url, date_debut, date_fin, date_montage, date_demontage, frequentation_min, frequentation_max, telephone_qg, edition_precedente_id, membres_evenement(id, role, user_id, nom_affiche, perimetre, paves, equipe_id)'
       )
       .order('nom')
-    if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
-    else setEvenements(data ?? [])
+    if (error) {
+      // (11/11, audit C3) Sans réseau au démarrage, l'application affichait « Aucun
+      // événement, crée le premier » et le Mémento devenait inatteignable. On reprend
+      // la liste connue de cet appareil, et on le dit.
+      let garde = null
+      try { garde = JSON.parse(localStorage.getItem(CLEF_EVENEMENTS) ?? 'null') } catch { /* rien de gardé */ }
+      if (garde?.utilisateur === session.user.id && garde.evenements?.length) {
+        setEvenements((actuels) => (actuels.length ? actuels : garde.evenements))
+        setDepuis(garde.quand)
+        setEchec(false)
+      } else {
+        // Ni réseau ni copie : on le dit, plutôt que de proposer de créer un événement.
+        setEchec(true)
+      }
+    } else {
+      setEvenements(data ?? [])
+      setDepuis(null)
+      setEchec(false)
+      try { localStorage.setItem(CLEF_EVENEMENTS, JSON.stringify({ utilisateur: session.user.id, quand: new Date().toISOString(), evenements: data ?? [] })) } catch { /* stockage plein */ }
+    }
     setChargement(false)
   }
+
+  // Tant qu'on travaille sur une copie, on retente au retour du signal.
+  useEffect(() => {
+    if (!depuis && !echec) return undefined
+    const retenter = () => { if (!document.hidden) charger() }
+    window.addEventListener('online', retenter)
+    document.addEventListener('visibilitychange', retenter)
+    const t = setInterval(retenter, 30000)
+    return () => { window.removeEventListener('online', retenter); document.removeEventListener('visibilitychange', retenter); clearInterval(t) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [depuis, echec])
 
   useEffect(() => {
     charger()
@@ -284,6 +318,13 @@ export default function Poste({ session, theme, setTheme }) {
           « Bien reçu » non plus. */}
       <Bandeau evenement={courant} membre={moi} />
 
+      {depuis && (
+        <div className="message hors-reseau" role="status">
+          Hors réseau : tu vois l’application telle qu’elle était le {new Date(depuis).toLocaleString('fr-BE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}.
+          Le Mémento reste lisible ; ce que tu envoies est gardé sur cet appareil et partira au retour du signal.
+        </div>
+      )}
+
       {message && (
         <div ref={messageRef} className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
           {message.texte}
@@ -312,7 +353,18 @@ export default function Poste({ session, theme, setTheme }) {
           </main>
         </div>
       ) : 
-      !courant ? (
+      !courant && echec ? (
+        <div className="corps">
+          <main className="travail">
+            <section className="bloc">
+              <h2>Réseau indisponible</h2>
+              <p>Tes événements n’ont pas pu être chargés, et cet appareil n’en garde pas encore de copie.</p>
+              <p className="aide">En cas d’urgence vitale, appelle le 112. Dès que le signal revient, réessaie.</p>
+              <button onClick={charger}>Réessayer</button>
+            </section>
+          </main>
+        </div>
+      ) : !courant ? (
         <>
           <RejoindreParCode onRejoint={async (id) => { await charger(); if (id) setCourantId(id) }} />
           <PremierEvenement session={session} onFait={charger} setMessage={setMessage} />
