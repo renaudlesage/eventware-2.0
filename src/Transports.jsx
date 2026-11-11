@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { objetVise } from './objetVise'
 import { ecrireOuEmpiler } from './fileEcritures'
 import { texteErreur } from './erreurs'
 import { STATUTS_TRANSPORT, libelleStatutTransport, libelleEtapeTransport } from './libelles'
@@ -22,7 +23,7 @@ export default function Transports({ evenement, peut, toutPouvoir, setMessage })
   const [lignes, setLignes] = useState([])
   const [lieux, setLieux] = useState([])
   const [chauffeurs, setChauffeurs] = useState([])
-  const [masquerClos, setMasquerClos] = useState(true)
+  const [masquerClos, setMasquerClos] = useState(() => !objetVise())
   const [ouvrir, setOuvrir] = useState(false)
   const [attribution, setAttribution] = useState(null)
 
@@ -127,7 +128,7 @@ export default function Transports({ evenement, peut, toutPouvoir, setMessage })
         <p className="vide">Aucune course.</p>
       ) : (
         visibles.map((l) => (
-          <div className="carte" key={l.id}>
+          <div className="carte" key={l.id} data-objet={l.reference}>
             <div className="titre">
               <span className="mono">{l.reference}</span>{' '}
               <span className={`jeton prio-${l.priorite}`}>{l.priorite}</span>{' '}

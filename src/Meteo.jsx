@@ -4,6 +4,7 @@ import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import MoniteurIrm from './MoniteurIrm'
 import { diffuserAlerte } from './diffuserAlerte'
+import { pousser } from './push'
 
 /**
  * Veille météo.
@@ -133,6 +134,7 @@ export default function Meteo({
     if (error) setErreur(texteErreur(error))
     else {
       diffuserAlerte(data.id)
+      pousser('alerte', data.id)
       await chargerAlertesActives()
     }
     setEnVol(null)

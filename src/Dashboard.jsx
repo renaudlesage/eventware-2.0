@@ -92,6 +92,13 @@ export default function Dashboard({
         </div>
       )}
 
+      {/* (169) Le geste le plus demandé du terrain, sans avoir à déplier un pavé. */}
+      {!reglage && !!evenement.modules?.logistique && evenement.phase !== 'cloture' && (
+        <button className="bouton-terrain demande-ouvrir" onClick={() => window.dispatchEvent(new Event('eventware:demande'))}>
+          + Demander quelque chose au QG
+        </button>
+      )}
+
       {actifs.length ? (
         <div className="grille-domaines grille-poste">
           {actifs.map((k) => (
@@ -324,21 +331,32 @@ function PaveMesDemandes({ evenement, membre, onAller }) {
 
   useEffect(() => {
     let vivant = true
-    supabase
-      .from('missions')
-      .select('id, reference, titre, statut, module, priorite')
-      .eq('evenement_id', evenement.id)
-      .eq('created_by', membre.user_id)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-      .limit(8)
-      .then(({ data }) => {
-        if (vivant) setDemandes(data ?? [])
-      })
+    // (169) `mes_demandes` rend mes demandes même à qui n'a pas « missions : lire » ;
+    // tant que la migration n'est pas appliquée, on lit la table comme avant.
+    async function lire() {
+      const r = await supabase.rpc('mes_demandes', { p_evenement: evenement.id })
+      if (!r.error) return vivant && setDemandes((r.data ?? []).slice(0, 8))
+      const { data } = await supabase
+        .from('missions')
+        .select('id, reference, titre, statut, module, priorite')
+        .eq('evenement_id', evenement.id)
+        .eq('created_by', membre.user_id)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(8)
+      if (vivant) setDemandes(data ?? [])
+    }
+    lire()
+    window.addEventListener('eventware:demandes', lire)
+    const t = setInterval(lire, 30000)
     return () => {
       vivant = false
+      window.removeEventListener('eventware:demandes', lire)
+      clearInterval(t)
     }
   }, [evenement.id, membre.user_id])
+
+  const peutDemander = !!evenement.modules?.logistique && evenement.phase !== 'cloture'
 
   const enCours = demandes?.filter((d) => !['resolue', 'annulee'].includes(d.statut)).length ?? null
 
@@ -354,7 +372,7 @@ function PaveMesDemandes({ evenement, membre, onAller }) {
       {demandes === null ? (
         <p className="moniteur-vide">…</p>
       ) : demandes.length === 0 ? (
-        <p className="moniteur-vide">Aucune demande envoyée pour l'instant.</p>
+        <p className="moniteur-vide">{peutDemander ? 'Aucune demande envoyée. Il te manque quelque chose à ton poste ? « Demander quelque chose au QG », en haut de cet écran.' : 'Aucune demande envoyée pour l’instant.'}</p>
       ) : (
         demandes.map((d) => {
           const ecran = ECRAN_PAR_MODULE[d.module]

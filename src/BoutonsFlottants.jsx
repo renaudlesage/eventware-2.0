@@ -1,3 +1,4 @@
+import { FormDemandeTerrain } from './DemandeTerrain'
 import { NATURES_REX } from './libelles'
 import { useTiroir } from './tiroir'
 import { useEffect, useState } from 'react'
@@ -5,6 +6,7 @@ import { Siren, MessageSquareWarning, X, TriangleAlert } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { diffuserAlerte } from './diffuserAlerte'
+import { pousser } from './push'
 import { DOMAINES } from './libelles'
 import { detecterDoublons } from './doublons'
 import { nouvelleCle } from './reessai'
@@ -58,10 +60,20 @@ export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir 
     return () => window.removeEventListener('eventware:rex', ouvrirRex)
   }, [peutRex])
 
+  // (169) La demande du bénévole : pas de bouton flottant de plus, elle s'ouvre
+  // depuis le pavé « Mes demandes » et le tiroir « Plus », qui envoient cet événement.
+  const peutDemander = !!evenement.modules?.logistique && evenement.phase !== 'cloture'
+  useEffect(() => {
+    if (!peutDemander) return
+    const ouvrirDemande = () => setOuvert('demande')
+    window.addEventListener('eventware:demande', ouvrirDemande)
+    return () => window.removeEventListener('eventware:demande', ouvrirDemande)
+  }, [peutDemander])
+
   // (162) « Parler au QG » et « Mes messages » vivent dans « Mon poste »
   // (pavé talkie), pas ici : la pile flottante reste aux urgences.
 
-  if (!peutSos && !peutRex && !peutMayday) return null
+  if (!peutSos && !peutRex && !peutMayday && !peutDemander) return null
 
   return (
     <>
@@ -100,14 +112,16 @@ export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir 
 
       {ouvert && (
         <div className="voile" onClick={() => setOuvert(null)}>
-          <div className="tiroir" {...tiroir} aria-label={ouvert === 'sos' ? 'Signaler un incident' : ouvert === 'mayday' ? 'Mayday, appel de détresse' : 'Retour d’expérience'} onClick={(e) => e.stopPropagation()}>
+          <div className="tiroir" {...tiroir} aria-label={ouvert === 'sos' ? 'Signaler un incident' : ouvert === 'mayday' ? 'Mayday, appel de détresse' : ouvert === 'demande' ? 'Demander quelque chose au QG' : 'Retour d’expérience'} onClick={(e) => e.stopPropagation()}>
             <div className="tiroir-tete">
               <strong>
                 {ouvert === 'sos'
                   ? 'Signaler un incident'
                   : ouvert === 'mayday'
                     ? 'Mayday — appel de détresse'
-                    : 'Retour d\u2019expérience'}
+                    : ouvert === 'demande'
+                      ? 'Demander quelque chose au QG'
+                      : 'Retour d\u2019expérience'}
               </strong>
               <button className="lien" onClick={() => setOuvert(null)} aria-label="Fermer">
                 <X size={18} strokeWidth={2} aria-hidden="true" />
@@ -121,6 +135,9 @@ export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir 
             )}
             {ouvert === 'rex' && (
               <FormRex evenement={evenement} membre={membre} onFini={() => setOuvert(null)} />
+            )}
+            {ouvert === 'demande' && (
+              <FormDemandeTerrain evenement={evenement} onFini={() => setOuvert(null)} />
             )}
           </div>
         </div>
@@ -317,6 +334,7 @@ function FormMayday({ evenement, onFini }) {
       const ligne = Array.isArray(data) ? data[0] : data
       setEnvoye(ligne)
       diffuserAlerte(ligne.alerte_id)
+      pousser('alerte', ligne.alerte_id)
     }
     setOccupe(false)
   }

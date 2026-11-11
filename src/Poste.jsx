@@ -1,6 +1,9 @@
+import { joursDepuisFin } from './ClotureGuidee'
 import { LIBELLE_PHASE } from './phases'
 import { lireRoute, ecrireRoute, surRoute } from './route'
-import { useEffect, useRef, useState } from 'react'
+import Recherche, { BoutonRecherche } from './Recherche'
+import { useObjetVise } from './objetVise'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { aParcours } from './libelles'
 import { supabase } from './supabaseClient'
 import Dashboard from './Dashboard'
@@ -105,9 +108,24 @@ const ECRANS = [
 
 export default function Poste({ session, theme, setTheme }) {
   const [evenements, setEvenements] = useState([])
-  const [courantId, setCourantId] = useState(
-    () => localStorage.getItem('eventware.evenement') ?? null
-  )
+  const [courantId, setCourantId] = useState(() => {
+    // Ouverture par une notification (?evenement=…) : droit sur l'événement concerné, puis l'adresse redevient propre.
+    const p = new URLSearchParams(window.location.search)
+    const demande = p.get('evenement')
+    if (demande) {
+      p.delete('evenement')
+      const reste = p.toString()
+      try { window.history.replaceState(window.history.state, '', window.location.pathname + (reste ? `?${reste}` : '') + window.location.hash) } catch { /* adresse non modifiable */ }
+      return demande
+    }
+    return localStorage.getItem('eventware.evenement') ?? null
+  })
+  // Un clic sur une notification, application ouverte sur un autre événement.
+  useEffect(() => {
+    const changer = (e) => { if (e.detail) setCourantId(e.detail) }
+    window.addEventListener('eventware:evenement', changer)
+    return () => window.removeEventListener('eventware:evenement', changer)
+  }, [])
   // (138) Arrivée par l'étiquette d'un article (?materiel=INV-0001) : droit sur Logistique › Matériel.
   const parEtiquette = new URLSearchParams(window.location.search).has('materiel')
   // (11/11, audit M1) L'écran d'ouverture vient de l'adresse quand elle en porte un :
@@ -272,12 +290,16 @@ export default function Poste({ session, theme, setTheme }) {
     if (e.besoin === null) return true
     return toutPouvoir || peut(e.besoin[0], e.besoin[1])
   })
+  // Un lien direct (#securite/missions/SEC-014) amène la ligne à l'écran dès qu'elle est affichée.
+  useObjetVise(objetCible, `${ecran}:${visee}`)
 
   // Dépend de la LISTE des écrans visibles, pas de ce qui la produit
   // (audit du 19/09) : un changement de phase change les capacités, donc
   // les écrans ; avant, il laissait l'utilisateur sur un écran devenu
   // invisible.
   const clefsVisibles = visibles.map((e) => e.clef).join(',')
+  // La recherche ne propose que des résultats dont l'écran est ouvert à la personne.
+  const ecransPermis = useMemo(() => clefsVisibles.split(','), [clefsVisibles])
   useEffect(() => {
     if (!pret || !courant) return
     // L'écran d'ouverture est la situation pour qui y a droit, son poste sinon.
@@ -291,6 +313,14 @@ export default function Poste({ session, theme, setTheme }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courantId, pret, clefsVisibles, ecran])
+
+  // (169) Rappel de clôture : une fois par jour au plus, une fois « Plus tard » pressé.
+  const aujourdhui = new Date().toISOString().slice(0, 10)
+  const joursFin = courant ? joursDepuisFin(courant) : 0
+  const [rappelCloture, setRappelCloture] = useState(null)
+  useEffect(() => {
+    try { setRappelCloture(courant ? localStorage.getItem(`eventware.rappel-cloture.${courant.id}`) : null) } catch { setRappelCloture(null) }
+  }, [courant?.id])
 
   // Le titre de l'onglet suit l'écran : « Sécurité — BFMF 2027 ».
   const libelleEcran = visibles.find((e) => e.clef === ecran)?.libelle
@@ -327,6 +357,7 @@ export default function Poste({ session, theme, setTheme }) {
             </select>
           )}
           <span className="pousse" />
+          {courant && <BoutonRecherche onOuvrir={() => window.dispatchEvent(new Event('eventware:recherche'))} />}
           <Reseau />
           <BasculeTheme theme={theme} setTheme={setTheme} compact />
           <button
@@ -364,6 +395,15 @@ export default function Poste({ session, theme, setTheme }) {
       {/* Un lien d'invitation (?code=) ouvert par quelqu'un qui a déjà un événement. */}
       {codeInvitation && courant && !compteOuvert && (
         <RejoindreParCode onRejoint={async (id) => { setCodeInvitation(false); await charger(); if (id) { setCourantId(id); aller('accueil') } }} />
+      )}
+
+      {/* (169) L'événement est terminé et pas clôturé : on le rappelle à qui peut clôturer. */}
+      {courant && toutPouvoir && joursFin > 0 && rappelCloture !== aujourdhui && ecran !== 'reglages' && (
+        <div className="message rappel-cloture" role="status">
+          « {courant.nom} » est terminé depuis {joursFin} jours et n’est pas clôturé. Les délais appris et les constats d’Eventware attendent la clôture.{' '}
+          <button className="lien" onClick={() => aller('reglages', 'dispositif')}>Voir ce qui reste ouvert</button>{' · '}
+          <button className="lien" onClick={() => { try { localStorage.setItem(`eventware.rappel-cloture.${courant.id}`, aujourdhui) } catch { /* sans stockage */ } setRappelCloture(aujourdhui) }}>Plus tard</button>
+        </div>
       )}
 
       {depuis && (
@@ -549,8 +589,12 @@ export default function Poste({ session, theme, setTheme }) {
           de capacités : la barre du bas n'ouvre rien de plus que ce à
           quoi la personne a droit. Elle n'apparaît que sous 700 px. */}
       {courant && moi && pret && (
+        <Recherche evenement={courant} ecransPermis={ecransPermis} onAller={aller} />
+      )}
+      {courant && moi && pret && (
         <BarreOnglets ecrans={visibles} ecran={ecran} onAller={aller}
-          rex={!!courant.modules?.analyse && (toutPouvoir || peut('analyse', 'creer'))} />
+          rex={!!courant.modules?.analyse && (toutPouvoir || peut('analyse', 'creer'))}
+          demande={!!courant.modules?.logistique && courant.phase !== 'cloture'} />
       )}
     </div>
   )
@@ -730,6 +774,7 @@ function Ecran({ clef, ongletCible, objetCible, evenement, membre, session, peut
           onRecharger={onRecharger}
           setMessage={setMessage}
           ongletCible={ongletCible}
+          onAller={onAller}
         />
       )
     default:

@@ -1,6 +1,8 @@
 import { useRubriqueRoute } from './route'
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { pousser } from './push'
+import { objetVise } from './objetVise'
 import { libelleStatut, heure } from './libelles'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
@@ -91,7 +93,8 @@ function Couverture({ evenement, peut, toutPouvoir, setMessage }) {
   const [lignes, setLignes] = useState([])
   const [detail, setDetail] = useState(null)
   const [membres, setMembres] = useState([])
-  const [aVenir, setAVenir] = useState(true)
+  // Un lien direct vers un créneau passé doit le montrer.
+  const [aVenir, setAVenir] = useState(() => !objetVise())
   const [f, setF] = useState({ code: '', poste: '', besoin: 2, debut: '', fin: '' })
   const [ouvrir, setOuvrir] = useState(false)
   const [rappelPour, setRappelPour] = useState(null)
@@ -156,9 +159,10 @@ function Couverture({ evenement, peut, toutPouvoir, setMessage }) {
    * ses affectés le voient — pas d'envoi personne par personne, qui
    * garantirait surtout d'en oublier un.
    *
-   * Livraison : dans l'application. Celui qui ne l'ouvre pas ne le voit
-   * pas — c'est la limite honnête de ce qui existe aujourd'hui, il n'y
-   * a ni SMS ni notification poussée dans le projet.
+   * Livraison : dans l'application, et (11/11) en notification poussée
+   * sur les appareils qui s'y sont abonnés depuis « Mon compte ». Celui
+   * qui n'a ni ouvert l'application ni activé les notifications ne le
+   * voit pas — il n'y a pas de SMS dans le projet.
    */
   async function envoyerRappel(creneauId, texte) {
     const { error, count } = await supabase
@@ -171,6 +175,8 @@ function Couverture({ evenement, peut, toutPouvoir, setMessage }) {
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
     else if (count === 0) setMessage({ type: 'erreur', texte: 'Envoi refusé : droits insuffisants.' })
     else {
+      // Le rappel s'affiche dans l'application ; les appareils abonnés le reçoivent aussi en notification.
+      if (texte.trim()) pousser('rappel_creneau', creneauId)
       setRappelPour(null)
       charger()
     }
@@ -264,7 +270,7 @@ function Couverture({ evenement, peut, toutPouvoir, setMessage }) {
         <p className="vide">Aucun créneau.</p>
       ) : (
         lignes.map((l) => (
-          <div className={`carte ${l.manque > 0 ? 'urgent' : ''}`} key={l.creneau_id}>
+          <div className={`carte ${l.manque > 0 ? 'urgent' : ''}`} key={l.creneau_id} data-objet={l.code}>
             <div className="titre">
               <span className="mono">{l.code}</span> — {l.poste}
             </div>

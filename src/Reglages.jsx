@@ -1,3 +1,4 @@
+import ClotureGuidee from './ClotureGuidee'
 import { useRubriqueRoute } from './route'
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
@@ -55,7 +56,7 @@ const PANNEAUX = [
   ['compte', 'Mon compte']
 ]
 
-export default function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, onRecharger, setMessage, ongletCible }) {
+export default function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, onRecharger, setMessage, ongletCible, onAller }) {
   const [panneau, setPanneau] = useState('dispositif')
   useRubriqueRoute('reglages', panneau, setPanneau, ongletCible, PANNEAUX.map(([k]) => k))
   const [occupe, setOccupe] = useState(false)
@@ -74,8 +75,21 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
   // monde, et la clôture efface les audios du talkie : on le dit avant, et un double
   // clic ne lance pas deux fois la suite (purge, constats).
   const [phaseOccupee, setPhaseOccupee] = useState(false)
+  // (169) La clôture passe par sa liste de contrôle, pas par une simple confirmation.
+  const [clotureOuverte, setClotureOuverte] = useState(false)
+  async function cloturer() {
+    setPhaseOccupee(true)
+    try {
+      await appliquerPhase('cloture')
+      setClotureOuverte(false)
+    } finally {
+      setPhaseOccupee(false)
+    }
+  }
   async function changerPhase(phase) {
     if (phase === evenement.phase || phaseOccupee) return
+    if (phase === 'cloture') return setClotureOuverte(true)
+    setClotureOuverte(false)
     const texte = phase === 'cloture'
       ? `Clôturer « ${evenement.nom} » ?\n\nLes écritures de terrain se ferment pour tous les membres.${evenement.modules?.talkie ? '\nLes enregistrements audio du talkie sont effacés pour de bon ; les transcriptions restent.' : ''}\nEventware relit l’événement et propose ses constats au REX.`
       : `Passer « ${evenement.nom} » en ${LIBELLE_PHASE[phase].toLowerCase()} ?\n\nLa phase ouvre et ferme des droits d’écriture pour tous les membres.${phase === 'exploitation' ? '\nLes blocs de terrain redeviennent obligatoires sur le « Mon poste » de chacun.' : ''}`
@@ -167,6 +181,9 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
                 </button>
               ))}
             </div>
+            {clotureOuverte && evenement.phase !== 'cloture' && (
+              <ClotureGuidee evenement={evenement} occupe={phaseOccupee} onCloturer={cloturer} onAnnuler={() => setClotureOuverte(false)} onAller={onAller} />
+            )}
             {/* (152) Ce que les dates de l'événement suggèrent ; le passage reste
                 un geste, puisqu'il ouvre des droits. */}
             {(() => {

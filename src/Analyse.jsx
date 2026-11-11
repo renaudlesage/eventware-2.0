@@ -1,3 +1,5 @@
+import { useArbitrageLot, LIBELLE_IMPACT } from './ArbitrageConstats'
+import { LIBELLE_PHASE } from './phases'
 import { useRubriqueRoute } from './route'
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
@@ -310,7 +312,9 @@ export function Constats({ evenement, membre, peut, toutPouvoir, setMessage, com
   }
 
   const nbAuto = lignes.filter((r) => r.source === 'eventware').length
-  const visibles = lignes.filter((r) => filtre === 'tous' || (filtre === 'eventware' ? r.source === 'eventware' : r.source !== 'eventware'))
+  // (169) L'arbitrage en lot : filtres, sélection multiple, doublons, report vers l'édition suivante.
+  const lot = useArbitrageLot({ evenement, lignes, charger, setMessage, actif: !!peutArbitrer && !compact })
+  const visibles = lot.filtrer(lignes.filter((r) => filtre === 'tous' || (filtre === 'eventware' ? r.source === 'eventware' : r.source !== 'eventware')))
 
   return (
     <>
@@ -391,23 +395,31 @@ export function Constats({ evenement, membre, peut, toutPouvoir, setMessage, com
         </div>
       )}
 
+      {!compact && lignes.length > 0 && lot.barre?.(visibles)}
+      {!compact && lot.barreLot}
+      {!compact && lot.doublons}
+
       {compact ? null : lignes.length === 0 ? (
-        <p className="vide">Aucun constat.</p>
+        <p className="vide">Aucun constat pour l’instant. Consigne le premier ci-dessus{peutArbitrer ? ', ou laisse Eventware proposer les siens' : ''}.</p>
+      ) : visibles.length === 0 ? (
+        <p className="vide">Aucun constat ne correspond à ces filtres. Passe sur « Tous » pour tout revoir.</p>
       ) : (
         visibles.map((r) => (
           <div
             className={`carte ${['bloquant', 'dangereux'].includes(r.impact) ? 'urgent' : ''} ${r.source === 'eventware' ? 'rex-auto' : ''}`}
             key={r.id}
+            data-objet={r.id}
           >
-            <div className="titre">{r.constat}</div>
+            <div className="titre rex-titre">{lot.caseCarte(r)}<span>{r.constat}</span></div>
             <div className="meta">
               {r.source === 'eventware' && <span className="prc-jeton auto" title="constat calculé par Eventware à partir des données de l’événement">proposé par Eventware</span>}
               <span className="jeton">{NATURES.find(([v]) => v === r.nature)?.[1] ?? r.nature}</span>
               <span className={['bloquant', 'dangereux'].includes(r.impact) ? 'alerte-texte' : ''}>
-                {r.impact}
+                {LIBELLE_IMPACT[r.impact] ?? r.impact}
               </span>
               {r.module && <span>{DOMAINES.find(([v]) => v === r.module)?.[1] ?? r.module}</span>}
-              {r.phase && <span>{r.phase}</span>}
+              {r.phase && <span>{LIBELLE_PHASE[r.phase] ?? r.phase}</span>}
+              {r.objet_type === 'jalons' && r.objet_ref && <span className="prc-jeton">reporté : {r.objet_ref}</span>}
             </div>
             {r.proposition && <p className="aide">→ {r.proposition}</p>}
 

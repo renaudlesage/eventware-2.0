@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { objetVise } from './objetVise'
+import { pousser } from './push'
 import { supabase } from './supabaseClient'
 import { ecrireOuEmpiler } from './fileEcritures'
 import { nouvelleCle } from './reessai'
@@ -58,6 +60,16 @@ export function Missions({ evenement, membre, peut, toutPouvoir, setMessage, mod
   const [membres, setMembres] = useState([])
   const [filtre, setFiltre] = useState('tout')
   const [ouvert, setOuvert] = useState(null)
+  // Un lien direct (#securite/missions/SEC-014) ou un résultat de recherche déplie la demande visée, une fois.
+  const vise = useRef(objetVise())
+  useEffect(() => {
+    if (!vise.current) return
+    const m = missions.find((x) => x.reference === vise.current)
+    if (!m) return
+    vise.current = null
+    setFiltre('tout')
+    setOuvert(m.id)
+  }, [missions])
   const [creer, setCreer] = useState(null) // null | 'normal' | 'urgent'
 
   async function charger() {
@@ -122,6 +134,10 @@ export function Missions({ evenement, membre, peut, toutPouvoir, setMessage, mod
         const cible = MODULES_SAISIE.find(([v]) => v === champs.module)?.[1] ?? champs.module
         setMessage({ type: 'info', texte: `Demande déplacée vers ${cible} — elle n'apparaît plus ici.` })
       }
+      // (170) Les téléphones en poche : la personne ou l'équipe à qui la demande vient d'être
+      // attribuée, puis celui qui l'a posée (« ta demande est prise en charge »).
+      if (champs.membre_id || champs.equipe_id) pousser('mission', id)
+      if (champs.statut || champs.membre_id || champs.equipe_id) pousser('demande_statut', id)
       charger()
     }
   }
@@ -218,7 +234,7 @@ export function Missions({ evenement, membre, peut, toutPouvoir, setMessage, mod
         visibles.map((m) => {
           const deplie = ouvert === m.id
           return (
-            <div className="ligne-mission" key={m.id}>
+            <div className="ligne-mission" key={m.id} data-objet={m.reference}>
               <button
                 className="ligne-mission-resume"
                 onClick={() => setOuvert(deplie ? null : m.id)}
@@ -384,7 +400,7 @@ export function ligneMemoire(m) {
   return `${m.editions > 1 ? `${m.editions} éditions précédentes` : 'Édition précédente'} : ${morceaux.join(' ; ')}.`
 }
 
-function ChoixLieu({ id, lieux, valeur, onChoisir }) {
+export function ChoixLieu({ id, lieux, valeur, onChoisir }) {
   const [recherche, setRecherche] = useState('')
   const choisi = lieux.find((l) => l.id === valeur)
   const normaliser = (t) => (t ?? '').toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g, '')

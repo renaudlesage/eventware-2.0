@@ -694,7 +694,23 @@ Document « Eventware qui apprend — cinq pistes » (Ren, 3/11), pistes 1 à 3.
 
 Document « Eventware qui apprend — cinq pistes » (Ren, 3/11), piste 6. Tests : `../../outils/replique/tests/168.sql` (masquage, génération et normalisation des libellés, héritage fiche/lieu/équipe, droits, RLS entre organisations, page anonyme champ par champ, aucun nom ni numéro personnel, compteur, désactivation). L'application : `?poste=<jeton>` ouvre `PagePoste.jsx` ; Réglages › Partage › QR du poste (numéro du QG, génération, fiche et lieu par poste, activation, planches). Appliquée et inscrite (version 20261103100000) ; 3 policies.
 
-## Ne jamais rejouer 088 → 168 par `db push` sans les lignes ci-dessus
+### 169 : pas encore appliquée (attend le « Go 169 » de Ren) — les fonctions de l'audit ergonomique : demande du bénévole, clôture guidée, arbitrage en lot, recherche globale
+
+| Fichier | Fait |
+|---|---|
+| `20261111100000_169_fonctions_audit.sql` | `demande_terrain(evenement, texte, famille, lieu, bloquant, cle)` : tout membre actif pose une demande logistique depuis son téléphone (module souscrit, événement non clôturé, 10 demandes par quart d'heure au plus ; la famille se lit dans le texte si elle n'est pas donnée ; « soins » et « sécurité » partent en P1 côté sécurité, « ça bloque » en P2 ; le lieu vient du créneau en cours ; rejouable sans doublon grâce à la clé). `mes_demandes(evenement)`. `controle_cloture(evenement)` : ce qui reste ouvert avant de clôturer (CLO_ALERTES, CLO_SOS, CLO_MAYDAY, CLO_RECHERCHES bloquants ; CLO_DEMANDES, CLO_TRANSPORTS, CLO_ATTRIBUTIONS, CLO_VOCAUX, CLO_EXERCICE, CLO_JALONS en alerte ; CLO_AUDIO, CLO_REX, CLO_DATE pour information), chaque ligne avec l'écran et la rubrique où agir. `rex_doublons(evenement, seuil)` : paires de constats ressemblants. `rex_reporter(evenement, cible, ids)` : les constats retenus deviennent des jalons REX-NN de l'édition suivante, liés au constat d'origine. `rechercher(evenement, q, limite)` : recherche sans accents dans les demandes, signalements, transports, contacts, membres, lieux, jalons, créneaux, fiches réflexe, constats et main courante, avec les droits de l'appelant (security invoker), chaque résultat avec son écran, sa rubrique et son objet. Toutes fermées à `anon`. |
+
+Audit ergonomique du 11/11 (fonctions manquantes 1, 3, 4, 5). Tests : `../../outils/replique/tests/169.sql` (50 assertions : droits, licence, débit, idempotence, familles, codes de clôture, doublons, report, recherche et cloisonnement entre organisations). L'application se passe de la migration tant qu'elle n'est pas appliquée : la demande du bénévole et la recherche le disent, la clôture retombe sur la confirmation simple, « Mes demandes » lit la table.
+
+### 170 : pas encore appliquée (attend le « Go 170 » de Ren, avec le déploiement de la fonction `notifier` et la création des clés VAPID) — les notifications poussées
+
+| Fichier | Fait |
+|---|---|
+| `20261111110000_170_notifications_poussees.sql` | `abonnements_push` (un abonnement Web Push par appareil : point d'envoi unique, clés, nom de l'appareil, préférences par type, dernier envoi, échecs ; RLS « les miens » ; fermée à `anon`). `abonner_push(endpoint, p256dh, auth, appareil)` : abonne ou réattribue l'appareil à la personne connectée. |
+
+Audit ergonomique du 11/11 (fonction manquante 2). Tests : `../../outils/replique/tests/170.sql` (14 assertions). La fonction serveur `notifier` (voir `../functions/README.md`) lit ces abonnements avec la clé de service ; elle a besoin des secrets `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` et `VAPID_SUBJECT`. Sans la migration, sans la fonction ou sans les clés, « Mon compte › Notifications sur cet appareil » dit que ce n'est pas encore activé et rien d'autre ne change.
+
+## Ne jamais rejouer 088 → 170 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

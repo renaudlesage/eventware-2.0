@@ -128,7 +128,7 @@ export default function Memento({ evenement, ongletCible }) {
           <p className="vide">Aucune fiche. Installe le pack standard depuis Sécurité.</p>
         ) : (
           donnees.fiches.map((fi) => (
-            <div className="carte" key={fi.id}>
+            <div className="carte" key={fi.id} data-objet={fi.code}>
               <button
                 type="button"
                 className="titre titre-bouton"
@@ -229,7 +229,7 @@ export default function Memento({ evenement, ongletCible }) {
               </div>
             </div>
             {donnees.contacts.map((c) => (
-              <div className="carte" key={c.id}>
+              <div className="carte" key={c.id} data-objet={c.nom}>
                 <div className="titre">{c.nom}</div>
                 <div className="meta">
                   {c.organisation && <span>{c.organisation}</span>}

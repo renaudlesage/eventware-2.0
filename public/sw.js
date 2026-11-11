@@ -104,6 +104,57 @@ self.addEventListener('fetch', (e) => {
 })
 
 /* ------------------------------------------------------------------ */
+/* Les notifications poussées (11/11)                                   */
+/*
+ * Le serveur (fonction `notifier`) envoie un petit message : titre,
+ * corps, adresse à ouvrir, étiquette. On l'affiche même si
+ * l'application est fermée — c'est tout l'intérêt. Deux messages de
+ * même étiquette (la même alerte, la même mission) se remplacent au
+ * lieu de s'empiler.
+ */
+self.addEventListener('push', (e) => {
+  let d = {}
+  try {
+    d = e.data ? e.data.json() : {}
+  } catch {
+    d = { corps: e.data ? e.data.text() : '' }
+  }
+  const titre = d.titre || 'Eventware'
+  e.waitUntil(
+    self.registration.showNotification(titre, {
+      body: [d.corps, d.evenement].filter(Boolean).join(' — '),
+      tag: d.etiquette || undefined,
+      // Une urgence resonne même si une notification de même étiquette est déjà affichée, et reste à l'écran.
+      renotify: !!(d.urgent && d.etiquette),
+      requireInteraction: !!d.urgent,
+      vibrate: d.urgent ? [300, 120, 300, 120, 600] : [200],
+      icon: '/icone.svg',
+      badge: '/icone.svg',
+      lang: 'fr',
+      data: { url: typeof d.url === 'string' ? d.url : '', evenement_id: d.evenement_id || null }
+    })
+  )
+})
+
+// Un clic ramène l'application au premier plan si elle est ouverte, l'ouvre sinon.
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close()
+  const { url, evenement_id: evenementId } = e.notification.data || {}
+  const fragment = typeof url === 'string' && url.startsWith('#') ? url : ''
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((fenetres) => {
+      const ouverte = fenetres.find((c) => new URL(c.url).origin === self.location.origin)
+      if (ouverte) {
+        ouverte.postMessage({ type: 'eventware:ouvrir', url: fragment, evenement_id: evenementId })
+        return ouverte.focus()
+      }
+      const requete = evenementId ? `?evenement=${encodeURIComponent(evenementId)}` : ''
+      return self.clients.openWindow(`/${requete}${fragment}`)
+    })
+  )
+})
+
+/* ------------------------------------------------------------------ */
 /* La réserve des tuiles                                                */
 
 function ageTuile(reponse) {

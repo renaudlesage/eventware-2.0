@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { diffuserAlerte } from './diffuserAlerte'
+import { pousser } from './push'
 import { texteErreur } from './erreurs'
 import { NIVEAUX_ALERTE as NIVEAUX } from './referentielsProduit'
 import { useAccuses, BienRecu } from './accuses.jsx'
@@ -181,6 +182,8 @@ export function GestionAlertes({ evenement, setMessage, embarque = false, onComp
       setOuvrir(false)
       charger()
       diffuserAlerte(data.id)
+      // Les téléphones en poche : notification poussée aux appareils abonnés.
+      pousser('alerte', data.id)
     }
   }
 

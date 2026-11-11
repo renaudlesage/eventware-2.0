@@ -396,7 +396,7 @@ function Jalons({ evenement, peutCreer, peutGerer, toutPouvoir, setMessage }) {
         lignes.map((j) => {
           const depasse = jalonEnRetard(j, maintenant)
           return (
-            <div className={`carte ${depasse || j.statut === 'rate' ? 'urgent' : ''}`} key={j.id}>
+            <div className={`carte ${depasse || j.statut === 'rate' ? 'urgent' : ''}`} key={j.id} data-objet={j.code}>
               <div className="titre">
                 {j.libelle}<span className="code-discret">{j.code}</span>
                 {j.critique && <span className="jeton alerte-texte"> critique</span>}

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 /**
  * L'adresse de l'écran (11/11, audit M1).
@@ -83,9 +83,15 @@ export function useRubriqueRoute(ecran, valeur, setValeur, cible, valides) {
     if (admise(cible) && cible !== valeur) setValeur(cible)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cible])
+  const montage = useRef(true)
   useEffect(() => {
     const r = lireRoute()
     if (r.ecran !== ecran || !valeur) return
+    // Au montage, l'adresse peut demander une autre rubrique que celle par défaut : la navigation
+    // ciblée va l'ouvrir. Écrire maintenant effacerait l'objet visé (#securite/missions/SEC-014).
+    const debut = montage.current
+    montage.current = false
+    if (debut && r.rubrique && r.rubrique !== valeur) return
     // On garde l'objet tant qu'on reste dans la rubrique qui le porte.
     ecrireRoute({ ecran, rubrique: valeur, objet: r.rubrique === valeur ? r.objet : null }, { remplacer: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps

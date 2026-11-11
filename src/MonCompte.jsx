@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
+import NotificationsAppareil from './NotificationsAppareil'
 
 /**
  * Mon compte — ce que l'utilisateur peut changer lui-même.
@@ -147,6 +148,8 @@ export default function MonCompte({ session, membre, evenement, setMessage, onRe
       <button className="discret" disabled={occupe === 'mdp' || mdp.length < 12} onClick={changerMdp}>
         Changer le mot de passe
       </button>
+
+      <NotificationsAppareil />
 
       <div className="identite" style={{ marginTop: 16 }}>
         <span className="etiquette">Mon identifiant</span>

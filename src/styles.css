@@ -3734,3 +3734,70 @@ button:focus-visible, a:focus-visible, summary:focus-visible, [role="button"]:fo
 .sourdine-texte, .sourdine-texte * { color: var(--sourdine); font-weight: 400; }
 .titre-bouton { all: unset; display: block; width: 100%; cursor: pointer; font: inherit; font-weight: 600; box-sizing: border-box; }
 .titre-bouton:focus-visible { outline: 2px solid var(--etat-info); outline-offset: 2px; }
+
+/* (169) La demande du bénévole. */
+.demande-terrain { display: flex; flex-direction: column; gap: 8px; }
+.demande-terrain label { margin-top: 4px; }
+.demande-familles { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.demande-familles button.module { min-height: 40px; padding: 6px 12px; border-radius: 999px; }
+.demande-ouvrir { padding: 12px; font-size: 15px; margin: 0 0 12px; width: auto; min-width: 280px; }
+@media (max-width: 700px) { .demande-ouvrir { width: 100%; } }
+
+/* (169) La clôture guidée et son rappel. */
+.cloture-guidee { margin-top: 12px; padding: 12px 14px; border: 2px solid var(--trait-fort); background: var(--surface); display: flex; flex-direction: column; gap: 10px; }
+.cloture-guidee h3 { margin: 0; font-size: 15px; }
+.cloture-groupe ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cloture-groupe li { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; padding: 6px 8px; border-left: 3px solid var(--trait); background: var(--surface-2); }
+.cloture-groupe li > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cloture-groupe li .aide { margin: 0; }
+.cloture-bloquant li { border-left-color: var(--etat-chaud); }
+.cloture-alerte li { border-left-color: var(--etat-veille); }
+.cloture-info li { border-left-color: var(--etat-info); }
+.message.rappel-cloture { border-left-color: var(--etat-veille); }
+
+/* (169) L'arbitrage des constats en lot. */
+.rex-lot-barre { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.rex-filtres { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; }
+.rex-filtres label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--sourdine); flex: 1 1 150px; }
+.rex-filtres select, .rex-filtres input { margin: 0; width: 100%; }
+.rex-lot-actions { position: sticky; top: 0; z-index: 5; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; margin-bottom: 10px; background: var(--surface); border: 2px solid var(--trait-fort); }
+.rex-lot-actions .saisie-rapide { margin-bottom: 0; align-items: center; }
+.rex-doublons { margin-bottom: 12px; }
+.rex-doublons ul { margin: 0 0 8px; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.rex-titre { display: flex; gap: 10px; align-items: flex-start; }
+.rex-case { display: inline-flex; margin: 0; padding-top: 2px; }
+.rex-case input { margin: 0; }
+
+/* ------------------------------------------------------------------ */
+/* Recherche globale et liens directs (11/11)                          */
+/* ------------------------------------------------------------------ */
+.recherche-bouton { display: inline-flex; align-items: center; gap: 6px; }
+.recherche-voile { position: fixed; inset: 0; z-index: 400; background: rgba(0, 0, 0, 0.45); display: flex; justify-content: center; align-items: flex-start; padding: 8vh 16px 16px; }
+.recherche { width: min(680px, 100%); max-height: 80vh; display: flex; flex-direction: column; background: var(--surface); color: var(--texte); border: 2px solid var(--trait-fort); }
+.recherche-champ { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--trait); }
+.recherche-champ input { flex: 1 1 auto; min-width: 0; font-size: 16px; border: 0; background: transparent; color: inherit; padding: 8px 0; }
+.recherche-champ input:focus { outline: none; }
+.recherche-champ:focus-within { box-shadow: inset 0 -2px 0 var(--accent); }
+.recherche-resultats { overflow-y: auto; padding: 8px 12px 12px; }
+.recherche-groupe h3 { margin: 12px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sourdine); }
+.recherche-ligne { display: flex; align-items: center; gap: 8px; padding: 8px; min-height: 44px; cursor: pointer; border-left: 3px solid transparent; }
+.recherche-ligne.actif { background: var(--fond); border-left-color: var(--accent); }
+.recherche-texte { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.recherche-titre { display: flex; gap: 8px; align-items: baseline; font-weight: 600; overflow-wrap: anywhere; }
+.recherche-detail { font-size: 13px; color: var(--sourdine); overflow-wrap: anywhere; }
+.recherche-lien { flex: 0 0 auto; min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
+/* La ligne qu'un lien direct ou la recherche vient d'ouvrir : soulignée un instant. */
+.objet-vise { outline: 3px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 700px) {
+  .recherche-voile { padding: 0; }
+  .recherche { width: 100%; max-height: 100dvh; height: 100dvh; border: 0; }
+  .recherche-bouton-texte { display: none; }
+}
+
+/* Notifications sur cet appareil (Mon compte, 11/11) */
+.notifs-appareil { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--trait); display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.notifs-appareil h3 { margin: 0; font-size: 15px; }
+.notifs-choix { border: 1px solid var(--trait); padding: 8px 12px; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.notifs-choix legend { font-size: 12px; color: var(--sourdine); padding: 0 4px; }
+.notifs-choix label.case-a-cocher { margin: 0; min-height: 32px; }
+@media (pointer: coarse) { .notifs-choix label.case-a-cocher { min-height: 44px; } }

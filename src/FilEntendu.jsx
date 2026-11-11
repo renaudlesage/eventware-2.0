@@ -5,6 +5,7 @@ import { texteErreur } from './erreurs'
 import { FormDemande } from './Missions'
 import { motifReconnaissance } from './Talkie'
 import { transcrireVocal } from './transcrireVocal'
+import { pousser } from './push'
 import { useMessagesVocaux, INTENTIONS, heureVocal as heure, urgentVocal as urgent } from './messagesVocaux'
 
 /**
@@ -48,7 +49,7 @@ export default function FilEntendu({ evenement, membre, peut, toutPouvoir, setMe
     if (!texte) return
     const champs = { reponse: texte, reponse_le: new Date().toISOString(), reponse_source: 'qg' }
     if (m.statut === 'nouveau') Object.assign(champs, { statut: 'entendu', entendu_le: new Date().toISOString(), entendu_par: membre?.user_id ?? null })
-    if (await maj(m, champs)) { setReponse({ ...reponse, [m.id]: '' }); journal('reponse', m, `Réponse du QG à ${qui(m)} : ${texte}`) }
+    if (await maj(m, champs)) { setReponse({ ...reponse, [m.id]: '' }); journal('reponse', m, `Réponse du QG à ${qui(m)} : ${texte}`); pousser('reponse_vocal', m.id) }
   }
   async function lier(m, missionId) {
     if (!missionId) { setDemande(null); return }

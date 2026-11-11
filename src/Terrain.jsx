@@ -4,6 +4,7 @@ import { libelleStatut, ETAPES_TRANSPORT, libelleEtapeTransport } from './libell
 import { texteErreur, estReseau } from './erreurs'
 import { ecrireOuEmpiler } from './fileEcritures'
 import { situerSurTrace, libelleSurTrace } from './geometrie'
+import { pousser } from './push'
 
 /**
  * Mes missions.
@@ -97,6 +98,8 @@ export default function Terrain({ evenement, membre, embarque = false, onCompteu
       if (champs.etape) setCourses((c) => ({ ...c, [l.id]: { ...(c[l.id] ?? {}), etape: champs.etape } }))
       return setMessage({ type: 'info', texte: 'Hors réseau : c’est noté sur cet appareil et partira au retour du signal.' })
     }
+    // (170) Celui qui a posé la demande apprend qu'elle avance, même application fermée.
+    if (table === 'missions' && champs.statut) pousser('demande_statut', l.id)
     charger()
   }
 

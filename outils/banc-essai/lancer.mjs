@@ -83,7 +83,7 @@ fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><me
 fs.writeFileSync(path.join(sortie, 'page-tel.html'), '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"><link rel="stylesheet" href="../../src/mobile.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
 
 const demandes = process.argv.slice(2)
-const ecrans = demandes.length ? demandes : ['coquille', 'coquille-preparation', 'coquille-montage', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'avis', 'participant', 'poste-public', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0']
+const ecrans = demandes.length ? demandes : ['coquille', 'coquille-preparation', 'coquille-montage', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'avis', 'participant', 'poste-public', 'demande', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0', 'recherche']
 const navigateur = await pw.chromium.launch()
 let echecs = 0
 for (const ecran of ecrans) {
@@ -935,6 +935,60 @@ for (const ecran of ecrans) {
     if (!/Jean Dupont/.test(t) || !/Responsable légal/.test(t) || !/profil de sécurité de l’organisation/.test(t)) erreurs.push('mémento : le responsable légal du profil d’organisation n’est pas dans les contacts')
     if (!/Bucolique Ferrières/.test(t)) erreurs.push('mémento : l’organisation du responsable n’est pas affichée')
   }
+  // (169) La demande du bénévole : le pavé ouvre un tiroir (dialogue), une famille et une phrase suffisent, l'envoi appelle demande_terrain avec sa clé.
+  // (169) La recherche globale : Ctrl+K ouvre le dialogue, la frappe appelle rechercher, les résultats sont groupés,
+  // un écran non permis est écarté, Entrée ouvre la demande dans son écran, dépliée et amenée à l'écran.
+  if (ecran === 'recherche') {
+    await page.getByRole('button', { name: 'Rechercher' }).first().click(); await page.waitForTimeout(300)
+    const dialogue = page.locator('.recherche[role="dialog"]')
+    if (!(await dialogue.count())) erreurs.push('recherche : le bouton n’ouvre pas le dialogue')
+    else {
+      await page.evaluate(() => { window.__appels = [] })
+      await dialogue.locator('input[type="search"]').fill('renf'); await page.waitForTimeout(700)
+      const appel = await page.evaluate(() => (window.__appels ?? []).find((a) => a.fn === 'rechercher'))
+      if (!appel || appel.args?.p_q !== 'renf') erreurs.push('recherche : la frappe n’appelle pas rechercher avec le texte saisi')
+      const groupes = await dialogue.locator('.recherche-groupe h3').allTextContents()
+      if (groupes.join('|') !== 'Demandes|Contacts') erreurs.push(`recherche : groupes « ${groupes.join(' | ')} » (attendu Demandes | Contacts, le transport étant hors des écrans permis)`)
+      if ((await dialogue.locator('.recherche-ligne.actif').count()) !== 1) erreurs.push('recherche : pas de résultat actif pour le clavier')
+      await page.keyboard.press('Enter'); await page.waitForTimeout(900)
+      const aller = await page.evaluate(() => window.__aller)
+      if (JSON.stringify(aller) !== JSON.stringify(['securite', 'missions', 'SEC-001'])) erreurs.push(`recherche : Entrée mène à ${JSON.stringify(aller)}`)
+      if (await page.locator('.recherche[role="dialog"]').count()) erreurs.push('recherche : le dialogue reste ouvert après le choix')
+      if (!/#securite\/missions\/SEC-001$/.test(page.url())) erreurs.push(`recherche : adresse ${page.url()}`)
+      const ligne = page.locator('.ligne-mission[data-objet="SEC-001"]')
+      if (!(await ligne.count())) erreurs.push('recherche : la demande SEC-001 n’est pas affichée')
+      else {
+        if (!(await ligne.locator('.ligne-mission-detail').count())) erreurs.push('recherche : la demande visée n’est pas dépliée')
+        if (!(await ligne.evaluate((el) => el.classList.contains('objet-vise')))) erreurs.push('recherche : la demande visée n’est pas soulignée')
+      }
+    }
+    await page.keyboard.press('Control+k'); await page.waitForTimeout(300)
+    if (!(await page.locator('.recherche[role="dialog"]').count())) erreurs.push('recherche : Ctrl+K n’ouvre pas le dialogue')
+    await page.keyboard.press('Escape'); await page.waitForTimeout(300)
+    if (await page.locator('.recherche[role="dialog"]').count()) erreurs.push('recherche : Échap ne ferme pas le dialogue')
+  }
+  if (ecran === 'demande') {
+    const ouvrir = page.getByRole('button', { name: /Demander quelque chose au QG/ }).first()
+    if (!(await ouvrir.count())) erreurs.push('demande : pas de bouton dans le pavé « Mes demandes »')
+    else {
+      await ouvrir.click(); await page.waitForTimeout(400)
+      const tiroir = page.locator('.tiroir[role="dialog"]')
+      if (!(await tiroir.count())) erreurs.push('demande : le tiroir ne s’ouvre pas en dialogue')
+      if (await tiroir.locator('.demande-familles button', { hasText: 'Soins' }).count()) erreurs.push('demande : la famille « Soins » ne doit pas être proposée (c’est un SOS)')
+      const envoyer = tiroir.getByRole('button', { name: /Envoyer au QG/ })
+      if (!(await envoyer.isDisabled())) erreurs.push('demande : « Envoyer » devrait être désactivé sans famille ni phrase')
+      await tiroir.locator('.demande-familles button', { hasText: 'Réassort boissons' }).click()
+      await tiroir.locator('#demande-texte').fill('Deux fûts de blonde')
+      await page.evaluate(() => { window.__appels = [] })
+      await envoyer.click(); await page.waitForTimeout(500)
+      const appel = await page.evaluate(() => (window.__appels ?? []).find((a) => a.fn === 'demande_terrain'))
+      if (!appel) erreurs.push('demande : « Envoyer » n’appelle pas demande_terrain')
+      else if (appel.args?.p_famille !== 'boissons' || appel.args?.p_texte !== 'Deux fûts de blonde' || !/^[0-9a-f-]{36}$/.test(appel.args?.p_cle ?? '')) erreurs.push('demande : arguments incorrects (famille, phrase ou clé)')
+      if (!/Demande LOG-009 envoyée au QG/.test(await tiroir.textContent())) erreurs.push('demande : pas de confirmation avec la référence')
+      await page.keyboard.press('Escape'); await page.waitForTimeout(300)
+      if (await page.locator('.tiroir[role="dialog"]').count()) erreurs.push('demande : Échap ne ferme pas le tiroir')
+    }
+  }
   // (168) La page du poste : QG et 112 en tête, canaux, créneau en cours, fiche, secours, fiche réflexe dépliable ; aucun numéro personnel.
   if (ecran === 'poste-public') {
     const t = await page.locator('.page-poste').textContent().catch(() => '')
@@ -966,15 +1020,69 @@ for (const ecran of ecrans) {
     if (!appels.includes('rattacher_demandes_lieux')) erreurs.push('analyse : « Rattacher » n’appelle pas rattacher_demandes_lieux')
     if (!(await page.locator('.rex-filtre .module.actif', { hasText: 'Proposés par Eventware (1)' }).count())) erreurs.push('analyse : après « Proposer », le filtre Eventware n’est pas actif')
     if ((await page.locator('.carte').count()) !== 1) erreurs.push(`analyse : filtre Eventware → ${await page.locator('.carte').count()} carte(s) (attendu 1)`)
-    await page.locator('.rex-filtre .module', { hasText: 'Consignés (1)' }).click()
+    await page.locator('.rex-filtre .module', { hasText: 'Consignés (2)' }).click()
     await page.waitForTimeout(200)
-    if (!(await page.locator('.carte', { hasText: 'briefing du matin' }).count())) erreurs.push('analyse : le filtre « Consignés » ne montre pas le constat humain')
+    // (169) L'arbitrage en lot. Par défaut on ne voit que ce qui est à arbitrer ; « Tous » montre aussi le constat retenu.
+    if (await page.locator('.carte', { hasText: 'briefing du matin' }).count()) erreurs.push('constats : un constat déjà retenu ne devrait pas apparaître dans « À arbitrer »')
+    await page.locator('.rex-statuts .module', { hasText: /^Tous/ }).click()
+    await page.waitForTimeout(200)
+    if (!(await page.locator('.carte', { hasText: 'briefing du matin' }).count())) erreurs.push('constats : « Tous » ne montre pas le constat humain retenu')
+    await page.locator('.rex-filtre .module', { hasText: /^Tous/ }).click()
+    await page.locator('.rex-statuts .module', { hasText: /^À arbitrer \(2\)/ }).click()
+    await page.waitForTimeout(200)
+    await page.getByRole('button', { name: /Tout sélectionner \(2\)/ }).click()
+    await page.waitForTimeout(200)
+    const lot = page.locator('.rex-lot-actions')
+    if (!/2 constats sélectionnés/.test(await lot.textContent().catch(() => ''))) erreurs.push('constats : la barre de lot n’annonce pas « 2 constats sélectionnés »')
+    else {
+      // Reporter dans l'édition suivante, puis retenir en lot.
+      await lot.locator('.rex-report select').selectOption('ev0')
+      await page.evaluate(() => { window.__appels = []; window.__ecritures = [] })
+      await lot.getByRole('button', { name: /Reporter en jalons/ }).click()
+      await page.waitForTimeout(300)
+      const report = await page.evaluate(() => (window.__appels ?? []).find((a) => a.fn === 'rex_reporter'))
+      if (!report || report.args?.p_cible !== 'ev0' || (report.args?.p_ids ?? []).length !== 2) erreurs.push('constats : « Reporter en jalons » n’appelle pas rex_reporter avec la cible et les deux constats')
+      await page.getByRole('button', { name: /Tout sélectionner/ }).click()
+      await page.locator('.rex-lot-actions').getByRole('button', { name: /^Retenir$/ }).click()
+      await page.waitForTimeout(300)
+      const ecrit = await page.evaluate(() => (window.__ecritures ?? []).find((e) => e.table === 'rex_entrees' && e.champs?.statut === 'retenu'))
+      if (!ecrit) erreurs.push('constats : « Retenir » en lot n’écrit pas le statut')
+    }
+    await page.getByRole('button', { name: /Regrouper les doublons/ }).click()
+    await page.waitForTimeout(400)
+    const dbl = page.locator('.rex-doublons .carte')
+    if ((await dbl.count()) !== 1 || (await dbl.locator('li').count()) !== 2) erreurs.push('constats : le groupe de deux doublons n’apparaît pas')
+    else {
+      await page.evaluate(() => { window.__ecritures = [] })
+      await dbl.getByRole('button', { name: /Garder le premier/ }).click()
+      await page.waitForTimeout(300)
+      const ecart = await page.evaluate(() => (window.__ecritures ?? []).find((e) => e.table === 'rex_entrees' && e.champs?.statut === 'rejete' && /^Doublon de/.test(e.champs?.suite ?? '')))
+      if (!ecart) erreurs.push('constats : écarter un doublon n’écrit pas « rejeté, doublon de… »')
+    }
   }
   // (152) Réglages : la phase suggérée par les dates, avec le passage en un clic.
   if (ecran === 'reglages') {
     const sug = await page.locator('.phase-suggeree').textContent().catch(() => '')
     if (!/Phase suggérée par les dates/.test(sug)) erreurs.push(`réglages : pas de phase suggérée (${sug.slice(0, 60)})`)
     // (157) Rubrique Dossier de sécurité : statut, deux bloquants qui retiennent le dépôt, la version figée.
+    // (169) La clôture guidée : « Clôture » ouvre la liste de contrôle au lieu de clôturer ; un bloquant retient le bouton tant qu'on ne coche pas « quand même ».
+    await page.locator('.plaques button.plaque-nav', { hasText: 'Clôture' }).first().click()
+    await page.waitForTimeout(500)
+    const cloture = page.locator('.cloture-guidee')
+    if (!(await cloture.count())) erreurs.push('clôture : la liste de contrôle ne s’ouvre pas')
+    else {
+      const tc = await cloture.textContent()
+      if (!/À régler d’abord/.test(tc) || !/1 alerte\(s\) encore active/.test(tc) || !/Ce que la clôture fera/.test(tc)) erreurs.push('clôture : les groupes ou les points manquent')
+      const bouton = cloture.getByRole('button', { name: /Clôturer l’événement/ })
+      if (!(await bouton.isDisabled())) erreurs.push('clôture : le bouton devrait être retenu par le point bloquant')
+      await cloture.locator('input[type="checkbox"]').check()
+      if (await bouton.isDisabled()) erreurs.push('clôture : « quand même » ne libère pas le bouton')
+      const ecrit = await page.evaluate(() => (window.__ecritures ?? []).some((e) => e.table === 'evenements' && e.champs?.phase === 'cloture'))
+      if (ecrit) erreurs.push('clôture : la phase a été écrite avant la confirmation')
+      await cloture.getByRole('button', { name: /^Annuler$/ }).click()
+      await page.waitForTimeout(200)
+      if (await page.locator('.cloture-guidee').count()) erreurs.push('clôture : « Annuler » ne referme pas la liste')
+    }
     // (167) Réglages › Données : l'édition précédente se choisit et « Rapprocher les lieux » appelle rapprocher_lieux.
     await page.locator('.rubrique-reglages select').selectOption('donnees')
     await page.waitForTimeout(400)

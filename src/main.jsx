@@ -7,6 +7,7 @@ import './styles.css'
 // Après la feuille principale : la couche mobile n'ajoute pas un thème,
 // elle rectifie la présentation sous 700 px et doit donc passer après.
 import './mobile.css'
+import { ecouterNotifications } from './push'
 
 // (11/11) Filet de noms accessibles pour les champs sans libellé relié.
 demarrerNomsAccessibles()
@@ -33,6 +34,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
  * version à prendre la main dès qu'elle est prête, avec un seul
  * rechargement automatique.
  */
+// Un clic sur une notification, application déjà ouverte : le service worker indique l'écran à montrer.
+ecouterNotifications()
+
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', async () => {
     try {

@@ -26,9 +26,15 @@ export const DONNEES = {
   // (167) Un constat proposé par Eventware, un consigné par un humain ; une édition précédente dans l'organisation.
   rex_entrees: [
     { id: 'rx1', evenement_id: 'ev1', nature: 'suggestion', module: 'logistique', impact: 'gene', phase: 'cloture', constat: '12 demandes « Réassort boissons » au fil de l’événement, une toutes les 28 min en médiane — surtout à Étape 1 ×9.', proposition: 'Prévoir une ronde « réassort boissons » toutes les 15 min sur ces lieux plutôt qu’attendre les demandes.', statut: 'a_arbitrer', source: 'eventware', cle_auto: 'famille_boissons', lieu_id: 'l1', created_at: '2026-11-12T10:00:00Z' },
+    { id: 'rx3', evenement_id: 'ev1', nature: 'suggestion', module: 'logistique', impact: 'bloquant', phase: 'exploitation', constat: 'Beaucoup de demandes de réassort boissons à l’Étape 1, toutes les demi-heures.', proposition: null, statut: 'a_arbitrer', source: 'humain', created_at: '2026-11-12T11:00:00Z' },
     { id: 'rx2', evenement_id: 'ev1', nature: 'reussite', module: 'rh', impact: 'mineur', phase: 'exploitation', constat: 'Le briefing du matin a mis tout le monde au même niveau.', proposition: null, statut: 'retenu', source: 'humain', porteur: 'Ren', created_at: '2026-11-11T08:00:00Z' }
   ],
   // (168) Deux QR de poste, l'un sans fiche ; une fiche de poste.
+  familles_demande: [
+    { code: 'soins', libelle: 'Soins et blessés', ordre: 10 }, { code: 'jetons', libelle: 'Jetons et caisses', ordre: 30 },
+    { code: 'boissons', libelle: 'Réassort boissons', ordre: 40 }, { code: 'sanitaires', libelle: 'Sanitaires', ordre: 60 },
+    { code: 'proprete', libelle: 'Propreté et déchets', ordre: 70 }, { code: 'energie', libelle: 'Énergie et carburant', ordre: 80 }
+  ],
   postes_qr: [
     { id: 'pq1', evenement_id: 'ev1', poste: 'Bar étape 1', jeton: 'jeton-poste-1', fiche_id: 'fp1', lieu_id: 'l1', equipe_id: 'e1', consigne: null, actif: true, nb_acces: 4 },
     { id: 'pq2', evenement_id: 'ev1', poste: 'Jetons', jeton: 'jeton-poste-2', fiche_id: null, lieu_id: null, equipe_id: null, consigne: null, actif: true, nb_acces: 0 }
@@ -266,6 +272,21 @@ function constructeur(table, fn, args) {
     ],
     memoire_lieux: [{ lieu_id: 'l1', nom: 'Étape 1', editions: 1, demandes: 11, familles: [{ code: 'boissons', libelle: 'Réassort boissons', n: 9 }, { code: 'jetons', libelle: 'Jetons et caisses', n: 2 }], signalements: 1, rex: 1, constats: ['12 demandes « Réassort boissons » au fil de l’événement, une toutes les 28 min en médiane — surtout à Étape 1 ×9.'] }],
     rex_proposer: 3, rattacher_demandes_lieux: 2, rapprocher_lieux: 2,
+    // (169) Les fonctions de l'audit : demande du bénévole, mes demandes.
+    demande_terrain: { id: 'm9', reference: 'LOG-009', statut: 'a_traiter', priorite: 'P3', module: 'logistique', lieu: 'Étape 1', deja: false },
+    rex_doublons: [{ id_a: 'rx1', id_b: 'rx3', similarite: 0.82 }], rex_reporter: 1,
+    // (169) La recherche globale : une demande, un transport (écran que le banc n'ouvre pas), un contact.
+    rechercher: [
+      { genre: 'demande', id: 'm1', reference: 'SEC-001', titre: 'Renfort', detail: 'attribuee · P1', ecran: 'securite', rubrique: 'missions', objet: 'SEC-001', quand: '2026-11-11T13:00:00Z' },
+      { genre: 'transport', id: 't1', reference: 'TRA-001', titre: 'Renfort bénévoles', detail: 'QG → Étape 1', ecran: 'logistique', rubrique: 'transports', objet: 'TRA-001', quand: '2026-11-11T12:00:00Z' },
+      { genre: 'contact', id: 'c1', reference: null, titre: 'Renfort Croix-Rouge', detail: 'Coordinateur · 0470 00 00 00', ecran: 'memento', rubrique: 'contacts', objet: 'Renfort Croix-Rouge', quand: '2026-11-01T08:00:00Z' }
+    ],
+    controle_cloture: [
+      { code: 'CLO_ALERTES', gravite: 'bloquant', titre: '1 alerte(s) encore active(s)', detail: 'Lève-les : une alerte active reste affichée chez tous les membres après la clôture.', n: 1, ecran: 'situation', rubrique: null },
+      { code: 'CLO_DEMANDES', gravite: 'alerte', titre: '3 demande(s) encore ouverte(s)', detail: 'Résous-les ou annule-les.', n: 3, ecran: 'logistique', rubrique: 'interventions' },
+      { code: 'CLO_REX', gravite: 'info', titre: '12 constat(s) à arbitrer', detail: 'Eventware ajoutera les siens à la clôture.', n: 12, ecran: 'analyse', rubrique: 'constats' }
+    ],
+    mes_demandes: [{ id: 'm1', reference: 'SEC-001', titre: 'Renfort', statut: 'attribuee', priorite: 'P1', module: 'securite', lieu: null, created_at: '2026-11-11T13:00:00Z' }],
     // (168) La page du poste, telle que le serveur la rend (numéros déjà masqués).
     generer_postes_qr: 2,
     poste_par_jeton: {

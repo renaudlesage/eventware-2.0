@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { objetVise } from './objetVise'
+import { pousser } from './push'
 import { CarteTactique, useTactique } from './ColonneSituation'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
@@ -66,7 +68,8 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
   const [equipes, setEquipes] = useState([])
   const [erreur, setErreur] = useState(null)
   const [retour, setRetour] = useState(null)
-  const [masquerClos, setMasquerClos] = useState(true)
+  // Un lien direct vers un signalement clos doit le montrer : le filtre se lève.
+  const [masquerClos, setMasquerClos] = useState(() => !objetVise())
   const [maj, setMaj] = useState(null)
   const [maintenant, setMaintenant] = useState(() => Date.now())
   const [sonActif, setSonActif] = useState(false)
@@ -181,6 +184,8 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
       setRetour({ type: 'erreur', texte: `${s.reference} : ${texteErreur(error)}` })
       return
     }
+    // (170) L'équipe à qui la demande part d'emblée est prévenue sur ses téléphones.
+    if (equipe && data?.id) pousser('mission', data.id)
     setConversion(null)
     setRetour({
       type: 'ok',
@@ -331,7 +336,7 @@ export default function PcOps({ evenement, peut, toutPouvoir }) {
           const demande = demandes[s.id]
           const enConversion = conversion?.signalement.id === s.id
           return (
-            <div className={`carte ${s.statut === 'recu' ? 'urgent' : ''}`} key={s.id}>
+            <div className={`carte ${s.statut === 'recu' ? 'urgent' : ''}`} key={s.id} data-objet={s.reference}>
               <div className="titre">
                 <span className="mono">{s.reference}</span> — {TYPES[s.type] ?? s.type}
                 {s.gravite && <span className={`jeton grav-${s.gravite}`}>{libelleGravite(s.gravite)}</span>}

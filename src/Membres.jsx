@@ -228,7 +228,7 @@ export default function Membres({ evenement, membre, peut, toutPouvoir, setMessa
         const moi = estMoi(m)
         const peutLigne = peutGerer || moi
         return (
-          <div className="carte" key={m.id}>
+          <div className="carte" key={m.id} data-objet={m.nom_affiche ?? undefined}>
             <div className="titre">
               {m.nom_affiche ?? <span className="alerte-texte">sans nom</span>}
               {moi && <span className="jeton"> toi</span>}
