@@ -1,3 +1,5 @@
+import { LIBELLE_PHASE } from './phases'
+import { lireRoute, ecrireRoute, surRoute } from './route'
 import { useEffect, useRef, useState } from 'react'
 import { aParcours } from './libelles'
 import { supabase } from './supabaseClient'
@@ -52,6 +54,10 @@ import { texteErreur } from './erreurs'
  */
 const CLEF_EVENEMENTS = 'eventware.evenements.copie'
 
+// (11/11, audit M5) Le rôle tel qu'on le dit, pas tel qu'il est codé.
+const ROLES_CONNUS = { coordinateur: 'Coordinateur', benevole: 'Bénévole', chef_equipe: 'Chef d’équipe', chef_etape: 'Chef d’étape', observateur: 'Observateur', regisseur: 'Régisseur', benevole_entree: 'Bénévole à l’entrée', admin: 'Administrateur' }
+const libelleRole = (code) => ROLES_CONNUS[code] ?? (code ?? '').replace(/_/g, ' ')
+
 const ECRANS = [
   // « Situation » est la vue d'ensemble du PC : elle suppose de pouvoir
   // agir sur l'ensemble, pas seulement de lire.
@@ -104,21 +110,46 @@ export default function Poste({ session, theme, setTheme }) {
   )
   // (138) Arrivée par l'étiquette d'un article (?materiel=INV-0001) : droit sur Logistique › Matériel.
   const parEtiquette = new URLSearchParams(window.location.search).has('materiel')
-  const [ecran, setEcran] = useState(parEtiquette ? 'logistique' : 'situation')
+  // (11/11, audit M1) L'écran d'ouverture vient de l'adresse quand elle en porte un :
+  // un rechargement, un lien copié ou le bouton Retour ramènent au bon endroit.
+  const routeInitiale = lireRoute()
+  const [ecran, setEcran] = useState(parEtiquette ? 'logistique' : routeInitiale.ecran ?? 'situation')
   const [compteOuvert, setCompteOuvert] = useState(false)
+  const [codeInvitation, setCodeInvitation] = useState(() => new URLSearchParams(window.location.search).has('code'))
   // Sous-onglet demandé lors d'une navigation ciblée — ex. le pavé
   // « Signalements ouverts » doit ouvrir directement Sécurité sur son
   // onglet Signalements, pas sur l'onglet par défaut.
-  const [ongletCible, setOngletCible] = useState(parEtiquette ? 'inventaire' : null)
+  const [ongletCible, setOngletCible] = useState(parEtiquette ? 'inventaire' : routeInitiale.rubrique)
+  // L'objet visé dans la rubrique (référence d'une demande, d'un jalon…), et un
+  // compteur qui remonte l'écran à chaque navigation ciblée : recliquer un cadran
+  // ramène bien à sa rubrique, même si on en était parti entre-temps.
+  const [objetCible, setObjetCible] = useState(parEtiquette ? null : routeInitiale.objet)
+  const [visee, setVisee] = useState(0)
   // (28/10) La colonne de veille et le mur ne vivent que sur Situation :
   // partout ailleurs (plan, planning, logistique…), le travail prend
   // toute la largeur.
   const pleinTravail = ecran !== 'situation'
 
-  function aller(clef, sousOnglet) {
+  function aller(clef, sousOnglet, objet) {
     setEcran(clef)
     setOngletCible(sousOnglet ?? null)
+    setObjetCible(objet ?? null)
+    setCompteOuvert(false)
+    if (sousOnglet || objet) setVisee((n) => n + 1)
+    ecrireRoute({ ecran: clef, rubrique: sousOnglet ?? null, objet: objet ?? null })
+    window.scrollTo?.(0, 0)
   }
+
+  // Le bouton Retour, un lien collé dans la barre d'adresse, une étiquette : l'adresse commande.
+  useEffect(() => surRoute((r, origine) => {
+    // Nos propres écritures d'adresse ont déjà mis l'état à jour.
+    if (origine !== 'navigateur' || !r.ecran) return
+    setEcran(r.ecran)
+    setOngletCible(r.rubrique)
+    setObjetCible(r.objet)
+    setCompteOuvert(false)
+    setVisee((n) => n + 1)
+  }), [])
   const [message, setMessage] = useState(null)
   // (27/10) Sur un téléphone, le message vit en haut de la page et un
   // formulaire en bas : une erreur arrivait hors de vue, et « Ajouter »
@@ -251,16 +282,27 @@ export default function Poste({ session, theme, setTheme }) {
     if (!pret || !courant) return
     // L'écran d'ouverture est la situation pour qui y a droit, son poste sinon.
     if (!visibles.some((e) => e.clef === ecran)) {
-      setEcran(visibles.some((e) => e.clef === 'situation') ? 'situation' : 'accueil')
+      const repli = visibles.some((e) => e.clef === 'situation') ? 'situation' : 'accueil'
+      setEcran(repli)
+      ecrireRoute({ ecran: repli }, { remplacer: true })
+    } else if (!lireRoute().ecran) {
+      // Première ouverture sans adresse : on l'écrit, pour que Retour ait un point de départ.
+      ecrireRoute({ ecran }, { remplacer: true })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courantId, pret, clefsVisibles, ecran])
 
-  if (chargement) return <div className="attente">Chargement…</div>
+  // Le titre de l'onglet suit l'écran : « Sécurité — BFMF 2027 ».
+  const libelleEcran = visibles.find((e) => e.clef === ecran)?.libelle
+  useEffect(() => {
+    document.title = courant ? `${libelleEcran ?? 'Eventware'} — ${courant.nom}` : 'Eventware'
+  }, [libelleEcran, courant?.nom])
+
+  if (chargement) return <div className="attente" role="status">Chargement…</div>
 
   return (
     <div className={`poste ${pleinTravail ? 'plein-travail' : ''}`}>
-      <div className="tete">
+      <header className="tete">
         {/* Sur téléphone, le nom de l'application ne figure nulle part
             ailleurs : l'app est lancée depuis l'écran d'accueil, sans
             barre d'adresse pour dire où l'on est. */}
@@ -270,6 +312,7 @@ export default function Poste({ session, theme, setTheme }) {
           {evenements.length > 0 && (
             <select
               className="selecteur-evenement"
+              aria-label="Événement"
               value={courant?.id ?? ''}
               onChange={(e) => {
                 setCourantId(e.target.value)
@@ -296,9 +339,9 @@ export default function Poste({ session, theme, setTheme }) {
 
         <div className="barre-bas">
           {courant && (
-            <span className={`plaque phase-${courant.phase}`}>{courant.phase}</span>
+            <span className={`plaque phase-${courant.phase}`}>{LIBELLE_PHASE[courant.phase] ?? courant.phase}</span>
           )}
-          {moi && <span className="plaque role">{moi.role}</span>}
+          {moi && <span className="plaque role">{libelleRole(moi.role)}</span>}
           <span className="pousse" />
           <button
             className="lien"
@@ -309,7 +352,7 @@ export default function Poste({ session, theme, setTheme }) {
           </button>
         </div>
 
-      </div>
+      </header>
 
       {/* (11/11, audit C1) Les alertes en tête de page, à toutes les largeurs et
           sur tous les écrans. Elles étaient masquées dès 1440 px au motif que la
@@ -317,6 +360,11 @@ export default function Poste({ session, theme, setTheme }) {
           Situation : ailleurs, une alerte active n'apparaissait nulle part, et
           « Bien reçu » non plus. */}
       <Bandeau evenement={courant} membre={moi} />
+
+      {/* Un lien d'invitation (?code=) ouvert par quelqu'un qui a déjà un événement. */}
+      {codeInvitation && courant && !compteOuvert && (
+        <RejoindreParCode onRejoint={async (id) => { setCodeInvitation(false); await charger(); if (id) { setCourantId(id); aller('accueil') } }} />
+      )}
 
       {depuis && (
         <div className="message hors-reseau" role="status">
@@ -326,7 +374,7 @@ export default function Poste({ session, theme, setTheme }) {
       )}
 
       {message && (
-        <div ref={messageRef} className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
+        <div ref={messageRef} role={message.type === 'erreur' ? 'alert' : 'status'} className={`message ${message.type === 'erreur' ? 'erreur' : ''}`}>
           {message.texte}
         </div>
       )}
@@ -350,6 +398,9 @@ export default function Poste({ session, theme, setTheme }) {
               setMessage={setMessage}
               onRecharger={charger}
             />
+            {/* (11/11, audit M2) Rejoindre un autre événement par code : la saisie
+                n'existait que pour qui n'en avait aucun. */}
+            <RejoindreParCode onRejoint={async (id) => { await charger(); if (id) { setCourantId(id); setCompteOuvert(false); aller('accueil') } }} />
           </main>
         </div>
       ) : 
@@ -430,10 +481,14 @@ export default function Poste({ session, theme, setTheme }) {
             />
 
             <main className="travail">
+              {/* (11/11, audit M18) Le titre de la page, pour les lecteurs d'écran et l'onglet du navigateur. */}
+              <h1 className="sr-seul">{visibles.find((e) => e.clef === ecran)?.libelle ?? 'Eventware'} — {courant.nom}</h1>
               <Ecran
+                key={`${ecran}:${visee}`}
                 exploitant={exploitant}
                 clef={ecran}
                 ongletCible={ongletCible}
+                objetCible={objetCible}
                 evenement={courant}
                 membre={moi}
                 session={session}
@@ -577,7 +632,7 @@ function Reseau() {
 /* Aiguillage                                                          */
 /* ================================================================== */
 
-function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoir, exploitant, onAller, onOuvrirEvenement, onRecharger, setMessage }) {
+function Ecran({ clef, ongletCible, objetCible, evenement, membre, session, peut, toutPouvoir, exploitant, onAller, onOuvrirEvenement, onRecharger, setMessage }) {
   switch (clef) {
     case 'situation':
       return (
@@ -603,7 +658,7 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
         />
       )
     case 'memento':
-      return <Memento evenement={evenement} />
+      return <Memento evenement={evenement} ongletCible={ongletCible} />
     case 'preparation':
       return (
         <Preparation
@@ -615,7 +670,7 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
         />
       )
     case 'planning':
-      return <Planning evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} onAller={onAller} />
+      return <Planning evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} onAller={onAller} ongletCible={ongletCible} objetCible={objetCible} />
     case 'securite':
       return (
         <Securite
@@ -625,14 +680,15 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
           peut={peut}
           toutPouvoir={toutPouvoir}
           ongletCible={ongletCible}
+          objetCible={objetCible}
         />
       )
     case 'logistique':
       return (
-        <Logistique evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} ongletCible={ongletCible} />
+        <Logistique evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} ongletCible={ongletCible} objetCible={objetCible} />
       )
     case 'parcours':
-      return <Parcours evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} />
+      return <Parcours evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} ongletCible={ongletCible} />
     case 'rh':
       return (
         <Rh
@@ -641,18 +697,19 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
           peut={peut}
           toutPouvoir={toutPouvoir}
           onRecharger={onRecharger}
+          ongletCible={ongletCible}
         />
       )
     case 'plan':
       return (
-        <PlanImplantation evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} />
+        <PlanImplantation evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} ongletCible={ongletCible} />
       )
     case 'precurseur':
-      return <Precurseur evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} />
+      return <Precurseur evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} ongletCible={ongletCible} />
     case 'exercices':
-      return <Exercices evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} />
+      return <Exercices evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} setMessage={setMessage} ongletCible={ongletCible} />
     case 'analyse':
-      return <Analyse evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} />
+      return <Analyse evenement={evenement} membre={membre} peut={peut} toutPouvoir={toutPouvoir} ongletCible={ongletCible} />
     case 'plateforme':
       return (
         <Plateforme
@@ -672,6 +729,7 @@ function Ecran({ clef, ongletCible, evenement, membre, session, peut, toutPouvoi
           toutPouvoir={toutPouvoir}
           onRecharger={onRecharger}
           setMessage={setMessage}
+          ongletCible={ongletCible}
         />
       )
     default:

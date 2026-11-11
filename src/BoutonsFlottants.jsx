@@ -1,3 +1,5 @@
+import { NATURES_REX } from './libelles'
+import { useTiroir } from './tiroir'
 import { useEffect, useState } from 'react'
 import { Siren, MessageSquareWarning, X, TriangleAlert } from 'lucide-react'
 import { supabase } from './supabaseClient'
@@ -24,20 +26,14 @@ const TYPES_SOS = [
   ['malaise', 'Malaise'],
   ['blessure', 'Blessure'],
   ['danger', 'Danger'],
-  ['materiel', 'Matériel'],
+  ['materiel', 'Problème matériel'],
   ['egare', 'Personne égarée'],
   ['autre', 'Autre']
 ]
 
-const NATURES_REX = [
-  ['dysfonctionnement', 'Ça coince'],
-  ['reussite', 'Ça marche bien'],
-  ['suggestion', 'Suggestion'],
-  ['risque', 'Risque repéré']
-]
-
 export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir }) {
   const [ouvert, setOuvert] = useState(null)
+  const tiroir = useTiroir(!!ouvert, () => setOuvert(null))
 
   // SOS et Mayday écrivent tous deux dans le domaine sécurité, et ne
   // sont relevés que par l'écran Sécurité. Module coupé : personne ne
@@ -104,7 +100,7 @@ export default function BoutonsFlottants({ evenement, membre, peut, toutPouvoir 
 
       {ouvert && (
         <div className="voile" onClick={() => setOuvert(null)}>
-          <div className="tiroir" onClick={(e) => e.stopPropagation()}>
+          <div className="tiroir" {...tiroir} aria-label={ouvert === 'sos' ? 'Signaler un incident' : ouvert === 'mayday' ? 'Mayday, appel de détresse' : 'Retour d’expérience'} onClick={(e) => e.stopPropagation()}>
             <div className="tiroir-tete">
               <strong>
                 {ouvert === 'sos'
@@ -204,7 +200,7 @@ function FormSos({ evenement, membre, onFini }) {
         <div className="message">
           <strong>Pas de réseau.</strong> Le signalement est enregistré dans ce téléphone et
           partira tout seul dès que le signal revient — la barre du haut le montre. Si tu
-          as une radio, annonce-le aussi au PC.
+          as une radio, annonce-le aussi au QG.
         </div>
         <button className="bouton-terrain" onClick={onFini}>
           Fermer
@@ -248,10 +244,10 @@ function FormSos({ evenement, membre, onFini }) {
         disabled={occupe || !description.trim()}
         onClick={envoyer}
       >
-        Envoyer au poste de commandement
+        Envoyer au QG
       </button>
       <p className="aide">
-        En cas d'urgence vitale, appelle le 112 d'abord. Ce signalement prévient le PC, il
+        En cas d'urgence vitale, appelle le 112 d'abord. Ce signalement prévient le QG, il
         ne remplace pas les secours.
       </p>
     </div>
@@ -337,7 +333,7 @@ function FormMayday({ evenement, onFini }) {
             </>
           ) : (
             <>
-              <strong>{envoye.reference} transmis.</strong> Le poste de commandement est
+              <strong>{envoye.reference} transmis.</strong> Le QG est
               prévenu et une alerte est affichée sur tous les écrans. Reste où tu es si tu le
               peux, et garde la radio libre.
             </>

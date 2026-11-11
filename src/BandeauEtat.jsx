@@ -230,7 +230,7 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
         ? 'Présents · ≥ 90 % de la capacité'
         : 'Présents',
     chaud: evenement.frequentation_max > 0 && s?.logistique?.jauge >= 0.9 * evenement.frequentation_max,
-    aller: ['logistique']
+    aller: ['logistique', 'jauge']
   }
   const cJalons7 = phasesDatees(evenement)
     ? { valeur: phase.jalonsPhase ?? null, libelle: `Jalons de la phase · ${LIBELLE_PHASE[phaseEv] ?? phaseEv}`, aller: ['planning'] }
@@ -289,10 +289,10 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
           valeur: mur.postes == null ? null : `${mur.tenus} / ${mur.postes}`,
           libelle: mur.postes != null && mur.tenus < mur.postes ? 'Postes tenus · découverts' : 'Postes tenus',
           chaud: mur.postes != null && mur.tenus < mur.postes,
-          aller: ['rh']
+          aller: ['rh', 'couverture']
         },
-        { valeur: mur.radios, libelle: 'Radios en main', aller: ['logistique'] },
-        { valeur: s?.logistique?.transports_ouverts ?? null, libelle: 'Transports en cours', aller: ['logistique'] },
+        { valeur: mur.radios, libelle: 'Radios en main', aller: ['logistique', 'attributions'] },
+        { valeur: s?.logistique?.transports_ouverts ?? null, libelle: 'Transports en cours', aller: ['logistique', 'transports'] },
         {
           valeur: attente,
           libelle: attente ? 'Écritures en attente · hors réseau' : 'Écritures en attente',
@@ -325,7 +325,8 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
               ? new Date(creneau.fin).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
               : '—',
             libelle: creneau ? `Fin de mon créneau · ${creneau.poste}` : 'Aucun créneau à venir',
-            aller: ['rh']
+            // « Mes créneaux » est un pavé de Mon poste ; Bénévoles › Couverture montre ceux de tout le monde.
+            aller: ['accueil']
           },
       horsTerrain
         ? { valeur: retards, libelle: retards ? 'Retards jalon · en retard' : 'Retards jalon', chaud: retards > 0, aller: ['planning'] }
@@ -333,13 +334,13 @@ export default function BandeauEtat({ evenement, membre, peut, toutPouvoir, onAl
             valeur: sosOuverts,
             libelle: sosATraiter ? 'Signalements ouverts · à traiter' : 'Signalements ouverts',
             chaud: sosATraiter > 0,
-            aller: ['securite']
+            aller: ['securite', evenement.modules?.sos_participants ? 'signalements' : 'journal']
           }
     ]
   }
 
   return (
-    <div className={`etat bandeau-etat ${cadrans.length > 4 ? 'etat-mur' : ''} ${perime ? 'perime' : ''}`} role="group" aria-label="État de l'événement">
+    <div className={`etat bandeau-etat ${cadrans.length > 4 ? 'etat-mur' : ''} ${perime ? 'perime' : ''}`} role="region" aria-label="État de l'événement">
       {perime && <span className="etat-perime" role="status">Hors réseau{heureReleve ? ` · chiffres de ${heureReleve}` : ''}</span>}
       {cadrans.map((c) => (
         <button

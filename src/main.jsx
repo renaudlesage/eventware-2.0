@@ -1,3 +1,4 @@
+import { demarrerNomsAccessibles } from './nomsAccessibles'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
@@ -6,6 +7,9 @@ import './styles.css'
 // Après la feuille principale : la couche mobile n'ajoute pas un thème,
 // elle rectifie la présentation sous 700 px et doit donc passer après.
 import './mobile.css'
+
+// (11/11) Filet de noms accessibles pour les champs sans libellé relié.
+demarrerNomsAccessibles()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

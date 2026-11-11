@@ -174,7 +174,7 @@ function Tableau({ colonnes, lignes, cle, vide, classeLigne, titre, impression }
   }
 
   return (
-    <div className="inv-tableau tableau-defilant">
+    <div className="inv-tableau tableau-defilant" tabIndex={0} role="region" aria-label="Inventaire, défile horizontalement">
       <div className="inv-tableau-outils">
         <span className="aide" style={{ margin: 0 }}>{visibles.length} sur {lignes.length} · clique un en-tête pour trier, tape sous un en-tête pour filtrer.</span>
         <button className="discret" onClick={imprimer} disabled={!visibles.length}>Imprimer / PDF</button>
@@ -184,7 +184,7 @@ function Tableau({ colonnes, lignes, cle, vide, classeLigne, titre, impression }
         <thead>
           <tr>
             {colonnes.map((c) => (
-              <th key={c.clef} className={`inv-th ${tri.clef === c.clef ? 'actif' : ''} ${c.numerique ? 'num' : ''}`} onClick={() => trier(c.clef)} title="Trier">
+              <th key={c.clef} className={`inv-th ${tri.clef === c.clef ? 'actif' : ''} ${c.numerique ? 'num' : ''}`} onClick={() => trier(c.clef)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), trier(c.clef))} tabIndex={0} role="columnheader" aria-sort={tri.clef === c.clef ? (tri.sens > 0 ? 'ascending' : 'descending') : 'none'} title={`Trier par ${c.libelle || 'cette colonne'}`}>
                 {c.libelle}{tri.clef === c.clef ? (tri.sens > 0 ? ' ▲' : ' ▼') : ''}
               </th>
             ))}

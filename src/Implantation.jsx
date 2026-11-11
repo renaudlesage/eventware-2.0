@@ -1350,6 +1350,8 @@ function Objet({ o, liaison, selectionne, mParPx, peutModifier, onSelection, onG
       <Marker
         position={centre}
         icon={icone}
+        title={o.nom ?? o.code ?? 'Objet du plan'}
+        alt={o.nom ?? o.code ?? 'Objet du plan'}
         draggable={!!(peutModifier && selectionne)}
         eventHandlers={{
           click(e) {
@@ -1381,6 +1383,8 @@ function Objet({ o, liaison, selectionne, mParPx, peutModifier, onSelection, onG
             key={`s${i}-${base.length}`}
             position={p}
             draggable
+            title={`Sommet ${i + 1} : glisse-le pour déformer le tracé`}
+            alt={`Sommet ${i + 1}`}
             zIndexOffset={1000}
             icon={L.divIcon({ className: `impl-sommet ${sommet === i ? 'actif' : ''}`, iconSize: [14, 14], iconAnchor: [7, 7] })}
             eventHandlers={{
@@ -1416,6 +1420,8 @@ function Objet({ o, liaison, selectionne, mParPx, peutModifier, onSelection, onG
               key={`m${i}-${base.length}`}
               position={m}
               zIndexOffset={900}
+              title="Ajouter un sommet ici"
+              alt="Ajouter un sommet"
               icon={L.divIcon({ className: 'impl-milieu', iconSize: [10, 10], iconAnchor: [5, 5] })}
               eventHandlers={{
                 click(e) {

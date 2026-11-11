@@ -1,23 +1,14 @@
+import { useRubriqueRoute } from './route'
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
-import { DOMAINES } from './libelles'
+import { DOMAINES, NATURES_REX, IMPACTS_REX } from './libelles'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import EvaluationsFournisseurs from './EvaluationsFournisseurs'
 
-const NATURES = [
-  ['dysfonctionnement', 'Dysfonctionnement'],
-  ['reussite', 'Ce qui a marché'],
-  ['suggestion', 'Suggestion'],
-  ['risque', 'Risque identifié']
-]
-
-const IMPACTS = [
-  ['mineur', 'Mineur'],
-  ['gene', 'Gêne'],
-  ['bloquant', 'Bloquant'],
-  ['dangereux', 'Dangereux']
-]
+// (11/11, audit M5) Natures et impacts partagés avec le bouton flottant : les mêmes mots partout.
+const NATURES = NATURES_REX
+const IMPACTS = IMPACTS_REX
 
 const STATUTS_REX = [
   ['a_arbitrer', 'À arbitrer'],
@@ -26,8 +17,9 @@ const STATUTS_REX = [
   ['realise', 'Réalisé']
 ]
 
-export default function Analyse({ evenement, membre, peut, toutPouvoir }) {
+export default function Analyse({ evenement, membre, peut, toutPouvoir, ongletCible }) {
   const [onglet, setOnglet] = useState('synthese')
+  useRubriqueRoute('analyse', onglet, setOnglet, ongletCible, ['synthese', 'constats'])
   const [message, setMessage] = useState(null)
 
   return (
@@ -410,7 +402,7 @@ export function Constats({ evenement, membre, peut, toutPouvoir, setMessage, com
             <div className="titre">{r.constat}</div>
             <div className="meta">
               {r.source === 'eventware' && <span className="prc-jeton auto" title="constat calculé par Eventware à partir des données de l’événement">proposé par Eventware</span>}
-              <span className="jeton">{r.nature}</span>
+              <span className="jeton">{NATURES.find(([v]) => v === r.nature)?.[1] ?? r.nature}</span>
               <span className={['bloquant', 'dangereux'].includes(r.impact) ? 'alerte-texte' : ''}>
                 {r.impact}
               </span>

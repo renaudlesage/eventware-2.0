@@ -250,7 +250,7 @@ export function Radio({ evenement, onAller }) {
     <section>
       <div className="entete-dashboard">
         <h2>Radio</h2>
-        <button className="lien" onClick={() => onAller?.('logistique')}>
+        <button className="lien" onClick={() => onAller?.('logistique', 'radio')}>
           Matrice →
         </button>
       </div>
@@ -428,7 +428,7 @@ export function CarteTactique({ evenement, fond, vif, lieux, hauteur }) {
         <li><span className="puce-carte puce-chaud" /> signalement ouvert</li>
         <li><span className="puce-carte puce-veille" /> mission P1 / P2</li>
         <li><span className="puce-carte puce-info" /> groupe (dernier pointage)</li>
-        <li><span className="puce-carte puce-repere" /> étape, PC, poste</li>
+        <li><span className="puce-carte puce-repere" /> étape, QG, poste</li>
         {objetsPlan.length > 0 && <li>plan d'implantation dans la couleur de son calque · pointillé : non confirmé sur site</li>}
       </ul>
       {nonGeolocalises > 0 && (

@@ -1,14 +1,16 @@
+import { useRubriqueRoute } from './route'
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { lireCache, ecrireCache, ageCache } from './horsLigne'
 import { surRetourReseau } from './reessai'
 
-export default function Memento({ evenement }) {
+export default function Memento({ evenement, ongletCible }) {
   const [donnees, setDonnees] = useState(() => lireCache(evenement.id))
   const [depuisCache, setDepuisCache] = useState(!!lireCache(evenement.id))
   const [enLigne, setEnLigne] = useState(navigator.onLine)
   const [ouverte, setOuverte] = useState(null)
   const [section, setSection] = useState('fiches')
+  useRubriqueRoute('memento', section, setSection, ongletCible, ['fiches', 'coupures', 'contacts'])
 
   async function rafraichir() {
     const [f, c, r, p, o] = await Promise.all([
@@ -127,13 +129,14 @@ export default function Memento({ evenement }) {
         ) : (
           donnees.fiches.map((fi) => (
             <div className="carte" key={fi.id}>
-              <div
-                className="titre"
-                style={{ cursor: 'pointer' }}
+              <button
+                type="button"
+                className="titre titre-bouton"
+                aria-expanded={ouverte === fi.id}
                 onClick={() => setOuverte(ouverte === fi.id ? null : fi.id)}
               >
                 <span className="mono">{fi.code}</span> — {fi.titre}
-              </div>
+              </button>
               {fi.declencheur && (
                 <div className="meta">
                   <span>{fi.declencheur}</span>

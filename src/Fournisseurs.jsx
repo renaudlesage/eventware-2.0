@@ -56,7 +56,7 @@ export default function Fournisseurs({ evenement, peut, toutPouvoir, setMessage 
   async function epingler(f) {
     const { error } = await supabase.rpc('epingler_fournisseur', { p_evenement: evenement.id, p_fournisseur: f.id })
     if (error) setMessage({ type: 'erreur', texte: texteErreur(error) })
-    else setMessage({ type: 'info', texte: `${f.nom} épinglé dans les contacts de l'événement (Sécurité › Contacts).` })
+    else setMessage({ type: 'info', texte: `${f.nom} épinglé dans les contacts de l'événement (Mémento › Contacts).` })
   }
 
   if (!organisation) return <p className="vide">Cet événement n'est rattaché à aucune organisation : pas d'annuaire.</p>

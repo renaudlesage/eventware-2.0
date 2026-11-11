@@ -1,3 +1,4 @@
+import { useRubriqueRoute } from './route'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { ecrireOuEmpiler } from './fileEcritures'
@@ -40,8 +41,9 @@ function depuis(t) {
   return `il y a ${h} h ${String(min % 60).padStart(2, '0')}`
 }
 
-export default function Precurseur({ evenement, peut, toutPouvoir }) {
+export default function Precurseur({ evenement, peut, toutPouvoir, ongletCible }) {
   const [onglet, setOnglet] = useState('charge')
+  useRubriqueRoute('precurseur', onglet, setOnglet, ongletCible, ['charge', 'dependances'])
   const [donnees, setDonnees] = useState(null)
   const [erreur, setErreur] = useState(null)
   const [retour, setRetour] = useState(null)

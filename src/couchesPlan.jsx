@@ -68,7 +68,7 @@ function ObjetPlan({ o, mParPx }) {
       tooltipAnchor: [0, -taille / 2]
     })
     return (
-      <Marker position={centre} icon={icone}>
+      <Marker position={centre} icon={icone} title={typeof titre === 'string' ? titre : (o.nom ?? o.code ?? 'Objet du plan')} alt={o.nom ?? o.code ?? 'Objet du plan'}>
         <Tooltip direction="top" className="etiquette-carte">{titre}</Tooltip>
       </Marker>
     )

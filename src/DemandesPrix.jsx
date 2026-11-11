@@ -124,7 +124,7 @@ export default function DemandesPrix({ evenement, membre, peut, toutPouvoir, set
       ) : (
         // (31/10, audit d'ergonomie) Huit colonnes ne tiennent pas sur un téléphone : le tableau défile seul,
         // au lieu de faire glisser toute la page de côté.
-        <div className="tableau-defilant">
+        <div className="tableau-defilant" tabIndex={0} role="region" aria-label="Tableau, défile horizontalement">
         <table className="tableau dp-liste">
           <thead>
             <tr><th>Réf.</th><th>Objet</th><th>Catégorie</th><th>Statut</th><th>Date limite</th><th>Offres</th><th>Meilleure</th><th>Retenu</th></tr>
@@ -706,7 +706,7 @@ function Comparaison({ lignes, offres, retenue, peutRetenir, onRetenir }) {
   }))
   const meilleurTotal = Math.min(...offres.map((o) => Number(o.montant_ht)))
   return (
-    <div className="tableau-defilant">
+    <div className="tableau-defilant" tabIndex={0} role="region" aria-label="Tableau, défile horizontalement">
       <table className="tableau dp-comparaison">
         <thead>
           <tr>

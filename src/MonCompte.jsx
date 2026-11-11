@@ -99,7 +99,7 @@ export default function MonCompte({ session, membre, evenement, setMessage, onRe
             id="c-affiche"
             value={nomAffiche}
             onChange={(e) => setNomAffiche(e.target.value)}
-            placeholder="Ce que voit le poste de commandement"
+            placeholder="Ce que voit le QG"
           />
           <p className="aide" style={{ marginTop: -4 }}>
             Propre à cet événement — on peut vouloir y apparaître autrement.

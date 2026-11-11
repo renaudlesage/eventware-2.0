@@ -1,3 +1,4 @@
+import { useTiroir } from './tiroir'
 import { useState } from 'react'
 import { MoreHorizontal, X, MessageSquareWarning } from 'lucide-react'
 import { Icone, DOMAINES } from './icones'
@@ -24,9 +25,14 @@ import { Icone, DOMAINES } from './icones'
  */
 export default function BarreOnglets({ ecrans, ecran, onAller, rex = false }) {
   const [ouvert, setOuvert] = useState(false)
+  const tiroir = useTiroir(ouvert, () => setOuvert(false))
 
   const dispo = (clef) => ecrans.some((e) => e.clef === clef)
-  const clefsBarre = ['accueil', dispo('securite') ? 'securite' : 'memento', 'planning']
+  // (11/11, audit M4) L'encadrant s'ouvre sur la Situation : elle a son onglet, en
+  // premier. Sans elle (bénévole), on garde Mon poste, Sécurité ou Mémento, Planning.
+  const clefsBarre = dispo('situation')
+    ? ['situation', 'accueil', dispo('securite') ? 'securite' : 'memento']
+    : ['accueil', dispo('securite') ? 'securite' : 'memento', 'planning']
 
   const barre = clefsBarre.filter(dispo).map((clef) => ecrans.find((e) => e.clef === clef))
   const autres = ecrans.filter((e) => !clefsBarre.includes(e.clef))
@@ -70,7 +76,7 @@ export default function BarreOnglets({ ecrans, ecran, onAller, rex = false }) {
 
       {ouvert && (
         <div className="voile" onClick={() => setOuvert(false)}>
-          <div className="tiroir tiroir-plus" onClick={(e) => e.stopPropagation()}>
+          <div className="tiroir tiroir-plus" {...tiroir} aria-label="Autres écrans" onClick={(e) => e.stopPropagation()}>
             <div className="tiroir-tete">
               <strong>Autres écrans</strong>
               <button className="lien" onClick={() => setOuvert(false)} aria-label="Fermer">

@@ -265,7 +265,7 @@ function PaveSos({ evenement, onAller }) {
       compteurs={[{ libelle: 'ouverts', valeur: n, etat: n ? 'urgent' : 'ok' }]}
     >
       <p className={n ? 'moniteur-vide' : 'moniteur-vide'}>
-        {n === null ? '…' : n === 0 ? 'Aucun signalement ouvert.' : 'En attente de traitement — ouvrir l\u2019app.'}
+        {n === null ? '…' : n === 0 ? 'Aucun signalement ouvert.' : 'En attente de traitement : ouvre Sécurité › Signalements.'}
       </p>
     </Bloc>
   )
@@ -372,7 +372,7 @@ function PaveMesDemandes({ evenement, membre, onAller }) {
             <button
               className="moniteur-ligne pave-lien-ligne"
               key={d.id}
-              onClick={() => onAller?.(ecran)}
+              onClick={() => onAller?.(ecran, ecran === 'logistique' ? 'interventions' : ecran === 'securite' ? 'missions' : undefined, d.reference)}
             >
               {ligne}
             </button>
@@ -543,7 +543,7 @@ function PavePlanning({ evenement, onAller }) {
           const passe = i.heure.getTime() <= maintenant
           return (
             <div className={`moniteur-ligne ${i.critique ? 'urgent' : ''}`} key={idx}>
-              <strong style={passe ? { opacity: 0.6 } : undefined}>
+              <strong className={passe ? 'sourdine-texte' : undefined}>
                 <span className="mono">{heure(i.heure)}</span> {i.titre}
               </strong>
               {i.detail && <span>{i.detail}</span>}

@@ -31,8 +31,8 @@ export const TYPES = {
   malaise: 'Malaise',
   blessure: 'Blessure',
   danger: 'Danger',
-  materiel: 'Matériel',
-  egare: 'Égaré',
+  materiel: 'Problème matériel',
+  egare: 'Personne égarée',
   autre: 'Autre'
 }
 

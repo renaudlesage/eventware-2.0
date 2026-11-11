@@ -1,3 +1,4 @@
+import { useRubriqueRoute } from './route'
 import { useEffect, useState } from 'react'
 import { MapContainer, CircleMarker, useMap } from 'react-leaflet'
 import { useCalques, FiltreCalques, calqueDe } from './calques'
@@ -39,11 +40,12 @@ const ORDRE_SECOURS = [
 ]
 
 
-export default function PlanImplantation({ evenement, membre, peut, toutPouvoir }) {
+export default function PlanImplantation({ evenement, membre, peut, toutPouvoir, ongletCible }) {
   const [elements, setElements] = useState([])
   const [message, setMessage] = useState(null)
   // En préparation on conçoit ; sur site on fait la tournée.
   const [vue, setVue] = useState(evenement.phase === 'preparation' ? 'conception' : 'tournee')
+  useRubriqueRoute('plan', vue, setVue, ongletCible, ['conception', 'b-controles', 'b-energie', 'b-rgie', 'b-unifilaire', 'b-eau', 'b-metre', 'tournee', 'carte', 'secours', 'risques', 'ajout'])
   // (31/10) Les comptes des bilans, remontés pour les libellés de la liste.
   const [comptes, setComptes] = useState({})
   const [ouvrir, setOuvrir] = useState(null) // { id, n } : l'objet à ouvrir en Conception (depuis les Bilans)

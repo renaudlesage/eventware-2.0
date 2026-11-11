@@ -533,7 +533,7 @@ export default function Situation({ evenement, membre, peut, toutPouvoir, onAlle
       )}
 
       {/* (154) Les demandes qui attendent plus que d'habitude, tous modules : on ouvre la liste du bon module. */}
-      <EnSouffrance evenementId={evenement.id} onOuvrir={(m) => onAller(m.module === 'logistique' ? 'logistique' : 'securite')} />
+      <EnSouffrance evenementId={evenement.id} onOuvrir={(m) => (m.module === 'logistique' ? onAller('logistique', 'interventions', m.reference) : onAller('securite', 'missions', m.reference))} />
 
       {(s.recherches ?? []).length > 0 && (
         <div className="bloc-alerte">
@@ -1071,7 +1071,7 @@ export function ColonneDomaine({ teinte, icone, titre, lien, onAller, compteurs,
           <span>Moniteur</span>
           {onAller && (
             <button className="moniteur-lien" onClick={() => onAller(lien)}>
-              Ouvrir l'app →
+              Ouvrir l’écran →
             </button>
           )}
         </div>

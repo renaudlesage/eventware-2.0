@@ -44,7 +44,7 @@ export function NomManquant({ membre, session, onFait }) {
         <section className="bloc dom-violet">
           <h2>Comment t'appelles-tu ?</h2>
           <p className="aide" style={{ marginTop: 0 }}>
-            C'est le nom que verra le poste de commandement dans les listes et sur les
+            C'est le nom que verra le QG dans les listes et sur les
             missions. Sans lui, tu apparais « sans nom » et personne ne sait qui répond.
           </p>
           {erreur && <div className="message erreur">{erreur}</div>}

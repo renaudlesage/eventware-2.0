@@ -80,7 +80,7 @@ export default function Connexion({ theme, setTheme }) {
             placeholder="Uniquement pour créer un compte"
           />
           <p className="aide" style={{ marginTop: -4 }}>
-            C'est ce nom que verra le poste de commandement. Sans lui, tu apparais « sans
+            C'est ce nom que verra le QG. Sans lui, tu apparais « sans
             nom » dans les listes, et personne ne sait qui répond à la radio.
           </p>
 

@@ -1,3 +1,4 @@
+import { useRubriqueRoute } from './route'
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import QrCodes from './QrCodes'
@@ -54,8 +55,9 @@ const PANNEAUX = [
   ['compte', 'Mon compte']
 ]
 
-export default function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, onRecharger, setMessage }) {
+export default function Reglages({ evenement, membre, session, exploitant, peut, toutPouvoir, onRecharger, setMessage, ongletCible }) {
   const [panneau, setPanneau] = useState('dispositif')
+  useRubriqueRoute('reglages', panneau, setPanneau, ongletCible, PANNEAUX.map(([k]) => k))
   const [occupe, setOccupe] = useState(false)
   const [compteur, setCompteur] = useState(0)
 
@@ -149,18 +151,7 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
 
       {panneau === 'dispositif' && (
         <>
-          <IdentiteEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
-
-          <LogoEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
-
-          <LienParticipants evenement={evenement} />
-
-          <Point0 evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
-
-          <Completude evenement={evenement} />
-
-          <DatesEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
-
+          {/* (11/11, audit M6) La phase d'abord : c'est le réglage qu'on vient chercher le plus souvent. */}
           <section className="bloc">
             <h2>Phase</h2>
             <div className="plaques">
@@ -200,6 +191,18 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
               monde, les blocs de terrain de « Mon poste ».
             </p>
           </section>
+
+          <IdentiteEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
+
+          <LogoEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
+
+          <LienParticipants evenement={evenement} />
+
+          <Point0 evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
+
+          <Completude evenement={evenement} />
+
+          <DatesEvenement evenement={evenement} onFait={onRecharger} setMessage={setMessage} />
 
           <section className="bloc">
             <h2>Modules</h2>
@@ -270,8 +273,8 @@ export default function Reglages({ evenement, membre, session, exploitant, peut,
         <>
           <p className="aide" style={{ marginTop: 0 }}>
             Ici se composent les rôles — ce que chacun peut lire et écrire, phase par phase.
-            Inviter quelqu&rsquo;un, lui donner un rôle ou le retirer se fait dans
-            Bénévoles › Membres.
+            Inviter quelqu&rsquo;un se fait dans Bénévoles › Invitations ; lui donner un rôle
+            ou le retirer, dans Bénévoles › Membres.
           </p>
           <Roles evenement={evenement} setMessage={setMessage} />
         </>
@@ -426,7 +429,7 @@ function Completude({ evenement }) {
       absent: evenement.frequentation_max == null,
       quoi: 'Fréquentation attendue',
       bloque: 'le dossier de sécurité laisse en blanc le chiffre dont dépend le dimensionnement des secours.',
-      ou: 'Plan → Effectifs'
+      ou: 'Sécurité › Effectifs'
     }
   ].filter((m) => m.absent)
 

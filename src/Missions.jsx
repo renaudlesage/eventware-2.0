@@ -568,7 +568,7 @@ export function FormDemande({ mode, evenement, membre, module, libelle, lieux, s
             QG. Pour une <strong>urgence vitale</strong>, utilisez le bouton SOS ou le 112.
           </p>
 
-          <label htmlFor="nature-urgente">Nature de l'alerte *</label>
+          <label htmlFor="nature-urgente">Nature de l'urgence *</label>
           <select id="nature-urgente" value={natureUrgente} onChange={(e) => setNatureUrgente(e.target.value)}>
             {NATURES_URGENTES.map(([v, l]) => (
               <option key={v} value={v}>{l}</option>
@@ -615,7 +615,7 @@ export function FormDemande({ mode, evenement, membre, module, libelle, lieux, s
             Envoyer la demande
           </button>
           <p className="aide">
-            Visible immédiatement au QG et sur l'app Volante. Doubler à la radio (PMR4.1, PMR333
+            Visible immédiatement au QG et dans « Mes missions » de l'équipe concernée. Doubler à la radio (PMR4.1, PMR333
             si vital).
           </p>
         </>
@@ -631,7 +631,7 @@ export function FormDemande({ mode, evenement, membre, module, libelle, lieux, s
           {types.length === 0 && (
             <p className="aide alerte-texte" style={{ marginTop: -6 }}>
               Cet événement n'a aucune catégorie de demande : rien ne peut être injecté. Les sept catégories standard
-              sont semées à la création de l'événement (151) ; sinon, importe-les depuis Réglages › Référentiels.
+              sont semées à la création de l'événement (151) ; sinon, importe-les depuis Réglages › Données › Référentiels.
             </p>
           )}
           {typeChoisi && (
@@ -692,7 +692,7 @@ export function FormDemande({ mode, evenement, membre, module, libelle, lieux, s
           />
 
           <button disabled={occupe || !pret} onClick={creer} style={{ marginTop: 8 }}>
-            Injecter la demande
+            Envoyer la demande
           </button>
         </>
       )}

@@ -625,7 +625,7 @@ export default function Gantt({ evenement, peut, toutPouvoir, onAller }) {
           Aucun jalon daté. Pose les échéances dans Préparation ou dans l'onglet Jalons : le Gantt les dessine, et Réglages › Dates place le jour J.
         </p>
       ) : (
-        <div className="gantt-cadre" ref={cadreRef} onPointerLeave={() => setSurvol(null)}>
+        <div className="gantt-cadre" ref={cadreRef} tabIndex={0} role="region" aria-label="Planning dans le temps, défile horizontalement" onPointerLeave={() => setSurvol(null)}>
           <div className="gantt-colonne">
             <svg ref={colonneRef} viewBox={`0 0 ${COL} ${hauteur}`} width={COL} height={hauteur} className="gantt-svg gantt-svg-colonne" fontFamily="system-ui, sans-serif">
               <rect x={0} y={0} width={COL} height={hauteur} className="gantt-fond" />

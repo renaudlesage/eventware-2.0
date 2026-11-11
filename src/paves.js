@@ -91,7 +91,7 @@ export const PAVES = {
     libelle: "Contacts d'urgence",
     teinte: 'sarcelle',
     icone: '☎',
-    lien: 'memento',
+    lien: ['memento', 'contacts'],
     module: null,
     besoin: null,
     obligatoire: ['coordinateur']

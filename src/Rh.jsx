@@ -1,3 +1,4 @@
+import { useRubriqueRoute } from './route'
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { libelleStatut, heure } from './libelles'
@@ -25,8 +26,9 @@ function ongletsPour(peut, toutPouvoir) {
   ]
 }
 
-export default function Rh({ evenement, membre, peut, toutPouvoir, onRecharger }) {
+export default function Rh({ evenement, membre, peut, toutPouvoir, onRecharger, ongletCible }) {
   const [onglet, setOnglet] = useState('couverture')
+  useRubriqueRoute('rh', onglet, setOnglet, ongletCible, ongletsPour(peut, toutPouvoir).map(([k]) => k))
   const [message, setMessage] = useState(null)
 
   return (
