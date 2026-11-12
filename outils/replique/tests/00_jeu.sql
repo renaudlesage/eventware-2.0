@@ -25,6 +25,16 @@ exception when others then
   return p_code is null or sqlstate = p_code;
 end $$;
 
+-- Ce que répond la requête quand elle échoue : « code message », ou null si elle passe.
+-- Sert à distinguer un refus de droits sur la fonction (« permission denied for function »)
+-- d'un refus par la garde interne de la fonction, qui portent le même code 42501.
+create or replace function tests.erreur(p_sql text) returns text language plpgsql as $$
+begin
+  execute p_sql; return null;
+exception when others then
+  return sqlstate || ' ' || sqlerrm;
+end $$;
+
 grant usage on schema tests to anon, authenticated, service_role;
 grant execute on all functions in schema tests to anon, authenticated, service_role;
 

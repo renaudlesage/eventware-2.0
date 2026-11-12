@@ -3860,3 +3860,14 @@ html[data-charge] .vide > * { display: none; }
     color-scheme: light;
   }
 }
+
+/* L'aperçu du masquage sous un champ dont le texte paraît sur la page publique du QR de poste (171) */
+.apercu-masquage { margin: -2px 0 10px; padding: 6px 10px; border-left: 3px solid var(--etat-veille); background: var(--surface); color: var(--encre); }
+.apercu-masquage-texte { font-weight: 600; overflow-wrap: anywhere; }
+.qr-postes-consignes { margin: 10px 0 14px; }
+.qr-poste-consigne { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+.qr-poste-consigne label { margin: 0; }
+@media print { .qr-postes-consignes { display: none; } }
+
+/* Le compteur d'un champ borné, visible à l'approche de la limite (172) */
+.compteur-saisie { margin: -4px 0 8px; text-align: right; flex: 1 0 100%; }

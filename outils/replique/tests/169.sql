@@ -17,6 +17,13 @@ delete from journal where evenement_id = :EA and (categorie = 'rex_report' or te
 update organisations set modules_autorises = coalesce(modules_autorises, '{}'::jsonb) || '{"logistique": true}' where id = '00000000-0000-0000-0000-0000000000aa';
 update evenements set modules = modules || '{"logistique": true}'::jsonb, phase = 'exploitation' where id = :EA;
 
+-- Le débit (dix demandes par quart d'heure) se compte sur ce que le bénévole vient de poser : quand toute la suite
+-- s'enchaîne, les tests précédents en ont laissé. On les vieillit, sinon la limite tombe avant la onzième de ce test.
+alter table missions disable trigger tracabilite_missions;
+update missions set created_at = now() - interval '1 hour'
+ where evenement_id = :EA and created_by = '00000000-0000-0000-0000-00000000a002' and created_at > now() - interval '20 minutes';
+alter table missions enable trigger tracabilite_missions;
+
 -- 1. La demande du bénévole ---------------------------------------------------
 select tests.connecter('00000000-0000-0000-0000-00000000a002'); set role authenticated;
 select tests.ok(not a_permission(:EA, 'missions', 'creer'), 'bénévole : n''a pas « missions : créer »');

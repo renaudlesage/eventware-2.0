@@ -1,6 +1,7 @@
 import { useRubriqueRoute } from './route'
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import ApercuMasquage from './ApercuMasquage'
 import { pousser } from './push'
 import { objetVise } from './objetVise'
 import { libelleStatut, heure } from './libelles'
@@ -717,6 +718,7 @@ function FormFiche({ initiale, onEnregistrer, onAnnuler }) {
         onChange={(e) => maj('mission', e.target.value)}
         placeholder="À quoi sert ce poste — ce que le bénévole lit en premier"
       />
+      <ApercuMasquage texte={f.mission} />
 
       <label>Ce qu'il y a à faire</label>
       {f.taches.map((t, i) => (
@@ -734,6 +736,7 @@ function FormFiche({ initiale, onEnregistrer, onAnnuler }) {
       >
         + Tâche
       </button>
+      <ApercuMasquage texte={f.taches} />
 
       <label htmlFor="f-materiel">Matériel remis</label>
       <input
@@ -742,6 +745,7 @@ function FormFiche({ initiale, onEnregistrer, onAnnuler }) {
         onChange={(e) => maj('materiel', e.target.value)}
         placeholder="Radio canal 5, caisse, frontale…"
       />
+      <ApercuMasquage texte={f.materiel} />
 
       <label htmlFor="f-signaler">À remonter tout de suite</label>
       <input
@@ -750,6 +754,7 @@ function FormFiche({ initiale, onEnregistrer, onAnnuler }) {
         onChange={(e) => maj('a_signaler', e.target.value)}
         placeholder="Ce qu'il ne doit pas gérer seul — la limite de son autonomie"
       />
+      <ApercuMasquage texte={f.a_signaler} />
 
       <label htmlFor="f-contact">En cas de doute, qui</label>
       <input
@@ -758,6 +763,7 @@ function FormFiche({ initiale, onEnregistrer, onAnnuler }) {
         onChange={(e) => maj('contact', e.target.value)}
         placeholder="Nom et canal radio ou téléphone"
       />
+      <ApercuMasquage texte={f.contact} />
 
       <div className="ligne-boutons" style={{ marginTop: 8 }}>
         <button disabled={!f.intitule.trim()} onClick={() => onEnregistrer(f)}>
