@@ -805,7 +805,7 @@ Limites connues : distances à vol d'oiseau, de centre à centre ; sorties, poin
 
 Affichage : écran Implantation, rubrique « Éléments uniques » des bilans (`src/DefaillanceUnique.jsx`) : le plus grave d'abord, ce qui tient replié, les seuils réglables, un élément cité qui s'ouvre dans Conception. Sur une base où la migration manque, la rubrique dit que l'analyse n'est pas encore activée.
 
-### 175 : à appliquer (attend le « Go 175 » de Ren) — la radio dans le fil « Entendu »
+### 175 : appliquée le 13/11 (par Claude, via l'outil Supabase, sur le « Go 175 » de Ren) — la radio dans le fil « Entendu »
 
 | Fichier | Fait |
 |---|---|
@@ -818,6 +818,8 @@ Avant d'écrire la migration, vérifié en lecture seule en production : `talkie
 Tests : `../../outils/replique/tests/175.sql` (16 assertions, dans une transaction annulée : un bénévole ne range pas de transmission radio ; le QG si ; une transmission « blessé à l'étape 2 » est classée URGENCE avec son lieu, sans réponse ; « pas de blessé » reste douteuse ; « mon canal » est classée sans réponse ; une transmission sans texte reste intacte, puis se classe DEA quand le QG écrit ce qu'il a entendu ; le talkie d'un bénévole et celui du coordinateur gardent leur réponse ; la main courante ; les droits).
 
 Vérification : `../verifications/175-radio-entendu.sql` (lecture seule).
+
+Après application, en production (13/11) : `talkie_repondre` a l'empreinte de la réplique, la politique `messages_vocaux_radio` aussi (restrictive, insertion, `authenticated`) ; celle de la 162 est toujours là ; fermée à `anon` ; le contrôle des fonctions exposées reste vide ; les six messages déjà reçus sont « talkie ». Essai sur « Rando VTT » dans une transaction annulée : une transmission radio « un blessé au ravitaillement » rangée par le coordinateur est classée URGENCE, sans réponse, avec sa ligne `radio_classee` et sans `reponse_auto` ; le message ordinaire d'un bénévole reçoit toujours sa réponse. Le refus d'un membre sans droits n'a pas pu être éprouvé en production : dans « Rando VTT », bénévoles et chefs d'équipe ont tous le droit de modifier signalements et demandes, et peuvent donc, comme voulu, ranger une transmission radio ; le refus est prouvé sur la réplique.
 
 Côté application, sans la 175 : le talkie marche comme avant (la colonne n'est envoyée que pour une transmission radio) ; l'enregistrement du canal par le pont serait refusé à l'insertion et resterait en file sur le poste. Appliquer la 175 avant de fusionner.
 
