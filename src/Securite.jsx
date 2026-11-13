@@ -151,7 +151,7 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
           setMessage={setMessage}
         />
       )}
-      {onglet === 'pont' && <PontRadio evenement={evenement} />}
+      {onglet === 'pont' && <PontRadio evenement={evenement} membre={membre} />}
       {onglet === 'fiches' && (
         <Fiches evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} />
       )}

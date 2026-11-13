@@ -169,6 +169,8 @@ async function verifierTalkie(page, erreurs) {
   await page.waitForTimeout(150)
   if (await page.locator('.talkie-info').count()) erreurs.push('talkie : « Pas maintenant » ne ferme pas l’information')
   if (!(await pave.locator('.mes-messages li, .vide').count())) erreurs.push('talkie : « Mes messages » absent du pavé')
+  // (175) Une transmission captée par le pont radio n'est pas un message du membre qui tient le pont.
+  if (/la navette est arrivée/.test(await pave.textContent())) erreurs.push('talkie : une transmission radio apparaît dans « Mes messages »')
 }
 fs.mkdirSync(sortie, { recursive: true })
 await esbuild.build({
@@ -504,6 +506,16 @@ for (const ecran of ecrans) {
         await page.waitForTimeout(300)
         if (!(await page.evaluate(() => (window.__appels ?? []).some((a) => a.fn === 'supprimer_message_vocal' && a.args?.p_message === 'mv3')))) erreurs.push('entendu : Supprimer n’appelle pas la fonction serveur')
       }
+    }
+    // (175) La transmission radio : marquée « Radio », sans nom, sans champ de réponse écrite.
+    const radio = page.locator('.fil-entendu .message-vocal').filter({ has: page.locator('.prc-jeton', { hasText: 'Radio' }) })
+    if ((await radio.count()) !== 1) erreurs.push(`entendu : ${await radio.count()} transmission(s) radio dans le fil (attendu 1)`)
+    else {
+      if (!/la navette est arrivée/.test(await radio.locator('.vocal-transcription').inputValue().catch(() => ''))) erreurs.push('entendu : la transcription de la transmission radio manque')
+      if (!/canal d’urgence · capté à/.test(await radio.textContent())) erreurs.push('entendu : la transmission radio n’est pas marquée « canal d’urgence »')
+      if (/Ren/.test(await radio.locator('strong').first().textContent())) erreurs.push('entendu : la transmission radio porte le nom du membre qui tient le pont')
+      if (await radio.locator('input[placeholder="Répondre…"]').count()) erreurs.push('entendu : on peut répondre par écrit à une transmission radio')
+      if (!(await radio.getByRole('button', { name: '→ Demande' }).count())) erreurs.push('entendu : « → Demande » absent sur la transmission radio')
     }
     // (158) Le message d'urgence de la commune reste en bandeau ; « Bien reçu » n'apparaît que connecté (le banc ne l'est pas).
     const commune = page.locator('.message-commune.niv-urgence')
@@ -1443,5 +1455,74 @@ for (const ecran of ecrans) {
   else console.log(`✓ tablette ${ecran}`)
   await page.close()
 }
+// (175) L'écoute du pont radio, avec un vrai micro simulé par Chromium : un fichier son qui boucle
+// (1,5 s de silence, 2,5 s de signal — une « transmission » —, 5 s de silence). La reconnaissance vocale
+// est remplacée par une fausse qui entend une phrase. On vérifie qu'une transmission devient un message
+// vocal « radio » rangé sous le membre qui tient le pont, avec sa durée et sa transcription.
+async function verifierEcouteRadio() {
+  const taux = 16000
+  const echantillons = []
+  const ajouter = (s, signal) => { for (let i = 0; i < s * taux; i++) echantillons.push(signal ? Math.round(0.5 * 32767 * Math.sin(2 * Math.PI * 440 * i / taux)) : 0) }
+  ajouter(1.5, false); ajouter(2.5, true); ajouter(5, false)
+  const donnees = Buffer.alloc(echantillons.length * 2)
+  echantillons.forEach((v, i) => donnees.writeInt16LE(v, i * 2))
+  const entete = Buffer.alloc(44)
+  entete.write('RIFF', 0); entete.writeUInt32LE(36 + donnees.length, 4); entete.write('WAVE', 8); entete.write('fmt ', 12)
+  entete.writeUInt32LE(16, 16); entete.writeUInt16LE(1, 20); entete.writeUInt16LE(1, 22); entete.writeUInt32LE(taux, 24)
+  entete.writeUInt32LE(taux * 2, 28); entete.writeUInt16LE(2, 32); entete.writeUInt16LE(16, 34); entete.write('data', 36); entete.writeUInt32LE(donnees.length, 40)
+  const wav = path.join(sortie, 'canal-radio.wav')
+  fs.writeFileSync(wav, Buffer.concat([entete, donnees]))
+  const nav = await pw.chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', `--use-file-for-fake-audio-capture=${wav}`, '--autoplay-policy=no-user-gesture-required'] })
+  const page = await nav.newPage({ viewport: { width: 1300, height: 1000 } })
+  const erreurs = []
+  page.on('pageerror', (e) => erreurs.push('exception : ' + e.message.split('\n')[0]))
+  await page.addInitScript(FAUSSE_VOIX)
+  await page.addInitScript(() => {
+    class FausseReconnaissance {
+      start() { this.t = setTimeout(() => this.onresult?.({ results: [[{ transcript: 'il y a un blessé à l’étape 1' }]] }), 600) }
+      stop() { clearTimeout(this.t) }
+    }
+    window.webkitSpeechRecognition = FausseReconnaissance
+    window.SpeechRecognition = FausseReconnaissance
+  })
+  await page.goto('file://' + path.join(sortie, 'page.html') + '?ecran=pont-radio', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2500)
+  const radio = () => page.evaluate(() => (window.__ecritures ?? []).filter((e) => e.table === 'messages_vocaux' && e.op === 'insert').map((e) => e.champs))
+  await page.getByRole('button', { name: 'Démarrer le pont' }).click(); await page.waitForTimeout(600)
+  await page.getByLabel('Écouter le canal').click(); await page.waitForTimeout(1500)
+  if (!(await page.locator('.pont-niveau').count())) erreurs.push(`écoute : pas de barre de niveau une fois le canal écouté (${await page.locator('.message').innerText().catch(() => 'aucun message')})`)
+  const caseEnregistrer = page.getByLabel('Enregistrer les transmissions dans « Entendu »')
+  if (await caseEnregistrer.isDisabled()) erreurs.push(`écoute : l’enregistrement est indisponible (« ${await page.locator('.pont-ecoute', { hasText: 'Enregistrer' }).innerText()} »)`)
+  await caseEnregistrer.click(); await page.waitForTimeout(300)
+  if (!(await page.evaluate(() => (window.__appels ?? []).some((a) => a.fn === 'journaliser' && a.args?.p_categorie === 'pont_radio' && /enregistrement du canal activé/.test(a.args?.p_texte))))) erreurs.push('écoute : l’activation de l’enregistrement n’est pas inscrite dans la main courante')
+  // Le niveau doit monter pendant la « transmission » du fichier : on le relève toutes les 200 ms sur un cycle.
+  let maxNiveau = 0
+  for (let i = 0; i < 50; i++) { const t = await page.locator('.pont-niveau').innerText().catch(() => ''); if (/occupé|enregistrement/.test(t)) maxNiveau++; await page.waitForTimeout(200) }
+  if (!maxNiveau) erreurs.push('écoute : le canal ne passe jamais « occupé » pendant la transmission simulée')
+  await page.waitForTimeout(3000)
+  const ranges = await radio()
+  if (!ranges.length) erreurs.push('écoute : aucune transmission rangée après deux cycles du fichier')
+  else {
+    const m = ranges[0]
+    if (m.source !== 'radio') erreurs.push(`écoute : source « ${m.source} » (attendu radio)`)
+    if (m.membre_id !== 'mb1' || m.evenement_id !== 'ev1') erreurs.push('écoute : la transmission n’est pas rangée sous le membre qui tient le pont')
+    if (!(m.duree_s >= 2 && m.duree_s <= 5)) erreurs.push(`écoute : durée ${m.duree_s} s (attendu la transmission de 2,5 s et sa queue de silence)`)
+    if (m.transcription !== 'il y a un blessé à l’étape 1' || m.reconnaissance !== 'ok') erreurs.push(`écoute : transcription « ${m.transcription} » (${m.reconnaissance})`)
+    if (!/^ev1\/mb1\/.+\.(webm|ogg|m4a)$/.test(m.chemin_audio ?? '')) erreurs.push(`écoute : chemin audio « ${m.chemin_audio} »`)
+    if (ranges.length > 2) erreurs.push(`écoute : ${ranges.length} transmissions pour deux cycles du fichier (le silence ne coupe pas)`)
+  }
+  if (!(await page.locator('.pont-captees li', { hasText: 'il y a un blessé' }).count())) erreurs.push('écoute : la transmission n’apparaît pas dans la liste du poste')
+  // Le pont parle : ce qu'il dit n'est pas enregistré comme une transmission (la fausse voix dure 5 ms, on vérifie le blocage par le témoin d'émission).
+  await page.getByLabel('Enregistrer les transmissions dans « Entendu »').click(); await page.waitForTimeout(300)
+  if (!(await page.evaluate(() => (window.__appels ?? []).some((a) => a.fn === 'journaliser' && /enregistrement du canal arrêté/.test(a.args?.p_texte ?? ''))))) erreurs.push('écoute : l’arrêt de l’enregistrement n’est pas inscrit')
+  const avant = (await radio()).length
+  const bilan = (await radio()).map((m) => `${m.duree_s} s « ${m.transcription} »`).join(', ') || 'rien rangé'
+  await page.waitForTimeout(9500)
+  if ((await radio()).length !== avant) erreurs.push('écoute : une transmission est encore rangée après l’arrêt de l’enregistrement')
+  await nav.close()
+  if (erreurs.length) echecs++
+  console.log(`${erreurs.length ? '✗' : '✓'} écoute du pont radio (micro simulé) — ${bilan}${erreurs.length ? '\n    ' + erreurs.join('\n    ') : ''}`)
+}
+if (ecrans.includes('pont-radio')) await verifierEcouteRadio()
 await navigateur.close()
 process.exit(echecs ? 1 : 0)

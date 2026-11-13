@@ -13,6 +13,8 @@ import { modifierOuRefuser } from './ecriture'
 export const INTENTIONS = { URGENCE: 'Urgence', URGENCE_DOUTEUSE: 'Urgence ?', DEA: 'DEA', STATUT_DEMANDE: 'Statut de demande', CANAL: 'Canal radio', NUIT: 'Nuit', AUCUNE: '' }
 export const heureVocal = (iso) => (iso ? new Date(iso).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }) : '')
 export const urgentVocal = (m) => m.urgence || ['URGENCE', 'URGENCE_DOUTEUSE'].includes(m.intention)
+/** (175) Capté sur le canal d'urgence par le pont radio : on ne sait pas qui a parlé. */
+export const radioVocal = (m) => m?.source === 'radio'
 
 export function useMessagesVocaux({ evenement, membre, setMessage, actif = true }) {
   const [messages, setMessages] = useState([])
@@ -41,7 +43,8 @@ export function useMessagesVocaux({ evenement, membre, setMessage, actif = true 
     return () => { supabase.removeChannel(canal) }
   }, [evenement.id, actif])
 
-  const qui = (m) => membres[m.membre_id]?.nom_affiche ?? 'membre inconnu'
+  // (175) Une transmission radio est rangée sous le membre qui tient le pont : ce n'est pas lui qui a parlé.
+  const qui = (m) => (radioVocal(m) ? 'la radio' : membres[m.membre_id]?.nom_affiche ?? 'membre inconnu')
 
   async function journal(categorie, m, texte) {
     await supabase.rpc('journaliser', { p_evenement: evenement.id, p_module: 'talkie', p_categorie: categorie, p_texte: texte, p_importance: 'routine', p_objet_type: 'messages_vocaux', p_objet_id: m.id, p_objet_ref: null })

@@ -3,9 +3,11 @@ import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import Message from './Message'
 import {
-  LIBELLE_ORIGINE, aAnnoncer, annonceComplete, attendreCanalLibre, contexteAudio,
+  LIBELLE_ORIGINE, aAnnoncer, annonceComplete, attendreCanalLibre, captureDisponible, capterTransmissions, contexteAudio,
   deverrouillerVoix, ecouterCanal, parler, seTaire, voixDisponible, voixFrancaises
 } from './voixRadio'
+import { ajouterVocal, demarrerVocaux } from './fileVocaux'
+import { nouvelleCle } from './reessai'
 
 /**
  * PONT RADIO (13/11) — le poste du QG qui parle sur le canal d'urgence.
@@ -29,9 +31,21 @@ import {
  * Chaque annonce s'inscrit dans la main courante ; c'est aussi elle qui
  * dit ce qui a déjà été annoncé. Le pont ne tourne que tant que cet
  * écran reste ouvert, au premier plan : c'est un poste dédié.
+ *
+ * L'ÉCOUTE (175). La sortie haut-parleur de la radio branchée sur
+ * l'entrée audio du poste, le pont peut :
+ *   — attendre que le canal soit libre avant de parler ;
+ *   — enregistrer chaque transmission entendue et la ranger dans le fil
+ *     « Entendu » de la Situation, avec les messages du talkie, marquée
+ *     « Radio ». Elle y est transcrite (par l'appareil, sinon par le
+ *     serveur si l'événement le demande), classée (une urgence remonte en
+ *     tête), et le QG en fait une demande d'un geste. Personne n'y reçoit
+ *     de réponse écrite : on ne sait pas qui a parlé.
  */
 const DEBITS = [['0.8', 'Lent'], ['0.9', 'Posé'], ['1', 'Normal']]
-const SEUIL_CANAL = 0.04
+// Le niveau au-delà duquel le canal est « occupé ». Il dépend du volume de la radio et du gain de l'entrée :
+// le poste le règle d'après la barre de niveau.
+const SENSIBILITES = [['0.02', 'Sensible'], ['0.04', 'Normale'], ['0.08', 'Peu sensible']]
 const MAX_LIBRE = 240
 // Au-delà, les signalements suivants attendent un appui : un téléphone qui s'emballe (ou quelqu'un
 // qui s'amuse) ne doit pas occuper le canal d'urgence à lui seul. Un Mayday, lui, part toujours.
@@ -46,7 +60,7 @@ const ecrire = (cle, valeur) => {
 }
 const heure = (iso) => (iso ? new Date(iso).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }) : '')
 
-export default function PontRadio({ evenement }) {
+export default function PontRadio({ evenement, membre }) {
   const cleFaits = `pont-radio-faits:${evenement.id}`
   const [donnees, setDonnees] = useState({ signalements: [], maydays: [], lieux: [], journal: [] })
   const [pret, setPret] = useState(false)
@@ -65,8 +79,19 @@ export default function PontRadio({ evenement }) {
   const [voix, setVoix] = useState([])
   const [nomVoix, setNomVoix] = useState(() => lire('pont-radio-voix', ''))
   const [debit, setDebit] = useState(() => lire('pont-radio-debit', '0.9'))
-  const [ecoute, setEcoute] = useState(false)
+  const [ecoute, setEcoute] = useState(false) // l'entrée audio est ouverte
   const [niveau, setNiveau] = useState(0)
+  const [attendre, setAttendre] = useState(true) // attendre que le canal soit libre avant de parler
+  const [enregistrer, setEnregistrer] = useState(false) // ranger les transmissions dans « Entendu »
+  const [seuil, setSeuil] = useState(() => lire('pont-radio-seuil', '0.04'))
+  const [capte, setCapte] = useState(false) // une transmission est en cours d'enregistrement
+  const [captees, setCaptees] = useState([]) // ce que ce poste a capté depuis l'ouverture de l'écran
+  const finEmission = useRef(0)
+  const essaiEnCours = useRef(false)
+  const attendreRef = useRef(true)
+  attendreRef.current = attendre
+  const seuilRef = useRef(0.04)
+  seuilRef.current = Number(seuil) || 0.04
 
   const file = useRef([])
   const occupe = useRef(false)
@@ -150,10 +175,11 @@ export default function PontRadio({ evenement }) {
   }
 
   async function emettre(a) {
-    setEnCours({ cle: a.cle, texte: a.texte, etape: canal.current ? 'attente' : 'emission' })
+    const attente = !!canal.current && attendreRef.current
+    setEnCours({ cle: a.cle, texte: a.texte, etape: attente ? 'attente' : 'emission' })
     let force = false
-    if (canal.current) {
-      force = (await attendreCanalLibre(canal.current.niveau, { seuil: SEUIL_CANAL })) === 'force'
+    if (attente) {
+      force = (await attendreCanalLibre(canal.current.niveau, { seuil: seuilRef.current })) === 'force'
       if (arret.current) return
       setEnCours({ cle: a.cle, texte: a.texte, etape: 'emission' })
     }
@@ -188,6 +214,7 @@ export default function PontRadio({ evenement }) {
       while (file.current.length && !arret.current) await emettre(file.current.shift())
     } finally {
       occupe.current = false
+      finEmission.current = Date.now()
       setEnCours(null)
       charger()
     }
@@ -278,6 +305,7 @@ export default function PontRadio({ evenement }) {
   /* --- L'écoute du canal (facultative) --- */
   async function basculerEcoute(oui) {
     if (!oui) {
+      if (enregistrer) basculerEnregistrement(false)
       canal.current?.fermer()
       canal.current = null
       setEcoute(false)
@@ -287,7 +315,7 @@ export default function PontRadio({ evenement }) {
       canal.current = await ecouterCanal()
       setEcoute(true)
     } catch {
-      setMessage({ type: 'erreur', texte: 'L’entrée audio est refusée ou absente : le pont parlera sans attendre que le canal soit libre.' })
+      setMessage({ type: 'erreur', texte: 'L’entrée audio est refusée ou absente : le pont parlera sans attendre que le canal soit libre, et n’enregistre rien.' })
     }
   }
   useEffect(() => {
@@ -296,12 +324,57 @@ export default function PontRadio({ evenement }) {
     return () => clearInterval(t)
   }, [ecoute])
 
+  /* --- (175) Ranger les transmissions dans « Entendu » --- */
+  // L'enregistrement range sous le membre qui tient le pont, avec les messages du talkie : il faut le module.
+  const raisonSansEnregistrement = !captureDisponible() ? 'ce navigateur ne sait pas enregistrer'
+    : evenement.modules?.talkie !== true ? 'le module Talkie n’est pas activé pour cet événement (Réglages › Modules)'
+      : !membre?.id ? 'tu n’es pas membre de cet événement' : null
+  useEffect(() => { demarrerVocaux() }, [])
+  function basculerEnregistrement(oui) {
+    setEnregistrer(oui)
+    supabase.rpc('journaliser', {
+      p_evenement: evenement.id, p_module: 'securite', p_categorie: 'pont_radio', p_importance: 'notable',
+      p_texte: oui ? 'Pont radio : enregistrement du canal activé' : 'Pont radio : enregistrement du canal arrêté'
+    }).then(() => charger())
+  }
+  async function ranger(t) {
+    const id = nouvelleCle()
+    setCaptees((c) => [{ id, quand: t.debut.toISOString(), duree: t.duree_s, texte: t.transcription }, ...c].slice(0, 10))
+    await ajouterVocal({
+      id, evenement_id: evenement.id, membre_id: membre.id, parle_le: t.debut.toISOString(), duree_s: t.duree_s,
+      blob: t.blob, mime: t.mime, transcription: t.transcription, reconnaissance: t.reconnaissance,
+      transcrire: evenement.modules?.talkie_transcription_serveur === true, source: 'radio'
+    })
+  }
+  useEffect(() => {
+    if (!actif || !ecoute || !enregistrer || !canal.current || raisonSansEnregistrement) return undefined
+    const capteur = capterTransmissions(canal.current, {
+      seuil: Number(seuil) || 0.04,
+      // Pendant que le pont parle, et une seconde et demie après : ce serait sa propre voix.
+      enPause: () => occupe.current || essaiEnCours.current || Date.now() - finEmission.current < 1500,
+      surDebut: () => setCapte(true),
+      surFin: () => setCapte(false),
+      surTransmission: ranger,
+      surBlocage: () => {
+        setCapte(false)
+        basculerEnregistrement(false)
+        setMessage({ type: 'erreur', texte: 'Le canal semble ouvert en permanence (trois enregistrements de trente secondes de suite) : enregistrement arrêté. Vérifie le squelch de la radio ou baisse la sensibilité.' })
+      }
+    })
+    return () => { capteur.arreter(); setCapte(false) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actif, ecoute, enregistrer, seuil, raisonSansEnregistrement])
+
   async function essai() {
     contexteAudio()
+    essaiEnCours.current = true
     try {
       await parler('Essai du pont radio. Un, deux, trois. Terminé.', reglages.current)
     } catch (e) {
       setMessage({ type: 'erreur', texte: `La voix ne répond pas : ${e.message}` })
+    } finally {
+      essaiEnCours.current = false
+      finEmission.current = Date.now()
     }
   }
 
@@ -316,9 +389,9 @@ export default function PontRadio({ evenement }) {
   const aLaMain = liste.filter((a) => a.mode === 'main')
   const faites = donnees.journal.filter((x) => x.categorie === 'annonce_radio')
   // Un autre poste a démarré un pont et ne l'a pas arrêté : deux ponts diraient tout deux fois.
-  const dernierEtat = donnees.journal.find((x) => x.categorie === 'pont_radio')
+  const dernierEtat = donnees.journal.find((x) => x.categorie === 'pont_radio' && /^Pont radio (démarré|arrêté)/.test(x.texte ?? ''))
   const autrePont = !actif && dernierEtat && /démarré/.test(dernierEtat.texte ?? '') && Date.now() - new Date(dernierEtat.horodatage).getTime() < 12 * 3600 * 1000
-  const occupeCanal = ecoute && niveau >= SEUIL_CANAL
+  const occupeCanal = ecoute && niveau >= (Number(seuil) || 0.04)
 
   return (
     <div className="pont-radio">
@@ -371,17 +444,53 @@ export default function PontRadio({ evenement }) {
         <p className="aide">Aucune voix française sur cet appareil : le message serait lu avec un accent étranger. Ajoute une voix française dans les réglages de l’appareil (synthèse vocale).</p>
       )}
 
+      <h3>Écoute du canal</h3>
       <label className="pont-ecoute">
         <input type="checkbox" checked={ecoute} onChange={(e) => basculerEcoute(e.target.checked)} />
         <span>
-          Attendre que le canal soit libre avant de parler
-          <small>Demande que la sortie haut-parleur de la radio soit branchée sur l’entrée micro de ce poste. Le pont attend deux secondes de silence, quinze au plus.</small>
+          Écouter le canal
+          <small>La sortie haut-parleur de la radio doit être branchée sur l’entrée audio de ce poste, et cette entrée doit être celle choisie par défaut — pas le micro intégré, qui entendrait la salle.</small>
         </span>
       </label>
       {ecoute && (
-        <div className={`pont-niveau ${occupeCanal ? 'occupe' : ''}`} aria-label={occupeCanal ? 'Canal occupé' : 'Canal libre'}>
-          <span className="pont-niveau-barre"><span style={{ width: `${Math.min(100, Math.round(niveau * 400))}%` }} /></span>
-          <span>{occupeCanal ? 'Canal occupé' : 'Canal libre'}</span>
+        <div className="pont-ecoute-options">
+          <div className={`pont-niveau ${occupeCanal ? 'occupe' : ''}`} aria-label={occupeCanal ? 'Canal occupé' : 'Canal libre'}>
+            <span className="pont-niveau-barre"><span style={{ width: `${Math.min(100, Math.round(niveau * 400))}%` }} /></span>
+            <span>{capte ? 'Transmission en cours d’enregistrement' : occupeCanal ? 'Canal occupé' : 'Canal libre'}</span>
+          </div>
+          <label className="pont-sensibilite">
+            Sensibilité
+            <select value={seuil} onChange={(e) => { setSeuil(e.target.value); ecrire('pont-radio-seuil', e.target.value) }}>
+              {SENSIBILITES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </label>
+          <p className="aide">Canal muet, la barre doit rester vide ; quand quelqu’un parle, elle doit dire « Canal occupé ». Sinon, change la sensibilité ou le volume de la radio.</p>
+          <label className="pont-ecoute">
+            <input type="checkbox" checked={attendre} onChange={(e) => setAttendre(e.target.checked)} />
+            <span>
+              Attendre que le canal soit libre avant de parler
+              <small>Deux secondes de silence, quinze au plus : une urgence ne reste pas en file derrière une conversation.</small>
+            </span>
+          </label>
+          <label className="pont-ecoute">
+            <input type="checkbox" checked={enregistrer} disabled={!!raisonSansEnregistrement} onChange={(e) => basculerEnregistrement(e.target.checked)} />
+            <span>
+              Enregistrer les transmissions dans « Entendu »
+              <small>
+                {raisonSansEnregistrement
+                  ? `Indisponible : ${raisonSansEnregistrement}.`
+                  : 'Chaque transmission entendue, pont démarré, arrive dans le fil « Entendu » de la Situation, marquée « Radio », transcrite si possible. Le canal d’urgence est alors enregistré : dis-le aux bénévoles au briefing. L’audio est effacé à la clôture de l’événement, comme celui du talkie.'}
+              </small>
+            </span>
+          </label>
+          {enregistrer && !actif && <p className="aide">L’enregistrement commence quand le pont est démarré.</p>}
+          {enregistrer && captees.length > 0 && (
+            <ul className="pont-faites pont-captees">
+              {captees.map((c) => (
+                <li key={c.id}><span className="mono">{heure(c.quand)}</span> {c.duree} s — {c.texte ? `« ${c.texte} »` : 'transcription au QG'}</li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
