@@ -113,6 +113,8 @@ export const ECRANS = {
   // Le point 0 posé sur la carte (Réglages › Dispositif), sans point encore enregistré.
   point0: () => <Point0 evenement={{ ...evenement, point_0_lat: null, point_0_lon: null }} onFait={() => {}} setMessage={(m) => console.error('message', m?.texte)} />,
   plan: () => <PlanImplantation evenement={evenement} membre={membre} peut={peut} toutPouvoir />,
+  // (174) Le bilan « Éléments uniques » du plan : ce qui tombe quand un élément manque.
+  'elements-uniques': () => <PlanImplantation evenement={evenement} membre={membre} peut={peut} toutPouvoir ongletCible="b-unique" />,
   logistique: () => <Logistique evenement={evenement} membre={membre} session={session} peut={peut} toutPouvoir />,
   // (130, 131) L'annuaire de l'organisation et les demandes de prix, en préparation ; puis pour un membre qui ne fait que lire.
   fournisseurs: () => <Logistique evenement={{ ...evenement, phase: 'preparation', organisation_id: 'org1', date_debut: '2026-11-11', date_fin: '2026-11-11' }} membre={membre} peut={peut} toutPouvoir ongletCible="fournisseurs" />,

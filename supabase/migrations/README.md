@@ -785,7 +785,27 @@ Après application : l'empreinte des droits et du `search_path` de toutes les fo
 
 Preuve sur la réplique (`JUSQUA=<numéro> outils/replique/rejouer.sh`) : arrêtée à 170, le contrôle échoue sur 40 fonctions (les 30 de la production et ces dix) ; à 171 et 172, sur les quatre que seule cette migration referme ; complète, il est vide.
 
-## Ne jamais rejouer 088 → 173 par `db push` sans les lignes ci-dessus
+### 174 : appliquée le 13/11 (par Claude, via l'outil Supabase, sur le « Go 174 » de Ren) — critère de défaillance unique
+
+| Fichier | Fait |
+|---|---|
+| `20261113090000_174_defaillance_unique.sql` | `defaillance_unique(evenement, p_dea_m, p_soins_m, p_extinct_m, p_voisin_m, p_site_m)` : lecture seule. Retire un à un les moyens du plan d'implantation et dit ce qui tombe. **Proximité** : chaque lieu accueillant du public doit avoir un DEA (225 m) et un poste de soins (300 m) à portée, chaque élément à risque un extincteur (20 m) ; état nominal, puis perte de chaque moyen (`ÉLÉMENT UNIQUE`, `tient`, `hors de portée`). **Comptages** : secouristes, sorties, points de rassemblement, accès des secours. **Alerte** : voies indépendantes (la radio en est une, le téléphone du QG une autre). **Commandement** : personnes à tout pouvoir joignables. **Énergie** : pour chaque source, ce qu'elle alimente seule (QG, scène, poste de soins), sa charge au-delà de 80 % (`SURCHARGE` au-delà de 100 %, cos φ 0,8 comme le bilan Énergie), et les consommateurs non raccordés. **Causes communes** : un élément à risque qui a dans son voisinage (30 m, ou sa propre distance de sécurité si elle est plus grande) tous les moyens « sur site » d'une fonction. Rend `ordre, fonction, ligne, verdict, niveau, detail, element` ; niveau 3 non assurée, 2 élément unique, 1 à vérifier, 0 tient. Réservée à qui lit le plan (`plan_implantation : lire`, tout pouvoir, exploitant) ; fermée à `anon`. |
+
+Pourquoi : prototype de Ren du 13/11, lancé en lecture seule sur « BFMF 2027 » en production. Il y trouve ce qu'aucun écran ne montrait : le seul DEA du site, le QG et le poste de soins sont à 13, 18 et 23 m du groupe électrogène qui alimente le QG ; 1 élément à risque sur 12 a un extincteur à portée ; un seul point de rassemblement ; aucune voie d'alerte encodée.
+
+Six défauts du prototype donnaient un verdict faux et sont corrigés : (1) le QG se reconnaissait à son nom, il se reconnaît à sa fiche de catalogue, à son nom ou au lieu « PC opérationnel », et son absence est dite ; (2) le commandement comptait tout membre joignable, il ne compte plus que les rôles à tout pouvoir ; (3) deux canaux radio comptaient pour deux voies d'alerte ; (4) sans point 0 les causes communes disparaissaient en silence, le site est alors centré sur ses lieux publics et on le dit ; (5) un moyen qui ne couvre rien sortait en « tient », et un moyen sans position n'était pas signalé ; (6) la surcharge d'un groupe n'était pas un verdict et les consommateurs non raccordés n'étaient pas signalés.
+
+Tests : `../../outils/replique/tests/174.sql` (41 assertions sur un plan construit pour déclencher chaque verdict, puis les six corrections une à une, les seuils en paramètres, les droits ; dans une transaction annulée). Vérifié avant application, en lecture seule : le corps de la fonction, lancé comme requête autonome sur « BFMF 2027 » en production, rend les constats ci-dessus, les trois DEA et les deux cabinets médicaux du village en « hors de portée », le groupe GE20-02 chargé à 100 %, 8 consommateurs non raccordés (39,5 kW, dont les deux sonos) et le mât lumineux en « à vérifier ».
+
+Après application, en production (13/11) : la fonction a l'empreinte (md5 du corps) de celle de la réplique, les mêmes droits, et le contrôle des fonctions exposées reste vide. Appelée sur « BFMF 2027 » sous l'identité d'une personne à tout pouvoir, dans une transaction annulée, elle rend 26 lignes — 3 fonctions non assurées, 7 éléments uniques, 3 points à vérifier, 13 qui tiennent —, les mêmes que la requête autonome d'avant application. Un anonyme est refusé par les droits de la fonction, un événement inconnu par `P0002`, et le seuil du DEA ramené à 50 m ne couvre plus que 9 lieux publics sur 16.
+
+Vérification : `../verifications/174-defaillance-unique.sql` (lecture seule ; se présente comme une personne à tout pouvoir de l'événement le temps d'une transaction annulée).
+
+Limites connues : distances à vol d'oiseau, de centre à centre ; sorties, points de rassemblement et accès des secours comptés, pas situés ; points d'eau, périmètres et aires hélico non lus ; les personnes ne sont pas retirées une à une ; les seuils par défaut sont des hypothèses de travail.
+
+Affichage : écran Implantation, rubrique « Éléments uniques » des bilans (`src/DefaillanceUnique.jsx`) : le plus grave d'abord, ce qui tient replié, les seuils réglables, un élément cité qui s'ouvre dans Conception. Sur une base où la migration manque, la rubrique dit que l'analyse n'est pas encore activée.
+
+## Ne jamais rejouer 088 → 174 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`
