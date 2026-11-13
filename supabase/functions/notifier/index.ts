@@ -23,9 +23,10 @@
 // de la notification est composé ici, à partir de la base — jamais reçu
 // de l'appelant : personne ne peut faire dire n'importe quoi au serveur.
 //
-// Secrets : VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
-// (mailto: ou https:). Sans eux, la fonction répond 503 et
-// l'application se passe de notifications.
+// Secrets : VAPID_PUBLIC_KEY et VAPID_PRIVATE_KEY (obligatoires) ;
+// VAPID_SUBJECT (mailto: ou https:) est facultatif, l'adresse de
+// l'application sert par défaut. Sans les deux clés, la fonction
+// répond 503 et l'application se passe de notifications.
 // Un abonnement que le service de push déclare disparu (404, 410) est
 // retiré ; les autres échecs sont comptés.
 // =====================================================================
@@ -57,7 +58,8 @@ Deno.serve(async (req) => {
 
   const publique = Deno.env.get('VAPID_PUBLIC_KEY')
   const privee = Deno.env.get('VAPID_PRIVATE_KEY')
-  const sujet = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:notifications@eventware.app'
+  // Le « sujet » dit aux services de push qui contacter en cas d'abus : par défaut, l'adresse de l'application.
+  const sujet = Deno.env.get('VAPID_SUBJECT') ?? 'https://eventware-2-0.vercel.app'
   if (!publique || !privee) return reponse({ erreur: 'Notifications non configurées sur ce serveur' }, 503)
 
   if (req.method === 'GET') return reponse({ cle_publique: publique })
@@ -181,7 +183,12 @@ Deno.serve(async (req) => {
   const actifs = (abonnements ?? []).filter((a) => (a.preferences ?? {})[n!.preference] !== false)
   if (!actifs.length) return reponse({ envoyees: 0, destinataires: destinataires.length })
 
-  webpush.setVapidDetails(sujet, publique, privee)
+  // Des clés mal recopiées : on le dit, plutôt qu'une erreur 500 muette.
+  try {
+    webpush.setVapidDetails(sujet, publique, privee)
+  } catch (e) {
+    return reponse({ erreur: `Clés VAPID invalides : ${(e as Error)?.message ?? e}` }, 503)
+  }
   const { data: ev } = await service.from('evenements').select('nom').eq('id', n.evenement).maybeSingle()
   const charge = JSON.stringify({ titre: n.titre, corps: n.corps, url: n.url, etiquette: n.etiquette, urgent: !!n.urgent, evenement: ev?.nom ?? null, evenement_id: n.evenement })
 

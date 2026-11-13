@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import { texteErreur } from './erreurs'
 import { supprimerOuRefuser } from './ecriture'
+import ApercuMasquage from './ApercuMasquage'
 
 /**
  * Fiches réflexe (liste, éditeur), sorties de Securite.jsx au lot 12
@@ -256,6 +257,7 @@ function EditeurFiche({ fiche, onEnregistrer, onAnnuler }) {
         onChange={(e) => setF({ ...f, declencheur: e.target.value })}
         placeholder="Ce qu'on observe — flammes, personne au sol…"
       />
+      <ApercuMasquage texte={f.declencheur} />
 
       <label htmlFor={fiche.id + 'cat'}>Catégorie</label>
       <input
@@ -271,6 +273,7 @@ function EditeurFiche({ fiche, onEnregistrer, onAnnuler }) {
         valeurs={conduite}
         setValeurs={setConduite}
       />
+      <ApercuMasquage texte={conduite} />
 
       <ListeOrdonnee
         titre="À ne pas faire"
@@ -279,6 +282,7 @@ function EditeurFiche({ fiche, onEnregistrer, onAnnuler }) {
         setValeurs={setPieges}
         alerte
       />
+      <ApercuMasquage texte={pieges} />
 
       <label htmlFor={fiche.id + 'cont'}>Contacts</label>
       <input
@@ -287,6 +291,7 @@ function EditeurFiche({ fiche, onEnregistrer, onAnnuler }) {
         onChange={(e) => setF({ ...f, contacts: e.target.value })}
         placeholder="112 — PC-Ops — responsable"
       />
+      <ApercuMasquage texte={f.contacts} />
 
       <div className="ligne-boutons">
         <button disabled={!f.titre.trim() || !f.code.trim()} onClick={enregistrer}>

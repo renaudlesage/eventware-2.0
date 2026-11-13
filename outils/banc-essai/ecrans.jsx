@@ -101,6 +101,8 @@ export const ECRANS = {
   ),
   // (169) La recherche globale : le champ, les résultats, puis l'ouverture de la demande trouvée dans l'écran Sécurité.
   recherche: () => <EssaiRecherche />,
+  // (171) La fiche de poste : l'aperçu de ce que la page du QR masquera.
+  'fiche-poste': () => <Rh evenement={evenement} membre={membre} peut={peut} toutPouvoir ongletCible="fiches" />,
   // (168) La page publique du poste, par QR.
   'poste-public': () => <PagePoste jeton="jeton-poste-1" />,
   colonne: () => <ColonneSituation evenement={evenement} palier="large" onAller={() => {}} />,

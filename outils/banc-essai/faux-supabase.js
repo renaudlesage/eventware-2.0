@@ -155,6 +155,10 @@ export const DEPENDANCES = [
 ]
 DONNEES.jalon_dependances = DEPENDANCES
 
+const doublureMasquage = (t) => (typeof t !== 'string' ? t : t
+  .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[adresse : voir le QG]')
+  .replace(/\+?\d[\d .\/\u00a0-]{7,}\d/g, '[numéro : voir le QG]'))
+
 function constructeur(table, fn, args) {
   // Les appels RPC sont notés, pour que le banc vérifie ce que l'écran a envoyé.
   if (fn === 'rpc' && typeof window !== 'undefined') (window.__appels ||= []).push({ fn: table, args })
@@ -289,20 +293,24 @@ function constructeur(table, fn, args) {
     mes_demandes: [{ id: 'm1', reference: 'SEC-001', titre: 'Renfort', statut: 'attribuee', priorite: 'P1', module: 'securite', lieu: null, created_at: '2026-11-11T13:00:00Z' }],
     // (168) La page du poste, telle que le serveur la rend (numéros déjà masqués).
     generer_postes_qr: 2,
+    // (171) Le masquage, en doublure : assez pour que le banc voie l'aperçu paraître et disparaître. La vraie règle
+    // est celle de la base (masquer_numeros), éprouvée par outils/replique/tests/171.sql.
+    masquer_numeros: ({ p_texte }) => doublureMasquage(p_texte),
+    masquer_numeros_json: ({ p }) => (Array.isArray(p) ? p.map(doublureMasquage) : p),
     poste_par_jeton: {
       evenement: { nom: 'Essai', logo_url: null, phase: 'exploitation', date_debut: '2026-11-11', date_fin: '2026-11-11', telephone_qg: '0470 99 88 77' },
       poste: { poste: 'Bar étape 1', consigne: 'Clé des fûts chez le QG : [numéro : voir le QG].', lieu: 'Étape 1', equipe: 'A · Alpha' },
-      fiche: { intitule: 'Bar', mission: 'Servir et tenir la caisse.', taches: ['Servir', 'Compter les fûts'], materiel: 'Tablier, pompe', a_signaler: 'Bagarre, malaise', contact: 'Marc [numéro : voir le QG] ou le 112' },
+      fiche: { intitule: 'Bar', mission: 'Servir et tenir la caisse. Si rupture, appeler Marc au [numéro : voir le QG].', taches: ['Servir', 'Compter les fûts', 'Prévenir Luc [numéro : voir le QG]', 'Écrire à [adresse : voir le QG] en fin de service'], materiel: 'Tablier, pompe ; clé chez Anne [numéro : voir le QG])', a_signaler: 'Bagarre, malaise : GSM [numéro : voir le QG]', contact: 'Marc [numéro : voir le QG] ou [adresse : voir le QG], sinon le 112' },
       creneau_courant: { code: 'CR-01', debut: '2026-11-11T14:00:00+01:00', fin: '2026-11-11T18:00:00+01:00', consignes: null, besoin: 2, equipe: 'A', lieu: 'Étape 1' },
       creneau_suivant: { code: 'CR-02', debut: '2026-11-11T18:00:00+01:00', fin: '2026-11-11T22:00:00+01:00', consignes: 'Fermer la caisse à 22 h', besoin: 2, equipe: 'A', lieu: 'Étape 1' },
       radio: { equipe: { numero: '3', libelle: 'Équipe Alpha' }, urgence: { numero: '1', libelle: 'Urgence' } },
       secours: [{ categorie: 'dea', nom: 'DEA', distance_m: 110 }, { categorie: 'sortie_secours', nom: 'Sortie nord', distance_m: 240 }],
-      reflexes: [{ code: 'R1', titre: 'Malaise', categorie: 'sanitaire', declencheur: 'Une personne s’effondre', conduite: ['Appeler le 112', 'Prévenir le QG'], a_ne_pas_faire: ['Déplacer la personne'], contacts: 'QG [numéro : voir le QG], secours 112' }]
+      reflexes: [{ code: 'R1', titre: 'Malaise', categorie: 'sanitaire', declencheur: 'Une personne s’effondre', conduite: ['Appeler le 112', 'Prévenir le QG', 'Puis Paul au [numéro : voir le QG]'], a_ne_pas_faire: ['Déplacer la personne', 'Écrire à [adresse : voir le QG] au lieu d’appeler'], contacts: 'QG [numéro : voir le QG], secours 112' }]
     }
   }
   // ?site=1 : un site sans parcours ni lieu (un festival), pour voir une carte se cadrer sur le plan.
   const site = typeof location !== 'undefined' && new URLSearchParams(location.search).get('site') === '1'
-  const lignes = () => (fn === 'rpc' ? (RPC[table] ?? []) : site && (table === 'traces' || table === 'lieux') ? [] : (DONNEES[table] ?? []))
+  const lignes = () => (fn === 'rpc' ? (typeof RPC[table] === 'function' ? RPC[table](args ?? {}) : RPC[table] ?? []) : site && (table === 'traces' || table === 'lieux') ? [] : (DONNEES[table] ?? []))
   const resultat = () => ({ data: lignes(), error: null, count: lignes().length })
   const b = new Proxy({}, {
     get(_, prop) {

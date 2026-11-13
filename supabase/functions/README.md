@@ -12,7 +12,7 @@ redéployer.
 | `reception-commune` | **non**  | la commune (Crisiware), POST — déployée le 2/11 (158) |
 | `diffuser-dossier` | oui     | `src/diffuserDossier.js` après chaque changement de statut du dossier — déployée le 2/11 (161) |
 | `transcrire-vocal` | oui     | `src/transcrireVocal.js` : le téléphone après l'envoi d'un message vocal sans texte, le QG par « Transcrire » (fil Entendu) — déployée le 2/11 |
-| `notifier` | oui | `src/push.js` : GET pour la clé publique (abonnement d'un appareil), POST `{ type, id }` juste après un geste (alerte émise, demande attribuée ou qui change de statut, réponse du QG à un vocal, rappel de créneau) — **pas encore déployée** (attend le « Go 170 ») |
+| `notifier` | oui | `src/push.js` : GET pour la clé publique (abonnement d'un appareil), POST `{ type, id }` juste après un geste (alerte émise, demande attribuée ou qui change de statut, réponse du QG à un vocal, rappel de créneau) — déployée le 11/11 (170) |
 
 `reception-commune` est ouverte parce que la commune n'a pas de compte :
 ce qui l'authentifie, c'est le secret de sa liaison (Réglages › Partage
@@ -59,13 +59,16 @@ ailleurs que dans le compartiment `vocaux` ; le texte revient dans
 `messages_vocaux.transcription` avec `reconnaissance = 'serveur'`, et le
 déclencheur de la 162/166 reconnaît les mots-clés.
 
-`notifier` (notifications poussées, migration 170) a besoin de trois
-secrets : **`VAPID_PUBLIC_KEY`** et **`VAPID_PRIVATE_KEY`** (une paire
-générée une fois, par exemple `npx web-push generate-vapid-keys` ; la
-changer désabonne tous les appareils) et **`VAPID_SUBJECT`** (un
-`mailto:` ou une adresse `https:` de contact, exigé par les services de
-push). Sans eux elle répond 503 et « Mon compte » dit que les
-notifications ne sont pas activées ; rien d'autre ne change. Elle lit
+`notifier` (notifications poussées, migration 170) a besoin de deux
+secrets : **`VAPID_PUBLIC_KEY`** et **`VAPID_PRIVATE_KEY`**, une paire
+générée une fois (par exemple `npx web-push generate-vapid-keys`) et
+saisie dans Supabase › Edge Functions › Secrets ; la changer désabonne
+tous les appareils. **`VAPID_SUBJECT`** (un `mailto:` ou une adresse
+`https:` de contact, exigé par les services de push) est facultatif :
+l'adresse de l'application sert par défaut. Sans les deux clés la
+fonction répond 503 et « Mon compte » dit que les notifications ne sont
+pas activées ; des clés mal recopiées donnent aussi un 503, avec le
+motif. Rien d'autre ne change. Elle lit
 l'objet avec le jeton de l'appelant (on ne notifie pas pour ce qu'on ne
 voit pas), n'accepte que l'auteur de la dernière modification dans le
 quart d'heure (la notification suit un geste, elle ne se rejoue pas),

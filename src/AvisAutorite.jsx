@@ -31,6 +31,21 @@ const DISCIPLINES = { D1: 'D1 — Secours (zone de secours)', D2: 'D2 — Médic
 const jour = (d) => (d ? new Date(d).toLocaleDateString('fr-BE') : '—')
 const quand = (d) => (d ? new Date(d).toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' }) : '')
 
+// (172) Les bornes du dépôt d'avis : les mêmes que la fonction `deposer_avis`, qui refuse au-delà (22001).
+const MAX_COMMENTAIRE = 4000
+const MAX_PRESCRIPTIONS = 50
+const MAX_PRESCRIPTION = 1000
+
+/** Le compteur ne paraît qu'à l'approche de la limite (neuf dixièmes) : avant, il n'apprend rien. */
+function Compteur({ n, max }) {
+  if (n < max * 0.9) return null
+  return (
+    <p className={`aide compteur-saisie ${n >= max ? 'alerte-texte' : ''}`} role="status">
+      {n.toLocaleString('fr-BE')} / {max.toLocaleString('fr-BE')} caractères{n >= max ? ' : limite atteinte' : ''}
+    </p>
+  )
+}
+
 export default function AvisAutorite({ jeton }) {
   const [s, setS] = useState(null)
   const [erreur, setErreur] = useState(null)
@@ -197,19 +212,22 @@ export default function AvisAutorite({ jeton }) {
                     <button type="button" key={k} role="radio" aria-checked={avis === k} className={`module ${avis === k ? 'actif' : ''}`} onClick={() => setAvis(k)}>{l}</button>
                   ))}
                 </div>
-                <label>Commentaire<textarea value={commentaire} onChange={(e) => setCommentaire(e.target.value)} rows={3} /></label>
+                <label>Commentaire<textarea value={commentaire} maxLength={MAX_COMMENTAIRE} onChange={(e) => setCommentaire(e.target.value)} rows={3} /></label>
+                <Compteur n={commentaire.length} max={MAX_COMMENTAIRE} />
                 <div className="pave-titre">Prescriptions</div>
                 {prescriptions.map((p, i) => (
                   <div className="saisie-rapide prescription-ligne" key={i}>
-                    <input value={p.texte} placeholder="Ce que l'organisateur doit mettre en place" onChange={(e) => setPrescriptions(prescriptions.map((x, j) => (j === i ? { ...x, texte: e.target.value } : x)))} />
+                    <input value={p.texte} maxLength={MAX_PRESCRIPTION} aria-label={`Prescription ${i + 1}`} placeholder="Ce que l'organisateur doit mettre en place" onChange={(e) => setPrescriptions(prescriptions.map((x, j) => (j === i ? { ...x, texte: e.target.value } : x)))} />
                     <select value={p.caractere ?? 'obligatoire'} onChange={(e) => setPrescriptions(prescriptions.map((x, j) => (j === i ? { ...x, caractere: e.target.value } : x)))} aria-label="Caractère">
                       <option value="obligatoire">obligatoire</option>
                       <option value="recommande">recommandé</option>
                     </select>
                     <button type="button" className="discret" onClick={() => setPrescriptions(prescriptions.filter((_, j) => j !== i))} aria-label="Retirer">×</button>
+                    <Compteur n={p.texte.length} max={MAX_PRESCRIPTION} />
                   </div>
                 ))}
-                <button type="button" className="discret" onClick={() => setPrescriptions([...prescriptions, { texte: '', caractere: 'obligatoire' }])}>+ Prescription</button>
+                <button type="button" className="discret" disabled={prescriptions.length >= MAX_PRESCRIPTIONS} onClick={() => setPrescriptions([...prescriptions, { texte: '', caractere: 'obligatoire' }])}>+ Prescription</button>
+                {prescriptions.length >= MAX_PRESCRIPTIONS && <p className="aide" role="status">{MAX_PRESCRIPTIONS} prescriptions au plus par avis.</p>}
                 <label>À réaliser pour le (facultatif)<input type="date" value={echeance} onChange={(e) => setEcheance(e.target.value)} /></label>
                 <div className="ligne-boutons">
                   <button type="submit" disabled={occupe}>Rendre l'avis</button>

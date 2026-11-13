@@ -5,6 +5,45 @@ nommé `<version>_<name>.sql` où `version` est l'horodatage
 `YYYYMMDDHHMMSS` attribué par Supabase et `name` commence par un numéro
 de série à trois chiffres.
 
+## Avant de proposer une migration
+
+Trois fois (116, 120, 167/168) une migration a laissé des fonctions
+exécutables sans connexion, parce que PostgreSQL accorde `EXECUTE` à
+`PUBLIC` sur toute fonction créée et que Supabase l'accorde en plus à
+`anon`. Rien ne le signalait. Depuis la 171, c'est contrôlé :
+
+1. **Toute fonction créée est suivie de son retrait de droits, puis du
+   droit voulu**, dans la même migration :
+
+   ```sql
+   revoke execute on function public.ma_fonction(uuid) from public, anon;
+   grant  execute on function public.ma_fonction(uuid) to authenticated;
+   ```
+
+   Une fonction de déclencheur ou une aide interne n'a besoin d'aucun
+   droit : `revoke execute … from public, anon, authenticated`. Et toute
+   fonction fige son `search_path` (`set search_path = public, pg_temp`).
+2. **Une fonction publique par jeton** (page ouverte sans compte) garde
+   `anon`, perd `PUBLIC`, et s'ajoute à la liste `voulues` de
+   `audit_fonctions_exposees()` — dans la migration qui la crée, en
+   redéfinissant la fonction de contrôle.
+3. **Le contrôle doit rester vide**, sur la réplique puis en production :
+
+   ```sql
+   select * from audit_fonctions_exposees();   -- aucune ligne
+   ```
+
+   Sur la réplique, `outils/replique/rejouer.sh` le lance à la fin et
+   **échoue** s'il renvoie une ligne. En production, il se lance dans le
+   SQL Editor après chaque « Go » (`../verifications/171-fonctions-exposees.sql`).
+
+Le reste des conventions tient en peu de lignes : un fichier par
+migration, idempotent, encadré par `begin; … commit;`, sans modifier une
+migration existante ; un test `outils/replique/tests/<NNN>.sql` ; un
+script en lecture seule dans `../verifications/` quand il y a quelque
+chose à vérifier en production ; une section ici ; et l'application en
+production seulement sur le « Go NNN » de Ren.
+
 ## Trois séries
 
 ### 001 → 087 : l'historique enregistré par Supabase
@@ -694,23 +733,59 @@ Document « Eventware qui apprend — cinq pistes » (Ren, 3/11), pistes 1 à 3.
 
 Document « Eventware qui apprend — cinq pistes » (Ren, 3/11), piste 6. Tests : `../../outils/replique/tests/168.sql` (masquage, génération et normalisation des libellés, héritage fiche/lieu/équipe, droits, RLS entre organisations, page anonyme champ par champ, aucun nom ni numéro personnel, compteur, désactivation). L'application : `?poste=<jeton>` ouvre `PagePoste.jsx` ; Réglages › Partage › QR du poste (numéro du QG, génération, fiche et lieu par poste, activation, planches). Appliquée et inscrite (version 20261103100000) ; 3 policies.
 
-### 169 : pas encore appliquée (attend le « Go 169 » de Ren) — les fonctions de l'audit ergonomique : demande du bénévole, clôture guidée, arbitrage en lot, recherche globale
+### 169 : appliquée le 11/11 (par Claude, via l'outil Supabase, sur le « Go 169 » de Ren, en quatre temps : demande du bénévole, contrôle de clôture, doublons et report, recherche) — les fonctions de l'audit ergonomique : demande du bénévole, clôture guidée, arbitrage en lot, recherche globale
 
 | Fichier | Fait |
 |---|---|
 | `20261111100000_169_fonctions_audit.sql` | `demande_terrain(evenement, texte, famille, lieu, bloquant, cle)` : tout membre actif pose une demande logistique depuis son téléphone (module souscrit, événement non clôturé, 10 demandes par quart d'heure au plus ; la famille se lit dans le texte si elle n'est pas donnée ; « soins » et « sécurité » partent en P1 côté sécurité, « ça bloque » en P2 ; le lieu vient du créneau en cours ; rejouable sans doublon grâce à la clé). `mes_demandes(evenement)`. `controle_cloture(evenement)` : ce qui reste ouvert avant de clôturer (CLO_ALERTES, CLO_SOS, CLO_MAYDAY, CLO_RECHERCHES bloquants ; CLO_DEMANDES, CLO_TRANSPORTS, CLO_ATTRIBUTIONS, CLO_VOCAUX, CLO_EXERCICE, CLO_JALONS en alerte ; CLO_AUDIO, CLO_REX, CLO_DATE pour information), chaque ligne avec l'écran et la rubrique où agir. `rex_doublons(evenement, seuil)` : paires de constats ressemblants. `rex_reporter(evenement, cible, ids)` : les constats retenus deviennent des jalons REX-NN de l'édition suivante, liés au constat d'origine. `rechercher(evenement, q, limite)` : recherche sans accents dans les demandes, signalements, transports, contacts, membres, lieux, jalons, créneaux, fiches réflexe, constats et main courante, avec les droits de l'appelant (security invoker), chaque résultat avec son écran, sa rubrique et son objet. Toutes fermées à `anon`. |
 
-Audit ergonomique du 11/11 (fonctions manquantes 1, 3, 4, 5). Tests : `../../outils/replique/tests/169.sql` (50 assertions : droits, licence, débit, idempotence, familles, codes de clôture, doublons, report, recherche et cloisonnement entre organisations). L'application se passe de la migration tant qu'elle n'est pas appliquée : la demande du bénévole et la recherche le disent, la clôture retombe sur la confirmation simple, « Mes demandes » lit la table.
+Audit ergonomique du 11/11 (fonctions manquantes 1, 3, 4, 5). Tests : `../../outils/replique/tests/169.sql` (50 assertions : droits, licence, débit, idempotence, familles, codes de clôture, doublons, report, recherche et cloisonnement entre organisations). Après application : les six fonctions ont la même empreinte (md5 du corps) et les mêmes droits en production que sur la réplique ; `rechercher`, `controle_cloture`, `rex_doublons` et `mes_demandes` ont été appelées en lecture seule sur un événement réel, sous l'identité d'un coordinateur, dans une transaction annulée.
 
-### 170 : pas encore appliquée (attend le « Go 170 » de Ren, avec le déploiement de la fonction `notifier` et la création des clés VAPID) — les notifications poussées
+### 170 : appliquée le 11/11 (par Claude, via l'outil Supabase, sur le « Go 170 » de Ren ; fonction `notifier` déployée le même jour ; les clés VAPID se saisissent dans Supabase par Ren) — les notifications poussées
 
 | Fichier | Fait |
 |---|---|
 | `20261111110000_170_notifications_poussees.sql` | `abonnements_push` (un abonnement Web Push par appareil : point d'envoi unique, clés, nom de l'appareil, préférences par type, dernier envoi, échecs ; RLS « les miens » ; fermée à `anon`). `abonner_push(endpoint, p256dh, auth, appareil)` : abonne ou réattribue l'appareil à la personne connectée. |
 
-Audit ergonomique du 11/11 (fonction manquante 2). Tests : `../../outils/replique/tests/170.sql` (14 assertions). La fonction serveur `notifier` (voir `../functions/README.md`) lit ces abonnements avec la clé de service ; elle a besoin des secrets `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` et `VAPID_SUBJECT`. Sans la migration, sans la fonction ou sans les clés, « Mon compte › Notifications sur cet appareil » dit que ce n'est pas encore activé et rien d'autre ne change.
+Audit ergonomique du 11/11 (fonction manquante 2). Tests : `../../outils/replique/tests/170.sql` (14 assertions). La fonction serveur `notifier` (voir `../functions/README.md`) lit ces abonnements avec la clé de service ; elle a besoin des secrets `VAPID_PUBLIC_KEY` et `VAPID_PRIVATE_KEY`. `VAPID_SUBJECT` est facultatif (l'adresse de l'application sert par défaut). Sans les deux clés, « Mon compte › Notifications sur cet appareil » dit que ce n'est pas encore activé et rien d'autre ne change.
 
-## Ne jamais rejouer 088 → 170 par `db push` sans les lignes ci-dessus
+### 171 : appliquée le 13/11 (par Claude, via l'outil Supabase, sur le « Go 171 » de Ren, en quatre temps : droits, masquage, poste_par_jeton, contrôle) — refermer les RPC de 167/168, durcir le masquage du QR de poste, contrôle des fonctions exposées
+
+| Fichier | Fait |
+|---|---|
+| `20261111220000_171_fermer_rpc_et_masquage.sql` | **Droits.** `famille_demande`, `familles_evenement`, `memoire_lieux`, `rex_proposer`, `rapprocher_lieux`, `rattacher_demandes_lieux`, `generer_postes_qr`, `notification_dmp_categories`, `type_lieu_du_plan` : retirées à `PUBLIC` et `anon`, gardées à `authenticated` (`type_lieu_du_plan` reçoit en plus son `search_path`). `miroir_lieu_element`, `miroir_dependance_lien` : plus aucun appel direct. Toutes les fonctions de déclencheur encore ouvertes sortent de l'API. **Masquage.** `masquer_numeros` réécrite : un numéro se reconnaît à son nombre de chiffres (9 ou plus ; 8 ou plus derrière `+` ou `00` ; 6 ou plus juste après « tél », « gsm », « appeler »…), quels que soient les séparateurs (espaces insécables, tirets insécables, tirets bas compris) ; les adresses e-mail sont masquées aussi ; dates, plages horaires, fréquences, quantités, références et numéros courts (112) restent lisibles. `masquer_numeros_json` fait de même dans une liste ou un objet, sans toucher à la structure. Les deux sont fermées à `anon`, ouvertes à `authenticated` (l'application s'en sert pour l'aperçu). `poste_par_jeton` masque sept champs de plus (`mission`, `taches`, `materiel`, `a_signaler`, `declencheur`, `conduite`, `a_ne_pas_faire`) : sa définition est lue en base, cinq passages y sont remplacés, et la migration s'arrête sans rien modifier si l'un d'eux n'y figure pas exactement une fois. **Contrôle.** `audit_fonctions_exposees()` : fonctions exécutables sans connexion hors liste voulue, ouvertes à `PUBLIC`, ou sans `search_path` ; réservée au rôle `postgres`. |
+
+Pourquoi : contrôle de sécurité du 11/11. Aucune fuite, mais la règle de 090 (« `revoke … from public, anon` avant `grant` ») n'avait pas été appliquée dans 167 et 168 : 8 fonctions exécutables sans connexion (six refusent par leur garde interne, `famille_demande` et `masquer_numeros` répondent sans rien révéler), 22 autres exposées sans raison — 30 fonctions, 62 lignes. Et le masquage de la page publique du QR laissait passer un numéro collé depuis un téléphone (espaces insécables) et toute adresse e-mail, masquait à tort dates et horaires, et oubliait sept champs. Rien n'était exposé : aucun de ces champs ne contient de numéro, et `postes_qr` est vide.
+
+Vérification : `../verifications/171-fonctions-exposees.sql` (lecture seule) : le contrôle, vide ; puis 37 écritures, toutes `ok = true` (24 masquées, 13 inchangées). Tests : `../../outils/replique/tests/171.sql` (64 assertions : les 37 écritures ; le JSON ; un poste dont chaque champ de texte libre porte un numéro ou une adresse, lu sans session ; les huit RPC refusées à un anonyme par les droits de la fonction, les fonctions par jeton qui répondent ; connecté, les RPC et un déclencheur dont la fonction a perdu `EXECUTE` ; le contrôle vide, et qui voit bien un oubli ; la migration rejouée qui ne change rien). Vérifié en production, en lecture seule, le 12/11 : le contrôle y liste bien 30 fonctions et 62 lignes, les cinq passages de `poste_par_jeton` y figurent une fois chacun, et la réplique alignée (173) a la même empreinte que la production avant 171, puis un contrôle vide après.
+
+Après application, en production (13/11) : `audit_fonctions_exposees()` ne renvoie aucune ligne ; `masquer_numeros`, `masquer_numeros_json` et le contrôle ont l'empreinte (md5 du corps) de ceux de la réplique, `poste_par_jeton` aussi hors commentaires, et elle reste ouverte aux anonymes ; les 37 écritures sont conformes ; sous le rôle `anon`, `famille_demande(null, 'jetons')` et les sept autres RPC sont refusées par les droits de la fonction (`permission denied for function`), les fonctions par jeton répondent ; sous l'identité d'un coordinateur, `familles_evenement`, `memoire_lieux`, `famille_demande`, `masquer_numeros`, `masquer_numeros_json` et `notification_dmp_categories` répondent, et `rex_proposer`, `rapprocher_lieux`, `rattacher_demandes_lieux`, `generer_postes_qr` ne sont refusées que par leur garde interne. Linter de sécurité Supabase : `function_search_path_mutable` a disparu, et `anon_security_definer_function_executable` ne liste plus que les onze fonctions publiques par jeton. Un poste piégé créé sur « Test SOS » dans une transaction annulée (fiche, créneau, consigne et fiche réflexe portant chacun un numéro ou une adresse), généré par un coordinateur puis lu sans session : les onze champs sont masqués, seul le numéro du QG figure ; rien n'est resté en base.
+
+Limites connues du masquage : un numéro de 6 à 8 chiffres sans mot-clé devant reste visible ; un IBAN ou un numéro de TVA est masqué comme un numéro ; un numéro coupé par un retour à la ligne n'est pas reconnu. Relevées en plus le 12/11 : un numéro séparé par des virgules, des deux-points, un tiret cadratin ou le signe moins passe ; un numéro public de 9 chiffres (Centre antipoisons) et des coordonnées GPS séparées par une espace sont masqués à tort. L'application prévient l'organisateur, sous chaque champ concerné, de ce que la page affichera (`src/ApercuMasquage.jsx`).
+
+### 172 : appliquée le 13/11 (par Claude, via l'outil Supabase, sur le « Go 172 » de Ren) — borner le dépôt d'avis par jeton
+
+| Fichier | Fait |
+|---|---|
+| `20261111230000_172_borner_depot_avis.sql` | `deposer_avis` (159) refuse, avant toute écriture, un commentaire de plus de 4 000 caractères, plus de 50 prescriptions ou une prescription de plus de 1 000 caractères (`22001`), et des prescriptions qui ne sont pas une liste (`22023`). Les longueurs se comptent sur le texte tel qu'il sera enregistré ; une prescription vide ne compte pas. Le reste de la fonction est celui de la base (comparé ligne à ligne à la production : même code, seuls les commentaires diffèrent). Ouverte à `anon` (accès par jeton), fermée à `PUBLIC`. |
+
+Pourquoi : c'était la seule écriture ouverte sans compte qui acceptait du texte libre sans limite. Le formulaire (`src/AvisAutorite.jsx`) porte les mêmes bornes, avec un compteur à l'approche de la limite. Aucun avis n'a encore été déposé en production : ces valeurs sont une proposition, à ajuster si un usage réel en demande d'autres.
+
+Tests : `../../outils/replique/tests/172.sql` (14 assertions : refus au-delà des bornes sans rien écrire — ni avis, ni prescription, ni ligne de journal ; acceptation aux bornes exactes ; usage courant inchangé). Après application : même empreinte du corps qu'en réplique, droits inchangés (`anon`, `authenticated`), contrôle toujours vide.
+
+### 173 : appliquée le 13/11 (par Claude, via l'outil Supabase, sur le « Go 173 » de Ren ; sans effet en production, vérifié) — aligner le dépôt sur la production : dix fonctions fermées hors migration
+
+| Fichier | Fait |
+|---|---|
+| `20261112090000_173_aligner_depot_production.sql` | Écrit dans le dépôt ce qui est déjà vrai en production : `missions_similaires`, `normaliser_demande`, `score_similarite` (116) retirées à `PUBLIC` et `anon` ; `_point_element` (109) avec son `search_path` ; six fonctions de déclencheur (109, 110, 114, 115) hors de l'API. |
+
+Pourquoi : en comparant fonction par fonction les droits de la production et ceux d'une base reconstruite depuis le dépôt (207 fonctions), dix différaient. Elles ont été refermées directement en production, sans migration. La production est saine ; c'est le dépôt qui ne la décrivait pas : reconstruit depuis les migrations, un projet aurait laissé `normaliser_demande` (`security definer`) exécutable sans connexion, et le contrôle de la 171 ne pouvait pas être vide sur la réplique. En production chaque ordre est déjà satisfait : la migration n'y change rien, elle s'y inscrit seulement.
+
+Après application : l'empreinte des droits et du `search_path` de toutes les fonctions de `public` est la même avant et après (relevée dans la même transaction), comme attendu.
+
+Preuve sur la réplique (`JUSQUA=<numéro> outils/replique/rejouer.sh`) : arrêtée à 170, le contrôle échoue sur 40 fonctions (les 30 de la production et ces dix) ; à 171 et 172, sur les quatre que seule cette migration referme ; complète, il est vide.
+
+## Ne jamais rejouer 088 → 173 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

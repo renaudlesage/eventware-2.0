@@ -83,7 +83,7 @@ fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><me
 fs.writeFileSync(path.join(sortie, 'page-tel.html'), '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"><link rel="stylesheet" href="../../src/mobile.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
 
 const demandes = process.argv.slice(2)
-const ecrans = demandes.length ? demandes : ['coquille', 'coquille-preparation', 'coquille-montage', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'avis', 'participant', 'poste-public', 'demande', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0', 'recherche']
+const ecrans = demandes.length ? demandes : ['coquille', 'coquille-preparation', 'coquille-montage', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'avis', 'participant', 'poste-public', 'demande', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0', 'recherche', 'fiche-poste']
 const navigateur = await pw.chromium.launch()
 let echecs = 0
 for (const ecran of ecrans) {
@@ -838,6 +838,17 @@ for (const ecran of ecrans) {
     await page.waitForTimeout(100)
     if (!(await page.locator('.prescription-ligne input').count())) erreurs.push('avis : + Prescription n’ajoute pas de ligne')
     if (!(await page.getByRole('button', { name: "Rendre l'avis" }).count())) erreurs.push('avis : bouton « Rendre l’avis » absent')
+    // (172) Les bornes du dépôt d'avis : 4 000 caractères de commentaire, 1 000 par prescription, compteur à l'approche.
+    const commentaire = page.locator('.avis-dossier textarea').first()
+    if ((await commentaire.getAttribute('maxlength')) !== '4000') erreurs.push('avis : le commentaire n’est pas borné à 4 000 caractères')
+    if ((await page.locator('.prescription-ligne input').first().getAttribute('maxlength')) !== '1000') erreurs.push('avis : la prescription n’est pas bornée à 1 000 caractères')
+    if (await page.locator('.compteur-saisie').count()) erreurs.push('avis : le compteur paraît avant l’approche de la limite')
+    await commentaire.fill('x'.repeat(3700)); await page.waitForTimeout(150)
+    const compteur = await page.locator('.compteur-saisie').first().textContent().catch(() => '')
+    if (!/3[\s\u202f\u00a0.]?700 \/ 4[\s\u202f\u00a0.]?000 caractères/.test(compteur)) erreurs.push(`avis : compteur du commentaire « ${compteur} »`)
+    await commentaire.fill('x'.repeat(4200)); await page.waitForTimeout(150)
+    if ((await commentaire.inputValue()).length !== 4000) erreurs.push(`avis : le commentaire dépasse la limite (${(await commentaire.inputValue()).length})`)
+    if (!/limite atteinte/.test(await page.locator('.compteur-saisie').first().textContent().catch(() => ''))) erreurs.push('avis : la limite atteinte n’est pas dite')
   }
   if (ecran === 'autorite') {
     if (!(await page.locator('.calques-carte').count())) erreurs.push('filtre des calques absent')
@@ -967,6 +978,40 @@ for (const ecran of ecrans) {
     await page.keyboard.press('Escape'); await page.waitForTimeout(300)
     if (await page.locator('.recherche[role="dialog"]').count()) erreurs.push('recherche : Échap ne ferme pas le dialogue')
   }
+  // (171) L'aperçu du masquage : il paraît sous un champ dont le texte sera modifié sur la page du QR, appelle
+  // masquer_numeros (un texte) ou masquer_numeros_json (une liste), et se tait pour un texte sans chiffre ni arobase.
+  if (ecran === 'fiche-poste') {
+    await page.getByRole('button', { name: /Nouvelle fiche/ }).first().click(); await page.waitForTimeout(300)
+    const mission = page.locator('#f-mission')
+    if (!(await mission.count())) erreurs.push('fiche de poste : le formulaire ne s’ouvre pas')
+    else {
+      await page.evaluate(() => { window.__appels = [] })
+      await mission.fill('Servir au bar et tenir la caisse'); await page.waitForTimeout(900)
+      if (await page.locator('.apercu-masquage').count()) erreurs.push('aperçu : il paraît pour un texte sans numéro')
+      if (await page.evaluate(() => (window.__appels ?? []).some((a) => /^masquer_numeros/.test(a.fn)))) erreurs.push('aperçu : un texte sans chiffre ni arobase ne doit rien demander au serveur')
+      await mission.fill('Si rupture, appeler Marc au 0470 12 34 56'); await page.waitForTimeout(900)
+      const apercu = page.locator('.apercu-masquage')
+      if ((await apercu.count()) !== 1) erreurs.push(`aperçu : ${await apercu.count()} avertissement(s) après un numéro dans la mission (attendu 1)`)
+      else {
+        const t = await apercu.textContent()
+        if (!/Sur la page du QR, ce texte s'affichera ainsi/.test(t) || !/appeler Marc au \[numéro : voir le QG\]/.test(t) || !/Seul le numéro du QG y figure/.test(t)) erreurs.push(`aperçu : texte inattendu « ${t.slice(0, 120)} »`)
+        if (/0470/.test(t)) erreurs.push('aperçu : le numéro saisi figure dans l’aperçu')
+      }
+      const appel = await page.evaluate(() => (window.__appels ?? []).filter((a) => a.fn === 'masquer_numeros'))
+      if (appel.length !== 1 || appel[0].args?.p_texte !== 'Si rupture, appeler Marc au 0470 12 34 56') erreurs.push(`aperçu : ${appel.length} appel(s) à masquer_numeros (attendu 1, après le délai, avec le texte saisi)`)
+      // Une liste : un seul appel pour les lignes concernées, seules les lignes modifiées sont montrées.
+      await page.getByRole('button', { name: /^\+ Tâche$/ }).click()
+      const taches = page.locator('input[placeholder^="Tâche"]')
+      await taches.nth(0).fill('Écrire à luc@example.be'); await taches.nth(1).fill('Prévenir Luc 0477 00 00 01'); await page.waitForTimeout(900)
+      const liste = page.locator('.apercu-masquage').nth(1)
+      const tl = (await liste.count()) ? await liste.textContent() : ''
+      if (!/\[adresse : voir le QG\]/.test(tl) || !/Prévenir Luc \[numéro : voir le QG\]/.test(tl)) erreurs.push(`aperçu : la liste des tâches ne montre pas ses deux lignes masquées (« ${tl.slice(0, 120)} »)`)
+      if (!(await page.evaluate(() => (window.__appels ?? []).some((a) => a.fn === 'masquer_numeros_json' && Array.isArray(a.args?.p) && a.args.p.length === 2)))) erreurs.push('aperçu : la liste devrait partir en un seul appel à masquer_numeros_json')
+      // Le numéro retiré, l'avertissement disparaît.
+      await mission.fill('Servir au bar'); await page.waitForTimeout(300)
+      if ((await page.locator('.apercu-masquage').count()) !== 1) erreurs.push('aperçu : l’avertissement de la mission reste après le retrait du numéro')
+    }
+  }
   if (ecran === 'demande') {
     const ouvrir = page.getByRole('button', { name: /Demander quelque chose au QG/ }).first()
     if (!(await ouvrir.count())) erreurs.push('demande : pas de bouton dans le pavé « Mes demandes »')
@@ -997,6 +1042,11 @@ for (const ecran of ecrans) {
     }
     if (!/\d{2}:\d{2} → \d{2}:\d{2}/.test(t)) erreurs.push('page du poste : les heures du créneau manquent')
     if (/0470 12 34 56|0499/.test(t)) erreurs.push('page du poste : un numéro personnel est affiché')
+    // (171) Les deux libellés du masquage se lisent dans les textes et dans les listes, sans rien couper.
+    if (!/Prévenir Luc \[numéro : voir le QG\]/.test(t) || !/Écrire à \[adresse : voir le QG\]/.test(t)) erreurs.push('page du poste : les libellés de masquage manquent dans la liste des tâches')
+    const coupes = await page.evaluate(() => [...document.querySelectorAll('.page-poste *')].filter((e) => e.children.length === 0 && /voir le QG/.test(e.textContent) && e.scrollWidth > e.clientWidth + 1).length)
+    if (coupes) erreurs.push(`page du poste : ${coupes} texte(s) masqué(s) coupé(s)`)
+    if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)) erreurs.push('page du poste : défilement horizontal')
     if (!(await page.locator('.poste-contact.qg[href="tel:0470998877"]').count())) erreurs.push('page du poste : le lien tel: du QG manque')
     await page.locator('.poste-reflexe .lien').first().click()
     await page.waitForTimeout(200)
@@ -1107,6 +1157,17 @@ for (const ecran of ecrans) {
       await page.waitForTimeout(200)
       const appels = await page.evaluate(() => (window.__appels ?? []).map((a) => a.fn))
       if (!appels.includes('generer_postes_qr')) erreurs.push('qr du poste : « Générer » n’appelle pas generer_postes_qr')
+      // (171) La consigne propre au poste : son aperçu, puis l'écriture quand on quitte le champ.
+      const consigne = qrp.locator('.qr-poste-consigne input').first()
+      if (!(await consigne.count())) erreurs.push('qr du poste : pas de champ « consigne »')
+      else {
+        await page.evaluate(() => { window.__ecritures = [] })
+        await consigne.fill('Clé chez Luc : 0477 00 00 00'); await page.waitForTimeout(900)
+        const ap = await qrp.locator('.qr-poste-consigne .apercu-masquage').first().textContent().catch(() => '')
+        if (!/Clé chez Luc : \[numéro : voir le QG\]/.test(ap)) erreurs.push(`qr du poste : pas d’aperçu du masquage sous la consigne (« ${ap.slice(0, 80)} »)`)
+        await consigne.blur(); await page.waitForTimeout(300)
+        if (!(await page.evaluate(() => (window.__ecritures ?? []).some((e) => e.table === 'postes_qr' && e.champs?.consigne === 'Clé chez Luc : 0477 00 00 00')))) erreurs.push('qr du poste : la consigne n’est pas enregistrée en quittant le champ')
+      }
       await qrp.getByRole('button', { name: /^Tout sélectionner$/ }).click()
       await page.waitForTimeout(200)
       if ((await qrp.locator('.planche-poste').count()) !== 2) erreurs.push(`qr du poste : ${await qrp.locator('.planche-poste').count()} planche(s) (attendu 2)`)

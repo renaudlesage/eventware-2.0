@@ -5,6 +5,7 @@ import { useDrapeau } from './useDrapeau'
 import { texteErreur } from './erreurs'
 import { modifierOuRefuser } from './ecriture'
 import Message from './Message'
+import ApercuMasquage from './ApercuMasquage'
 
 /**
  * Le lien participant, et ses QR codes.
@@ -282,6 +283,12 @@ function QrPostes({ evenement, taille }) {
               ))}
             </tbody>
           </table>
+          {/* (171) La consigne propre à un poste : la page du QR la servait déjà, mais rien ne permettait de l'écrire. */}
+          <div className="qr-postes-consignes">
+            <div className="pave-titre">Consigne propre à chaque poste</div>
+            <p className="aide">Une phrase qui ne vaut que pour ce poste, affichée en tête de sa page. Facultatif.</p>
+            {postes.map((p) => <ConsignePoste key={p.id} poste={p} onEnregistrer={(consigne) => modifier(p, { consigne })} />)}
+          </div>
           <div className="ligne-boutons" style={{ margin: '8px 0 14px' }}>
             <button className="discret" onClick={() => setChoisis(postes.filter((p) => p.actif).map((p) => p.id))}>Tout sélectionner</button>
             <button className="discret" onClick={() => setChoisis([])}>Aucun</button>
@@ -309,3 +316,27 @@ function QrPostes({ evenement, taille }) {
     </div>
   )
 }
+
+/**
+ * La consigne d'un poste : enregistrée quand on quitte le champ, avec ce que la page du QR en montrera.
+ */
+function ConsignePoste({ poste, onEnregistrer }) {
+  const [texte, setTexte] = useState(poste.consigne ?? '')
+  useEffect(() => { setTexte(poste.consigne ?? '') }, [poste.consigne])
+  const id = `consigne-${poste.id}`
+  return (
+    <div className="qr-poste-consigne">
+      <label htmlFor={id}>{poste.poste}</label>
+      <input
+        id={id}
+        value={texte}
+        maxLength={500}
+        onChange={(e) => setTexte(e.target.value)}
+        onBlur={() => { const v = texte.trim() || null; if (v !== (poste.consigne ?? null)) onEnregistrer(v) }}
+        placeholder="Ex : les fûts sont derrière le bar, la clé est au QG"
+      />
+      <ApercuMasquage texte={texte} />
+    </div>
+  )
+}
+
