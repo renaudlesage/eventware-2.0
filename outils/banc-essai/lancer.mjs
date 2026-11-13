@@ -66,6 +66,93 @@ async function verifierElementsUniques(page, erreurs) {
   if ((await rubrique.inputValue().catch(() => '')) !== 'conception') erreurs.push('éléments uniques : cliquer un élément n’ouvre pas Conception')
 }
 
+// (13/11) Le pont radio. La voix du navigateur est remplacée par une fausse, qui note ce qu'on lui fait dire.
+const FAUSSE_VOIX = () => {
+  window.__dit = []
+  class U { constructor(t) { this.text = t } }
+  window.SpeechSynthesisUtterance = U
+  const voix = [{ name: 'Amélie', lang: 'fr-CA' }, { name: 'Thomas', lang: 'fr-FR' }, { name: 'Samantha', lang: 'en-US' }]
+  Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: {
+    getVoices: () => voix, addEventListener() {}, removeEventListener() {}, cancel() {},
+    speak(u) { if (u.volume !== 0) window.__dit.push({ texte: u.text, voix: u.voice?.name ?? null, debit: u.rate }); setTimeout(() => u.onend?.(), 5) }
+  } })
+}
+async function verifierPontRadio(page, erreurs) {
+  const dit = () => page.evaluate(() => window.__dit.map((d) => d.texte).join(' '))
+  const journal = (categorie) => page.evaluate((c) => (window.__appels ?? []).filter((a) => a.fn === 'journaliser' && a.args?.p_categorie === c).map((a) => a.args), categorie)
+  const rubrique = page.locator('.rubrique-securite select')
+  if ((await rubrique.inputValue().catch(() => '')) !== 'pont') { erreurs.push('pont radio : la rubrique n’est pas ouverte'); return }
+  // À l'arrêt : le signalement du participant est proposé, son doublon et le signalement clos ne le sont pas ; rien ne peut partir.
+  const lignes = page.locator('.pont-ligne')
+  if ((await lignes.count()) !== 1 || !/SOS-001/.test(await lignes.first().innerText())) erreurs.push(`pont radio : ${await lignes.count()} ligne(s) à annoncer (attendu la seule SOS-001)`)
+  if (!/Participant/i.test(await lignes.first().locator('.prc-jeton').innerText())) erreurs.push('pont radio : SOS-001 n’est pas marqué « Participant »')
+  const message = lignes.first().locator('textarea')
+  if ((await message.inputValue()) !== 'Signalement. Malaise. Étape 1. Référence S, O, S, zéro, zéro, un.') erreurs.push(`pont radio : message proposé « ${await message.inputValue()} »`)
+  if (!/ne sera pas lue sur le canal\) : Personne au sol/.test(await lignes.first().innerText())) erreurs.push('pont radio : ce que le participant a écrit n’est pas montré au QG')
+  if (/0477/.test(await page.locator('.pont-radio').innerText())) erreurs.push('pont radio : un numéro de contact est affiché')
+  if (!(await lignes.first().getByRole('button', { name: 'Annoncer sur la radio' }).isDisabled())) erreurs.push('pont radio : on peut annoncer sans avoir démarré le pont')
+  // La voix française de France passe devant celle du Canada ; l'anglaise n'est pas proposée.
+  const voix = await page.locator('.pont-reglages select').first().locator('option').allTextContents()
+  if (voix.join('|') !== 'Thomas (fr-FR)|Amélie (fr-CA)') erreurs.push(`pont radio : voix proposées « ${voix.join(' | ')} »`)
+  // Démarrage : inscrit dans la main courante, rien ne part de ce qui était déjà là.
+  await page.getByRole('button', { name: 'Démarrer le pont' }).click(); await page.waitForTimeout(900)
+  if (!/Pont en veille/.test(await page.locator('.pont-etat').innerText())) erreurs.push('pont radio : le pont ne passe pas en veille')
+  if ((await journal('pont_radio')).length !== 1) erreurs.push('pont radio : le démarrage n’est pas inscrit dans la main courante')
+  if ((await dit()) !== '') erreurs.push(`pont radio : le démarrage a fait parler le pont (« ${await dit()} »)`)
+  // Un signalement de bénévole arrive, avec sa seule position : il part seul, dit deux fois, sans rien de personnel.
+  await page.evaluate(() => {
+    const t = new Date().toISOString()
+    window.__donnees.signalements.unshift({ id: 's9', reference: 'INT-7K2P', type: 'blessure', statut: 'recu', description: 'Jean Dupont s’est ouvert la main, 0478 12 34 56', contact: null, created_by: 'u-benevole', emis_le: t, recu_le: t, latitude: 50.3851, longitude: 5.6152, lieu_id: null, doublon_de: null })
+  })
+  await page.waitForTimeout(7500)
+  const auto = await dit()
+  if (auto !== 'Message du QG. Signalement. Blessure. Près de Étape 1. Référence I, N, T, sept, K, deux, P. Je répète. Signalement. Blessure. Près de Étape 1. Référence I, N, T, sept, K, deux, P. Terminé.') erreurs.push(`pont radio : annonce automatique « ${auto} »`)
+  if (/Dupont|0478/.test(auto)) erreurs.push('pont radio : l’annonce automatique lit ce que la personne a écrit')
+  const annonces = await journal('annonce_radio')
+  if (annonces.length !== 1 || annonces[0].p_objet_id !== 's9' || annonces[0].p_objet_type !== 'signalements' || annonces[0].p_objet_ref !== 'INT-7K2P' || !/automatique/.test(annonces[0].p_texte) || annonces[0].p_importance !== 'notable') erreurs.push(`pont radio : inscription de l’annonce automatique ${JSON.stringify(annonces)}`)
+  if (await page.locator('.pont-ligne', { hasText: 'INT-7K2P' }).count()) erreurs.push('pont radio : le signalement annoncé reste dans « À annoncer »')
+  // Il ne repart pas au rafraîchissement suivant.
+  await page.waitForTimeout(5500)
+  if ((await journal('annonce_radio')).length !== 1) erreurs.push('pont radio : le signalement de bénévole est annoncé une seconde fois')
+  // Un Mayday part seul lui aussi : ni le nom ni le motif, l'indicatif oui.
+  await page.evaluate(() => { window.__dit = []; window.__donnees.maydays.unshift({ id: 'my1', reference: 'MAY-001', statut: 'emis', emetteur_nom: 'Luc Martin', motif: 'agression', indicatif: 'Sécu 2', latitude: null, longitude: null, emis_le: new Date().toISOString() }) })
+  await page.waitForTimeout(7500)
+  const mayday = await dit()
+  if (!/^Message du QG\. Mayday\. Bénévole en difficulté\. Indicatif Sécu 2\. Lieu non précisé\. Référence M, A, Y, zéro, zéro, un\. Je répète\./.test(mayday) || /Martin|agression/.test(mayday)) erreurs.push(`pont radio : annonce du Mayday « ${mayday} »`)
+  // Le signalement du participant ne part que sur un appui, avec le texte retouché par le QG.
+  if (/SOS-001|S, O, S/.test(auto + mayday)) erreurs.push('pont radio : le signalement d’un participant est parti tout seul')
+  await page.evaluate(() => { window.__dit = [] })
+  await message.fill('Signalement. Malaise. Étape 1, côté ravitaillement. Référence S, O, S, zéro, zéro, un.')
+  await lignes.first().getByRole('button', { name: 'Annoncer sur la radio' }).click(); await page.waitForTimeout(1500)
+  if (!/^Message du QG\. Signalement\. Malaise\. Étape 1, côté ravitaillement\./.test(await dit())) erreurs.push(`pont radio : annonce à la main « ${await dit()} »`)
+  const manuelle = (await journal('annonce_radio')).find((a) => a.p_objet_id === 's1')
+  if (!manuelle || /automatique/.test(manuelle.p_texte)) erreurs.push('pont radio : l’annonce à la main n’est pas inscrite comme telle')
+  if (await page.locator('.pont-ligne').count()) erreurs.push('pont radio : il reste des lignes à annoncer')
+  // La voix et le débit choisis sont ceux qui parlent.
+  const reglage = await page.evaluate(() => window.__dit[0])
+  if (reglage?.voix !== 'Thomas' || reglage?.debit !== 0.9) erreurs.push(`pont radio : voix ${reglage?.voix}, débit ${reglage?.debit}`)
+  // Annonce libre, puis la liste de ce qui a été dit.
+  await page.evaluate(() => { window.__dit = [] })
+  await page.locator('.pont-libre textarea').fill('Orage dans vingt minutes')
+  await page.locator('.pont-libre').getByRole('button', { name: 'Annoncer sur la radio' }).click(); await page.waitForTimeout(1500)
+  if ((await dit()) !== 'Message du QG. Orage dans vingt minutes. Je répète. Orage dans vingt minutes. Terminé.') erreurs.push(`pont radio : annonce libre « ${await dit()} »`)
+  if ((await page.locator('.pont-faites li').count()) !== 4) erreurs.push(`pont radio : ${await page.locator('.pont-faites li').count()} annonce(s) listée(s) (attendu 4)`)
+  // Sept signalements de bénévole d'un coup : le plafond (cinq en dix minutes, un est déjà parti) en laisse partir quatre, les autres attendent un appui.
+  await page.evaluate(() => { window.__dit = []; const t = new Date().toISOString(); for (let i = 1; i <= 7; i++) window.__donnees.signalements.unshift({ id: 'f' + i, reference: 'INT-FL0' + i, type: 'autre', statut: 'recu', created_by: 'u-benevole', emis_le: t, recu_le: t, lieu_id: 'l1', doublon_de: null }) })
+  await page.waitForTimeout(8000)
+  const rafale = (await journal('annonce_radio')).filter((a) => /^f\d$/.test(a.p_objet_id ?? '')).length
+  if (rafale !== 4) erreurs.push(`pont radio : ${rafale} annonce(s) automatique(s) dans la rafale (attendu 4, plafond de 5 en dix minutes)`)
+  if ((await page.locator('.pont-ligne', { hasText: 'trop d’annonces automatiques' }).count()) !== 3) erreurs.push(`pont radio : ${await page.locator('.pont-ligne', { hasText: 'trop d’annonces automatiques' }).count()} signalement(s) retenu(s) (attendu 3)`)
+  await page.evaluate(() => { window.__donnees.signalements = window.__donnees.signalements.filter((x) => !/^f\d$/.test(x.id)) })
+  // Arrêt : inscrit, et plus rien ne part.
+  await page.getByRole('button', { name: 'Arrêter le pont' }).click(); await page.waitForTimeout(600)
+  if (!/Pont arrêté/.test(await page.locator('.pont-etat').innerText())) erreurs.push('pont radio : le pont ne s’arrête pas')
+  if (!(await journal('pont_radio')).some((a) => /arrêté/.test(a.p_texte))) erreurs.push('pont radio : l’arrêt n’est pas inscrit dans la main courante')
+  await page.evaluate(() => { window.__dit = []; const t = new Date().toISOString(); window.__donnees.signalements.unshift({ id: 's10', reference: 'INT-ZZ99', type: 'danger', statut: 'recu', created_by: 'u-benevole', emis_le: t, recu_le: t, lieu_id: 'l1', doublon_de: null }) })
+  await page.waitForTimeout(16000)
+  if ((await dit()) !== '') erreurs.push('pont radio : une annonce part alors que le pont est arrêté')
+  if (!(await page.locator('.pont-ligne', { hasText: 'INT-ZZ99' }).count())) erreurs.push('pont radio : le signalement arrivé pont arrêté n’est pas proposé')
+}
 async function verifierTalkie(page, erreurs) {
   if (await page.locator('.flottant.parler, .flottant.vocaux').count()) erreurs.push('talkie : un bouton flottant subsiste (doit être dans Mon poste)')
   const pave = page.locator('.pave-talkie')
@@ -109,7 +196,7 @@ fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><me
 fs.writeFileSync(path.join(sortie, 'page-tel.html'), '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"><link rel="stylesheet" href="../../src/mobile.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
 
 const demandes = process.argv.slice(2)
-const ecrans = demandes.length ? demandes : ['coquille', 'coquille-preparation', 'coquille-montage', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'avis', 'participant', 'poste-public', 'demande', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0', 'recherche', 'fiche-poste', 'elements-uniques']
+const ecrans = demandes.length ? demandes : ['coquille', 'coquille-preparation', 'coquille-montage', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'avis', 'participant', 'poste-public', 'demande', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0', 'recherche', 'fiche-poste', 'elements-uniques', 'pont-radio']
 const navigateur = await pw.chromium.launch()
 let echecs = 0
 for (const ecran of ecrans) {
@@ -126,6 +213,7 @@ for (const ecran of ecrans) {
     if (!/net::|ERR_/.test(m.text())) erreurs.push('console : ' + m.text().split('\n')[0].slice(0, 200))
   })
   // domcontentloaded : l'événement load attend les tuiles de carte, qui n'arrivent jamais sans réseau.
+  if (ecran === 'pont-radio') await page.addInitScript(FAUSSE_VOIX)
   await page.goto('file://' + path.join(sortie, 'page.html') + '?ecran=' + ecran, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   // (138) Matériel : tri et filtre par colonne, prêts, formulaire de sortie, étiquettes, scanner ; puis en lecture.
@@ -356,6 +444,7 @@ for (const ecran of ecrans) {
   }
   if (ecran === 'accueil') await verifierTalkie(page, erreurs)
   if (ecran === 'elements-uniques') await verifierElementsUniques(page, erreurs)
+  if (ecran === 'pont-radio') await verifierPontRadio(page, erreurs)
   if (ecran === 'situation') {
     // (1/11) Mode QG : plein écran, la file « à décider » commence par le SOS reçu (avant la demande P1),
     // la main courante et l'à-venir sont remplis, Échap rend la Situation.
@@ -917,6 +1006,7 @@ for (const ecran of ecrans) {
 for (const ecran of ecrans) {
   const page = await navigateur.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
   page.on('pageerror', () => {})
+  if (ecran === 'pont-radio') await page.addInitScript(FAUSSE_VOIX)
   await page.goto('file://' + path.join(sortie, 'page-tel.html') + '?ecran=' + ecran, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
   const m = await page.evaluate(() => ({
@@ -1040,6 +1130,7 @@ for (const ecran of ecrans) {
     }
   }
   if (ecran === 'elements-uniques') await verifierElementsUniques(page, erreurs)
+  if (ecran === 'pont-radio') await verifierPontRadio(page, erreurs)
   if (ecran === 'demande') {
     const ouvrir = page.getByRole('button', { name: /Demander quelque chose au QG/ }).first()
     if (!(await ouvrir.count())) erreurs.push('demande : pas de bouton dans le pavé « Mes demandes »')
@@ -1342,6 +1433,7 @@ for (const ecran of ecrans) {
 for (const ecran of ecrans) {
   const page = await navigateur.newPage({ viewport: { width: 1024, height: 768 }, isMobile: true, hasTouch: true })
   page.on('pageerror', () => {})
+  if (ecran === 'pont-radio') await page.addInitScript(FAUSSE_VOIX)
   await page.goto('file://' + path.join(sortie, 'page-tel.html') + '?ecran=' + ecran, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1200)
   const petits = await page.evaluate(() => [...document.querySelectorAll('#racine input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), #racine select, #racine textarea')]

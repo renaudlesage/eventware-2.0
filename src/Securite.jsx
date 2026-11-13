@@ -4,6 +4,7 @@ import Sitrep from './Sitrep'
 import Maydays from './Maydays'
 import Meteo from './Meteo'
 import PcOps from './PcOps'
+import PontRadio from './PontRadio'
 import { Effectifs } from './PlanImplantation'
 import { Journal } from './Journal'
 import { Missions } from './Missions'
@@ -16,7 +17,8 @@ import Message from './Message'
  *   OPÉRATIONNEL — ce qui se passe maintenant : signalements, Mayday,
  *   main courante, demandes, recherches, effectifs présents et moyens
  *   de secours, plus les suggestions d'alerte de la veille météo,
- *   poussables d'ici sans repasser par la Situation.
+ *   poussables d'ici sans repasser par la Situation, et le pont radio
+ *   (13/11) qui lit les signalements sur le canal d'urgence.
  *   DOCUMENTS — ce qu'on consulte ou qu'on produit : fiches réflexe,
  *   rapport de situation.
  *
@@ -31,7 +33,8 @@ import Message from './Message'
  * combien de personnes sont attendues et quels moyens de secours sont
  * dénombrés, c'est une question qu'on se pose au PC, pas devant un plan.
  */
-function groupesPour(modules) {
+// (13/11) Le pont radio parle sur le canal d'urgence : il n'est proposé qu'à qui traite les signalements.
+function groupesPour(modules, pont) {
   return {
     operationnel: {
       libelle: 'Opérationnel',
@@ -41,7 +44,8 @@ function groupesPour(modules) {
         ['journal', 'Main courante'],
         ['missions', 'Demandes'],
         ['recherches', 'Recherches'],
-        ['effectifs', 'Effectifs']
+        ['effectifs', 'Effectifs'],
+        ...(pont ? [['pont', 'Pont radio']] : [])
       ]
     },
     documents: {
@@ -55,7 +59,7 @@ function groupesPour(modules) {
 }
 
 export default function Securite({ evenement, membre, session, peut, toutPouvoir, ongletCible, objetCible }) {
-  const GROUPES = groupesPour(evenement.modules)
+  const GROUPES = groupesPour(evenement.modules, toutPouvoir || peut?.('sos', 'modifier'))
   const [onglet, setOnglet] = useState(
     evenement.modules?.sos_participants ? 'signalements' : 'journal'
   )
@@ -147,6 +151,7 @@ export default function Securite({ evenement, membre, session, peut, toutPouvoir
           setMessage={setMessage}
         />
       )}
+      {onglet === 'pont' && <PontRadio evenement={evenement} />}
       {onglet === 'fiches' && (
         <Fiches evenement={evenement} peut={peut} toutPouvoir={toutPouvoir} />
       )}

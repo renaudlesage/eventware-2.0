@@ -1,0 +1,446 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { supabase } from './supabaseClient'
+import { texteErreur } from './erreurs'
+import Message from './Message'
+import {
+  LIBELLE_ORIGINE, aAnnoncer, annonceComplete, attendreCanalLibre, contexteAudio,
+  deverrouillerVoix, ecouterCanal, parler, seTaire, voixDisponible, voixFrancaises
+} from './voixRadio'
+
+/**
+ * PONT RADIO (13/11) — le poste du QG qui parle sur le canal d'urgence.
+ *
+ * Tous les bénévoles n'ont pas l'application ouverte ; tous ceux qui ont
+ * une radio l'entendent. Ce poste, câblé à une radio en VOX, dit à voix
+ * de synthèse ce qui vient d'arriver dans Eventware.
+ *
+ * Qui parle seul, qui attend un appui :
+ *   — le signalement d'un BÉNÉVOLE connecté et un MAYDAY partent seuls :
+ *     on sait qui parle, et chaque seconde compte ;
+ *   — le signalement d'un PARTICIPANT (page publique, anonyme), un SOS
+ *     saisi au QG d'après un appel, un signalement resté longtemps en
+ *     file dans un téléphone : un appui du QG. Personne d'extérieur ne
+ *     doit pouvoir faire parler le canal d'urgence tout seul.
+ *
+ * « Seul » veut dire : arrivé PENDANT que le pont tourne. Ce qui était
+ * déjà là au démarrage reste proposé, jamais lancé d'office — rallumer
+ * le poste ne rejoue pas la matinée sur le canal.
+ *
+ * Chaque annonce s'inscrit dans la main courante ; c'est aussi elle qui
+ * dit ce qui a déjà été annoncé. Le pont ne tourne que tant que cet
+ * écran reste ouvert, au premier plan : c'est un poste dédié.
+ */
+const DEBITS = [['0.8', 'Lent'], ['0.9', 'Posé'], ['1', 'Normal']]
+const SEUIL_CANAL = 0.04
+const MAX_LIBRE = 240
+// Au-delà, les signalements suivants attendent un appui : un téléphone qui s'emballe (ou quelqu'un
+// qui s'amuse) ne doit pas occuper le canal d'urgence à lui seul. Un Mayday, lui, part toujours.
+const MAX_AUTO = 5
+const FENETRE_AUTO_MS = 10 * 60 * 1000
+
+const lire = (cle, defaut) => {
+  try { return localStorage.getItem(cle) ?? defaut } catch { return defaut }
+}
+const ecrire = (cle, valeur) => {
+  try { localStorage.setItem(cle, valeur) } catch { /* mémoire indisponible : le réglage vaudra pour cette séance */ }
+}
+const heure = (iso) => (iso ? new Date(iso).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }) : '')
+
+export default function PontRadio({ evenement }) {
+  const cleFaits = `pont-radio-faits:${evenement.id}`
+  const [donnees, setDonnees] = useState({ signalements: [], maydays: [], lieux: [], journal: [] })
+  const [pret, setPret] = useState(false)
+  const [message, setMessage] = useState(null)
+
+  const [actif, setActif] = useState(false)
+  const [connus, setConnus] = useState(null) // ce qui était déjà là au démarrage
+  const [faits, setFaits] = useState(() => {
+    try { return new Set(JSON.parse(lire(cleFaits, '[]'))) } catch { return new Set() }
+  })
+  const [echecs, setEchecs] = useState(() => new Set())
+  const [enCours, setEnCours] = useState(null) // { cle, texte, etape: 'attente' | 'emission' }
+  const [textes, setTextes] = useState({}) // le texte retouché par le QG, par clé
+  const [libre, setLibre] = useState('')
+
+  const [voix, setVoix] = useState([])
+  const [nomVoix, setNomVoix] = useState(() => lire('pont-radio-voix', ''))
+  const [debit, setDebit] = useState(() => lire('pont-radio-debit', '0.9'))
+  const [ecoute, setEcoute] = useState(false)
+  const [niveau, setNiveau] = useState(0)
+
+  const file = useRef([])
+  const occupe = useRef(false)
+  const arret = useRef(false)
+  const lances = useRef(new Set())
+  const autos = useRef([]) // l'heure des dernières annonces automatiques de signalements
+  const canal = useRef(null)
+  const verrou = useRef(null)
+  const reglages = useRef({ voix: null, debit: 0.9 })
+  const actifRef = useRef(false)
+  actifRef.current = actif
+
+  const voixChoisie = voix.find((v) => v.name === nomVoix) ?? voix[0] ?? null
+  reglages.current = { voix: voixChoisie, debit: Number(debit) || 0.9 }
+
+  /* --- Les voix de l'appareil : elles arrivent parfois après l'ouverture de la page --- */
+  useEffect(() => {
+    if (!voixDisponible()) return undefined
+    const maj = () => setVoix(voixFrancaises())
+    maj()
+    window.speechSynthesis.addEventListener?.('voiceschanged', maj)
+    return () => window.speechSynthesis.removeEventListener?.('voiceschanged', maj)
+  }, [])
+
+  /* --- Lecture : signalements, Mayday, lieux, et ce que la main courante dit du pont --- */
+  async function charger() {
+    const [s, m, l, j] = await Promise.all([
+      supabase.from('signalements')
+        // Ni le contact ni l'auteur : le pont n'en a pas besoin, il ne les charge pas.
+        .select('id, reference, type, statut, description, lieu_id, latitude, longitude, emis_le, recu_le, created_by, doublon_de')
+        .eq('evenement_id', evenement.id).order('recu_le', { ascending: false }).limit(60),
+      supabase.from('maydays').select('id, reference, statut, indicatif, latitude, longitude, emis_le')
+        .eq('evenement_id', evenement.id).order('emis_le', { ascending: false }).limit(20),
+      supabase.from('lieux').select('id, nom, latitude, longitude').eq('evenement_id', evenement.id),
+      supabase.from('journal').select('id, horodatage, categorie, texte, objet_id, objet_ref, auteur_nom')
+        .eq('evenement_id', evenement.id).in('categorie', ['annonce_radio', 'pont_radio'])
+        .order('horodatage', { ascending: false }).limit(60)
+    ])
+    const erreur = s.error ?? m.error ?? l.error
+    if (erreur) {
+      // Sans la liste, le pont est sourd : on le dit, et on le redit tant que ça dure.
+      setMessage({ type: 'erreur', texte: `Le pont ne reçoit plus les signalements : ${texteErreur(erreur)}` })
+      return null
+    }
+    const d = {
+      signalements: s.data ?? [], maydays: m.data ?? [], lieux: l.data ?? [],
+      // La main courante peut être fermée à ce membre : le pont marche sans, avec la seule mémoire du poste.
+      journal: (j.data ?? []).filter((x) => x.categorie === 'annonce_radio' || x.categorie === 'pont_radio')
+    }
+    setDonnees(d)
+    setPret(true)
+    return d
+  }
+  useEffect(() => {
+    charger()
+    const t = setInterval(charger, actif ? 5000 : 15000)
+    return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evenement.id, actif])
+
+  const annonces = useMemo(() => {
+    const ids = new Set(faits)
+    for (const x of donnees.journal) if (x.categorie === 'annonce_radio' && x.objet_id) ids.add(x.objet_id)
+    return ids
+  }, [faits, donnees.journal])
+
+  const [retenus, setRetenus] = useState(() => new Set()) // partis en « À annoncer » parce que le plafond était atteint
+  const liste = useMemo(
+    () => aAnnoncer({ ...donnees, annonces, connus: actif ? connus : null })
+      .map((a) => (echecs.has(a.cle) ? { ...a, mode: 'main', echec: true } : retenus.has(a.cle) ? { ...a, mode: 'main', retenu: true } : a)),
+    [donnees, annonces, connus, actif, echecs, retenus]
+  )
+
+  /* --- L'émission : une annonce à la fois, dans l'ordre --- */
+  function noterFait(id) {
+    setFaits((avant) => {
+      const apres = new Set(avant).add(id)
+      ecrire(cleFaits, JSON.stringify([...apres].slice(-200)))
+      return apres
+    })
+  }
+
+  async function emettre(a) {
+    setEnCours({ cle: a.cle, texte: a.texte, etape: canal.current ? 'attente' : 'emission' })
+    let force = false
+    if (canal.current) {
+      force = (await attendreCanalLibre(canal.current.niveau, { seuil: SEUIL_CANAL })) === 'force'
+      if (arret.current) return
+      setEnCours({ cle: a.cle, texte: a.texte, etape: 'emission' })
+    }
+    let dit = false
+    try {
+      dit = await parler(annonceComplete(a.texte), { ...reglages.current, arrete: () => arret.current })
+    } catch (e) {
+      setEchecs((avant) => new Set(avant).add(a.cle))
+      setMessage({ type: 'erreur', texte: `L’annonce n’est pas partie (${e.message}).${a.id ? ' Elle reste dans « À annoncer ».' : ''}` })
+      return
+    }
+    if (!dit) return
+    if (a.id) noterFait(a.id)
+    const { error } = await supabase.rpc('journaliser', {
+      p_evenement: evenement.id,
+      p_module: 'securite',
+      p_categorie: 'annonce_radio',
+      p_texte: `Annonce radio${a.mode === 'auto' ? ' (automatique)' : ''}${force ? ', canal occupé' : ''} : ${a.texte}`,
+      p_importance: 'notable',
+      p_objet_type: a.genre ?? null,
+      p_objet_id: a.id ?? null,
+      p_objet_ref: a.reference ?? null
+    })
+    if (error) setMessage({ type: 'erreur', texte: `Annonce faite, mais pas inscrite dans la main courante : ${texteErreur(error)}` })
+    else if (a.mode !== 'auto') setMessage({ texte: `Annoncé sur la radio${a.reference ? ` : ${a.reference}` : ''}.` })
+  }
+
+  async function vider() {
+    if (occupe.current) return
+    occupe.current = true
+    try {
+      while (file.current.length && !arret.current) await emettre(file.current.shift())
+    } finally {
+      occupe.current = false
+      setEnCours(null)
+      charger()
+    }
+  }
+  function mettreEnFile(a) {
+    // Une annonce automatique ne se lance qu'une fois ; un double appui ne dit pas le message deux fois.
+    if (a.mode === 'auto' ? lances.current.has(a.cle) : file.current.some((x) => x.cle === a.cle)) return
+    lances.current.add(a.cle)
+    file.current.push(a)
+    vider()
+  }
+
+  // Ce qui doit partir seul part dès qu'il apparaît — dans la limite du plafond pour les signalements.
+  useEffect(() => {
+    if (!actif) return
+    for (const a of liste) {
+      if (a.mode !== 'auto' || lances.current.has(a.cle)) continue
+      if (a.genre === 'signalements') {
+        const maintenant = Date.now()
+        autos.current = autos.current.filter((t) => maintenant - t < FENETRE_AUTO_MS)
+        if (autos.current.length >= MAX_AUTO) {
+          setRetenus((avant) => new Set(avant).add(a.cle))
+          setMessage({ type: 'erreur', texte: `Plus de ${MAX_AUTO} annonces automatiques en dix minutes : les signalements suivants attendent ton appui dans « À annoncer ».` })
+          continue
+        }
+        autos.current.push(maintenant)
+      }
+      mettreEnFile(a)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liste, actif])
+
+  /* --- Démarrer, arrêter --- */
+  async function garderEveille() {
+    try {
+      if ('wakeLock' in navigator) verrou.current = await navigator.wakeLock.request('screen')
+    } catch { /* refusé (batterie faible, onglet caché) : l'aide dit de garder l'écran allumé */ }
+  }
+  async function demarrer() {
+    if (!voixDisponible()) {
+      setMessage({ type: 'erreur', texte: 'Ce navigateur n’a pas de voix de synthèse : le pont ne peut pas parler. Essaie Chrome, Edge ou Safari.' })
+      return
+    }
+    contexteAudio() // sur ce geste, sinon le navigateur garde le poste muet
+    deverrouillerVoix()
+    const d = await charger()
+    if (!d) return
+    arret.current = false
+    lances.current = new Set()
+    autos.current = []
+    setEchecs(new Set())
+    setRetenus(new Set())
+    setConnus(new Set([...d.signalements, ...d.maydays].map((x) => x.id)))
+    setActif(true)
+    garderEveille()
+    supabase.rpc('journaliser', { p_evenement: evenement.id, p_module: 'securite', p_categorie: 'pont_radio', p_texte: 'Pont radio démarré', p_importance: 'routine' }).then(() => charger())
+  }
+  function couper() {
+    arret.current = true
+    file.current = []
+    seTaire()
+    verrou.current?.release?.()
+    verrou.current = null
+  }
+  function arreter() {
+    couper()
+    setActif(false)
+    setConnus(null)
+    supabase.rpc('journaliser', { p_evenement: evenement.id, p_module: 'securite', p_categorie: 'pont_radio', p_texte: 'Pont radio arrêté', p_importance: 'routine' }).then(() => charger())
+  }
+  // Quitter l'écran arrête le pont, et la main courante le dit : personne ne doit le croire en veille.
+  useEffect(() => () => {
+    if (actifRef.current) {
+      couper()
+      supabase.rpc('journaliser', { p_evenement: evenement.id, p_module: 'securite', p_categorie: 'pont_radio', p_texte: 'Pont radio arrêté (écran quitté)', p_importance: 'routine' }).then(() => {})
+    }
+    canal.current?.fermer()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  // Le verrou d'écran tombe quand l'onglet passe derrière : on le reprend au retour.
+  useEffect(() => {
+    if (!actif) return undefined
+    const retour = () => { if (document.visibilityState === 'visible') garderEveille() }
+    document.addEventListener('visibilitychange', retour)
+    return () => document.removeEventListener('visibilitychange', retour)
+  }, [actif])
+
+  /* --- L'écoute du canal (facultative) --- */
+  async function basculerEcoute(oui) {
+    if (!oui) {
+      canal.current?.fermer()
+      canal.current = null
+      setEcoute(false)
+      return
+    }
+    try {
+      canal.current = await ecouterCanal()
+      setEcoute(true)
+    } catch {
+      setMessage({ type: 'erreur', texte: 'L’entrée audio est refusée ou absente : le pont parlera sans attendre que le canal soit libre.' })
+    }
+  }
+  useEffect(() => {
+    if (!ecoute) return undefined
+    const t = setInterval(() => setNiveau(canal.current?.niveau() ?? 0), 250)
+    return () => clearInterval(t)
+  }, [ecoute])
+
+  async function essai() {
+    contexteAudio()
+    try {
+      await parler('Essai du pont radio. Un, deux, trois. Terminé.', reglages.current)
+    } catch (e) {
+      setMessage({ type: 'erreur', texte: `La voix ne répond pas : ${e.message}` })
+    }
+  }
+
+  function annoncerLibre(e) {
+    e.preventDefault()
+    const texte = libre.trim()
+    if (!texte) return
+    mettreEnFile({ cle: `l:${Date.now()}`, genre: null, id: null, reference: null, origine: 'libre', texte, mode: 'main' })
+    setLibre('')
+  }
+
+  const aLaMain = liste.filter((a) => a.mode === 'main')
+  const faites = donnees.journal.filter((x) => x.categorie === 'annonce_radio')
+  // Un autre poste a démarré un pont et ne l'a pas arrêté : deux ponts diraient tout deux fois.
+  const dernierEtat = donnees.journal.find((x) => x.categorie === 'pont_radio')
+  const autrePont = !actif && dernierEtat && /démarré/.test(dernierEtat.texte ?? '') && Date.now() - new Date(dernierEtat.horodatage).getTime() < 12 * 3600 * 1000
+  const occupeCanal = ecoute && niveau >= SEUIL_CANAL
+
+  return (
+    <div className="pont-radio">
+      <p className="aide">
+        Ce poste lit les signalements sur le canal d’urgence, à voix de synthèse. Il doit être relié à une radio
+        (sortie casque du poste vers l’entrée micro de la radio, radio en VOX) et rester sur cet écran, allumé, au premier plan.
+        Le message dit la nature, le lieu et la référence — jamais ce que la personne a écrit, ni un nom, ni un numéro.
+      </p>
+
+      <Message message={message} onFermer={() => setMessage(null)} />
+
+      <div className={`pont-etat ${actif ? 'actif' : ''}`} role="status">
+        <div className="pont-etat-texte">
+          <strong>{actif ? (enCours ? (enCours.etape === 'attente' ? 'Attend que le canal soit libre…' : 'Émission en cours') : 'Pont en veille') : 'Pont arrêté'}</strong>
+          <span>
+            {actif
+              ? enCours ? enCours.texte : 'Un signalement de bénévole ou un Mayday partira seul sur le canal.'
+              : 'Rien ne part sur le canal tant que le pont n’est pas démarré sur ce poste.'}
+          </span>
+        </div>
+        {actif
+          ? <button type="button" onClick={arreter}>Arrêter le pont</button>
+          : <button type="button" className="principal" onClick={demarrer} disabled={!pret}>Démarrer le pont</button>}
+      </div>
+
+      {autrePont && (
+        <p className="aide alerte">
+          Un pont radio a été démarré à {heure(dernierEtat.horodatage)}{dernierEtat.auteur_nom ? ` par ${dernierEtat.auteur_nom}` : ''} et
+          n’a pas été arrêté depuis. Un seul poste doit émettre : n’en démarre un second que si le premier est éteint.
+        </p>
+      )}
+
+      <div className="pont-reglages">
+        <label>
+          Voix
+          <select value={voixChoisie?.name ?? ''} onChange={(e) => { setNomVoix(e.target.value); ecrire('pont-radio-voix', e.target.value) }} disabled={!voix.length}>
+            {!voix.length && <option value="">Voix par défaut de l’appareil</option>}
+            {voix.map((v) => <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>)}
+          </select>
+        </label>
+        <label>
+          Débit
+          <select value={debit} onChange={(e) => { setDebit(e.target.value); ecrire('pont-radio-debit', e.target.value) }}>
+            {DEBITS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </label>
+        <button type="button" onClick={essai} disabled={!!enCours}>Essai de voix</button>
+      </div>
+      {voixDisponible() && !voix.length && (
+        <p className="aide">Aucune voix française sur cet appareil : le message serait lu avec un accent étranger. Ajoute une voix française dans les réglages de l’appareil (synthèse vocale).</p>
+      )}
+
+      <label className="pont-ecoute">
+        <input type="checkbox" checked={ecoute} onChange={(e) => basculerEcoute(e.target.checked)} />
+        <span>
+          Attendre que le canal soit libre avant de parler
+          <small>Demande que la sortie haut-parleur de la radio soit branchée sur l’entrée micro de ce poste. Le pont attend deux secondes de silence, quinze au plus.</small>
+        </span>
+      </label>
+      {ecoute && (
+        <div className={`pont-niveau ${occupeCanal ? 'occupe' : ''}`} aria-label={occupeCanal ? 'Canal occupé' : 'Canal libre'}>
+          <span className="pont-niveau-barre"><span style={{ width: `${Math.min(100, Math.round(niveau * 400))}%` }} /></span>
+          <span>{occupeCanal ? 'Canal occupé' : 'Canal libre'}</span>
+        </div>
+      )}
+
+      <h3>À annoncer{aLaMain.length ? ` (${aLaMain.length})` : ''}</h3>
+      {!pret ? <p className="vide">Chargement…</p> : !aLaMain.length ? (
+        <p className="vide">Rien n’attend. Le signalement d’un participant ou un SOS saisi au QG apparaîtra ici : il ne part sur le canal qu’après ton appui.</p>
+      ) : (
+        <div className="prc-liste">
+          {aLaMain.map((a) => {
+            const source = donnees.signalements.find((s) => s.id === a.id)
+            const texte = textes[a.cle] ?? a.texte
+            return (
+              <div key={a.cle} className="prc-ligne pont-ligne" data-objet={a.id}>
+                <div className="prc-ligne-texte">
+                  <span>
+                    <span className={`prc-jeton ${a.origine === 'mayday' ? 'chaud' : a.origine === 'benevole' ? 'ok' : 'veille'}`}>{LIBELLE_ORIGINE[a.origine]}</span>{' '}
+                    <span className="mono">{a.reference}</span> · reçu à {heure(a.quand)}
+                    {a.retard && ' · resté en file dans le téléphone'}
+                    {a.echec && ' · l’annonce automatique a échoué'}
+                    {a.retenu && ' · retenu, trop d’annonces automatiques'}
+                  </span>
+                  {source?.description && (
+                    <span className="sourdine">Description (ne sera pas lue sur le canal) : {source.description}</span>
+                  )}
+                  <textarea
+                    rows={2} maxLength={MAX_LIBRE} value={texte} aria-label={`Message pour ${a.reference}`}
+                    onChange={(e) => setTextes((t) => ({ ...t, [a.cle]: e.target.value }))}
+                  />
+                </div>
+                <button type="button" className="principal" disabled={!actif || !texte.trim() || enCours?.cle === a.cle} onClick={() => mettreEnFile({ ...a, texte: texte.trim() })}>
+                  Annoncer sur la radio
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+      {!actif && aLaMain.length > 0 && <p className="aide">Démarre le pont sur ce poste pour annoncer : le message sort par le haut-parleur de l’appareil où tu appuies.</p>}
+
+      <h3>Annonce libre</h3>
+      <form className="pont-libre" onSubmit={annoncerLibre}>
+        <textarea
+          rows={2} maxLength={MAX_LIBRE} value={libre} onChange={(e) => setLibre(e.target.value)}
+          placeholder="Ex. : Orage annoncé dans vingt minutes. Mettez-vous à l’abri aux étapes." aria-label="Texte de l’annonce libre"
+        />
+        <div className="ligne-boutons">
+          <button type="submit" disabled={!actif || !libre.trim()}>Annoncer sur la radio</button>
+          <span className="aide">Dit deux fois. Ni nom ni numéro : un canal radio s’écoute. {libre.length}/{MAX_LIBRE}</span>
+        </div>
+      </form>
+
+      <h3>Annonces faites</h3>
+      {!faites.length ? <p className="vide">Aucune annonce pour l’instant. Chacune s’inscrit dans la main courante.</p> : (
+        <ul className="pont-faites">
+          {faites.slice(0, 20).map((x) => (
+            <li key={x.id}><span className="mono">{heure(x.horodatage)}</span> {x.texte}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}

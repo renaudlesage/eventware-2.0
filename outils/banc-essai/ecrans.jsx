@@ -86,6 +86,8 @@ export const ECRANS = {
   // (2/11) Avec l'organisation : les responsables du profil de sécurité comptent parmi les contacts.
   memento: () => <Memento evenement={{ ...evenement, organisation_id: 'org1' }} />,
   securite: () => <Securite evenement={evenement} membre={membre} session={session} peut={peut} toutPouvoir />,
+  // (13/11) Le pont radio : le poste du QG qui lit les signalements sur le canal d'urgence.
+  'pont-radio': () => <Securite evenement={evenement} membre={membre} session={session} peut={peut} toutPouvoir ongletCible="pont" />,
   situation: () => <Situation evenement={evenement} peut={peut} toutPouvoir onAller={() => {}} />,
   terrain: () => <Terrain evenement={evenement} membre={membre} />,
   autorite: () => <Autorite jeton="jeton-essai" />,

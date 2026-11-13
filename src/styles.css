@@ -3887,3 +3887,38 @@ html[data-charge] .vide > * { display: none; }
   .unique .prc-ligne { flex-wrap: wrap; gap: 6px 10px; }
   .unique .prc-ligne-texte { flex-basis: 100%; order: 2; }
 }
+
+/* Pont radio (13/11) : le poste du QG qui lit les signalements sur le canal d'urgence */
+.pont-radio h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--sourdine); margin: 20px 0 6px; }
+.pont-etat { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 12px 14px; margin: 10px 0; background: var(--surface); border: 1px solid var(--trait); border-left: 4px solid var(--etat-froid); border-radius: 2px; }
+.pont-etat.actif { border-left-color: var(--etat-ok); }
+.pont-etat-texte { display: flex; flex-direction: column; gap: 2px; flex: 1 1 260px; min-width: 0; }
+.pont-etat-texte span { color: var(--sourdine); font-size: 13px; overflow-wrap: anywhere; }
+.pont-etat button { min-height: 44px; }
+.pont-reglages { display: flex; gap: 10px 14px; flex-wrap: wrap; align-items: flex-end; margin: 10px 0; }
+.pont-reglages label { display: flex; flex-direction: column; gap: 4px; margin: 0; flex: 1 1 200px; }
+.pont-reglages select { margin-bottom: 0; }
+.pont-ecoute { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0 6px; }
+.pont-ecoute input { width: auto; margin: 3px 0 0; flex: 0 0 auto; }
+.pont-ecoute small { display: block; color: var(--sourdine); font-size: 12px; line-height: 1.5; }
+.pont-niveau { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--etat-ok); margin-bottom: 10px; }
+.pont-niveau.occupe { color: var(--etat-veille); }
+.pont-niveau-barre { flex: 0 1 220px; height: 10px; background: var(--surface-2); border: 1px solid var(--trait); border-radius: 2px; overflow: hidden; }
+.pont-niveau-barre > span { display: block; height: 100%; background: currentColor; }
+.pont-ligne { align-items: flex-start; }
+.pont-ligne textarea, .pont-libre textarea { margin: 4px 0 0; resize: vertical; }
+.pont-ligne > button { flex: 0 0 auto; min-height: 44px; }
+.pont-libre .ligne-boutons { align-items: center; margin-top: 6px; }
+.pont-libre .aide { margin: 0; }
+.pont-faites { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--trait); border-radius: 2px; }
+.pont-faites li { padding: 8px 12px; font-size: 13px; overflow-wrap: anywhere; }
+.pont-faites li + li { border-top: 1px solid var(--trait); }
+.pont-faites .mono { color: var(--sourdine); margin-right: 6px; }
+@media (max-width: 700px) {
+  .pont-ligne { flex-wrap: wrap; }
+  .pont-ligne .prc-ligne-texte { flex-basis: 100%; }
+  .pont-ligne > button, .pont-etat button { width: 100%; }
+}
+label.pont-ecoute { text-transform: none; letter-spacing: normal; color: var(--encre); font-size: 14px; cursor: pointer; }
+.pont-ligne .prc-ligne-texte > span:first-child { display: block; }
+.pont-ligne .prc-jeton { display: inline-block; width: auto; margin-right: 6px; }
