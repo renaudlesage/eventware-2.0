@@ -785,7 +785,7 @@ Après application : l'empreinte des droits et du `search_path` de toutes les fo
 
 Preuve sur la réplique (`JUSQUA=<numéro> outils/replique/rejouer.sh`) : arrêtée à 170, le contrôle échoue sur 40 fonctions (les 30 de la production et ces dix) ; à 171 et 172, sur les quatre que seule cette migration referme ; complète, il est vide.
 
-### 174 : pas encore appliquée (attend le « Go 174 » de Ren) — critère de défaillance unique
+### 174 : appliquée le 13/11 (par Claude, via l'outil Supabase, sur le « Go 174 » de Ren) — critère de défaillance unique
 
 | Fichier | Fait |
 |---|---|
@@ -797,11 +797,13 @@ Six défauts du prototype donnaient un verdict faux et sont corrigés : (1) le Q
 
 Tests : `../../outils/replique/tests/174.sql` (41 assertions sur un plan construit pour déclencher chaque verdict, puis les six corrections une à une, les seuils en paramètres, les droits ; dans une transaction annulée). Vérifié avant application, en lecture seule : le corps de la fonction, lancé comme requête autonome sur « BFMF 2027 » en production, rend les constats ci-dessus, les trois DEA et les deux cabinets médicaux du village en « hors de portée », le groupe GE20-02 chargé à 100 %, 8 consommateurs non raccordés (39,5 kW, dont les deux sonos) et le mât lumineux en « à vérifier ».
 
+Après application, en production (13/11) : la fonction a l'empreinte (md5 du corps) de celle de la réplique, les mêmes droits, et le contrôle des fonctions exposées reste vide. Appelée sur « BFMF 2027 » sous l'identité d'une personne à tout pouvoir, dans une transaction annulée, elle rend 26 lignes — 3 fonctions non assurées, 7 éléments uniques, 3 points à vérifier, 13 qui tiennent —, les mêmes que la requête autonome d'avant application. Un anonyme est refusé par les droits de la fonction, un événement inconnu par `P0002`, et le seuil du DEA ramené à 50 m ne couvre plus que 9 lieux publics sur 16.
+
 Vérification : `../verifications/174-defaillance-unique.sql` (lecture seule ; se présente comme une personne à tout pouvoir de l'événement le temps d'une transaction annulée).
 
 Limites connues : distances à vol d'oiseau, de centre à centre ; sorties, points de rassemblement et accès des secours comptés, pas situés ; points d'eau, périmètres et aires hélico non lus ; les personnes ne sont pas retirées une à une ; les seuils par défaut sont des hypothèses de travail.
 
-Affichage : écran Implantation, rubrique « Éléments uniques » des bilans (`src/DefaillanceUnique.jsx`) : le plus grave d'abord, ce qui tient replié, les seuils réglables, un élément cité qui s'ouvre dans Conception. Tant que la migration n'est pas appliquée, la rubrique dit que l'analyse n'est pas encore activée.
+Affichage : écran Implantation, rubrique « Éléments uniques » des bilans (`src/DefaillanceUnique.jsx`) : le plus grave d'abord, ce qui tient replié, les seuils réglables, un élément cité qui s'ouvre dans Conception. Sur une base où la migration manque, la rubrique dit que l'analyse n'est pas encore activée.
 
 ## Ne jamais rejouer 088 → 174 par `db push` sans les lignes ci-dessus
 
