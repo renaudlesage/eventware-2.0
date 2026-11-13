@@ -3922,3 +3922,9 @@ html[data-charge] .vide > * { display: none; }
 label.pont-ecoute { text-transform: none; letter-spacing: normal; color: var(--encre); font-size: 14px; cursor: pointer; }
 .pont-ligne .prc-ligne-texte > span:first-child { display: block; }
 .pont-ligne .prc-jeton { display: inline-block; width: auto; margin-right: 6px; }
+/* L'écoute du canal (175) */
+.pont-ecoute-options { padding-left: 28px; }
+.pont-sensibilite { display: flex; flex-direction: column; gap: 4px; max-width: 260px; margin: 4px 0 0; }
+.pont-sensibilite select { margin-bottom: 0; }
+.pont-captees { margin-top: 6px; }
+@media (max-width: 700px) { .pont-ecoute-options { padding-left: 0; } }

@@ -294,6 +294,8 @@ export async function ecouterCanal() {
   source.connect(analyseur)
   const tampon = new Float32Array(analyseur.fftSize)
   return {
+    /** Le flux de l'entrée audio : la capture des transmissions l'enregistre. */
+    flux,
     /** Le niveau du canal, de 0 à 1 (valeur efficace). */
     niveau() {
       analyseur.getFloatTimeDomainData(tampon)
@@ -327,4 +329,122 @@ export function attendreCanalLibre(niveau, { seuil = 0.04, silenceMs = 2000, max
       if (maintenant - debut >= maxMs) { clearInterval(t); resoudre('force') }
     }, pasMs)
   })
+}
+
+/* ------------------------------------------------------------------ */
+/* La capture des transmissions (175)                                   */
+/* ------------------------------------------------------------------ */
+
+function formatEnregistrement() {
+  const candidats = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
+  return candidats.find((c) => window.MediaRecorder?.isTypeSupported?.(c)) ?? ''
+}
+
+export function captureDisponible() {
+  return typeof window !== 'undefined' && 'MediaRecorder' in window && !!navigator.mediaDevices?.getUserMedia
+}
+
+/**
+ * Enregistre chaque transmission entendue sur le canal.
+ *
+ * Le canal est muet entre deux transmissions (le squelch de la radio coupe
+ * le souffle) : une transmission commence quand le niveau passe le seuil,
+ * elle finit après `silenceMs` sous le seuil, ou à `maxMs`. Un bruit plus
+ * court que `minMs` (le « clac » du squelch) n'est pas gardé. Pendant que le
+ * pont parle, et un instant après, on n'écoute pas : ce serait sa propre voix.
+ *
+ * La reconnaissance vocale de l'appareil, si elle existe, tourne pendant la
+ * transmission. Elle écoute l'entrée audio PAR DÉFAUT de l'appareil — c'est
+ * pourquoi la radio doit en être l'entrée par défaut. Sans texte, le serveur
+ * transcrira (si l'événement le demande) ou le QG écrira ce qu'il a entendu.
+ *
+ * Trois transmissions de suite qui vont jusqu'à `maxMs` : le canal est ouvert
+ * en permanence (squelch trop bas, radio sur un canal bruité) ; on s'arrête et
+ * on le dit, au lieu de remplir le stockage de souffle.
+ *
+ * @returns {{ arreter: () => void }}
+ */
+export function capterTransmissions(canal, {
+  seuil = 0.04, silenceMs = 1500, minMs = 800, maxMs = 30000, pasMs = 50,
+  enPause = () => false, surDebut = () => {}, surFin = () => {}, surTransmission, surBlocage = () => {}
+} = {}) {
+  let courante = null
+  let pleinesDeSuite = 0
+  let fini = false
+
+  function demarrer(maintenant) {
+    const mime = formatEnregistrement()
+    let rec
+    try {
+      rec = new MediaRecorder(canal.flux, mime ? { mimeType: mime } : undefined)
+    } catch {
+      return
+    }
+    const c = { rec, mime: rec.mimeType || mime || 'audio/webm', morceaux: [], debut: maintenant, dernierSon: maintenant, texte: '', sort: 'absente', reconnaissance: null }
+    rec.ondataavailable = (e) => { if (e.data?.size) c.morceaux.push(e.data) }
+    rec.start(250)
+    const Reconnaissance = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (Reconnaissance) {
+      c.sort = 'vide'
+      try {
+        const r = new Reconnaissance()
+        r.lang = 'fr-BE'; r.continuous = true; r.interimResults = true
+        r.onresult = (e) => { c.texte = Array.from(e.results).map((x) => x[0]?.transcript ?? '').join(' ').trim(); if (c.texte) c.sort = 'ok' }
+        r.onerror = (e) => { if (e?.error && e.error !== 'no-speech' && e.error !== 'aborted') c.sort = `erreur:${e.error}` }
+        r.start()
+        c.reconnaissance = r
+      } catch (e) {
+        c.sort = `erreur:${e?.name ?? 'inconnue'}`
+      }
+    }
+    courante = c
+    surDebut()
+  }
+
+  function terminer(maintenant, garder = true) {
+    const c = courante
+    courante = null
+    if (!c) return
+    surFin()
+    const voixMs = c.dernierSon - c.debut
+    const pleine = maintenant - c.debut >= maxMs
+    pleinesDeSuite = pleine ? pleinesDeSuite + 1 : 0
+    try { if (c.reconnaissance) { c.reconnaissance.onend = null; c.reconnaissance.stop() } } catch { /* déjà arrêtée */ }
+    c.rec.onstop = async () => {
+      if (!garder || voixMs < minMs || !c.morceaux.length) return
+      // La reconnaissance livre parfois ses derniers mots après l'arrêt : on lui laisse un instant.
+      await new Promise((r) => setTimeout(r, 400))
+      surTransmission?.({
+        blob: new Blob(c.morceaux, { type: c.mime }), mime: c.mime,
+        debut: new Date(c.debut), duree_s: Math.round((maintenant - c.debut) / 100) / 10,
+        transcription: c.texte || null, reconnaissance: c.texte ? 'ok' : c.sort
+      })
+    }
+    try { c.rec.state !== 'inactive' && c.rec.stop() } catch { /* déjà arrêté */ }
+    if (pleinesDeSuite >= 3) {
+      arreter()
+      surBlocage()
+    }
+  }
+
+  const minuteur = setInterval(() => {
+    if (fini) return
+    const n = canal.niveau()
+    const maintenant = Date.now()
+    if (!courante) {
+      if (n >= seuil && !enPause()) demarrer(maintenant)
+      return
+    }
+    if (n >= seuil) courante.dernierSon = maintenant
+    if (maintenant - courante.dernierSon >= silenceMs || maintenant - courante.debut >= maxMs) terminer(maintenant)
+  }, pasMs)
+
+  function arreter() {
+    if (fini) return
+    fini = true
+    clearInterval(minuteur)
+    // Une transmission en cours au moment de l'arrêt est gardée : elle a été entendue.
+    if (courante) terminer(Date.now())
+  }
+  return { arreter }
 }

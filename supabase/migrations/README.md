@@ -805,7 +805,25 @@ Limites connues : distances à vol d'oiseau, de centre à centre ; sorties, poin
 
 Affichage : écran Implantation, rubrique « Éléments uniques » des bilans (`src/DefaillanceUnique.jsx`) : le plus grave d'abord, ce qui tient replié, les seuils réglables, un élément cité qui s'ouvre dans Conception. Sur une base où la migration manque, la rubrique dit que l'analyse n'est pas encore activée.
 
-## Ne jamais rejouer 088 → 174 par `db push` sans les lignes ci-dessus
+### 175 : appliquée le 13/11 (par Claude, via l'outil Supabase, sur le « Go 175 » de Ren) — la radio dans le fil « Entendu »
+
+| Fichier | Fait |
+|---|---|
+| `20261113200000_175_radio_dans_entendu.sql` | `messages_vocaux.source` (`talkie` par défaut, ou `radio`) avec sa contrainte. Politique **restrictive** `messages_vocaux_radio` sur l'insertion : seul un membre qui traite les signalements (`sos : modifier`) ou les demandes (`missions : modifier`), ou qui a tout pouvoir, range un message comme venu de la radio ; elle s'ajoute à celle de la 162, qui reste en place (pas de DROP). `talkie_repondre` redéfinie : pour une transmission radio, le classement (intention, urgence) est gardé et une transmission urgente, douteuse ou DEA s'inscrit dans la main courante (`radio_classee`, notable), mais aucune réponse automatique n'est écrite. Le reste du corps est celui de la 162. Mêmes droits qu'en 162 (fermée à `anon`, ouverte à `authenticated`), `security definer`, `search_path` figé. |
+
+Pourquoi : le pont radio (PR 76) écoute le canal d'urgence et range chaque transmission dans le fil « Entendu », avec les messages du talkie. La transmission est rangée sous le membre qui tient le pont, qui n'est pas celui qui a parlé : sans la colonne `source`, le fil afficherait son nom, la réponse automatique lui arriverait dans « Mes messages », et un bénévole pourrait faire passer sa voix pour une transmission du canal.
+
+Avant d'écrire la migration, vérifié en lecture seule en production : `talkie_repondre` et `talkie_lieu` y ont le même code que la réplique, sans les commentaires (empreintes différentes, corps identiques ligne à ligne une fois les commentaires retirés) ; `purger_vocaux`, `supprimer_message_vocal` et `trg_talkie_transcription` ont la même empreinte ; la colonne `source` n'existe pas ; trois politiques sur `messages_vocaux`.
+
+Tests : `../../outils/replique/tests/175.sql` (16 assertions, dans une transaction annulée : un bénévole ne range pas de transmission radio ; le QG si ; une transmission « blessé à l'étape 2 » est classée URGENCE avec son lieu, sans réponse ; « pas de blessé » reste douteuse ; « mon canal » est classée sans réponse ; une transmission sans texte reste intacte, puis se classe DEA quand le QG écrit ce qu'il a entendu ; le talkie d'un bénévole et celui du coordinateur gardent leur réponse ; la main courante ; les droits).
+
+Vérification : `../verifications/175-radio-entendu.sql` (lecture seule).
+
+Après application, en production (13/11) : `talkie_repondre` a l'empreinte de la réplique, la politique `messages_vocaux_radio` aussi (restrictive, insertion, `authenticated`) ; celle de la 162 est toujours là ; fermée à `anon` ; le contrôle des fonctions exposées reste vide ; les six messages déjà reçus sont « talkie ». Essai sur « Rando VTT » dans une transaction annulée : une transmission radio « un blessé au ravitaillement » rangée par le coordinateur est classée URGENCE, sans réponse, avec sa ligne `radio_classee` et sans `reponse_auto` ; le message ordinaire d'un bénévole reçoit toujours sa réponse. Le refus d'un membre sans droits n'a pas pu être éprouvé en production : dans « Rando VTT », bénévoles et chefs d'équipe ont tous le droit de modifier signalements et demandes, et peuvent donc, comme voulu, ranger une transmission radio ; le refus est prouvé sur la réplique.
+
+Côté application, sans la 175 : le talkie marche comme avant (la colonne n'est envoyée que pour une transmission radio) ; l'enregistrement du canal par le pont serait refusé à l'insertion et resterait en file sur le poste. Appliquer la 175 avant de fusionner.
+
+## Ne jamais rejouer 088 → 175 par `db push` sans les lignes ci-dessus
 
 Sans enregistrement, `supabase db push` considérerait ces migrations
 comme nouvelles et les rejouerait : `create type visibilite_jalon`

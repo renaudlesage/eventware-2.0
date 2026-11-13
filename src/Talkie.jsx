@@ -201,15 +201,19 @@ export function MesMessages({ evenement, membre, onCompteurs }) {
   const [envoyes, setEnvoyes] = useState([])
 
   async function lire() {
-    const enAttente = await enAttenteVocaux()
+    const enAttente = (await enAttenteVocaux()).filter((m) => m.source !== 'radio')
     setAttente(enAttente)
     if (!membre?.id) return
     const { data } = await supabase
       .from('messages_vocaux')
-      .select('id, parle_le, recu_le, duree_s, transcription, transcription_corrigee, reconnaissance, statut, entendu_le, reponse, reponse_le, reponse_source, intention, urgence, mission_id')
-      .eq('evenement_id', evenement.id).eq('membre_id', membre.id).order('parle_le', { ascending: false }).limit(20)
-    setEnvoyes(data ?? [])
-    onCompteurs?.({ attente: enAttente.filter((m) => !m.definitif).length, reponses: (data ?? []).filter((m) => m.reponse).length })
+      // (175) Toutes les colonnes : `source` n'existe qu'une fois la 175 appliquée, et une liste
+      // explicite qui la nomme échouerait avant. Ce sont ses propres messages, rien de plus.
+      .select('*')
+      .eq('evenement_id', evenement.id).eq('membre_id', membre.id).order('parle_le', { ascending: false }).limit(30)
+    // Les transmissions captées par le pont radio sont rangées sous le membre qui le tient : ce ne sont pas ses messages.
+    const siens = (data ?? []).filter((m) => m.source !== 'radio').slice(0, 20)
+    setEnvoyes(siens)
+    onCompteurs?.({ attente: enAttente.filter((m) => !m.definitif && m.source !== 'radio').length, reponses: siens.filter((m) => m.reponse).length })
   }
 
   useEffect(() => {

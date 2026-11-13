@@ -6,7 +6,7 @@ import { FormDemande } from './Missions'
 import { motifReconnaissance } from './Talkie'
 import { transcrireVocal } from './transcrireVocal'
 import { pousser } from './push'
-import { useMessagesVocaux, INTENTIONS, heureVocal as heure, urgentVocal as urgent } from './messagesVocaux'
+import { useMessagesVocaux, INTENTIONS, heureVocal as heure, urgentVocal as urgent, radioVocal as radio } from './messagesVocaux'
 
 /**
  * LE FIL « ENTENDU » — les messages vocaux au QG (162).
@@ -18,6 +18,10 @@ import { useMessagesVocaux, INTENTIONS, heureVocal as heure, urgentVocal as urge
  * le reste. Un « nouveau » non entendu depuis plus de 5 min passe en
  * vigilance, en urgence s'il est marqué urgent. Chaque geste du QG
  * (Entendu, Répondre, → Demande, Classer) passe au journal.
+ *
+ * (175) Les transmissions captées sur le canal d'urgence par le pont radio
+ * arrivent ici aussi, marquées « Radio » : on ne sait pas qui a parlé, et
+ * on n'y répond pas par écrit.
  */
 const minutes = (iso) => (iso ? Math.round((Date.now() - new Date(iso).getTime()) / 60000) : 0)
 
@@ -91,7 +95,9 @@ export default function FilEntendu({ evenement, membre, peut, toutPouvoir, setMe
           <div className={`ligne-retard message-vocal statut-${m.statut} ${niveau(m)}`} key={m.id}>
             <strong>
               {urgent(m) && <span className="prc-jeton chaud">{m.intention === 'URGENCE_DOUTEUSE' ? 'urgence ?' : 'urgence'}</span>}{' '}
-              {qui(m)}{mb?.equipes?.code ? ` (${mb.equipes.code})` : ''} · parlé à {heure(m.parle_le)}
+              {radio(m)
+                ? <><span className="prc-jeton veille">Radio</span> canal d’urgence · capté à {heure(m.parle_le)}</>
+                : <>{qui(m)}{mb?.equipes?.code ? ` (${mb.equipes.code})` : ''} · parlé à {heure(m.parle_le)}</>}
               {retard > 2 && <span className="aide"> · reçu à {heure(m.recu_le)}, {retard} min de retard réseau</span>}
               {m.statut === 'nouveau' && minutes(m.parle_le) > 5 && <span className="aide"> · attend depuis {minutes(m.parle_le)} min</span>}
             </strong>
@@ -104,7 +110,7 @@ export default function FilEntendu({ evenement, membre, peut, toutPouvoir, setMe
               {peutGerer ? (
                 <input
                   className="vocal-transcription"
-                  aria-label={`Transcription du message de ${qui(m)}`}
+                  aria-label={radio(m) ? 'Transcription de la transmission radio' : `Transcription du message de ${qui(m)}`}
                   defaultValue={m.transcription_corrigee ?? m.transcription ?? ''}
                   placeholder={m.transcription ? '' : 'Pas de transcription : écrire ce qui a été dit (les mots-clés seront reconnus)'}
                   onBlur={(e) => { const v = e.target.value.trim(); if (v !== (m.transcription_corrigee ?? m.transcription ?? '')) maj(m, { transcription_corrigee: v || null }) }}
@@ -135,8 +141,13 @@ export default function FilEntendu({ evenement, membre, peut, toutPouvoir, setMe
             {peutGerer && m.statut !== 'traite' && (
               <div className="ligne-boutons vocal-gestes">
                 {m.statut === 'nouveau' && <button onClick={() => entendre(m)}>Entendu</button>}
-                <input value={reponse[m.id] ?? ''} placeholder="Répondre…" onChange={(e) => setReponse({ ...reponse, [m.id]: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && repondre(m)} />
-                <button className="discret" onClick={() => repondre(m)} disabled={!(reponse[m.id] ?? '').trim()}>Envoyer</button>
+                {/* (175) Une réponse écrite n'atteindrait personne : celui qui a parlé sur la radio n'est pas connu. */}
+                {radio(m) ? <span className="aide">Réponse : sur la radio.</span> : (
+                  <>
+                    <input value={reponse[m.id] ?? ''} placeholder="Répondre…" onChange={(e) => setReponse({ ...reponse, [m.id]: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && repondre(m)} />
+                    <button className="discret" onClick={() => repondre(m)} disabled={!(reponse[m.id] ?? '').trim()}>Envoyer</button>
+                  </>
+                )}
                 <button className="discret" onClick={() => setDemande(m)}>→ Demande</button>
                 <button className="discret" onClick={() => classer(m)}>Classer</button>
                 <button className="discret" onClick={() => supprimer(m)}>Supprimer</button>
@@ -151,7 +162,7 @@ export default function FilEntendu({ evenement, membre, peut, toutPouvoir, setMe
       {demande && (
         <div className="voile" onClick={() => setDemande(null)}>
           <div className="tiroir" {...tiroir} aria-label="Créer une demande depuis ce message" onClick={(e) => e.stopPropagation()}>
-            <div className="tiroir-tete"><strong>Demande depuis le message de {qui(demande)}</strong><button className="lien" onClick={() => setDemande(null)}>Fermer</button></div>
+            <div className="tiroir-tete"><strong>{radio(demande) ? 'Demande depuis la transmission radio' : `Demande depuis le message de ${qui(demande)}`}</strong><button className="lien" onClick={() => setDemande(null)}>Fermer</button></div>
             <FormDemande
               mode={urgent(demande) ? 'urgent' : 'normal'}
               evenement={evenement} membre={membre} module="logistique" libelle="Demande"
