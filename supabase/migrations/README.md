@@ -749,7 +749,7 @@ Audit ergonomique du 11/11 (fonctions manquantes 1, 3, 4, 5). Tests : `../../out
 
 Audit ergonomique du 11/11 (fonction manquante 2). Tests : `../../outils/replique/tests/170.sql` (14 assertions). La fonction serveur `notifier` (voir `../functions/README.md`) lit ces abonnements avec la clé de service ; elle a besoin des secrets `VAPID_PUBLIC_KEY` et `VAPID_PRIVATE_KEY`. `VAPID_SUBJECT` est facultatif (l'adresse de l'application sert par défaut). Sans les deux clés, « Mon compte › Notifications sur cet appareil » dit que ce n'est pas encore activé et rien d'autre ne change.
 
-### 171 : pas encore appliquée (attend le « Go 171 » de Ren) — refermer les RPC de 167/168, durcir le masquage du QR de poste, contrôle des fonctions exposées
+### 171 : appliquée le 13/11 (par Claude, via l'outil Supabase, sur le « Go 171 » de Ren, en quatre temps : droits, masquage, poste_par_jeton, contrôle) — refermer les RPC de 167/168, durcir le masquage du QR de poste, contrôle des fonctions exposées
 
 | Fichier | Fait |
 |---|---|
@@ -759,9 +759,11 @@ Pourquoi : contrôle de sécurité du 11/11. Aucune fuite, mais la règle de 090
 
 Vérification : `../verifications/171-fonctions-exposees.sql` (lecture seule) : le contrôle, vide ; puis 37 écritures, toutes `ok = true` (24 masquées, 13 inchangées). Tests : `../../outils/replique/tests/171.sql` (64 assertions : les 37 écritures ; le JSON ; un poste dont chaque champ de texte libre porte un numéro ou une adresse, lu sans session ; les huit RPC refusées à un anonyme par les droits de la fonction, les fonctions par jeton qui répondent ; connecté, les RPC et un déclencheur dont la fonction a perdu `EXECUTE` ; le contrôle vide, et qui voit bien un oubli ; la migration rejouée qui ne change rien). Vérifié en production, en lecture seule, le 12/11 : le contrôle y liste bien 30 fonctions et 62 lignes, les cinq passages de `poste_par_jeton` y figurent une fois chacun, et la réplique alignée (173) a la même empreinte que la production avant 171, puis un contrôle vide après.
 
+Après application, en production (13/11) : `audit_fonctions_exposees()` ne renvoie aucune ligne ; `masquer_numeros`, `masquer_numeros_json` et le contrôle ont l'empreinte (md5 du corps) de ceux de la réplique, `poste_par_jeton` aussi hors commentaires, et elle reste ouverte aux anonymes ; les 37 écritures sont conformes ; sous le rôle `anon`, `famille_demande(null, 'jetons')` et les sept autres RPC sont refusées par les droits de la fonction (`permission denied for function`), les fonctions par jeton répondent ; sous l'identité d'un coordinateur, `familles_evenement`, `memoire_lieux`, `famille_demande`, `masquer_numeros`, `masquer_numeros_json` et `notification_dmp_categories` répondent, et `rex_proposer`, `rapprocher_lieux`, `rattacher_demandes_lieux`, `generer_postes_qr` ne sont refusées que par leur garde interne. Linter de sécurité Supabase : `function_search_path_mutable` a disparu, et `anon_security_definer_function_executable` ne liste plus que les onze fonctions publiques par jeton. Un poste piégé créé sur « Test SOS » dans une transaction annulée (fiche, créneau, consigne et fiche réflexe portant chacun un numéro ou une adresse), généré par un coordinateur puis lu sans session : les onze champs sont masqués, seul le numéro du QG figure ; rien n'est resté en base.
+
 Limites connues du masquage : un numéro de 6 à 8 chiffres sans mot-clé devant reste visible ; un IBAN ou un numéro de TVA est masqué comme un numéro ; un numéro coupé par un retour à la ligne n'est pas reconnu. Relevées en plus le 12/11 : un numéro séparé par des virgules, des deux-points, un tiret cadratin ou le signe moins passe ; un numéro public de 9 chiffres (Centre antipoisons) et des coordonnées GPS séparées par une espace sont masqués à tort. L'application prévient l'organisateur, sous chaque champ concerné, de ce que la page affichera (`src/ApercuMasquage.jsx`).
 
-### 172 : pas encore appliquée (attend le « Go 172 » de Ren) — borner le dépôt d'avis par jeton
+### 172 : appliquée le 13/11 (par Claude, via l'outil Supabase, sur le « Go 172 » de Ren) — borner le dépôt d'avis par jeton
 
 | Fichier | Fait |
 |---|---|
@@ -769,15 +771,17 @@ Limites connues du masquage : un numéro de 6 à 8 chiffres sans mot-clé devant
 
 Pourquoi : c'était la seule écriture ouverte sans compte qui acceptait du texte libre sans limite. Le formulaire (`src/AvisAutorite.jsx`) porte les mêmes bornes, avec un compteur à l'approche de la limite. Aucun avis n'a encore été déposé en production : ces valeurs sont une proposition, à ajuster si un usage réel en demande d'autres.
 
-Tests : `../../outils/replique/tests/172.sql` (14 assertions : refus au-delà des bornes sans rien écrire — ni avis, ni prescription, ni ligne de journal ; acceptation aux bornes exactes ; usage courant inchangé).
+Tests : `../../outils/replique/tests/172.sql` (14 assertions : refus au-delà des bornes sans rien écrire — ni avis, ni prescription, ni ligne de journal ; acceptation aux bornes exactes ; usage courant inchangé). Après application : même empreinte du corps qu'en réplique, droits inchangés (`anon`, `authenticated`), contrôle toujours vide.
 
-### 173 : pas encore appliquée (attend le « Go 173 » de Ren ; sans effet en production) — aligner le dépôt sur la production : dix fonctions fermées hors migration
+### 173 : appliquée le 13/11 (par Claude, via l'outil Supabase, sur le « Go 173 » de Ren ; sans effet en production, vérifié) — aligner le dépôt sur la production : dix fonctions fermées hors migration
 
 | Fichier | Fait |
 |---|---|
 | `20261112090000_173_aligner_depot_production.sql` | Écrit dans le dépôt ce qui est déjà vrai en production : `missions_similaires`, `normaliser_demande`, `score_similarite` (116) retirées à `PUBLIC` et `anon` ; `_point_element` (109) avec son `search_path` ; six fonctions de déclencheur (109, 110, 114, 115) hors de l'API. |
 
 Pourquoi : en comparant fonction par fonction les droits de la production et ceux d'une base reconstruite depuis le dépôt (207 fonctions), dix différaient. Elles ont été refermées directement en production, sans migration. La production est saine ; c'est le dépôt qui ne la décrivait pas : reconstruit depuis les migrations, un projet aurait laissé `normaliser_demande` (`security definer`) exécutable sans connexion, et le contrôle de la 171 ne pouvait pas être vide sur la réplique. En production chaque ordre est déjà satisfait : la migration n'y change rien, elle s'y inscrit seulement.
+
+Après application : l'empreinte des droits et du `search_path` de toutes les fonctions de `public` est la même avant et après (relevée dans la même transaction), comme attendu.
 
 Preuve sur la réplique (`JUSQUA=<numéro> outils/replique/rejouer.sh`) : arrêtée à 170, le contrôle échoue sur 40 fonctions (les 30 de la production et ces dix) ; à 171 et 172, sur les quatre que seule cette migration referme ; complète, il est vide.
 
