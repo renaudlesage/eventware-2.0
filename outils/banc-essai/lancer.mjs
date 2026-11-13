@@ -40,6 +40,32 @@ const sortie = path.join(racine, 'node_modules', '.banc-essai')
 
 // (162) Le pavé « Parler au QG » de Mon poste : le bouton maintenu et sa consigne 112 ; au premier
 // appui, l'écran d'information qui vaut consentement ; mes messages dessous. Pas de bouton flottant.
+// (174) Bilan « Éléments uniques » : la fonction est appelée avec les seuils, le plus grave vient en tête, ce qui tient est replié,
+// un élément cité s'ouvre dans Conception, un seuil modifié relance le calcul. Joué au bureau et au téléphone.
+async function verifierElementsUniques(page, erreurs) {
+  const rubrique = page.locator('.rubrique-plan select')
+  if ((await rubrique.inputValue().catch(() => '')) !== 'b-unique') erreurs.push('éléments uniques : la rubrique n’est pas ouverte')
+  const appel = await page.evaluate(() => (window.__appels ?? []).find((a) => a.fn === 'defaillance_unique'))
+  if (!appel || appel.args?.p_dea_m !== 225 || appel.args?.p_voisin_m !== 30 || appel.args?.p_evenement !== 'ev1') erreurs.push('éléments uniques : la fonction n’est pas appelée avec l’événement et les seuils par défaut')
+  const cadrans = await page.locator('.unique .cadran-valeur').allTextContents()
+  if (cadrans.join(',') !== '2,3,1,2') erreurs.push(`éléments uniques : cadrans ${cadrans.join(',')} (attendu 2 non assurées, 3 uniques, 1 à vérifier, 2 qui tiennent)`)
+  const jetons = await page.locator('.unique > .prc-liste .prc-jeton').allTextContents()
+  if (jetons.join('|') !== 'Non assurée|Non assurée|Élément unique|Élément unique|Élément unique|À vérifier') erreurs.push(`éléments uniques : ordre des verdicts « ${jetons.join(' | ')} »`)
+  if (!(await page.locator('.unique > .prc-liste .unique-ligne', { hasText: 'Cause commune' }).filter({ hasText: 'ce groupe alimente aussi le QG' }).count())) erreurs.push('éléments uniques : la cause commune n’est pas affichée')
+  if (await page.locator('.unique-tient[open]').count()) erreurs.push('éléments uniques : « ce qui tient » devrait être replié')
+  if (!/Éléments uniques \(5\)/.test((await rubrique.locator('option[value="b-unique"]').textContent()) ?? '')) erreurs.push('éléments uniques : le nombre n’apparaît pas dans la liste des rubriques')
+  // Un seuil modifié relance le calcul avec la nouvelle valeur.
+  await page.locator('.unique-seuils > summary').click()
+  await page.locator('#seuil-dea').fill('150')
+  await page.evaluate(() => { window.__appels = [] })
+  await page.getByRole('button', { name: 'Recalculer' }).click(); await page.waitForTimeout(400)
+  if (!(await page.evaluate(() => (window.__appels ?? []).some((a) => a.fn === 'defaillance_unique' && a.args?.p_dea_m === 150)))) erreurs.push('éléments uniques : « Recalculer » n’envoie pas le seuil modifié')
+  if (!/Seuils \(modifiés\)/.test(await page.locator('.unique-seuils > summary').textContent())) erreurs.push('éléments uniques : les seuils modifiés ne sont pas signalés')
+  // Un élément cité s'ouvre dans Conception.
+  await page.locator('.unique .bilan-objet', { hasText: 'DEA1' }).first().click(); await page.waitForTimeout(600)
+  if ((await rubrique.inputValue().catch(() => '')) !== 'conception') erreurs.push('éléments uniques : cliquer un élément n’ouvre pas Conception')
+}
+
 async function verifierTalkie(page, erreurs) {
   if (await page.locator('.flottant.parler, .flottant.vocaux').count()) erreurs.push('talkie : un bouton flottant subsiste (doit être dans Mon poste)')
   const pave = page.locator('.pave-talkie')
@@ -83,7 +109,7 @@ fs.writeFileSync(path.join(sortie, 'page.html'), '<!doctype html><html><head><me
 fs.writeFileSync(path.join(sortie, 'page-tel.html'), '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="stylesheet" href="../leaflet/dist/leaflet.css"><link rel="stylesheet" href="../../src/styles.css"><link rel="stylesheet" href="../../src/mobile.css"></head><body><div id="racine"></div><script src="bundle.js"></script></body></html>')
 
 const demandes = process.argv.slice(2)
-const ecrans = demandes.length ? demandes : ['coquille', 'coquille-preparation', 'coquille-montage', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'avis', 'participant', 'poste-public', 'demande', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0', 'recherche', 'fiche-poste']
+const ecrans = demandes.length ? demandes : ['coquille', 'coquille-preparation', 'coquille-montage', 'accueil', 'preparation', 'reglages', 'rh', 'parcours', 'analyse', 'memento', 'securite', 'situation', 'terrain', 'autorite', 'avis', 'participant', 'poste-public', 'demande', 'colonne', 'logistique', 'implantation', 'plan', 'gantt', 'gantt-lecture', 'fournisseurs', 'fournisseurs-lecture', 'demandes-prix', 'demandes-prix-lecture', 'inventaire', 'inventaire-lecture', 'point0', 'recherche', 'fiche-poste', 'elements-uniques']
 const navigateur = await pw.chromium.launch()
 let echecs = 0
 for (const ecran of ecrans) {
@@ -329,6 +355,7 @@ for (const ecran of ecrans) {
     if (!(await page.locator('.leaflet-container[data-cadrage="point0"]').count())) erreurs.push('carte : pas cadrée sur le point zéro')
   }
   if (ecran === 'accueil') await verifierTalkie(page, erreurs)
+  if (ecran === 'elements-uniques') await verifierElementsUniques(page, erreurs)
   if (ecran === 'situation') {
     // (1/11) Mode QG : plein écran, la file « à décider » commence par le SOS reçu (avant la demande P1),
     // la main courante et l'à-venir sont remplis, Échap rend la Situation.
@@ -1012,6 +1039,7 @@ for (const ecran of ecrans) {
       if ((await page.locator('.apercu-masquage').count()) !== 1) erreurs.push('aperçu : l’avertissement de la mission reste après le retrait du numéro')
     }
   }
+  if (ecran === 'elements-uniques') await verifierElementsUniques(page, erreurs)
   if (ecran === 'demande') {
     const ouvrir = page.getByRole('button', { name: /Demander quelque chose au QG/ }).first()
     if (!(await ouvrir.count())) erreurs.push('demande : pas de bouton dans le pavé « Mes demandes »')

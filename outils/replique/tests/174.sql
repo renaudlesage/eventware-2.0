@@ -53,18 +53,18 @@ reset role;
 
 -- Fonctions de proximité.
 select tests.ok((select verdict || '|' || niveau from r1 where fonction = 'DEFIB' and ligne = 'état nominal') = 'assurée|0'
-  and (select detail from r1 where fonction = 'DEFIB' and ligne = 'état nominal') like '2 cible(s) sur 2 à moins de 225 m%', 'défibrillation : assurée, 2 lieux publics sur 2');
+  and (select detail from r1 where fonction = 'DEFIB' and ligne = 'état nominal') like '2 lieu(x) public(s) sur 2 à moins de 225 m%', 'défibrillation : assurée, 2 lieux publics sur 2');
 select tests.ok((select verdict || '|' || niveau || '|' || element from r1 where ligne = 'perte de T174-DEA1') = 'ÉLÉMENT UNIQUE|2|T174-DEA1'
-  and (select detail from r1 where ligne = 'perte de T174-DEA1') like '0 cible(s) couvertes au lieu de 2 ; la plus éloignée passe à 22%', 'le DEA du site : élément unique (le suivant est à plus de 2 km)');
+  and (select detail from r1 where ligne = 'perte de T174-DEA1') like '0 lieu(x) public(s) couvert(s) au lieu de 2 ; le plus éloigné passe à 22%', 'le DEA du site : élément unique (le suivant est à plus de 2 km)');
 select tests.ok((select verdict || '|' || niveau from r1 where ligne = 'perte de T174-DEA2') = 'hors de portée|0'
-  and (select detail from r1 where ligne = 'perte de T174-DEA2') like 'ne couvre aucune cible à moins de 225 m%', 'correction 5 : le DEA du village sort « hors de portée », pas « tient »');
+  and (select detail from r1 where ligne = 'perte de T174-DEA2') like 'ne couvre aucun lieu public à moins de 225 m%', 'correction 5 : le DEA du village sort « hors de portée », pas « tient »');
 select tests.ok((select verdict || '|' || niveau from r1 where fonction = 'DEFIB' and ligne = 'moyens sans position') = 'à vérifier|1'
   and (select detail from r1 where fonction = 'DEFIB' and ligne = 'moyens sans position') like '1 moyen(s)%T174-DEA3', 'correction 5 : le DEA sans position est signalé');
 select tests.ok(not exists (select 1 from r1 where ligne = 'perte de T174-DEA3'), 'un moyen sans position n''est pas retiré (il ne couvre personne)');
 select tests.ok((select verdict from r1 where fonction = 'SOINS' and ligne = 'état nominal') = 'assurée'
   and (select string_agg(verdict, ',' order by ligne) from r1 where fonction = 'SOINS' and ligne like 'perte de %') = 'tient,tient', 'soins : assurés, et la perte de l''un des deux postes tient');
 select tests.ok((select verdict || '|' || niveau from r1 where fonction = 'EXTINCTION' and ligne = 'état nominal') = 'NON ASSURÉE|3'
-  and (select detail from r1 where fonction = 'EXTINCTION' and ligne = 'état nominal') like '1 cible(s) sur 3 à moins de 20 m%', 'extinction : non assurée, 1 élément à risque sur 3');
+  and (select detail from r1 where fonction = 'EXTINCTION' and ligne = 'état nominal') like '1 élément(s) à risque sur 3 à moins de 20 m%', 'extinction : non assurée, 1 élément à risque sur 3');
 select tests.ok((select verdict from r1 where ligne = 'perte de T174-EXT1') = 'ÉLÉMENT UNIQUE', 'l''unique extincteur : élément unique');
 
 -- Comptages.
@@ -90,7 +90,7 @@ select tests.ok((select verdict || '|' || niveau from r1 where ligne = 'perte de
 -- Cause commune.
 select tests.ok((select count(*) from r1 where fonction = 'CAUSE COMMUNE') = 1 and (select element from r1 where fonction = 'CAUSE COMMUNE') = 'T174-GE1',
   'cause commune : un seul élément à risque en cause, le groupe du bar');
-select tests.ok((select detail from r1 where fonction = 'CAUSE COMMUNE') = 'DEFIB : 1 sur 1 (T174-DEA1 à 14 m) ; QG : 1 sur 1 (T174-QG à 6 m) ; ce groupe alimente aussi le QG',
+select tests.ok((select detail from r1 where fonction = 'CAUSE COMMUNE') = 'défibrillation : 1 sur 1 (T174-DEA1 à 14 m) ; QG : 1 sur 1 (T174-QG à 6 m) ; ce groupe alimente aussi le QG',
   'cause commune : le seul DEA du site et le QG (compté une fois, pas deux avec son lieu miroir) ; les soins n''y sont pas, un poste est hors du voisinage');
 select tests.ok(not exists (select 1 from r1 where fonction in ('QG', 'SITE')), 'ni ligne « QG non évaluable », ni ligne « point 0 » : les deux sont connus');
 select tests.ok((select string_agg(ordre::text, ',' order by ordre) from (select distinct ordre from r1) x) = '1,2,3,4,5,6,7,8'
@@ -118,7 +118,7 @@ update evenements set point_0_lat = null, point_0_lon = null where id = :EA;
 select tests.connecter('00000000-0000-0000-0000-00000000a001'); set role authenticated;
 create temp table r2 on commit drop as select * from defaillance_unique(:EA);
 reset role;
-select tests.ok((select element from r2 where fonction = 'CAUSE COMMUNE') = 'T174-GE1' and (select detail from r2 where fonction = 'CAUSE COMMUNE') like 'DEFIB : 1 sur 1 (T174-DEA1 à 14 m)%',
+select tests.ok((select element from r2 where fonction = 'CAUSE COMMUNE') = 'T174-GE1' and (select detail from r2 where fonction = 'CAUSE COMMUNE') like 'défibrillation : 1 sur 1 (T174-DEA1 à 14 m)%',
   'correction 4 : sans point 0, la cause commune est toujours trouvée');
 select tests.ok((select verdict || '|' || niveau from r2 where fonction = 'SITE') = 'à vérifier|1' and (select detail from r2 where fonction = 'SITE') like 'point 0 non posé : le site est centré sur ses lieux publics%',
   'correction 4 : le repli est annoncé');
@@ -126,11 +126,11 @@ update evenements set point_0_lat = 50.39000, point_0_lon = 5.62000 where id = :
 
 -- Les seuils sont des paramètres.
 select tests.connecter('00000000-0000-0000-0000-00000000a001'); set role authenticated;
-select tests.ok((select verdict || '|' || detail from defaillance_unique(:EA, p_dea_m => 5) where fonction = 'DEFIB' and ligne = 'état nominal') like 'NON ASSURÉE|0 cible(s) sur 2 à moins de 5 m%',
+select tests.ok((select verdict || '|' || detail from defaillance_unique(:EA, p_dea_m => 5) where fonction = 'DEFIB' and ligne = 'état nominal') like 'NON ASSURÉE|0 lieu(x) public(s) sur 2 à moins de 5 m%',
   'seuil du DEA ramené à 5 m : la défibrillation n''est plus assurée');
 select tests.ok((select detail from defaillance_unique(:EA, p_voisin_m => 10) where fonction = 'CAUSE COMMUNE') = 'QG : 1 sur 1 (T174-QG à 6 m) ; ce groupe alimente aussi le QG',
   'voisinage ramené à 10 m : seul le QG reste dans la cause commune');
-select tests.ok((select detail from defaillance_unique(:EA, p_dea_m => null, p_soins_m => -4, p_voisin_m => 0) where fonction = 'DEFIB' and ligne = 'état nominal') like '2 cible(s) sur 2 à moins de 225 m%',
+select tests.ok((select detail from defaillance_unique(:EA, p_dea_m => null, p_soins_m => -4, p_voisin_m => 0) where fonction = 'DEFIB' and ligne = 'état nominal') like '2 lieu(x) public(s) sur 2 à moins de 225 m%',
   'un seuil absent reprend sa valeur par défaut, un seuil absurde est borné');
 reset role;
 
@@ -141,7 +141,7 @@ select tests.connecter('00000000-0000-0000-0000-00000000a001'); set role authent
 create temp table r3 on commit drop as select * from defaillance_unique(:EA);
 reset role;
 select tests.ok((select verdict || '|' || niveau from r3 where fonction = 'QG') = 'non évaluable|1', 'correction 1 : sans QG reconnu, une ligne « non évaluable »');
-select tests.ok((select verdict from r3 where ligne = 'perte de T174-GE1') = 'sans effet sur la sécurité' and (select detail from r3 where fonction = 'CAUSE COMMUNE') = 'DEFIB : 1 sur 1 (T174-DEA1 à 14 m)',
+select tests.ok((select verdict from r3 where ligne = 'perte de T174-GE1') = 'sans effet sur la sécurité' and (select detail from r3 where fonction = 'CAUSE COMMUNE') = 'défibrillation : 1 sur 1 (T174-DEA1 à 14 m)',
   'sans QG : le groupe du bar n''alimente plus rien de critique, et la cause commune ne cite plus que le DEA');
 -- Un QG reconnu à son seul nom, et un lieu « PC opérationnel » posé hors du plan.
 insert into elements_plan (evenement_id, code, nom, categorie, nature, centre_lat, centre_lon) values (:EA, 'T174-PC', 'PC sécurité', 'autre', 'picto', 50.39300, 5.62000);

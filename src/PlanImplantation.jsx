@@ -11,6 +11,7 @@ import { CATEGORIES_PLAN as CATEGORIES } from './referentielsProduit'
 import { useDrapeau } from './useDrapeau'
 import Implantation from './Implantation'
 import BilansImplantation from './BilansImplantation'
+import DefaillanceUnique from './DefaillanceUnique'
 import Message from './Message'
 
 
@@ -46,7 +47,7 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir,
   const [message, setMessage] = useState(null)
   // En préparation on conçoit ; sur site on fait la tournée.
   const [vue, setVue] = useState(evenement.phase === 'preparation' ? 'conception' : 'tournee')
-  useRubriqueRoute('plan', vue, setVue, ongletCible, ['conception', 'b-controles', 'b-energie', 'b-rgie', 'b-unifilaire', 'b-eau', 'b-metre', 'tournee', 'carte', 'secours', 'risques', 'ajout'])
+  useRubriqueRoute('plan', vue, setVue, ongletCible, ['conception', 'b-controles', 'b-unique', 'b-energie', 'b-rgie', 'b-unifilaire', 'b-eau', 'b-metre', 'tournee', 'carte', 'secours', 'risques', 'ajout'])
   // (31/10) Les comptes des bilans, remontés pour les libellés de la liste.
   const [comptes, setComptes] = useState({})
   const [ouvrir, setOuvrir] = useState(null) // { id, n } : l'objet à ouvrir en Conception (depuis les Bilans)
@@ -127,6 +128,7 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir,
           </optgroup>
           <optgroup label="Bilans">
             <option value="b-controles">Contrôles{comptes.controles != null ? ` (${comptes.controles})` : ''}</option>
+            <option value="b-unique">Éléments uniques{comptes.unique != null ? ` (${comptes.unique})` : ''}</option>
             <option value="b-energie">Énergie</option>
             <option value="b-rgie">Électricité — RGIE{comptes.rgie != null ? ` (${comptes.rgie})` : ''}</option>
             <option value="b-unifilaire">Schéma unifilaire</option>
@@ -159,8 +161,13 @@ export default function PlanImplantation({ evenement, membre, peut, toutPouvoir,
         />
       )}
       {/* (28/10) Depuis un contrôle, un objet cliqué s'ouvre dans Conception, fiche et carte centrées sur lui. */}
-      {vue.startsWith('b-') && (
-        <BilansImplantation elements={elements} evenement={evenement} onglet={vue.slice(2)} onComptes={setComptes}
+      {vue.startsWith('b-') && vue !== 'b-unique' && (
+        <BilansImplantation elements={elements} evenement={evenement} onglet={vue.slice(2)} onComptes={(c) => setComptes((avant) => ({ ...avant, ...c }))}
+          onOuvrir={(id) => { setOuvrir({ id, n: Date.now() }); setVue('conception') }} />
+      )}
+      {/* (174) Ce qui tombe quand un élément manque : calculé par le serveur, un élément cité s'ouvre dans Conception. */}
+      {vue === 'b-unique' && (
+        <DefaillanceUnique evenement={evenement} elements={elements} onCompte={(n) => setComptes((avant) => ({ ...avant, unique: n ?? undefined }))}
           onOuvrir={(id) => { setOuvrir({ id, n: Date.now() }); setVue('conception') }} />
       )}
 

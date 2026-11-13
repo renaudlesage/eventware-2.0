@@ -799,7 +799,9 @@ Tests : `../../outils/replique/tests/174.sql` (41 assertions sur un plan constru
 
 Vérification : `../verifications/174-defaillance-unique.sql` (lecture seule ; se présente comme une personne à tout pouvoir de l'événement le temps d'une transaction annulée).
 
-Limites connues : distances à vol d'oiseau, de centre à centre ; sorties, points de rassemblement et accès des secours comptés, pas situés ; points d'eau, périmètres et aires hélico non lus ; les personnes ne sont pas retirées une à une ; les seuils par défaut sont des hypothèses de travail. Aucun écran ne l'affiche encore.
+Limites connues : distances à vol d'oiseau, de centre à centre ; sorties, points de rassemblement et accès des secours comptés, pas situés ; points d'eau, périmètres et aires hélico non lus ; les personnes ne sont pas retirées une à une ; les seuils par défaut sont des hypothèses de travail.
+
+Affichage : écran Implantation, rubrique « Éléments uniques » des bilans (`src/DefaillanceUnique.jsx`) : le plus grave d'abord, ce qui tient replié, les seuils réglables, un élément cité qui s'ouvre dans Conception. Tant que la migration n'est pas appliquée, la rubrique dit que l'analyse n'est pas encore activée.
 
 ## Ne jamais rejouer 088 → 174 par `db push` sans les lignes ci-dessus
 

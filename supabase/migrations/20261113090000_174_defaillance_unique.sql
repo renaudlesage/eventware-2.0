@@ -112,6 +112,9 @@ begin
               from cibles c join moyens m on m.f = c.f and m.la is not null and m.id <> c.id),
   proche as (select r.f, r.cible, min(r.m) m from rangs r group by r.f, r.cible),
   nominal as (select s.f, s.s seuil,
+                     -- ce que la fonction doit couvrir, en clair
+                     case when s.f = 'EXTINCTION' then 'élément(s) à risque' else 'lieu(x) public(s)' end quoi,
+                     case when s.f = 'EXTINCTION' then 'élément à risque' else 'lieu public' end quoi_un,
                      (select count(*) from cibles c where c.f = s.f) n_cibles,
                      (select count(*) from proche q where q.f = s.f and q.m <= s.s) n_couvertes,
                      (select round(max(q.m)) from proche q where q.f = s.f) pire_m,
@@ -163,8 +166,8 @@ begin
          case when n.n_cibles = 0 then
                 format('aucun %s placé sur le plan', case when n.f = 'EXTINCTION' then 'élément à risque' else 'lieu accueillant du public' end)
               when n.n_moyens - n.n_sans_position = 0 then
-                format('aucun moyen placé sur le plan pour %s cible(s)', n.n_cibles)
-              else format('%s cible(s) sur %s à moins de %s m ; la plus éloignée à %s m', n.n_couvertes, n.n_cibles, n.seuil, coalesce(n.pire_m::text, '—'))
+                format('aucun moyen placé sur le plan pour %s %s', n.n_cibles, n.quoi)
+              else format('%s %s sur %s à moins de %s m ; le plus éloigné à %s m', n.n_couvertes, n.quoi, n.n_cibles, n.seuil, coalesce(n.pire_m::text, '—'))
          end,
          null::text
     from nominal n
@@ -181,10 +184,10 @@ begin
          case when pe.n_sans < n.n_couvertes then 'ÉLÉMENT UNIQUE' when pe.n_portee = 0 then 'hors de portée' else 'tient' end,
          case when pe.n_sans < n.n_couvertes then 2 else 0 end,
          case when pe.n_sans < n.n_couvertes then
-                format('%s cible(s) couvertes au lieu de %s ; la plus éloignée passe à %s', pe.n_sans, n.n_couvertes, coalesce(pe.pire_sans::text || ' m', 'aucun autre moyen'))
+                format('%s %s couvert(s) au lieu de %s ; le plus éloigné passe à %s', pe.n_sans, n.quoi, n.n_couvertes, coalesce(pe.pire_sans::text || ' m', 'aucun autre moyen'))
               when pe.n_portee = 0 then
-                format('ne couvre aucune cible à moins de %s m ; la plus proche est à %s', n.seuil, coalesce(pe.plus_proche::text || ' m', '—'))
-              else format('%s cible(s) couvertes, comme avant ; la plus éloignée passe à %s m', pe.n_sans, coalesce(pe.pire_sans::text, '—'))
+                format('ne couvre aucun %s à moins de %s m ; le plus proche est à %s', n.quoi_un, n.seuil, coalesce(pe.plus_proche::text || ' m', '—'))
+              else format('%s %s couvert(s), comme avant ; le plus éloigné passe à %s m', pe.n_sans, n.quoi, coalesce(pe.pire_sans::text, '—'))
          end,
          pe.code
     from perte pe join nominal n on n.f = pe.f
@@ -274,7 +277,7 @@ begin
   -- 8. Causes communes
   -- -------------------------------------------------------------------
   select 8, 'CAUSE COMMUNE', 'autour de ' || r.code || ' (' || r.nom || ')', 'ÉLÉMENT UNIQUE', 2,
-         string_agg(format('%s : %s sur %s (%s)', c.f, c.proches, c.total, c.lesquels), ' ; ' order by c.f)
+         string_agg(format('%s : %s sur %s (%s)', case c.f when 'DEFIB' then 'défibrillation' when 'SOINS' then 'soins' else c.f end, c.proches, c.total, c.lesquels), ' ; ' order by c.f)
            || case when exists (select 1 from energie g where g.racine = r.id and g.alimente_qg) then ' ; ce groupe alimente aussi le QG' else '' end,
          r.code
     from commune c join e r on r.id = c.risque

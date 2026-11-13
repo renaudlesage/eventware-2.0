@@ -3871,3 +3871,19 @@ html[data-charge] .vide > * { display: none; }
 
 /* Le compteur d'un champ borné, visible à l'approche de la limite (172) */
 .compteur-saisie { margin: -4px 0 8px; text-align: right; flex: 1 0 100%; }
+
+/* Bilan « Éléments uniques » du plan d'implantation (174) */
+.unique .prc-ligne { align-items: flex-start; }
+.unique .prc-jeton { flex: 0 0 auto; white-space: nowrap; }
+.unique-detail { color: var(--sourdine); overflow-wrap: anywhere; }
+.unique-tient, .unique-seuils { margin: 10px 0; }
+.unique-tient > summary, .unique-seuils > summary { cursor: pointer; padding: 8px 0; font-weight: 600; min-height: 32px; }
+.unique-seuils-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px 16px; padding: 8px 0; }
+.unique-seuils-form label { display: flex; flex-direction: column; gap: 4px; margin: 0; }
+.unique-seuil-champ { display: flex; align-items: center; gap: 6px; }
+.unique-seuil-champ input { width: 96px; }
+.unique-seuils-form .ligne-boutons { grid-column: 1 / -1; }
+@media (max-width: 700px) {
+  .unique .prc-ligne { flex-wrap: wrap; gap: 6px 10px; }
+  .unique .prc-ligne-texte { flex-basis: 100%; order: 2; }
+}

@@ -293,6 +293,17 @@ function constructeur(table, fn, args) {
     mes_demandes: [{ id: 'm1', reference: 'SEC-001', titre: 'Renfort', statut: 'attribuee', priorite: 'P1', module: 'securite', lieu: null, created_at: '2026-11-11T13:00:00Z' }],
     // (168) La page du poste, telle que le serveur la rend (numéros déjà masqués).
     generer_postes_qr: 2,
+    // (174) Le critère de défaillance unique, tel que le serveur le rend : les constats de « BFMF 2027 », sur les codes du plan du banc.
+    defaillance_unique: (a) => [
+      { ordre: 1, fonction: 'DEFIB', ligne: 'état nominal', verdict: 'assurée', niveau: 0, detail: `16 lieu(x) public(s) sur 16 à moins de ${a.p_dea_m} m ; le plus éloigné à 84 m`, element: null },
+      { ordre: 1, fonction: 'EXTINCTION', ligne: 'état nominal', verdict: 'NON ASSURÉE', niveau: 3, detail: '1 élément(s) à risque sur 12 à moins de 20 m ; le plus éloigné à 51 m', element: null },
+      { ordre: 2, fonction: 'DEFIB', ligne: 'perte de DEA1', verdict: 'ÉLÉMENT UNIQUE', niveau: 2, detail: '0 lieu(x) public(s) couvert(s) au lieu de 16 ; le plus éloigné passe à 2057 m', element: 'DEA1' },
+      { ordre: 2, fonction: 'DEFIB', ligne: 'perte de DEAPICTO-02', verdict: 'hors de portée', niveau: 0, detail: 'ne couvre aucun lieu public à moins de 225 m ; le plus proche est à 2017 m', element: 'DEAPICTO-02' },
+      { ordre: 5, fonction: 'ALERTE', ligne: 'état nominal', verdict: 'NON ASSURÉE', niveau: 3, detail: '0 voie(s) indépendante(s) : radio absente ; téléphone du QG absent', element: null },
+      { ordre: 7, fonction: 'ÉNERGIE', ligne: 'charge de GE1', verdict: 'à vérifier', niveau: 1, detail: '24,0 kW demandés pour 30 kVA : chargé à 100 % (cos φ 0,8)', element: 'GE1' },
+      { ordre: 7, fonction: 'ÉNERGIE', ligne: 'perte de GE1', verdict: 'ÉLÉMENT UNIQUE', niveau: 2, detail: 'alimente seul : QGSECU-01 ; tombent : BARCONT-01, QGSECU-01', element: 'GE1' },
+      { ordre: 8, fonction: 'CAUSE COMMUNE', ligne: 'autour de GE1 (Groupe 60 kVA)', verdict: 'ÉLÉMENT UNIQUE', niveau: 2, detail: 'défibrillation : 1 sur 1 (DEA1 à 13 m) ; QG : 1 sur 1 (QGSECU-01 à 18 m) ; ce groupe alimente aussi le QG', element: 'GE1' }
+    ],
     // (171) Le masquage, en doublure : assez pour que le banc voie l'aperçu paraître et disparaître. La vraie règle
     // est celle de la base (masquer_numeros), éprouvée par outils/replique/tests/171.sql.
     masquer_numeros: ({ p_texte }) => doublureMasquage(p_texte),
