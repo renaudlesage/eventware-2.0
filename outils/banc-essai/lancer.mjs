@@ -87,8 +87,9 @@ async function verifierPontRadio(page, erreurs) {
   if ((await lignes.count()) !== 1 || !/SOS-001/.test(await lignes.first().innerText())) erreurs.push(`pont radio : ${await lignes.count()} ligne(s) à annoncer (attendu la seule SOS-001)`)
   if (!/Participant/i.test(await lignes.first().locator('.prc-jeton').innerText())) erreurs.push('pont radio : SOS-001 n’est pas marqué « Participant »')
   const message = lignes.first().locator('textarea')
-  if ((await message.inputValue()) !== 'Signalement. Malaise. Étape 1. Référence S, O, S, zéro, zéro, un.') erreurs.push(`pont radio : message proposé « ${await message.inputValue()} »`)
-  if (!/ne sera pas lue sur le canal\) : Personne au sol/.test(await lignes.first().innerText())) erreurs.push('pont radio : ce que le participant a écrit n’est pas montré au QG')
+  // (14/11) Nature, gravité, lieu choisi, ce que la personne a écrit, et son doublon (SOS-002) — pas la référence.
+  if ((await message.inputValue()) !== 'Signalement. Malaise. Grave. Étape 1. Personne au sol. Signalé par 2 personnes.') erreurs.push(`pont radio : message proposé « ${await message.inputValue()} »`)
+  if (!(await page.evaluate(() => (window.__appels ?? []).some((a) => a.fn === 'masquer_numeros' && a.args?.p_texte === 'Personne au sol')))) erreurs.push('pont radio : ce que le participant a écrit n’est pas passé par le masquage de la base')
   if (/0477/.test(await page.locator('.pont-radio').innerText())) erreurs.push('pont radio : un numéro de contact est affiché')
   if (!(await lignes.first().getByRole('button', { name: 'Annoncer sur la radio' }).isDisabled())) erreurs.push('pont radio : on peut annoncer sans avoir démarré le pont')
   // La voix française de France passe devant celle du Canada ; l'anglaise n'est pas proposée.
@@ -106,25 +107,28 @@ async function verifierPontRadio(page, erreurs) {
   })
   await page.waitForTimeout(7500)
   const auto = await dit()
-  if (auto !== 'Message du QG. Signalement. Blessure. Près de Étape 1. Référence I, N, T, sept, K, deux, P. Je répète. Signalement. Blessure. Près de Étape 1. Référence I, N, T, sept, K, deux, P. Terminé.') erreurs.push(`pont radio : annonce automatique « ${auto} »`)
-  if (/Dupont|0478/.test(auto)) erreurs.push('pont radio : l’annonce automatique lit ce que la personne a écrit')
+  // (14/11) Le kilomètre sur le parcours comme la carte du signalement, ce que le bénévole a écrit, son numéro masqué, pas de référence.
+  if (auto !== 'Message du QG. Signalement. Blessure. Kilomètre 0,7, entre P0 et E1. Jean Dupont s’est ouvert la main, numéro connu du QG. Je répète. Signalement. Blessure. Kilomètre 0,7, entre P0 et E1. Jean Dupont s’est ouvert la main, numéro connu du QG. Terminé.') erreurs.push(`pont radio : annonce automatique « ${auto} »`)
+  if (/0478|INT|Référence/.test(auto)) erreurs.push('pont radio : l’annonce automatique lit un numéro ou la référence')
   const annonces = await journal('annonce_radio')
   if (annonces.length !== 1 || annonces[0].p_objet_id !== 's9' || annonces[0].p_objet_type !== 'signalements' || annonces[0].p_objet_ref !== 'INT-7K2P' || !/automatique/.test(annonces[0].p_texte) || annonces[0].p_importance !== 'notable') erreurs.push(`pont radio : inscription de l’annonce automatique ${JSON.stringify(annonces)}`)
   if (await page.locator('.pont-ligne', { hasText: 'INT-7K2P' }).count()) erreurs.push('pont radio : le signalement annoncé reste dans « À annoncer »')
   // Il ne repart pas au rafraîchissement suivant.
   await page.waitForTimeout(5500)
   if ((await journal('annonce_radio')).length !== 1) erreurs.push('pont radio : le signalement de bénévole est annoncé une seconde fois')
-  // Un Mayday part seul lui aussi : ni le nom ni le motif, l'indicatif oui.
+  // Un Mayday part seul lui aussi : le nom, l'indicatif et le motif se disent (14/11).
   await page.evaluate(() => { window.__dit = []; window.__donnees.maydays.unshift({ id: 'my1', reference: 'MAY-001', statut: 'emis', emetteur_nom: 'Luc Martin', motif: 'agression', indicatif: 'Sécu 2', latitude: null, longitude: null, emis_le: new Date().toISOString() }) })
   await page.waitForTimeout(7500)
   const mayday = await dit()
-  if (!/^Message du QG\. Mayday\. Bénévole en difficulté\. Indicatif Sécu 2\. Lieu non précisé\. Référence M, A, Y, zéro, zéro, un\. Je répète\./.test(mayday) || /Martin|agression/.test(mayday)) erreurs.push(`pont radio : annonce du Mayday « ${mayday} »`)
+  // (14/11) Qui, son indicatif, où, et son motif (masqué comme une description) ; pas la référence.
+  if (!/^Message du QG\. Mayday\. Luc Martin en difficulté\. Indicatif Sécu 2\. Lieu non précisé\. Agression\. Je répète\./.test(mayday) || /MAY|Référence/.test(mayday)) erreurs.push(`pont radio : annonce du Mayday « ${mayday} »`)
+  if (!(await page.evaluate(() => (window.__appels ?? []).some((a) => a.fn === 'masquer_numeros' && a.args?.p_texte === 'agression')))) erreurs.push('pont radio : le motif du Mayday n’est pas passé par le masquage')
   // Le signalement du participant ne part que sur un appui, avec le texte retouché par le QG.
-  if (/SOS-001|S, O, S/.test(auto + mayday)) erreurs.push('pont radio : le signalement d’un participant est parti tout seul')
+  if (/Malaise\. Grave|Personne au sol/.test(auto + mayday)) erreurs.push('pont radio : le signalement d’un participant est parti tout seul')
   await page.evaluate(() => { window.__dit = [] })
-  await message.fill('Signalement. Malaise. Étape 1, côté ravitaillement. Référence S, O, S, zéro, zéro, un.')
+  await message.fill('Signalement. Malaise. Grave. Étape 1, côté ravitaillement. Personne au sol.')
   await lignes.first().getByRole('button', { name: 'Annoncer sur la radio' }).click(); await page.waitForTimeout(1500)
-  if (!/^Message du QG\. Signalement\. Malaise\. Étape 1, côté ravitaillement\./.test(await dit())) erreurs.push(`pont radio : annonce à la main « ${await dit()} »`)
+  if (!/^Message du QG\. Signalement\. Malaise\. Grave\. Étape 1, côté ravitaillement\. Personne au sol\. Je répète\./.test(await dit())) erreurs.push(`pont radio : annonce à la main « ${await dit()} »`)
   const manuelle = (await journal('annonce_radio')).find((a) => a.p_objet_id === 's1')
   if (!manuelle || /automatique/.test(manuelle.p_texte)) erreurs.push('pont radio : l’annonce à la main n’est pas inscrite comme telle')
   if (await page.locator('.pont-ligne').count()) erreurs.push('pont radio : il reste des lignes à annoncer')

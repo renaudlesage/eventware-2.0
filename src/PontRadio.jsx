@@ -47,6 +47,8 @@ const DEBITS = [['0.8', 'Lent'], ['0.9', 'Posé'], ['1', 'Normal']]
 // le poste le règle d'après la barre de niveau.
 const SENSIBILITES = [['0.02', 'Sensible'], ['0.04', 'Normale'], ['0.08', 'Peu sensible']]
 const MAX_LIBRE = 240
+// Un signalement se dit avec tout ce qui est remonté (ce qui a été écrit : jusqu'à 400 caractères) : sa ligne a plus de place.
+const MAX_SIGNALEMENT = 640
 // Au-delà, les signalements suivants attendent un appui : un téléphone qui s'emballe (ou quelqu'un
 // qui s'amuse) ne doit pas occuper le canal d'urgence à lui seul. Un Mayday, lui, part toujours.
 const MAX_AUTO = 5
@@ -123,9 +125,9 @@ export default function PontRadio({ evenement, membre }) {
         // Ni le contact ni l'auteur : le pont n'en a pas besoin, il ne les charge pas.
         .select('id, reference, type, statut, description, lieu_id, latitude, longitude, emis_le, recu_le, created_by, doublon_de')
         .eq('evenement_id', evenement.id).order('recu_le', { ascending: false }).limit(60),
-      supabase.from('maydays').select('id, reference, statut, indicatif, latitude, longitude, emis_le')
+      supabase.from('maydays').select('id, reference, statut, emetteur_nom, indicatif, motif, latitude, longitude, emis_le')
         .eq('evenement_id', evenement.id).order('emis_le', { ascending: false }).limit(20),
-      supabase.from('lieux').select('id, nom, latitude, longitude').eq('evenement_id', evenement.id),
+      supabase.from('lieux').select('id, code, nom, latitude, longitude, pk_km').eq('evenement_id', evenement.id).is('deleted_at', null),
       supabase.from('journal').select('id, horodatage, categorie, texte, objet_id, objet_ref, auteur_nom')
         .eq('evenement_id', evenement.id).in('categorie', ['annonce_radio', 'pont_radio'])
         .order('horodatage', { ascending: false }).limit(60)
@@ -152,6 +154,35 @@ export default function PontRadio({ evenement, membre }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evenement.id, actif])
 
+  // (14/11) Le parcours, pour dire le kilomètre comme la carte du signalement. Il ne bouge pas pendant l'événement : lu une fois.
+  const [traces, setTraces] = useState([])
+  useEffect(() => {
+    supabase.from('traces').select('nom, points').eq('evenement_id', evenement.id).is('deleted_at', null).eq('actif', true)
+      .then(({ data }) => setTraces(data ?? []))
+  }, [evenement.id])
+
+  // (14/11) Ce que la personne a écrit, masqué par la base avant d'être dit (numéros, adresses) : la même
+  // fonction que la page du QR. Tant que ce n'est pas fait, le signalement attend ; si le masquage échoue,
+  // on ne lit pas le texte — le reste du message part. Pas plus de cinq secondes d'attente : une urgence ne
+  // reste pas bloquée derrière un réseau lent.
+  const [descriptions, setDescriptions] = useState({})
+  const demandees = useRef(new Set())
+  useEffect(() => {
+    // Ce qui a été écrit : la description d'un signalement, le motif d'un Mayday.
+    const textes = [
+      ...donnees.signalements.filter((s) => s.statut === 'recu' && !s.doublon_de).map((s) => [s.id, s.description]),
+      ...donnees.maydays.filter((m) => m.statut === 'emis').map((m) => [m.id, m.motif])
+    ]
+    for (const [id, texte] of textes) {
+      if (!texte || demandees.current.has(id)) continue
+      demandees.current.add(id)
+      const delai = new Promise((resoudre) => setTimeout(() => resoudre({ error: 'délai' }), 5000))
+      Promise.race([supabase.rpc('masquer_numeros', { p_texte: texte }), delai])
+        .then(({ data, error }) => setDescriptions((d) => (id in d ? d : { ...d, [id]: error || typeof data !== 'string' ? '' : data })))
+        .catch(() => setDescriptions((d) => ({ ...d, [id]: '' })))
+    }
+  }, [donnees])
+
   const annonces = useMemo(() => {
     const ids = new Set(faits)
     for (const x of donnees.journal) if (x.categorie === 'annonce_radio' && x.objet_id) ids.add(x.objet_id)
@@ -160,9 +191,9 @@ export default function PontRadio({ evenement, membre }) {
 
   const [retenus, setRetenus] = useState(() => new Set()) // partis en « À annoncer » parce que le plafond était atteint
   const liste = useMemo(
-    () => aAnnoncer({ ...donnees, annonces, connus: actif ? connus : null })
+    () => aAnnoncer({ ...donnees, traces, descriptions, annonces, connus: actif ? connus : null })
       .map((a) => (echecs.has(a.cle) ? { ...a, mode: 'main', echec: true } : retenus.has(a.cle) ? { ...a, mode: 'main', retenu: true } : a)),
-    [donnees, annonces, connus, actif, echecs, retenus]
+    [donnees, traces, descriptions, annonces, connus, actif, echecs, retenus]
   )
 
   /* --- L'émission : une annonce à la fois, dans l'ordre --- */
@@ -231,7 +262,7 @@ export default function PontRadio({ evenement, membre }) {
   useEffect(() => {
     if (!actif) return
     for (const a of liste) {
-      if (a.mode !== 'auto' || lances.current.has(a.cle)) continue
+      if (a.mode !== 'auto' || a.attente || lances.current.has(a.cle)) continue
       if (a.genre === 'signalements') {
         const maintenant = Date.now()
         autos.current = autos.current.filter((t) => maintenant - t < FENETRE_AUTO_MS)
@@ -398,7 +429,7 @@ export default function PontRadio({ evenement, membre }) {
       <p className="aide">
         Ce poste lit les signalements sur le canal d’urgence, à voix de synthèse. Il doit être relié à une radio
         (sortie casque du poste vers l’entrée micro de la radio, radio en VOX) et rester sur cet écran, allumé, au premier plan.
-        Le message dit la nature, le lieu et la référence — jamais ce que la personne a écrit, ni un nom, ni un numéro.
+        Le message dit tout ce qui est remonté : la nature, la gravité, le lieu (le kilomètre sur le parcours, comme la carte du signalement), ce que la personne a écrit, combien l’ont signalé, l’heure d’émission s’il est arrivé en retard ; pour un Mayday, qui, son indicatif et son motif. Numéros et adresses masqués ; pas la référence, pas le contact.
       </p>
 
       <Message message={message} onFermer={() => setMessage(null)} />
@@ -500,7 +531,6 @@ export default function PontRadio({ evenement, membre }) {
       ) : (
         <div className="prc-liste">
           {aLaMain.map((a) => {
-            const source = donnees.signalements.find((s) => s.id === a.id)
             const texte = textes[a.cle] ?? a.texte
             return (
               <div key={a.cle} className="prc-ligne pont-ligne" data-objet={a.id}>
@@ -512,15 +542,13 @@ export default function PontRadio({ evenement, membre }) {
                     {a.echec && ' · l’annonce automatique a échoué'}
                     {a.retenu && ' · retenu, trop d’annonces automatiques'}
                   </span>
-                  {source?.description && (
-                    <span className="sourdine">Description (ne sera pas lue sur le canal) : {source.description}</span>
-                  )}
+                  {a.attente && <span className="sourdine">Masquage des numéros en cours…</span>}
                   <textarea
-                    rows={2} maxLength={MAX_LIBRE} value={texte} aria-label={`Message pour ${a.reference}`}
+                    rows={3} maxLength={MAX_SIGNALEMENT} value={texte} aria-label={`Message pour ${a.reference}`}
                     onChange={(e) => setTextes((t) => ({ ...t, [a.cle]: e.target.value }))}
                   />
                 </div>
-                <button type="button" className="principal" disabled={!actif || !texte.trim() || enCours?.cle === a.cle} onClick={() => mettreEnFile({ ...a, texte: texte.trim() })}>
+                <button type="button" className="principal" disabled={!actif || !texte.trim() || a.attente || enCours?.cle === a.cle} onClick={() => mettreEnFile({ ...a, texte: texte.trim() })}>
                   Annoncer sur la radio
                 </button>
               </div>
