@@ -8,10 +8,15 @@
  *
  * Trois règles, parce que c'est un canal d'urgence :
  *
- * — le message est COURT et sans donnée personnelle : nature, lieu,
- *   référence. Jamais la description libre ni le contact : un canal
- *   radio s'écoute, et le texte d'un participant anonyme n'a pas à y
- *   être lu sans qu'un humain l'ait vu ;
+ * — le message dit ce qu'il faut pour agir : la nature, la gravité si
+ *   elle est connue, le lieu comme le montre la carte du signalement
+ *   (kilomètre sur le parcours et repère), puis ce que la personne a
+ *   écrit (14/11, retour de Ren : « le message n'est que partiel »).
+ *   Pas la référence : sur le canal, on désigne un cas par sa nature et
+ *   son lieu. Pas le contact. Les numéros et adresses de ce qui a été
+ *   écrit sont masqués par la base (masquer_numeros, la même que pour
+ *   la page du QR) ; le texte d'un participant anonyme ne part qu'après
+ *   qu'un humain l'a lu au QG ;
  * — il est dit DEUX FOIS : la première phrase d'une émission se perd
  *   souvent (le VOX coupe l'attaque, quelqu'un tourne la tête) ;
  * — on ne parle pas par-dessus quelqu'un : si le poste écoute le canal,
@@ -22,6 +27,8 @@
  * (PontRadio.jsx) décide QUOI annoncer et le consigne.
  */
 
+import { situerSurTrace } from './geometrie'
+
 /** La nature, telle qu'on la dit à la radio. */
 export const NATURES_PARLEES = {
   malaise: 'Malaise',
@@ -30,22 +37,6 @@ export const NATURES_PARLEES = {
   materiel: 'Problème matériel',
   egare: 'Personne égarée',
   autre: 'Incident'
-}
-
-const CHIFFRES = ['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf']
-
-/**
- * Une référence, épelée : « SOS-014 » → « S, O, S, zéro, un, quatre ».
- * Une voix de synthèse lit « SOS-014 » comme elle veut (« sosse moins quatorze ») ;
- * lettre à lettre et chiffre à chiffre, tout le monde note la même chose.
- */
-export function epeler(reference) {
-  return String(reference ?? '')
-    .toUpperCase()
-    .split('')
-    .map((c) => (/[0-9]/.test(c) ? CHIFFRES[Number(c)] : /[A-Z]/.test(c) ? c : null))
-    .filter(Boolean)
-    .join(', ')
 }
 
 /**
@@ -81,15 +72,30 @@ function metres(a, b) {
   return R * Math.sqrt(dLat * dLat + dLon * dLon)
 }
 
+/** « 6 » ou « 6,4 » : le kilomètre tel qu'une voix française le lit. */
+const kmParle = (km) => km.toFixed(1).replace('.', ',').replace(/,0$/, '')
+
 /**
- * Le lieu, tel qu'on le dit : le lieu choisi, sinon le lieu du dispositif le
- * plus proche de la position, sinon ce qu'on sait. Jamais de coordonnées :
- * personne ne note une latitude dictée à la radio.
+ * Le lieu, tel qu'on le dit :
+ *   1. le lieu choisi par la personne ;
+ *   2. sur un parcours, le kilomètre et le repère, comme la carte du
+ *      signalement au QG (« km 6.0 · après E3B » → « Kilomètre 6, après
+ *      E3B ») — à moins de 300 m de la trace ;
+ *   3. le lieu du dispositif le plus proche, à moins de 300 m ;
+ *   4. sinon ce qu'on sait. Jamais de coordonnées : personne ne note une
+ *      latitude dictée à la radio.
  */
-export function lieuParle(o, lieux = []) {
+export function lieuParle(o, lieux = [], traces = []) {
   const choisi = o?.lieu_id ? lieux.find((l) => l.id === o.lieu_id) : null
   if (choisi?.nom) return choisi.nom
   if (o?.latitude == null || o?.longitude == null) return 'Lieu non précisé'
+  const sur = traces?.length ? situerSurTrace(traces, lieux, o.latitude, o.longitude) : null
+  if (sur && sur.ecart_m <= PROCHE_M) {
+    const nom = (l) => l.code || l.nom
+    const repere = sur.avant && sur.apres ? `entre ${nom(sur.avant)} et ${nom(sur.apres)}`
+      : sur.avant ? `après ${nom(sur.avant)}` : sur.apres ? `avant ${nom(sur.apres)}` : null
+    return [`${sur.plusieurs && sur.trace ? `${sur.trace}, k` : 'K'}ilomètre ${kmParle(sur.km)}`, repere].filter(Boolean).join(', ')
+  }
   let proche = null
   for (const l of lieux) {
     if (l.latitude == null || l.longitude == null || !l.nom) continue
@@ -99,18 +105,40 @@ export function lieuParle(o, lieux = []) {
   return proche ? `Près de ${proche.nom}` : 'Position transmise au QG'
 }
 
-/** Le message d'un signalement, dit une fois : nature, lieu, référence — rien d'autre. */
-export function texteAnnonce(s, lieux) {
+const GRAVITES_PARLEES = { mineur: 'Gravité mineure', modere: 'Gravité modérée', grave: 'Grave' }
+const DESCRIPTION_MAX = 200
+
+/**
+ * Ce que la personne a écrit, prêt à être dit. `texte` a déjà été masqué par
+ * la base : « [numéro : voir le QG] » se dit « numéro connu du QG ». La phrase
+ * que l'application met d'office quand le bénévole n'a rien écrit (« Danger —
+ * sans précision, rappeler ») n'apprend rien : elle n'est pas dite. Au-delà
+ * de 200 caractères, on coupe au dernier mot : le reste est au QG.
+ */
+export function descriptionParlee(texte) {
+  let t = String(texte ?? '').replace(/\s+/g, ' ').trim()
+  if (!t || /—\s*sans précision, rappeler\.?$/i.test(t)) return ''
+  t = t.replace(/\[numéro[^\]]*\]/gi, 'numéro connu du QG').replace(/\[adresse[^\]]*\]/gi, 'adresse connue du QG')
+  if (t.length > DESCRIPTION_MAX) t = `${t.slice(0, DESCRIPTION_MAX).replace(/\s+\S*$/, '')}, la suite au QG`
+  return /[.!?]$/.test(t) ? t : `${t}.`
+}
+
+/**
+ * Le message d'un signalement, dit une fois : nature, gravité, lieu, puis ce
+ * que la personne a écrit (déjà masqué, voir `descriptionParlee`). Pas de
+ * référence : sur le canal, un cas se désigne par sa nature et son lieu.
+ */
+export function texteAnnonce(s, { lieux = [], traces = [], description = '' } = {}) {
   const nature = NATURES_PARLEES[s?.type] ?? 'Incident'
-  const reference = epeler(s?.reference)
-  return `Signalement. ${nature}. ${lieuParle(s, lieux)}.${reference ? ` Référence ${reference}.` : ''}`
+  const gravite = GRAVITES_PARLEES[s?.gravite]
+  const ecrit = descriptionParlee(description)
+  return [`Signalement. ${nature}.`, gravite ? `${gravite}.` : null, `${lieuParle(s, lieux, traces)}.`, ecrit || null].filter(Boolean).join(' ')
 }
 
 /** Le message d'un Mayday : ni le nom de la personne ni son motif ; l'indicatif radio, lui, se dit. */
-export function texteMayday(m, lieux) {
+export function texteMayday(m, { lieux = [], traces = [] } = {}) {
   const indicatif = String(m?.indicatif ?? '').trim()
-  const reference = epeler(m?.reference)
-  return `Mayday. Bénévole en difficulté.${indicatif ? ` Indicatif ${indicatif}.` : ''} ${lieuParle(m, lieux)}.${reference ? ` Référence ${reference}.` : ''}`
+  return `Mayday. Bénévole en difficulté.${indicatif ? ` Indicatif ${indicatif}.` : ''} ${lieuParle(m, lieux, traces)}.`
 }
 
 /**
@@ -120,6 +148,10 @@ export function texteMayday(m, lieux) {
  * @param {object[]} d.signalements
  * @param {object[]} d.maydays
  * @param {object[]} d.lieux
+ * @param {object[]} [d.traces]   le parcours, pour dire le kilomètre
+ * @param {Object<string, string>} [d.descriptions]  id → ce qui a été écrit, MASQUÉ par la base ('' si
+ *   rien à dire ou si le masquage a échoué). Un signalement écrit mais pas encore masqué est rendu
+ *   avec `attente: true` : il ne part pas avant d'être masqué.
  * @param {Set<string>} d.annonces  identifiants déjà annoncés (main courante et mémoire du poste)
  * @param {Set<string>|null} d.connus  identifiants présents au démarrage du pont ; null : pont arrêté
  * @param {number} [d.maintenant]
@@ -127,7 +159,7 @@ export function texteMayday(m, lieux) {
  *   `auto` : part seul (bénévole identifié ou Mayday, arrivé pendant que le pont tourne, sans retard) ;
  *   `main` : attend un appui du QG.
  */
-export function aAnnoncer({ signalements = [], maydays = [], lieux = [], annonces = new Set(), connus = null, maintenant = Date.now() }) {
+export function aAnnoncer({ signalements = [], maydays = [], lieux = [], traces = [], descriptions = {}, annonces = new Set(), connus = null, maintenant = Date.now() }) {
   const liste = []
   const recent = (iso) => !iso || maintenant - new Date(iso).getTime() <= ANCIENNETE_MAX_MS
   for (const s of signalements) {
@@ -137,9 +169,10 @@ export function aAnnoncer({ signalements = [], maydays = [], lieux = [], annonce
     const o = origine(s)
     const retard = !!(s.emis_le && s.recu_le && new Date(s.recu_le) - new Date(s.emis_le) > RETARD_MAX_MS)
     const nouveau = !!connus && !connus.has(s.id)
+    const attente = !!s.description && !(s.id in descriptions)
     liste.push({
       cle: `s:${s.id}`, genre: 'signalements', id: s.id, reference: s.reference, origine: o,
-      texte: texteAnnonce(s, lieux), quand, retard,
+      texte: texteAnnonce(s, { lieux, traces, description: descriptions[s.id] ?? '' }), quand, retard, attente,
       mode: o === 'benevole' && nouveau && !retard ? 'auto' : 'main'
     })
   }
@@ -149,7 +182,7 @@ export function aAnnoncer({ signalements = [], maydays = [], lieux = [], annonce
     const nouveau = !!connus && !connus.has(m.id)
     liste.push({
       cle: `m:${m.id}`, genre: 'maydays', id: m.id, reference: m.reference, origine: 'mayday',
-      texte: texteMayday(m, lieux), quand: m.emis_le, retard: false,
+      texte: texteMayday(m, { lieux, traces }), quand: m.emis_le, retard: false,
       mode: nouveau ? 'auto' : 'main'
     })
   }
