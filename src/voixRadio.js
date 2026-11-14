@@ -8,10 +8,14 @@
  *
  * Trois règles, parce que c'est un canal d'urgence :
  *
- * — le message dit ce qu'il faut pour agir : la nature, la gravité si
- *   elle est connue, le lieu comme le montre la carte du signalement
- *   (kilomètre sur le parcours et repère), puis ce que la personne a
- *   écrit (14/11, retour de Ren : « le message n'est que partiel »).
+ * — le message dit TOUS LES DÉTAILS qui sont remontés (14/11, Ren : « le
+ *   message n'est que partiel », « je veux surtout les détails des
+ *   informations remontantes ») : la nature, la gravité si elle est
+ *   connue, le lieu comme le montre la carte du signalement (kilomètre
+ *   sur le parcours et repère), ce que la personne a écrit, combien de
+ *   personnes ont signalé la même chose, l'heure d'émission si le
+ *   signalement est arrivé en retard ; pour un Mayday, qui, son
+ *   indicatif et son motif.
  *   Pas la référence : sur le canal, on désigne un cas par sa nature et
  *   son lieu. Pas le contact. Les numéros et adresses de ce qui a été
  *   écrit sont masqués par la base (masquer_numeros, la même que pour
@@ -106,39 +110,74 @@ export function lieuParle(o, lieux = [], traces = []) {
 }
 
 const GRAVITES_PARLEES = { mineur: 'Gravité mineure', modere: 'Gravité modérée', grave: 'Grave' }
-const DESCRIPTION_MAX = 200
+// (14/11, Ren : « je veux surtout les détails des informations remontantes ») Tout ce qui a été écrit
+// se dit, jusqu'à 400 caractères — une bonne minute de parole, répétition comprise.
+const DESCRIPTION_MAX = 400
+/** Au-delà de deux minutes entre l'émission et la réception, l'heure d'émission se dit : le cas a déjà vieilli. */
+const DECALAGE_DIT_MS = 2 * 60 * 1000
+
+/** « 10 heures 05 » : l'heure telle qu'une voix la lit sans hésiter. */
+export function heureParlee(iso) {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const [h, m] = d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Brussels' }).split(':')
+  return `${Number(h)} heures${m === '00' ? '' : ` ${m}`}`
+}
 
 /**
  * Ce que la personne a écrit, prêt à être dit. `texte` a déjà été masqué par
  * la base : « [numéro : voir le QG] » se dit « numéro connu du QG ». La phrase
  * que l'application met d'office quand le bénévole n'a rien écrit (« Danger —
  * sans précision, rappeler ») n'apprend rien : elle n'est pas dite. Au-delà
- * de 200 caractères, on coupe au dernier mot : le reste est au QG.
+ * de 400 caractères, on coupe au dernier mot : le reste est au QG.
  */
 export function descriptionParlee(texte) {
   let t = String(texte ?? '').replace(/\s+/g, ' ').trim()
   if (!t || /—\s*sans précision, rappeler\.?$/i.test(t)) return ''
   t = t.replace(/\[numéro[^\]]*\]/gi, 'numéro connu du QG').replace(/\[adresse[^\]]*\]/gi, 'adresse connue du QG')
   if (t.length > DESCRIPTION_MAX) t = `${t.slice(0, DESCRIPTION_MAX).replace(/\s+\S*$/, '')}, la suite au QG`
+  // Une phrase commence par une majuscule : la voix marque mieux le début.
+  t = t.charAt(0).toUpperCase() + t.slice(1)
   return /[.!?]$/.test(t) ? t : `${t}.`
 }
 
 /**
- * Le message d'un signalement, dit une fois : nature, gravité, lieu, puis ce
- * que la personne a écrit (déjà masqué, voir `descriptionParlee`). Pas de
- * référence : sur le canal, un cas se désigne par sa nature et son lieu.
+ * Le message d'un signalement, dit une fois — tous les détails qui sont remontés :
+ *   nature, gravité, lieu, ce que la personne a écrit (déjà masqué, voir
+ *   `descriptionParlee`), combien de personnes ont signalé la même chose, et
+ *   l'heure d'émission si le signalement est arrivé en retard.
+ * Pas de référence : sur le canal, un cas se désigne par sa nature et son lieu.
  */
-export function texteAnnonce(s, { lieux = [], traces = [], description = '' } = {}) {
+export function texteAnnonce(s, { lieux = [], traces = [], description = '', doublons = 0 } = {}) {
   const nature = NATURES_PARLEES[s?.type] ?? 'Incident'
   const gravite = GRAVITES_PARLEES[s?.gravite]
   const ecrit = descriptionParlee(description)
-  return [`Signalement. ${nature}.`, gravite ? `${gravite}.` : null, `${lieuParle(s, lieux, traces)}.`, ecrit || null].filter(Boolean).join(' ')
+  const decale = s?.emis_le && s?.recu_le && new Date(s.recu_le) - new Date(s.emis_le) > DECALAGE_DIT_MS
+  return [
+    `Signalement. ${nature}.`,
+    gravite ? `${gravite}.` : null,
+    `${lieuParle(s, lieux, traces)}.`,
+    ecrit || null,
+    doublons > 0 ? `Signalé par ${doublons + 1} personnes.` : null,
+    decale ? `Émis à ${heureParlee(s.emis_le)}.` : null
+  ].filter(Boolean).join(' ')
 }
 
-/** Le message d'un Mayday : ni le nom de la personne ni son motif ; l'indicatif radio, lui, se dit. */
-export function texteMayday(m, { lieux = [], traces = [] } = {}) {
+/**
+ * Le message d'un Mayday : qui est en difficulté, son indicatif, où, et ce qu'il
+ * a dit de sa situation (le motif, masqué comme une description). Le nom se dit :
+ * sur le canal, c'est ce qui fait réagir les collègues.
+ */
+export function texteMayday(m, { lieux = [], traces = [], motif = '' } = {}) {
+  const qui = String(m?.emetteur_nom ?? '').trim()
   const indicatif = String(m?.indicatif ?? '').trim()
-  return `Mayday. Bénévole en difficulté.${indicatif ? ` Indicatif ${indicatif}.` : ''} ${lieuParle(m, lieux, traces)}.`
+  const dit = descriptionParlee(motif)
+  return [
+    `Mayday. ${qui ? `${qui} en difficulté` : 'Bénévole en difficulté'}.`,
+    indicatif ? `Indicatif ${indicatif}.` : null,
+    `${lieuParle(m, lieux, traces)}.`,
+    dit || null
+  ].filter(Boolean).join(' ')
 }
 
 /**
@@ -149,9 +188,9 @@ export function texteMayday(m, { lieux = [], traces = [] } = {}) {
  * @param {object[]} d.maydays
  * @param {object[]} d.lieux
  * @param {object[]} [d.traces]   le parcours, pour dire le kilomètre
- * @param {Object<string, string>} [d.descriptions]  id → ce qui a été écrit, MASQUÉ par la base ('' si
- *   rien à dire ou si le masquage a échoué). Un signalement écrit mais pas encore masqué est rendu
- *   avec `attente: true` : il ne part pas avant d'être masqué.
+ * @param {Object<string, string>} [d.descriptions]  id → ce qui a été écrit (description d'un signalement,
+ *   motif d'un Mayday), MASQUÉ par la base ('' si rien à dire ou si le masquage a échoué). Un texte pas
+ *   encore masqué rend l'annonce `attente: true` : elle ne part pas avant.
  * @param {Set<string>} d.annonces  identifiants déjà annoncés (main courante et mémoire du poste)
  * @param {Set<string>|null} d.connus  identifiants présents au démarrage du pont ; null : pont arrêté
  * @param {number} [d.maintenant]
@@ -170,9 +209,10 @@ export function aAnnoncer({ signalements = [], maydays = [], lieux = [], traces 
     const retard = !!(s.emis_le && s.recu_le && new Date(s.recu_le) - new Date(s.emis_le) > RETARD_MAX_MS)
     const nouveau = !!connus && !connus.has(s.id)
     const attente = !!s.description && !(s.id in descriptions)
+    const doublons = signalements.filter((x) => x.doublon_de === s.id && !x.deleted_at).length
     liste.push({
       cle: `s:${s.id}`, genre: 'signalements', id: s.id, reference: s.reference, origine: o,
-      texte: texteAnnonce(s, { lieux, traces, description: descriptions[s.id] ?? '' }), quand, retard, attente,
+      texte: texteAnnonce(s, { lieux, traces, description: descriptions[s.id] ?? '', doublons }), quand, retard, attente,
       mode: o === 'benevole' && nouveau && !retard ? 'auto' : 'main'
     })
   }
@@ -182,7 +222,8 @@ export function aAnnoncer({ signalements = [], maydays = [], lieux = [], traces 
     const nouveau = !!connus && !connus.has(m.id)
     liste.push({
       cle: `m:${m.id}`, genre: 'maydays', id: m.id, reference: m.reference, origine: 'mayday',
-      texte: texteMayday(m, { lieux, traces }), quand: m.emis_le, retard: false,
+      texte: texteMayday(m, { lieux, traces, motif: descriptions[m.id] ?? '' }), quand: m.emis_le, retard: false,
+      attente: !!m.motif && !(m.id in descriptions),
       mode: nouveau ? 'auto' : 'main'
     })
   }

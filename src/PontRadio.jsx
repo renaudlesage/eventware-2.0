@@ -47,8 +47,8 @@ const DEBITS = [['0.8', 'Lent'], ['0.9', 'Posé'], ['1', 'Normal']]
 // le poste le règle d'après la barre de niveau.
 const SENSIBILITES = [['0.02', 'Sensible'], ['0.04', 'Normale'], ['0.08', 'Peu sensible']]
 const MAX_LIBRE = 240
-// Un signalement se dit avec ce que la personne a écrit (jusqu'à 200 caractères) : sa ligne a plus de place.
-const MAX_SIGNALEMENT = 420
+// Un signalement se dit avec tout ce qui est remonté (ce qui a été écrit : jusqu'à 400 caractères) : sa ligne a plus de place.
+const MAX_SIGNALEMENT = 640
 // Au-delà, les signalements suivants attendent un appui : un téléphone qui s'emballe (ou quelqu'un
 // qui s'amuse) ne doit pas occuper le canal d'urgence à lui seul. Un Mayday, lui, part toujours.
 const MAX_AUTO = 5
@@ -125,7 +125,7 @@ export default function PontRadio({ evenement, membre }) {
         // Ni le contact ni l'auteur : le pont n'en a pas besoin, il ne les charge pas.
         .select('id, reference, type, statut, description, lieu_id, latitude, longitude, emis_le, recu_le, created_by, doublon_de')
         .eq('evenement_id', evenement.id).order('recu_le', { ascending: false }).limit(60),
-      supabase.from('maydays').select('id, reference, statut, indicatif, latitude, longitude, emis_le')
+      supabase.from('maydays').select('id, reference, statut, emetteur_nom, indicatif, motif, latitude, longitude, emis_le')
         .eq('evenement_id', evenement.id).order('emis_le', { ascending: false }).limit(20),
       supabase.from('lieux').select('id, code, nom, latitude, longitude, pk_km').eq('evenement_id', evenement.id).is('deleted_at', null),
       supabase.from('journal').select('id, horodatage, categorie, texte, objet_id, objet_ref, auteur_nom')
@@ -168,13 +168,18 @@ export default function PontRadio({ evenement, membre }) {
   const [descriptions, setDescriptions] = useState({})
   const demandees = useRef(new Set())
   useEffect(() => {
-    for (const s of donnees.signalements) {
-      if (!s.description || s.statut !== 'recu' || s.doublon_de || demandees.current.has(s.id)) continue
-      demandees.current.add(s.id)
+    // Ce qui a été écrit : la description d'un signalement, le motif d'un Mayday.
+    const textes = [
+      ...donnees.signalements.filter((s) => s.statut === 'recu' && !s.doublon_de).map((s) => [s.id, s.description]),
+      ...donnees.maydays.filter((m) => m.statut === 'emis').map((m) => [m.id, m.motif])
+    ]
+    for (const [id, texte] of textes) {
+      if (!texte || demandees.current.has(id)) continue
+      demandees.current.add(id)
       const delai = new Promise((resoudre) => setTimeout(() => resoudre({ error: 'délai' }), 5000))
-      Promise.race([supabase.rpc('masquer_numeros', { p_texte: s.description }), delai])
-        .then(({ data, error }) => setDescriptions((d) => (s.id in d ? d : { ...d, [s.id]: error || typeof data !== 'string' ? '' : data })))
-        .catch(() => setDescriptions((d) => ({ ...d, [s.id]: '' })))
+      Promise.race([supabase.rpc('masquer_numeros', { p_texte: texte }), delai])
+        .then(({ data, error }) => setDescriptions((d) => (id in d ? d : { ...d, [id]: error || typeof data !== 'string' ? '' : data })))
+        .catch(() => setDescriptions((d) => ({ ...d, [id]: '' })))
     }
   }, [donnees])
 
@@ -424,7 +429,7 @@ export default function PontRadio({ evenement, membre }) {
       <p className="aide">
         Ce poste lit les signalements sur le canal d’urgence, à voix de synthèse. Il doit être relié à une radio
         (sortie casque du poste vers l’entrée micro de la radio, radio en VOX) et rester sur cet écran, allumé, au premier plan.
-        Le message dit la nature, la gravité, le lieu (le kilomètre sur le parcours, comme la carte du signalement) et ce que la personne a écrit, numéros et adresses masqués. Pas la référence, pas le contact.
+        Le message dit tout ce qui est remonté : la nature, la gravité, le lieu (le kilomètre sur le parcours, comme la carte du signalement), ce que la personne a écrit, combien l’ont signalé, l’heure d’émission s’il est arrivé en retard ; pour un Mayday, qui, son indicatif et son motif. Numéros et adresses masqués ; pas la référence, pas le contact.
       </p>
 
       <Message message={message} onFermer={() => setMessage(null)} />
